@@ -91,9 +91,36 @@ describe('credits FE', () => {
     expect(formatNextResetAtShanghai('2026-10-24T10:00:00Z')).toBe('2026/10/24 18:00')
   })
 
-  it('static pricing has three rows', () => {
+  it('static pricing has three plan cards data', () => {
     expect(CREDIT_PLAN_ROWS.map((r) => r.tier)).toEqual(['FREE', 'PRO', 'PLUS'])
     expect(creditTierLabel('FREE')).toBe('免费')
+  })
+
+  it('CreditPlan: renders three plan cards and marks current tier', async () => {
+    setToken('jwt')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        okCredits({
+          tier: 'FREE',
+          available: 20,
+          balance: 20,
+          reserved: 0,
+          nextResetAt: '2026-10-24T10:00:00Z',
+          periodAnchorAt: '2026-09-24T10:00:00Z',
+        }),
+      ),
+    )
+    const mounted = await mountCreditPlan()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const cards = mounted.root.querySelectorAll('.plan-card')
+    expect(cards).toHaveLength(3)
+    const current = mounted.root.querySelector('.plan-card.current')
+    expect(current?.textContent).toContain('免费')
+    expect(current?.textContent).toContain('当前套餐')
+    expect(mounted.root.textContent).not.toContain('立即购买')
   })
 
   it('CreditPlan: no JWT skips fetch and shows login guide', async () => {

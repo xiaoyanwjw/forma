@@ -101,17 +101,29 @@ function goLogin() {
         </section>
 
         <section class="pricing" aria-label="套餐价目">
-          <h2>价目</h2>
+          <h2>套餐</h2>
           <p class="hint">三档只差积分。月费按模型成本后公布。</p>
-          <ul class="rows">
+          <ul class="cards">
             <li
               v-for="row in CREDIT_PLAN_ROWS"
               :key="row.tier"
-              class="row"
+              class="plan-card"
               :class="{ current: balance.tier === row.tier }"
             >
-              <strong>{{ row.label }}</strong>
-              <span>{{ row.monthlyQuota }} 积分/月 · {{ row.monthlyPriceLabel }}</span>
+              <p class="card-tier">{{ row.label }}</p>
+              <p class="card-price">
+                <span class="price-value">{{ row.monthlyPriceLabel }}</span>
+                <span class="price-unit">/ 月</span>
+              </p>
+              <p class="card-sub">每月 {{ row.monthlyQuota }} 积分</p>
+              <p class="card-status" :class="{ on: balance.tier === row.tier }">
+                {{ balance.tier === row.tier ? '当前套餐' : '—' }}
+              </p>
+              <ul class="card-points">
+                <li>{{ row.monthlyQuota }} 积分 / 月</li>
+                <li>全部已上线模板可用</li>
+                <li>按订阅锚点月重置</li>
+              </ul>
             </li>
           </ul>
         </section>
@@ -134,14 +146,16 @@ function goLogin() {
   color: #121212;
 }
 .inner {
-  max-width: 36rem;
+  max-width: 58rem;
   margin: 0 auto;
-  padding: 3rem 1rem;
+  padding: 3rem 1rem 4rem;
 }
 h1,
 h2,
 .tier,
-.available {
+.available,
+.price-value,
+.card-tier {
   font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
   letter-spacing: -0.02em;
 }
@@ -184,33 +198,109 @@ h2 {
   color: #121212;
 }
 .pricing {
-  margin-top: 2rem;
+  margin-top: 2.25rem;
 }
 .hint {
   color: #555;
-  margin: 0 0 0.75rem;
+  margin: 0 0 1.1rem;
   font-size: 0.95rem;
 }
-.rows {
+.cards {
   list-style: none;
   margin: 0;
   padding: 0;
-}
-.row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid #c5c9d0;
 }
-.row.current {
-  border-bottom-color: #e11d48;
+@media (min-width: 720px) {
+  .cards {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.85rem;
+  }
 }
-.row.current strong::after {
-  content: ' · 当前';
-  color: #e11d48;
+.plan-card {
+  background: #fff;
+  border: 1px solid #d5d9e0;
+  border-radius: 12px;
+  padding: 1.35rem 1.2rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  box-sizing: border-box;
+}
+.plan-card.current {
+  border-color: #e11d48;
+  box-shadow: 0 0 0 1px #e11d48;
+}
+.card-tier {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.card-price {
+  margin: 0.15rem 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.price-value {
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.price-unit {
+  color: #888;
+  font-size: 0.9rem;
+}
+.card-sub {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+.card-status {
+  margin: 0.35rem 0 0.15rem;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 0.55rem 0.75rem;
+  border-radius: 3px;
+  font-size: 0.9rem;
   font-weight: 500;
-  font-size: 0.85rem;
+  background: #f0f2f5;
+  color: #888;
+}
+.card-status.on {
+  background: #121212;
+  color: #fff;
+}
+.card-points {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.card-points li {
+  position: relative;
+  padding-left: 1.1rem;
+  color: #333;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+.card-points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: #c5c9d0;
+}
+.plan-card.current .card-points li::before {
+  background: #e11d48;
 }
 .error {
   color: #e11d48;

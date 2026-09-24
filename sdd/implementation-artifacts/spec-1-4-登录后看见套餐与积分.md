@@ -2,7 +2,7 @@
 title: '1.4 登录后看见套餐与积分'
 type: 'feature'
 created: '2026-09-24'
-status: 'done'
+status: 'review'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '05ad923a35e82da328739e4a02cdfca1a907df9c'
@@ -17,19 +17,21 @@ context:
 
 **Problem:** 账本 `GET /api/v1/credits` 已可用，但登录后前端仍只显示身份，店主看不到当前套餐、剩余积分与下次重置，也无法对照三档价目或在积分不足时得到人话指引。
 
-**Approach:** 登录后进独立套餐页消费 `GET /api/v1/credits`，展示档位、可用积分与下次重置（东八区），价目表行对照三档；`available===0` 时常驻人话提示可升级或等待重置。本故事只做读展示，不改账本写路径。
+**Approach:** 登录后进独立套餐页消费 `GET /api/v1/credits`，展示档位、可用积分与下次重置（东八区），三档以套餐卡对照；`available===0` 时常驻人话提示可升级或等待重置。本故事只做读展示，不改账本写路径。
 
 **Decisions:**
-- 独立路由 `/credits`：当前摘要 + 三档价目行；`/me` 仍只身份，可互相导航
+- 独立路由 `/credits`：当前摘要 + 三档套餐卡；`/me` 仍只身份，可互相导航
 - 登录/注册成功后默认跳 `/credits`（不再落 `/me`）
 - `available === 0` 时在 `/credits` 常驻不足人话（可升级或等待重置）；不接生成流程
+- 价目区用三张并列卡（参考 Manus 定价卡：大价格、副标、主状态区、要点列表）；当前档可辨；无支付 CTA（1.5 前）
+- 人 renegotiate：原 UX-DR5「价目表行、非孪生卡」改为三卡（2026-09-24 walkthrough）
 
 ## Boundaries & Constraints
 
 **Always:**
 - 积分数据只经 `GET /api/v1/credits`（JWT）；前端不写账本
 - 展示：当前套餐档、本月剩余积分、下次重置时间（FR2）；时间存 UTC、界面东八区
-- 套餐呈现为价目表行，非三张孪生卡（UX-DR5）
+- 套餐呈现为三张并列卡（Manus 式信息层次）；当前档边框/「当前套餐」可辨；不画假购买按钮
 - 视觉贴近 Epic 1：冷荧光纸色 + 真黑 + 店章红；Space Grotesk / Noto Sans SC（能复用则复用）
 - FE 配方按 `03-fe`：`api` 只 HTTP、类型只在 `types`、页面在 `views/business/credit/`
 - 档位文案映射：`FREE`→免费、`PRO`→Pro、`PLUS`→Plus；额度 20/200/600；价目月费静态「¥0 / 待定 / 待定」（无定价 API）
@@ -46,7 +48,7 @@ context:
 
 | Scenario | Input / State | Expected Output / Behavior | Error Handling |
 |----------|--------------|---------------------------|----------------|
-| 登录后落地 | 登录/注册成功 | `afterLogin` 后 `push({ name: 'credits' })`；见档位/可用/下次重置 + 三行价目 | N/A |
+| 登录后落地 | 登录/注册成功 | `afterLogin` 后 `push({ name: 'credits' })`；见档位/可用/下次重置 + 三张套餐卡 | N/A |
 | 打开 `/credits` | 有效 JWT + 免费账本 | 当前档可辨；东八区可读重置时间 | N/A |
 | 未登录访问 `/credits` | 无 token | 不调用 credits；引导去登录 | 不误报账本错误 |
 | Token 失效 | 401 | 清 token；人话提示并回登录 | 用 `ApiError.message` |
@@ -63,7 +65,7 @@ context:
 - `lippi-ai-ebus-web/src/views/identity/AuthMe.vue` + `AuthLogin.vue` / `AuthRegister.vue` — 现登录后 `push({ name: 'me' })`
 - `lippi-ai-ebus-web/src/router/index.ts` — 现仅 login/register/me
 - `lippi-ai-ebus-web/src/api/identity/auth.ts` + `types/identity/auth.ts` + `auth.flow.test.ts` — FE 分层范本
-- UX：`.../mockups/pricing.html`（三行价目）、`app.html`（侧栏「免费 · 14/20」与不足文案）
+- UX：参考 Manus `manus.im/pricing` 三卡层次；`app.html`（侧栏「免费 · 14/20」与不足文案）；旧 `pricing.html` 三行稿已 superseded
 - Continuity（1.3）：公开仅 GET；写路径勿动；`available = balance − reserved`
 
 **Reuse：** HTTP 客户端、`ApiError`、JWT localStorage、Identity 页面风格。
@@ -75,14 +77,14 @@ context:
 **Execution:**
 - [x] `lippi-ai-ebus-web/src/types/business/credit.ts` — `CreditBalance` + 静态三档价目常量（标签/额度/月费文案）— 类型唯一出处
 - [x] `lippi-ai-ebus-web/src/api/business/credit/credit.ts` — `getCredits()` → `GET /api/v1/credits` — 只 HTTP
-- [x] `lippi-ai-ebus-web/src/views/business/credit/CreditPlan.vue` — `/credits`：摘要 + 价目表行 + `available===0` 不足人话 — FR2/UX-DR5/NFR3
+- [x] `lippi-ai-ebus-web/src/views/business/credit/CreditPlan.vue` — `/credits`：摘要 + 三张套餐卡 + `available===0` 不足人话 — FR2/NFR3（人改 UX：卡非行）
 - [x] `lippi-ai-ebus-web/src/router/index.ts` + Login/Register 跳转 + `/me`↔`/credits` 链 — 登录默认落 credits
-- [x] `lippi-ai-ebus-web` 测（api 与/或页面关键断言）— 覆盖矩阵：未登录、成功展示、不足文案
+- [x] `lippi-ai-ebus-web` 测（api 与/或页面关键断言）— 覆盖矩阵：未登录、成功展示、不足文案、三卡当前档
 - [x] `README.md`（若缺）— 补登录后 `/credits` 一句 — 人可跟测
 
 **Acceptance Criteria:**
 - Given 登录/注册成功，when 进入应用，then 默认落 `/credits` 且可见档位、剩余积分、下次重置（东八区）
-- Given 打开 `/credits`，when 浏览套餐区，then 三档为价目表行（非三孪生卡），当前档可辨；`/me` 仍只身份
+- Given 打开 `/credits`，when 浏览套餐区，then 三档为并列套餐卡（大价格 + 额度副标 + 当前可辨），无支付按钮；`/me` 仍只身份
 - Given `available === 0`，when 查看 `/credits`，then 常驻人话提示可升级或等待重置
 - Given 无 JWT，when 访问 `/credits`，then 不误调成功态；引导登录
 
@@ -94,8 +96,11 @@ context:
 - 验证：`npm run lint && npm test && npm run build` 全绿（20 tests）；评审补丁后挂载测覆盖矩阵。
 - 风险：未对手动联调真实后端；`nextResetAt` 按 ISO UTC 解析。
 - 评审补丁：CreditPlan/Auth/router 真挂载与 resolve 测；null data 守卫；东八区钉死 `YYYY/MM/DD HH:mm`；荧光纸铺满视口；README 补不足人话。
+- Rework（walkthrough）：价目区改 Manus 式三卡；当前档黑底「当前套餐」状态条 + 店章红描边；无购买按钮。
 
 ## Spec Change Log
+
+- 2026-09-24 walkthrough Rework：人要求三卡并参考 Manus 定价 UI；冻结意图中 UX-DR5「价目表行」改为三张并列卡（无支付 CTA）；实现与验收同步。
 
 ## Review Triage Log
 
@@ -119,10 +124,12 @@ context:
 
 ## Design Notes
 
-- 价目数据前端静态常量即可（后端无定价目录）；当前档用 API `tier` 高亮对应行。
+- 价目数据前端静态常量即可（后端无定价目录）；当前档用 API `tier` 标在对应卡（边框 +「当前套餐」状态条）。
+- 卡层次对齐 Manus：大价格 → 灰色副标（额度）→ 状态条 → 简短要点；色与字体仍用 Adam（荧光纸 / 真黑 / 店章红）。
 - 主数字用 `available`；可选次要展示「预占中 reserved」不抢主叙事。
 - `nextResetAt` ISO 解析后 `Asia/Shanghai` 格式化为可读本地时间（勿裸 UTC 串糊用户）。
 - 不足文案示例：「积分不足。可升级套餐，或等到下次重置后再用。」（无支付按钮承诺）
+- 注册/登录后进套餐入口：免费 20、下次重置可读、三卡高亮免费
 
 ## Verification
 
@@ -131,6 +138,6 @@ context:
 - （可选）后端已有 credits 测不必重跑全 reactor，除非改了 BE
 
 **Manual checks (if no CLI):**
-- 注册/登录后进套餐入口：免费 20、下次重置可读、三行价目高亮免费
+- 注册/登录后进套餐入口：免费 20、下次重置可读、三张套餐卡高亮免费
 - 清 token 访问入口：引导登录
 - （可用测库把余额拨到 0 或 mock）见不足人话
