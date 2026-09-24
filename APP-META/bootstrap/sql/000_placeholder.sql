@@ -1,5 +1,3 @@
--- Adam / lippi-ai-ebusiness bootstrap placeholder
--- Story 1.1: schema seeds land in later stories (Identity / CreditLedger / …).
--- This file exists so MySQL init volume has a no-op script.
-
+-- Bootstrap ordering: numbered scripts under this directory run alphabetically.
+-- Identity schema: 001_ebus_user.sql
 SELECT 1 AS ebus_bootstrap_ok;

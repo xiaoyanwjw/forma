@@ -15,3 +15,19 @@
 - source_spec: `sdd/implementation-artifacts/spec-1-1-可跑的仓库与本地-docker.md`
   summary: compose starter↔MySQL 启动契约缺少自动化观察（Testcontainers 或 compose smoke）。
   evidence: verification-gap 层确认无 `@SpringBootTest`/Testcontainers；本故事 Verification 为手工 compose。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-2-注册与登录拿-jwt.md`
+  summary: 限流信任首段 X-Forwarded-For，无可信代理时客户端可伪造 IP 绕过。
+  evidence: AuthRateLimitInterceptor.resolveClientIp 直接取 XFF；近端 compose 无反代拓扑，harden 后置。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-2-注册与登录拿-jwt.md`
+  summary: H2 schema-h2.sql 与 MySQL 001_ebus_user.sql 双份手维护，列变更易漂移。
+  evidence: 测试与 compose init 各一份 DDL；本故事无共享 codegen。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-2-注册与登录拿-jwt.md`
+  summary: OverlayModelCatalogTest 期望从 deepseek-chat 改为 deepseek-v4-flash（Pi 预存测修）。
+  evidence: 非 Identity 交付；vendor Pi 测试与本故事无关。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-2-注册与登录拿-jwt.md`
+  summary: 用户名等于另一用户邮箱时 selectByUsernameOrEmail OR+LIMIT 1 匹配不确定。
+  evidence: 日常极少；完整消歧需禁用户名像邮箱或改查找优先级，超出最小补丁。

@@ -28,6 +28,16 @@ management:
     health:
       show-details: always
 
+jwt:
+  # HS256 密钥至少 32 字节；仅环境变量 / compose secrets
+  secret: ${JWT_SECRET:dev-only-change-me-please-32bytes!!}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+auth:
+  rate-limit:
+    max-attempts: ${AUTH_RATE_LIMIT_MAX:20}
+    window-ms: ${AUTH_RATE_LIMIT_WINDOW_MS:60000}
+
 logging:
   level:
     root: INFO

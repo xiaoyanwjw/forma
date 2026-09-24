@@ -40,3 +40,6 @@ APP-META/docker-config/build/
 
 # BMAD skill render cache (ephemeral snapshots)
 _bmad/render/
+
+# Local editor history
+.history/

@@ -62,5 +62,6 @@ docker compose -f APP-META/docker-config/docker-compose.yml up -d --build
 
 ## 说明
 
-- 近端不做注册/JWT/积分账本/落地页视觉（后续故事）。
+- Story 1.2 已落地注册/登录 JWT：`POST /api/v1/auth/register`、`POST /api/v1/auth/login`、`GET /api/v1/me`；前端 `/register`、`/login`。
 - 本地可不配大模型密钥；无 Key 时 Pi 有桩（StubModelProvider），端口形状不变。
+- 需配置 `JWT_SECRET`（≥32 字节），见 `APP-META/docker-config/environment/.env.example`。

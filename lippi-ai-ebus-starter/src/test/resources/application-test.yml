@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:ebus;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-h2.sql
+
+jwt:
+  secret: test-secret-must-be-at-least-32-bytes!!
+  expiration-ms: 3600000
+
+auth:
+  rate-limit:
+    max-attempts: 5
+    window-ms: 60000

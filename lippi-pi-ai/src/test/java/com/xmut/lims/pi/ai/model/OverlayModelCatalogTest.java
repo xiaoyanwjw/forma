@@ -24,7 +24,7 @@ class OverlayModelCatalogTest {
         OverlayModelCatalog cat = new OverlayModelCatalog(InMemoryModelCatalog.defaultsWithCertificateOcr());
         ModelDescriptor desc = cat.resolve(InMemoryModelCatalog.TEST_STANDARD_SCHEMA_USE_CASE);
         assertThat(desc.getProvider()).isEqualTo("deepseek");
-        assertThat(desc.getModel()).isEqualTo("deepseek-chat");
+        assertThat(desc.getModel()).isEqualTo("deepseek-v4-flash");
         assertThat(desc.getModalities()).containsExactly(ModelModality.CHAT);
         assertThat(desc.isSupportsNativeToolCalling()).isTrue();
     }
