@@ -81,4 +81,16 @@
         WHERE id = #{id}
           AND version = #{expectedVersion}
     </update>
+
+    <update id="updateTierBalanceAndPeriod">
+        UPDATE ebus_credit_account
+        SET tier = #{tier},
+            balance = #{balance},
+            period_anchor_at = #{periodAnchorAt},
+            next_reset_at = #{nextResetAt},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND version = #{expectedVersion}
+    </update>
 </mapper>

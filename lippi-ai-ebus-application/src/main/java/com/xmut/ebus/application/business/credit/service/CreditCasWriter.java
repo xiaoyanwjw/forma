@@ -6,10 +6,13 @@ import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.logging.LoggerUtils;
 import com.xmut.ebus.common.logging.NameValue;
+import com.xmut.ebus.domain.business.credit.constant.CreditTier;
 import com.xmut.ebus.domain.business.credit.model.CreditAccount;
 import com.xmut.ebus.domain.business.credit.model.CreditHold;
+import com.xmut.ebus.domain.business.credit.model.CreditTierChange;
 import com.xmut.ebus.domain.business.credit.repository.CreditAccountRepository;
 import com.xmut.ebus.domain.business.credit.repository.CreditHoldRepository;
+import com.xmut.ebus.domain.business.credit.repository.CreditTierChangeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -31,6 +34,7 @@ public class CreditCasWriter {
 
     private final CreditAccountRepository creditAccountRepository;
     private final CreditHoldRepository creditHoldRepository;
+    private final CreditTierChangeRepository creditTierChangeRepository;
     private final Clock clock;
     private final ObjectProvider<CreditApplicationService> creditApplicationService;
 
@@ -118,5 +122,47 @@ public class CreditCasWriter {
                 NameValue.create("accountId", current.getId()),
                 NameValue.create("nextResetAt", current.getNextResetAt()));
         return current;
+    }
+
+    /**
+     * 手工改档：CAS 写 tier/balance/锚点后同事务落审计；同档幂等不写审计。
+     */
+    @CasRetry(exhaustedMessage = "改档冲突，请稍后重试")
+    public CreditAccount changeTierAttempt(String targetUserId,
+                                           CreditTier targetTier,
+                                           String operatorUserId,
+                                           Instant now) {
+        CreditAccount account = creditApplicationService.getObject().ensureReady(targetUserId);
+        if (account.getTier() == targetTier) {
+            return account;
+        }
+        if (!targetTier.isStrictlyAbove(account.getTier())) {
+            throw new BusinessException(ErrorCode.CREDIT_TIER_INVALID, "仅允许升级套餐，不能降级");
+        }
+        CreditTier fromTier = account.getTier();
+        int expectedVersion = account.getVersion();
+        boolean changed = account.applyUpgrade(targetTier, now);
+        if (!changed) {
+            return account;
+        }
+        int updated = creditAccountRepository.updateTierBalanceAndPeriod(account, expectedVersion);
+        if (updated == 0) {
+            throw new CasConflictException();
+        }
+        creditTierChangeRepository.save(CreditTierChange.create(
+                UUID.randomUUID().toString(),
+                account.getId(),
+                targetUserId,
+                operatorUserId,
+                fromTier,
+                targetTier,
+                now));
+        account.setVersion(expectedVersion + 1);
+        LoggerUtils.success(log, CreditCasWriter.class, "changeTierAttempt",
+                NameValue.create("targetUserId", targetUserId),
+                NameValue.create("operatorUserId", operatorUserId),
+                NameValue.create("fromTier", fromTier.name()),
+                NameValue.create("toTier", targetTier.name()));
+        return account;
     }
 }

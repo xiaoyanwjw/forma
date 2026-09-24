@@ -1,5 +1,8 @@
 package com.xmut.ebus.application.business.credit.service;
 
+import com.xmut.ebus.application.business.credit.command.ChangeTierCommand;
+import com.xmut.ebus.application.business.credit.dto.CreditBalanceDTO;
+import com.xmut.ebus.application.business.credit.support.CreditAdminAuthorization;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.domain.business.credit.constant.CreditHoldStatus;
@@ -8,6 +11,8 @@ import com.xmut.ebus.domain.business.credit.model.CreditAccount;
 import com.xmut.ebus.domain.business.credit.model.CreditHold;
 import com.xmut.ebus.domain.business.credit.repository.CreditAccountRepository;
 import com.xmut.ebus.domain.business.credit.repository.CreditHoldRepository;
+import com.xmut.ebus.domain.identity.model.User;
+import com.xmut.ebus.domain.identity.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,6 +40,7 @@ class CreditApplicationServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-03-15T08:00:00Z");
     private static final String USER_ID = "11111111-1111-1111-1111-111111111111";
+    private static final String ADMIN_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
     private static final String ACCOUNT_ID = "22222222-2222-2222-2222-222222222222";
 
     @Mock
@@ -41,15 +48,25 @@ class CreditApplicationServiceTest {
     @Mock
     private CreditHoldRepository creditHoldRepository;
     @Mock
+    private UserRepository userRepository;
+    @Mock
     private CreditCasWriter creditCasWriter;
 
+    private CreditAdminAuthorization creditAdminAuthorization;
     private CreditApplicationService service;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        creditAdminAuthorization = new CreditAdminAuthorization(ADMIN_ID);
         service = new CreditApplicationService(
-                creditAccountRepository, creditHoldRepository, clock, creditCasWriter);
+                creditAccountRepository, creditHoldRepository, userRepository, clock, creditCasWriter,
+                creditAdminAuthorization);
+    }
+
+    private void stubTargetUserExists() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(
+                User.create(USER_ID, "shop", "shop@example.com", "hash", NOW)));
     }
 
     @Test
@@ -208,6 +225,114 @@ class CreditApplicationServiceTest {
         assertEquals(20, ready.getBalance());
         assertEquals(Instant.parse("2026-04-15T08:00:00Z"), ready.getNextResetAt());
         verify(creditCasWriter).monthlyResetAttempt(ACCOUNT_ID, NOW);
+    }
+
+    @Test
+    void changeTierUpgradesFreeToPro() {
+        stubTargetUserExists();
+        CreditAccount free = freeAccount(5, 1);
+        CreditAccount upgraded = freeAccount(200, 1);
+        upgraded.setTier(CreditTier.PRO);
+        upgraded.setPeriodAnchorAt(NOW);
+        upgraded.setNextResetAt(Instant.parse("2026-04-15T08:00:00Z"));
+        when(creditAccountRepository.findByUserId(USER_ID)).thenReturn(Optional.of(free));
+        when(creditCasWriter.changeTierAttempt(USER_ID, CreditTier.PRO, ADMIN_ID, NOW)).thenReturn(upgraded);
+
+        CreditBalanceDTO dto = service.changeTier(ChangeTierCommand.builder()
+                .userId(ADMIN_ID)
+                .targetUserId(USER_ID)
+                .targetTier(CreditTier.PRO)
+                .build());
+
+        assertEquals("PRO", dto.getTier());
+        assertEquals(200, dto.getBalance());
+        assertEquals(1, dto.getReserved());
+        assertEquals(199, dto.getAvailable());
+        verify(creditCasWriter).changeTierAttempt(USER_ID, CreditTier.PRO, ADMIN_ID, NOW);
+    }
+
+    @Test
+    void changeTierSameTierIdempotentSkipsCas() {
+        stubTargetUserExists();
+        CreditAccount pro = freeAccount(200, 0);
+        pro.setTier(CreditTier.PRO);
+        when(creditAccountRepository.findByUserId(USER_ID)).thenReturn(Optional.of(pro));
+
+        CreditBalanceDTO dto = service.changeTier(ChangeTierCommand.builder()
+                .userId(ADMIN_ID)
+                .targetUserId(USER_ID)
+                .targetTier(CreditTier.PRO)
+                .build());
+
+        assertEquals("PRO", dto.getTier());
+        assertEquals(200, dto.getBalance());
+        verify(creditCasWriter, never()).changeTierAttempt(
+                anyString(), any(CreditTier.class), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void changeTierRejectsDowngrade() {
+        stubTargetUserExists();
+        CreditAccount pro = freeAccount(200, 0);
+        pro.setTier(CreditTier.PRO);
+        when(creditAccountRepository.findByUserId(USER_ID)).thenReturn(Optional.of(pro));
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.changeTier(ChangeTierCommand.builder()
+                        .userId(ADMIN_ID)
+                        .targetUserId(USER_ID)
+                        .targetTier(CreditTier.FREE)
+                        .build());
+            }
+        });
+        assertEquals(ErrorCode.CREDIT_TIER_INVALID, ex.getErrorCode());
+        verify(creditCasWriter, never()).changeTierAttempt(
+                anyString(), any(CreditTier.class), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void changeTierRejectsMissingTargetUserWithoutCreatingAccount() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.changeTier(ChangeTierCommand.builder()
+                        .userId(ADMIN_ID)
+                        .targetUserId(USER_ID)
+                        .targetTier(CreditTier.PRO)
+                        .build());
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        assertEquals("目标用户不存在", ex.getMessage());
+        verify(creditAccountRepository, never()).findByUserId(anyString());
+        verify(creditAccountRepository, never()).save(any(CreditAccount.class));
+        verify(creditCasWriter, never()).changeTierAttempt(
+                anyString(), any(CreditTier.class), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void changeTierForbiddenWhenOperatorNotWhitelisted() {
+        creditAdminAuthorization.replaceAllowedUserIds(Collections.<String>emptySet());
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.changeTier(ChangeTierCommand.builder()
+                        .userId(ADMIN_ID)
+                        .targetUserId(USER_ID)
+                        .targetTier(CreditTier.PRO)
+                        .build());
+            }
+        });
+        assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
+        verify(userRepository, never()).findById(anyString());
+        verify(creditAccountRepository, never()).findByUserId(anyString());
+        verify(creditCasWriter, never()).changeTierAttempt(
+                anyString(), any(CreditTier.class), anyString(), any(Instant.class));
     }
 
     private static CreditAccount freeAccount(int balance, int reserved) {

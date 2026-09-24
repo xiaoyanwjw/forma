@@ -1,15 +1,21 @@
 package com.xmut.ebus.application.business.credit.service;
 
+import com.xmut.ebus.application.business.credit.command.ChangeTierCommand;
+import com.xmut.ebus.application.business.credit.dto.CreditBalanceDTO;
+import com.xmut.ebus.application.business.credit.support.CreditAdminAuthorization;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.logging.LoggerUtils;
 import com.xmut.ebus.common.logging.NameValue;
+import com.xmut.ebus.common.util.ObjectUtils;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.domain.business.credit.constant.CreditHoldStatus;
+import com.xmut.ebus.domain.business.credit.constant.CreditTier;
 import com.xmut.ebus.domain.business.credit.model.CreditAccount;
 import com.xmut.ebus.domain.business.credit.model.CreditHold;
 import com.xmut.ebus.domain.business.credit.repository.CreditAccountRepository;
 import com.xmut.ebus.domain.business.credit.repository.CreditHoldRepository;
+import com.xmut.ebus.domain.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -21,7 +27,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * CreditLedger 写用例：建账 / 预占 / 结算 / 释放 / 懒月重置。
+ * CreditLedger 写用例：建账 / 预占 / 结算 / 释放 / 懒月重置 / 手工改档。
  * <p>
  * CAS 重试在 {@link CreditCasWriter}；settle/release 先 claim hold 一次，再调账户尝试。
  */
@@ -32,8 +38,10 @@ public class CreditApplicationService {
 
     private final CreditAccountRepository creditAccountRepository;
     private final CreditHoldRepository creditHoldRepository;
+    private final UserRepository userRepository;
     private final Clock clock;
     private final CreditCasWriter creditCasWriter;
+    private final CreditAdminAuthorization creditAdminAuthorization;
 
     /**
      * 注册成功后同事务建免费账本（锚点=注册时刻）。
@@ -74,6 +82,42 @@ public class CreditApplicationService {
                     .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_ERROR, "积分账本初始化失败"));
         }
         return applyLazyMonthlyReset(account, now);
+    }
+
+    /**
+     * 手工改档升级（白名单操作者）：目标无账本则先 ensureReady；同档幂等不写审计。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public CreditBalanceDTO changeTier(ChangeTierCommand command) {
+        ObjectUtils.requireNonNull(command, "改档命令不能为空");
+        creditAdminAuthorization.requireOperatorAllowed(command.getUserId());
+        String targetUserId = StringUtils.requireHasText(command.getTargetUserId(), "目标用户 ID 不能为空");
+        CreditTier targetTier = ObjectUtils.requireNonNull(command.getTargetTier(), "目标套餐不能为空");
+        if (!userRepository.findById(targetUserId).isPresent()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "目标用户不存在");
+        }
+
+        Instant now = Instant.now(clock);
+        CreditAccount account = ensureReady(targetUserId);
+        if (account.getTier() == targetTier) {
+            LoggerUtils.success(log, CreditApplicationService.class, "changeTier",
+                    NameValue.create("targetUserId", targetUserId),
+                    NameValue.create("tier", targetTier.name()),
+                    NameValue.create("idempotent", true));
+            return toBalanceDto(account);
+        }
+        if (!targetTier.isStrictlyAbove(account.getTier())) {
+            throw new BusinessException(ErrorCode.CREDIT_TIER_INVALID, "仅允许升级套餐，不能降级");
+        }
+
+        account = creditCasWriter.changeTierAttempt(
+                targetUserId, targetTier, command.getUserId(), now);
+        LoggerUtils.success(log, CreditApplicationService.class, "changeTier",
+                NameValue.create("operatorUserId", command.getUserId()),
+                NameValue.create("targetUserId", targetUserId),
+                NameValue.create("toTier", targetTier.name()),
+                NameValue.create("balance", account.getBalance()));
+        return toBalanceDto(account);
     }
 
     /**
@@ -132,5 +176,15 @@ public class CreditApplicationService {
             throw new BusinessException(ErrorCode.CREDIT_HOLD_INVALID);
         }
         return hold;
+    }
+
+    private static CreditBalanceDTO toBalanceDto(CreditAccount account) {
+        return new CreditBalanceDTO(
+                account.getTier().name(),
+                account.available(),
+                account.getBalance(),
+                account.getReserved(),
+                account.getNextResetAt(),
+                account.getPeriodAnchorAt());
     }
 }

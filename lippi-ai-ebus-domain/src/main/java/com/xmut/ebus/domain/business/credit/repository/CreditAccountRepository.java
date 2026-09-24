@@ -37,4 +37,9 @@ public interface CreditAccountRepository {
      * 写回 balance、nextResetAt（version 匹配）。
      */
     int updateBalanceAndNextReset(CreditAccount account, int expectedVersion);
+
+    /**
+     * 写回 tier / balance / periodAnchorAt / nextResetAt（version 匹配；不改 reserved）。
+     */
+    int updateTierBalanceAndPeriod(CreditAccount account, int expectedVersion);
 }

@@ -35,4 +35,12 @@ public interface CreditAccountMapper {
                                   @Param("nextResetAt") Instant nextResetAt,
                                   @Param("expectedVersion") int expectedVersion,
                                   @Param("updatedAt") Instant updatedAt);
+
+    int updateTierBalanceAndPeriod(@Param("id") String id,
+                                   @Param("tier") String tier,
+                                   @Param("balance") int balance,
+                                   @Param("periodAnchorAt") Instant periodAnchorAt,
+                                   @Param("nextResetAt") Instant nextResetAt,
+                                   @Param("expectedVersion") int expectedVersion,
+                                   @Param("updatedAt") Instant updatedAt);
 }

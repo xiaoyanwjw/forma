@@ -32,3 +32,13 @@ CREATE TABLE IF NOT EXISTS ebus_credit_hold (
     created_at TIMESTAMP    NOT NULL,
     updated_at TIMESTAMP    NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS ebus_credit_tier_change (
+    id               VARCHAR(36)  NOT NULL PRIMARY KEY,
+    account_id       VARCHAR(36)  NOT NULL,
+    target_user_id   VARCHAR(36)  NOT NULL,
+    operator_user_id VARCHAR(36)  NOT NULL,
+    from_tier        VARCHAR(16)  NOT NULL,
+    to_tier          VARCHAR(16)  NOT NULL,
+    created_at       TIMESTAMP    NOT NULL
+);

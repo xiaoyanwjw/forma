@@ -58,6 +58,33 @@ public class CreditAccount {
         this.updatedAt = now;
     }
 
+    /**
+     * 手工升级：新档月额度、锚点=改档时刻并重算 nextResetAt；保留 reserved。
+     *
+     * @return {@code true} 已改档；{@code false} 同档幂等（无变更）
+     * @throws IllegalArgumentException 降级或目标档无效
+     */
+    public boolean applyUpgrade(CreditTier targetTier, Instant now) {
+        if (targetTier == null) {
+            throw new IllegalArgumentException("target tier required");
+        }
+        if (now == null) {
+            throw new IllegalArgumentException("upgrade time required");
+        }
+        if (this.tier == targetTier) {
+            return false;
+        }
+        if (!targetTier.isStrictlyAbove(this.tier)) {
+            throw new IllegalArgumentException("仅允许升级套餐，不能降级");
+        }
+        this.tier = targetTier;
+        this.balance = targetTier.getMonthlyQuota();
+        this.periodAnchorAt = now;
+        this.nextResetAt = CreditPeriodSupport.firstResetAfter(now);
+        this.updatedAt = now;
+        return true;
+    }
+
     public void applyReserve(int amount, Instant now) {
         this.reserved += amount;
         this.updatedAt = now;

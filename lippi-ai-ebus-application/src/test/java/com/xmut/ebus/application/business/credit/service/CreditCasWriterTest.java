@@ -42,6 +42,8 @@ class CreditCasWriterTest {
     @Mock
     private CreditHoldRepository creditHoldRepository;
     @Mock
+    private com.xmut.ebus.domain.business.credit.repository.CreditTierChangeRepository creditTierChangeRepository;
+    @Mock
     private ObjectProvider<CreditApplicationService> creditApplicationServiceProvider;
     @Mock
     private CreditApplicationService creditApplicationService;
@@ -52,7 +54,8 @@ class CreditCasWriterTest {
     void setUp() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         casWriter = new CreditCasWriter(
-                creditAccountRepository, creditHoldRepository, clock, creditApplicationServiceProvider);
+                creditAccountRepository, creditHoldRepository, creditTierChangeRepository,
+                clock, creditApplicationServiceProvider);
     }
 
     @Test
@@ -100,6 +103,53 @@ class CreditCasWriterTest {
         casWriter.settleAccountAttempt(hold, NOW);
 
         verify(creditAccountRepository).updateSubtractBalanceAndReserved(eq(ACCOUNT_ID), eq(1), eq(3), eq(NOW));
+    }
+
+    @Test
+    void changeTierAttemptWritesAuditAfterCas() {
+        String operatorId = "op-1";
+        CreditAccount account = freeAccount(5, 2);
+        when(creditApplicationServiceProvider.getObject()).thenReturn(creditApplicationService);
+        when(creditApplicationService.ensureReady(USER_ID)).thenReturn(account);
+        when(creditAccountRepository.updateTierBalanceAndPeriod(any(CreditAccount.class), eq(0))).thenReturn(1);
+
+        CreditAccount result = casWriter.changeTierAttempt(USER_ID, CreditTier.PRO, operatorId, NOW);
+
+        assertEquals(CreditTier.PRO, result.getTier());
+        assertEquals(200, result.getBalance());
+        assertEquals(2, result.getReserved());
+        assertEquals(NOW, result.getPeriodAnchorAt());
+        verify(creditTierChangeRepository).save(any(com.xmut.ebus.domain.business.credit.model.CreditTierChange.class));
+    }
+
+    @Test
+    void changeTierAttemptSameTierSkipsAudit() {
+        CreditAccount account = freeAccount(200, 0);
+        account.setTier(CreditTier.PRO);
+        when(creditApplicationServiceProvider.getObject()).thenReturn(creditApplicationService);
+        when(creditApplicationService.ensureReady(USER_ID)).thenReturn(account);
+
+        CreditAccount result = casWriter.changeTierAttempt(USER_ID, CreditTier.PRO, "op-1", NOW);
+
+        assertEquals(CreditTier.PRO, result.getTier());
+        verify(creditAccountRepository, never()).updateTierBalanceAndPeriod(any(CreditAccount.class), anyInt());
+        verify(creditTierChangeRepository, never()).save(any(com.xmut.ebus.domain.business.credit.model.CreditTierChange.class));
+    }
+
+    @Test
+    void changeTierAttemptCasMissThrowsConflict() {
+        CreditAccount account = freeAccount(20, 0);
+        when(creditApplicationServiceProvider.getObject()).thenReturn(creditApplicationService);
+        when(creditApplicationService.ensureReady(USER_ID)).thenReturn(account);
+        when(creditAccountRepository.updateTierBalanceAndPeriod(any(CreditAccount.class), eq(0))).thenReturn(0);
+
+        assertThrows(CasConflictException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                casWriter.changeTierAttempt(USER_ID, CreditTier.PRO, "op-1", NOW);
+            }
+        });
+        verify(creditTierChangeRepository, never()).save(any(com.xmut.ebus.domain.business.credit.model.CreditTierChange.class));
     }
 
     private static CreditAccount freeAccount(int balance, int reserved) {

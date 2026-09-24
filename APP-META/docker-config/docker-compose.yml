@@ -48,6 +48,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-ebus123}
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-please-32bytes!!}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      CREDIT_ADMIN_USER_IDS: ${CREDIT_ADMIN_USER_IDS:-}
     ports:
       - "${STARTER_PORT:-8080}:8080"
     networks:

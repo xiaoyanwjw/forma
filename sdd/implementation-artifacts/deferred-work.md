@@ -39,3 +39,15 @@
 - source_spec: `sdd/implementation-artifacts/spec-1-4-登录后看见套餐与积分.md`
   summary: AuthMe「套餐与积分」链缺少挂载/导航断言。
   evidence: verification-gap 确认无 AuthMe 测；登录落地与 CreditPlan 挂载优先，页面 harness 补齐后再测互链。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-5-手工改档升级.md`
+  summary: 规划文档仍写 UX-DR5「价目表行」，与 1.4 已定案的 Manus 三卡未对齐。
+  evidence: 评审对照 epics/UX 与 epic-1-context；属规划 course-correction，非本故事改档因果。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-5-手工改档升级.md`
+  summary: 套餐页非当前档状态条/重复额度文案/超前模板承诺/大圆角属 1.4 UI 债。
+  evidence: diff 中 CreditPlan.vue 来自 baseline 前未提交的 1.4 改动；本故事不交付前端管理/价目。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-5-手工改档升级.md`
+  summary: H2 审计表相对 MySQL 003 省略 FK，双份 schema 继续漂移。
+  evidence: 与 1.2/1.3 已 defer 的 H2↔MySQL 双维护同类。

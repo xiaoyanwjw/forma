@@ -46,6 +46,7 @@ class CreditRegisterRollbackIntegrationTest {
     @BeforeEach
     void clean() {
         authRateLimitInterceptor.reset();
+        jdbcTemplate.update("DELETE FROM ebus_credit_tier_change");
         jdbcTemplate.update("DELETE FROM ebus_credit_hold");
         jdbcTemplate.update("DELETE FROM ebus_credit_account");
         jdbcTemplate.update("DELETE FROM ebus_user");

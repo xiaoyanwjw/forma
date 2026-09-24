@@ -57,6 +57,18 @@ public class CreditAccountRepositoryImpl implements CreditAccountRepository {
                 account.getUpdatedAt());
     }
 
+    @Override
+    public int updateTierBalanceAndPeriod(CreditAccount account, int expectedVersion) {
+        return creditAccountMapper.updateTierBalanceAndPeriod(
+                account.getId(),
+                account.getTier().name(),
+                account.getBalance(),
+                account.getPeriodAnchorAt(),
+                account.getNextResetAt(),
+                expectedVersion,
+                account.getUpdatedAt());
+    }
+
     private CreditAccountPO toPo(CreditAccount account) {
         CreditAccountPO po = new CreditAccountPO();
         po.setId(account.getId());
