@@ -35,3 +35,7 @@
 - source_spec: `sdd/implementation-artifacts/spec-1-3-积分账本-额度-预占-结算-月重置.md`
   summary: H2 schema-h2.sql 与 MySQL 002_ebus_credit.sql 双份手维护（FK/索引/精度），易漂移。
   evidence: 评审确认 H2 省略 FK/索引且用 TIMESTAMP；与 1.2 用户表同类问题，本故事无共享 codegen。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-4-登录后看见套餐与积分.md`
+  summary: AuthMe「套餐与积分」链缺少挂载/导航断言。
+  evidence: verification-gap 确认无 AuthMe 测；登录落地与 CreditPlan 挂载优先，页面 harness 补齐后再测互链。

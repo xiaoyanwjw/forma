@@ -27,8 +27,9 @@ describe('auth FE walkthrough helpers', () => {
     const me = await afterLogin('jwt-demo')
     expect(getToken()).toBe('jwt-demo')
     expect(me.userId).toBe('u-1')
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/me')
-    const meHeaders = fetchMock.mock.calls[0][1].headers as Headers
+    const meCall = fetchMock.mock.calls[0]
+    expect(meCall?.[0]).toBe('/api/v1/me')
+    const meHeaders = meCall?.[1]?.headers as Headers
     expect(meHeaders.get('Authorization')).toBe('Bearer jwt-demo')
   })
 
@@ -60,7 +61,7 @@ describe('auth FE walkthrough helpers', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await login({ account: 'a', password: 'secret12' })
-    const headers = fetchMock.mock.calls[0][1].headers as Headers
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Headers
     expect(headers.get('Authorization')).toBeNull()
   })
 
@@ -90,8 +91,8 @@ describe('auth FE walkthrough helpers', () => {
     const result = await login({ account: 'alice', password: 'secret12' })
     await afterLogin(result.token)
     expect(getToken()).toBe('jwt-demo')
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/auth/login')
-    expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/me')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/auth/login')
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/me')
   })
 
   it('register posts username+email+password', async () => {
@@ -108,7 +109,7 @@ describe('auth FE walkthrough helpers', () => {
       email: 'bob@example.com',
       password: 'secret12',
     })
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/auth/register')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/auth/register')
   })
 
   it('surfaces human error message when login fails', async () => {

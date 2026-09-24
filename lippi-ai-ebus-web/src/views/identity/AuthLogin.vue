@@ -24,7 +24,7 @@ async function onSubmit() {
       password: password.value,
     })
     await afterLogin(result.token)
-    await router.push({ name: 'me' })
+    await router.push({ name: 'credits' })
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : '登录失败'
   } finally {

@@ -33,7 +33,7 @@ async function onSubmit() {
     })
     phase = 'me'
     await afterLogin(result.token)
-    await router.push({ name: 'me' })
+    await router.push({ name: 'credits' })
   } catch (e) {
     if (phase === 'login') {
       error.value = '注册成功，但自动登录失败，请手动登录'

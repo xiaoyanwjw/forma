@@ -48,6 +48,7 @@ function logout() {
     </dl>
     <p class="nav">
       <button type="button" @click="logout">退出</button>
+      <router-link :to="{ name: 'credits' }">套餐与积分</router-link>
       <router-link :to="{ name: 'login' }">登录</router-link>
       <router-link :to="{ name: 'register' }">注册</router-link>
     </p>
