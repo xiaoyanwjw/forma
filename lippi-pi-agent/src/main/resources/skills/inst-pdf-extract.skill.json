@@ -1,0 +1,13 @@
+{
+  "id": "inst-pdf.extract",
+  "version": "1.3.1",
+  "displayName": "Inst PDF Extract",
+  "description": "Generic lab PDF text-layer extract (DeepSeek): factors code/label/metrics only; READ only",
+  "skillsPrompt": null,
+  "promptRef": "classpath:skills/inst-pdf-extract.md",
+  "toolWhitelist": ["read_skill"],
+  "maxToolLevel": "READ",
+  "graphTopology": "SIMPLE_AGENT_END",
+  "modelUseCase": "inst-pdf",
+  "contentHash": null
+}

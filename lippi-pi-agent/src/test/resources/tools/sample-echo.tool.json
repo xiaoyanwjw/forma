@@ -1,0 +1,18 @@
+{
+  "id": "sample.echo",
+  "version": "1.0.0",
+  "displayName": "Sample Echo",
+  "description": "Sample ToolManifest for ClasspathToolBootstrap tests",
+  "text": "[sample.echo] Echo tool guidance for Stable tools slot.",
+  "level": "READ",
+  "schema": {
+    "name": "sample.echo",
+    "description": "Echo a message",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

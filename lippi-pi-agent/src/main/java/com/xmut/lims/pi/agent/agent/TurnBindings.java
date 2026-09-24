@@ -1,0 +1,82 @@
+package com.xmut.lims.pi.agent.agent;
+
+import com.xmut.lims.pi.agent.graph.StateKeys;
+import com.xmut.lims.pi.ai.model.ToolSchema;
+import com.xmut.lims.pi.agent.skill.SkillManifest;
+import lombok.Builder;
+import lombok.Value;
+import org.springframework.util.StringUtils;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 本轮入图装载快照 — Skill ‖ Tool 字段对称：
+ *
+ * <pre>
+ *   skillsText      ↔  toolsText
+ *   availableSkills ↔  availableTools
+ * </pre>
+ *
+ * <p>由 {@link TurnBinder} 唯一产出；Loop 只 {@link #applyTo}，节点只读 state。
+ */
+@Value
+@Builder
+public class TurnBindings {
+
+    /** → PromptBuilder skills 段（入图前编进 SYSTEM_PROMPT，不写 Graph state） */
+    String skillsText;
+
+    /** → PromptBuilder tools 段（与 skillsText 对称；入图前编进 SYSTEM_PROMPT） */
+    String toolsText;
+
+    /**
+     * → {@link StateKeys#AVAILABLE_SKILLS}；null = 不写；empty = 本轮无 skill。
+     */
+    List<SkillManifest> availableSkills;
+
+    /**
+     * → {@link StateKeys#AVAILABLE_TOOLS}；null = 不写；empty = 显式无 tools。
+     */
+    List<ToolSchema> availableTools;
+
+    /** → {@link StateKeys#ACTIVE_SKILL_ID}（可由 availableSkills 推导；便于测） */
+    String activeSkillId;
+
+    /** → {@link StateKeys#MODEL_USE_CASE}（ActiveSkill.modelUseCase；可空） */
+    String modelUseCase;
+
+    /**
+     * 写入入图 state（chat 轴键由 Loop 另写）。
+     */
+    public void applyTo(Map<String, Object> state) {
+        if (state == null) {
+            return;
+        }
+        if (StringUtils.hasText(activeSkillId)) {
+            state.put(StateKeys.ACTIVE_SKILL_ID, activeSkillId);
+        }
+        if (StringUtils.hasText(modelUseCase)) {
+            state.put(StateKeys.MODEL_USE_CASE, modelUseCase);
+        }
+        applyList(state, StateKeys.AVAILABLE_SKILLS, availableSkills);
+        applyList(state, StateKeys.AVAILABLE_TOOLS, availableTools);
+    }
+
+    private static void applyList(Map<String, Object> state, String key, List<?> list) {
+        if (list == null) {
+            return;
+        }
+        if (list.isEmpty()) {
+            state.remove(key);
+        } else {
+            state.put(key, Collections.unmodifiableList(new ArrayList<>(list)));
+        }
+    }
+
+    public static TurnBindings empty() {
+        return TurnBindings.builder().build();
+    }
+}

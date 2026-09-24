@@ -1,0 +1,13 @@
+{
+  "id": "walk-in-import",
+  "version": "1.0.0",
+  "displayName": "Walk-In Import",
+  "description": "Extract raw sample rows from walk-in entrustment registration Word tables",
+  "skillsPrompt": null,
+  "promptRef": "classpath:skills/walk-in-import.md",
+  "toolWhitelist": ["read_skill"],
+  "maxToolLevel": "READ",
+  "graphTopology": "SIMPLE_AGENT_END",
+  "modelUseCase": "walk-in-import",
+  "contentHash": null
+}

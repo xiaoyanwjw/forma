@@ -1,0 +1,13 @@
+{
+  "id": "test-standard-schema",
+  "version": "1.3.0",
+  "displayName": "Test Standard Schema From Paper",
+  "description": "Generate sampling/testing ParamSchemeRoot from paper extract; skill embeds few-shot (24-col, paperKey=3, maxRows≤8)",
+  "skillsPrompt": null,
+  "promptRef": "classpath:skills/test-standard-schema.md",
+  "toolWhitelist": ["read_skill"],
+  "maxToolLevel": "READ",
+  "graphTopology": "SIMPLE_AGENT_END",
+  "modelUseCase": "test-standard-schema",
+  "contentHash": null
+}

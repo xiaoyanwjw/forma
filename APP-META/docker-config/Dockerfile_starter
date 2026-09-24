@@ -1,0 +1,11 @@
+# Runtime for lippi-ai-ebus-starter.
+# Default base: public eclipse-temurin (when Hub/mirrors work).
+# Local override: tag any Java 8 image as lippi-ebus-java8:local (see Implementation Notes).
+# Jar must be prepared first: ./APP-META/bootstrap/build.sh
+ARG BASE_IMAGE=eclipse-temurin:8-jre
+FROM ${BASE_IMAGE}
+WORKDIR /app
+ENV TZ=UTC
+COPY APP-META/docker-config/build/app.jar /app/app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

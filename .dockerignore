@@ -1,0 +1,13 @@
+# Keep image build context small; jar is staged at APP-META/docker-config/build/app.jar
+.git
+.claude
+.agents
+_bmad
+sdd
+lippi-ai-ebus-web
+**/target
+node_modules
+**/.DS_Store
+**/*.iml
+.idea
+.lippi-pi

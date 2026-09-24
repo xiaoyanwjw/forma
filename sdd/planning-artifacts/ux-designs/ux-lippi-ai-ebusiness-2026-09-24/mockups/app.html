@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>adam</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Home empty state — Manus-style centered prompt -->
+  <div class="home" id="home">
+    <header class="home-top">
+      <a class="logo" href="app.html">
+        <span class="logo-mark">A</span>
+        adam
+      </a>
+      <nav class="home-nav">
+        <span>功能</span>
+        <span>解决方案</span>
+        <a href="pricing.html">价格</a>
+      </nav>
+      <div class="home-actions">
+        <span style="font-size:0.8rem;color:var(--mute)">积分 14/20</span>
+        <button type="button" class="btn btn-dark" onclick="document.getElementById('home-input').focus()">进入</button>
+      </div>
+    </header>
+
+    <main class="home-main">
+      <h1>我能为你做什么？</h1>
+      <div class="quick-row">
+        <button type="button" class="pill" data-tool="picks">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          选品清单
+        </button>
+        <button type="button" class="pill" data-tool="listing">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          生成上架素材
+        </button>
+        <button type="button" class="pill" data-tool="more">更多</button>
+      </div>
+      <div class="prompt-box">
+        <div
+          class="prompt-editor"
+          id="home-input"
+          contenteditable="true"
+          role="textbox"
+          aria-multiline="true"
+          data-placeholder="分配一个任务或提问任何问题"
+        ></div>
+        <div class="prompt-toolbar">
+          <button type="button" class="icon-btn" aria-label="附件" title="附件">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button type="button" class="send-btn" id="home-send" aria-label="发送">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Active session — sidebar + chat + computer -->
+  <div class="session" id="session">
+    <aside class="sidebar">
+      <div class="side-head">
+        <a class="logo" href="app.html"><span class="logo-mark">A</span> adam</a>
+      </div>
+      <button type="button" class="side-new" id="btn-new">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        新任务
+      </button>
+      <div class="side-section">今天</div>
+      <button type="button" class="side-item on">
+        家居选品试跑
+        <span class="sub">进行中</span>
+      </button>
+      <div class="side-section">昨天</div>
+      <button type="button" class="side-item">
+        电子类草稿
+        <span class="sub">已完成</span>
+      </button>
+      <div class="side-foot">
+        <span>免费 · 14/20</span>
+        <a href="pricing.html">升级</a>
+      </div>
+    </aside>
+
+    <div class="workspace" id="workspace">
+      <section class="chat-pane">
+        <div class="chat-scroll" id="thread"></div>
+        <div class="chat-input-wrap">
+          <div class="quick-row">
+            <button type="button" class="pill" data-tool="picks">选品清单</button>
+            <button type="button" class="pill" data-tool="listing">生成上架素材</button>
+          </div>
+          <div class="prompt-box">
+            <div
+              class="prompt-editor"
+              id="session-input"
+              contenteditable="true"
+              role="textbox"
+              aria-multiline="true"
+              data-placeholder="分配一个任务或提问任何问题"
+            ></div>
+            <div class="prompt-toolbar">
+              <button type="button" class="icon-btn" aria-label="附件">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <button type="button" class="send-btn active" id="session-send" aria-label="发送">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="computer" id="computer">
+        <div class="computer-bar">
+          <div class="title">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            Adam's Computer
+          </div>
+          <button type="button" class="icon-btn" id="close-computer" aria-label="关闭">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="computer-body" id="computer-body"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="demo-tag">Demo · 视觉对齐 Manus · 非官方</div>
+
+  <script>
+    const picks = [
+      ["硅胶沥水垫（多色）", "厨房刚需，图文好做差异化。"],
+      ["免打孔置物架", "租房搜索稳，包装轻。"],
+      ["透明收纳盒套装", "适合空间对比主图。"],
+      ["触摸调光小夜灯", "夜间氛围图好拍。"],
+      ["磁吸理线器", "客单低，适合测款。"],
+      ["可水洗短毛地垫", "评价点集中在清洗。"],
+      ["显示器增高架", "桌面刚需，写清承重。"],
+      ["香薰蜡烛礼盒", "礼赠场景多，勿夸大功效。"],
+      ["真空压缩袋", "换季搜索高。"],
+      ["缝隙收纳架", "安装前后对比好讲。"]
+    ];
+
+    const home = document.getElementById("home");
+    const session = document.getElementById("session");
+    const workspace = document.getElementById("workspace");
+    const thread = document.getElementById("thread");
+    const computerBody = document.getElementById("computer-body");
+    let credits = 14;
+    let busy = false;
+
+    function enterSession() {
+      home.style.display = "none";
+      session.classList.add("on");
+    }
+
+    function openComputer() {
+      workspace.classList.add("split");
+    }
+
+    function closeComputer() {
+      workspace.classList.remove("split");
+    }
+
+    document.getElementById("close-computer").onclick = closeComputer;
+    document.getElementById("btn-new").onclick = function () {
+      location.href = "app.html";
+    };
+
+    function addMsg(role, html) {
+      const el = document.createElement("div");
+      el.className = "msg " + role;
+      el.innerHTML =
+        '<div class="role">' + (role === "user" ? "你" : "Adam") + "</div>" +
+        '<div class="body">' + html + "</div>";
+      thread.appendChild(el);
+      thread.scrollTop = thread.scrollHeight;
+      return el;
+    }
+
+    function thinking() {
+      return addMsg("agent", '<div class="typing"><i></i><i></i><i></i></div>');
+    }
+
+    function renderPicks() {
+      openComputer();
+      computerBody.innerHTML =
+        '<div class="comp-card">' +
+        '<div class="comp-card-head"><span>选品清单 · 家居类</span><span class="status">已完成</span></div>' +
+        '<div class="comp-card-body">' +
+        '<ol class="pick-list">' +
+        picks.map(function (p, i) {
+          return (
+            "<li>" +
+            '<span class="n">' + String(i + 1).padStart(2, "0") + "</span>" +
+            "<div><div class='t'>" + p[0] + "</div><div class='r'>" + p[1] + "</div></div>" +
+            '<button type="button" class="use" data-sku="' + p[0] + '">生成素材</button>' +
+            "</li>"
+          );
+        }).join("") +
+        "</ol></div></div>";
+      computerBody.querySelectorAll(".use").forEach(function (b) {
+        b.onclick = function () {
+          runListing(b.getAttribute("data-sku"));
+        };
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function slideMarkup(i, on) {
+      const variants = [
+        { bg: "s1", mat: "", label: "主图" },
+        { bg: "s2", mat: "pink", label: "粉色" },
+        { bg: "s3", mat: "blue tilt", label: "场景" },
+        { bg: "s4", mat: "gray detail", label: "细节" },
+        { bg: "s5", mat: "pink", label: "尺码" }
+      ];
+      const v = variants[i] || variants[0];
+      return (
+        '<div class="slide' + (on ? " on" : "") + '" data-i="' + i + '">' +
+        '<div class="slide-bg ' + v.bg + '"></div>' +
+        '<div class="mat ' + v.mat + '" aria-hidden="true"></div>' +
+        '<span class="slide-label">' + v.label + "</span>" +
+        "</div>"
+      );
+    }
+
+    function productPhotoHtml(uid) {
+      const id = uid || "p" + Math.random().toString(36).slice(2, 7);
+      let slides = "";
+      let dots = "";
+      for (let i = 0; i < 5; i++) {
+        slides += slideMarkup(i, i === 0);
+        dots +=
+          '<button type="button" class="' +
+          (i === 0 ? "on" : "") +
+          '" data-i="' +
+          i +
+          '" aria-label="第' +
+          (i + 1) +
+          '张"></button>';
+      }
+      return (
+        '<div class="prod-photo" data-gallery="' +
+        id +
+        '">' +
+        '<div class="slides">' +
+        slides +
+        "</div>" +
+        '<div class="dots">' +
+        dots +
+        "</div>" +
+        '<span class="badge">1/5</span>' +
+        "</div>"
+      );
+    }
+
+    function galleryThumbsHtml() {
+      let thumbs = "";
+      for (let i = 0; i < 5; i++) {
+        thumbs +=
+          '<button type="button" class="' +
+          (i === 0 ? "on" : "") +
+          '" data-i="' +
+          i +
+          '"><div class="mini prod-photo" style="aspect-ratio:1">' +
+          slideMarkup(i, true) +
+          "</div></button>";
+      }
+      return (
+        '<div class="gallery" data-gallery="main">' +
+        '<div class="gallery-main prod-photo">' +
+        '<div class="slides">' +
+        slideMarkup(0, true) +
+        slideMarkup(1, false) +
+        slideMarkup(2, false) +
+        slideMarkup(3, false) +
+        slideMarkup(4, false) +
+        "</div>" +
+        '<span class="badge">1/5</span>' +
+        "</div>" +
+        '<div class="gallery-thumbs">' +
+        thumbs +
+        "</div>" +
+        "</div>"
+      );
+    }
+
+    function bindGalleries(root) {
+      root.querySelectorAll(".prod-photo[data-gallery], .gallery").forEach(function (box) {
+        const dots = box.querySelectorAll(".dots button");
+        const thumbs = box.querySelectorAll(".gallery-thumbs button");
+        const badge = box.querySelector(".badge");
+        const slideRoot = box.querySelector(".gallery-main .slides") || box.querySelector(".slides");
+        if (!slideRoot) return;
+        const allSlides = slideRoot.querySelectorAll(".slide");
+
+        function go(i) {
+          allSlides.forEach(function (s, idx) {
+            s.classList.toggle("on", idx === i);
+          });
+          dots.forEach(function (d, idx) {
+            d.classList.toggle("on", idx === i);
+          });
+          thumbs.forEach(function (t, idx) {
+            t.classList.toggle("on", idx === i);
+          });
+          if (badge) badge.textContent = i + 1 + "/" + allSlides.length;
+        }
+
+        dots.forEach(function (d) {
+          d.onclick = function (e) {
+            e.stopPropagation();
+            go(+d.getAttribute("data-i"));
+          };
+        });
+        thumbs.forEach(function (t) {
+          t.onclick = function () {
+            go(+t.getAttribute("data-i"));
+          };
+        });
+      });
+    }
+
+    function platformPreviews(sku) {
+      const title = escapeHtml(sku) + " 食品级硅胶沥水垫 易清洗多色可选 厨房台面速干";
+      const shortTitle = escapeHtml(sku) + " · 易清洗 · 多色可选";
+      const body =
+        "水槽边总积水？软硅胶垫贴合台面，洗完随手一垫，水渍更好收干。可卷收纳，适配多数水槽宽度。";
+      const xyBody =
+        "【九成新】只用过两次，无破损无异味。\n" +
+        body +
+        "\n可小刀，同城自提优先。";
+
+      function phoneShell(inner, darkStatus) {
+        return (
+          '<div class="iphone">' +
+          '<div class="iphone-side-l" aria-hidden="true"></div>' +
+          '<div class="iphone-side-r" aria-hidden="true"></div>' +
+          '<div class="iphone-screen">' +
+          '<div class="iphone-island" aria-hidden="true"></div>' +
+          '<div class="iphone-status' +
+          (darkStatus ? " on-dark" : "") +
+          '"><span>9:41</span><span class="right"><span class="signal"><i></i><i></i><i></i><i></i></span><span class="bat"></span></span></div>' +
+          '<div class="iphone-body">' +
+          inner +
+          "</div>" +
+          '<div class="iphone-home"><span></span></div>' +
+          "</div></div>"
+        );
+      }
+
+      return (
+        '<div class="plat-block">' +
+        "<h4>平台效果预览</h4>" +
+        '<p class="hint">示意界面，非官方接入；切换查看上架观感。</p>' +
+        '<div class="plat-tabs" role="tablist">' +
+        '<button type="button" class="plat-tab on" data-plat="taobao">淘宝</button>' +
+        '<button type="button" class="plat-tab" data-plat="pdd">拼多多</button>' +
+        '<button type="button" class="plat-tab" data-plat="xianyu">闲鱼</button>' +
+        "</div>" +
+
+        '<div class="plat-stage on" data-plat="taobao">' +
+        phoneShell(
+          '<div class="iphone-scroll">' +
+          '<div class="tb-bar"><span>‹</span><div class="search">搜索店铺内宝贝</div><span>···</span></div>' +
+          productPhotoHtml("tb") +
+          '<div class="tb-price-row"><div class="tb-price"><small>¥</small>29.9</div><div class="tb-sold">月销 200+</div></div>' +
+          '<div class="tb-coupon"><span>店铺券 ¥5</span><span>领券 ›</span></div>' +
+          '<div class="tb-title">' + title + "</div>" +
+          '<div class="tb-tags"><span>包邮</span><span>七天无理由</span><span>极速退款</span></div>' +
+          '<div class="tb-shop"><div class="logo">店</div><div><strong>一人优选旗舰店</strong><div style="color:#999;font-size:10px">回头客 98%</div></div></div>' +
+          '<div class="tb-detail"><h5>— 宝贝详情 —</h5><div class="block"><p>' + body + "</p></div>" +
+          "<div class='block'><p>展示建议：首屏氛围 → 湿/干对比 → 尺寸标注。</p></div></div>" +
+          "</div>" +
+          '<div class="tb-buy">' +
+          '<button type="button" class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>店铺</button>' +
+          '<button type="button" class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>客服</button>' +
+          '<button type="button" class="cart">加入购物车</button>' +
+          '<button type="button" class="buy">立即购买</button>' +
+          "</div>",
+          true
+        ) +
+        "</div>" +
+
+        '<div class="plat-stage" data-plat="pdd">' +
+        phoneShell(
+          '<div class="iphone-scroll">' +
+          '<div class="pdd-bar">商品详情</div>' +
+          productPhotoHtml("pdd") +
+          '<div class="pdd-body">' +
+          '<div class="pdd-price-wrap"><div class="pdd-price"><small>¥</small>19.9</div>' +
+          '<span class="pdd-group">2 人团</span></div>' +
+          '<div class="pdd-title">' + shortTitle + "</div>" +
+          '<div class="pdd-progress">已拼 486 件<div class="bar"><i></i></div></div>' +
+          '<div class="pdd-detail">' + body + "<br/><br/>突出性价比与包邮，适合测款走量。</div>" +
+          "</div></div>" +
+          '<div class="pdd-cta-bar">' +
+          '<button type="button" class="solo">单独购买</button>' +
+          '<button type="button" class="group">发起拼单</button>' +
+          "</div>",
+          true
+        ) +
+        "</div>" +
+
+        '<div class="plat-stage" data-plat="xianyu">' +
+        phoneShell(
+          '<div class="iphone-scroll">' +
+          '<div class="xy-bar"><span>关闭</span><span>闲鱼</span><span>分享</span></div>' +
+          productPhotoHtml("xy") +
+          '<div class="xy-body">' +
+          '<div class="xy-price"><small>¥</small>25</div>' +
+          '<div class="xy-meta">想要 12 · 浏览 86</div>' +
+          '<div class="xy-title">' + shortTitle + " 闲置转让</div>" +
+          '<div class="xy-chips"><span>包邮</span><span>支持验货</span><span>个人闲置</span></div>' +
+          '<div class="xy-detail">' + xyBody + "</div>" +
+          '<div class="xy-seller"><div class="xy-avatar">陈</div><div><strong>一人店主小陈</strong><span>信用极好 · 来自杭州</span></div></div>' +
+          "</div></div>" +
+          '<div class="xy-cta">' +
+          '<button type="button" class="want">聊一聊</button>' +
+          '<button type="button" class="buy">立即购买</button>' +
+          "</div>",
+          false
+        ) +
+        "</div>" +
+        "</div>"
+      );
+    }
+
+    function bindPlatformTabs(root) {
+      const tabs = root.querySelectorAll(".plat-tab");
+      const stages = root.querySelectorAll(".plat-stage");
+      tabs.forEach(function (tab) {
+        tab.onclick = function () {
+          const plat = tab.getAttribute("data-plat");
+          tabs.forEach(function (t) {
+            t.classList.toggle("on", t === tab);
+          });
+          stages.forEach(function (s) {
+            s.classList.toggle("on", s.getAttribute("data-plat") === plat);
+          });
+        };
+      });
+    }
+
+    function renderListing(sku) {
+      openComputer();
+      computerBody.innerHTML =
+        '<div class="comp-card">' +
+        '<div class="comp-card-head"><span>上架素材预览</span><span class="status">已完成</span></div>' +
+        '<div class="comp-card-body">' +
+        '<div class="listing-stack">' +
+        galleryThumbsHtml() +
+        '<div class="listing-copy">' +
+        "<h4>详情标题</h4>" +
+        '<p class="title-text">' + escapeHtml(sku) + " · 易清洗 · 多色可选</p>" +
+        "<h4>详情正文</h4>" +
+        '<p class="body-text">水槽边总积水？软硅胶垫贴合台面，洗完随手一垫。可卷收纳。</p>' +
+        '<div class="listing-actions">' +
+        '<button type="button" class="btn btn-dark">复制文案</button>' +
+        '<button type="button" class="btn btn-ghost">下载主图</button>' +
+        "</div></div></div>" +
+        platformPreviews(sku) +
+        "</div></div>";
+      bindPlatformTabs(computerBody);
+      bindGalleries(computerBody);
+    }
+
+    function stepsHtml(items) {
+      return (
+        '<ul class="steps chat-steps">' +
+        items
+          .map(function (s) {
+            return '<li><span class="ok">✓</span> ' + s + "</li>";
+          })
+          .join("") +
+        "</ul>"
+      );
+    }
+
+    function escapeText(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function runPicks(fromText) {
+      if (busy) return;
+      if (credits < 1) {
+        enterSession();
+        addMsg("agent", "<p>积分不足，请先升级套餐。</p>");
+        return;
+      }
+      busy = true;
+      enterSession();
+      const userText = fromText || "请帮我生成【家居】类选品清单，客单价【50】–【150】元。";
+      addMsg("user", "<p>" + escapeText(userText) + "</p>");
+      const t = thinking();
+      setTimeout(function () {
+        t.remove();
+        credits -= 1;
+        addMsg(
+          "agent",
+          stepsHtml(["解析品类与客单价", "生成 10 个候选并附理由"]) +
+            "<p>已完成选品。右侧 <strong>Adam's Computer</strong> 可预览候选清单；点「生成素材」可继续。</p>" +
+            "<p class='meta'>已扣 1 积分 · 剩余 " +
+            credits +
+            "</p>"
+        );
+        renderPicks();
+        busy = false;
+      }, 800);
+    }
+
+    function runListing(sku, fromText) {
+      if (busy) return;
+      if (credits < 1) {
+        enterSession();
+        addMsg("agent", "<p>积分不足。</p>");
+        return;
+      }
+      busy = true;
+      enterSession();
+      const name = sku || "硅胶沥水垫（多色）";
+      const userText =
+        fromText ||
+        ("请为商品「" + name + "」生成上架素材，优先适配【淘宝】。");
+      addMsg("user", "<p>" + escapeText(userText) + "</p>");
+      const t = thinking();
+      setTimeout(function () {
+        t.remove();
+        credits -= 1;
+        addMsg(
+          "agent",
+          stepsHtml([
+            "生成主图方案",
+            "撰写详情文案与展示说明",
+            "适配淘宝 / 拼多多 / 闲鱼效果预览"
+          ]) +
+            "<p>上架素材已生成。右侧 Computer 可切换 <strong>淘宝 / 拼多多 / 闲鱼</strong> 效果预览。</p>" +
+            "<p class='meta'>已扣 1 积分 · 剩余 " +
+            credits +
+            "</p>"
+        );
+        renderListing(name);
+        busy = false;
+      }, 800);
+    }
+
+    const TEMPLATES = {
+      picks:
+        '请帮我生成<span class="ph" data-ph="品类" contenteditable="false">品类</span>类选品清单，客单价<span class="ph" data-ph="最低价" contenteditable="false">最低价</span>–<span class="ph" data-ph="最高价" contenteditable="false">最高价</span>元。',
+      listing:
+        '请为商品「<span class="ph" data-ph="商品名称" contenteditable="false">商品名称</span>」生成上架素材，优先适配<span class="ph" data-ph="平台" contenteditable="false">淘宝/拼多多/闲鱼</span>。'
+    };
+
+    function activeInput() {
+      return session.classList.contains("on")
+        ? document.getElementById("session-input")
+        : document.getElementById("home-input");
+    }
+
+    function activeSendBtn(input) {
+      return document.getElementById(input.id === "home-input" ? "home-send" : "session-send");
+    }
+
+    function getEditorText(el) {
+      const clone = el.cloneNode(true);
+      clone.querySelectorAll(".ph").forEach(function (ph) {
+        const label = (ph.getAttribute("data-ph") || "").trim();
+        const val = (ph.textContent || "").trim() || label;
+        ph.replaceWith(document.createTextNode("【" + val + "】"));
+      });
+      return (clone.innerText || "").replace(/\u00a0/g, " ").replace(/\n+/g, " ").trim();
+    }
+
+    function isEditorEmpty(el) {
+      const t = (el.innerText || "").replace(/\u00a0/g, " ").trim();
+      return !t;
+    }
+
+    function clearEditor(el) {
+      el.innerHTML = "";
+      el.classList.add("is-empty");
+    }
+
+    function selectPh(ph) {
+      if (!ph) return;
+      document.querySelectorAll(".prompt-editor .ph.on").forEach(function (p) {
+        p.classList.remove("on");
+      });
+      document.querySelectorAll(".prompt-editor .ph.pending-del").forEach(function (p) {
+        if (p !== ph) p.classList.remove("pending-del");
+      });
+      ph.classList.add("on");
+      const range = document.createRange();
+      range.selectNodeContents(ph);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    function clearPhPending(editor) {
+      editor.querySelectorAll(".ph.pending-del").forEach(function (p) {
+        p.classList.remove("pending-del");
+      });
+    }
+
+    function removePh(ph) {
+      const editor = ph.closest(".prompt-editor");
+      const range = document.createRange();
+      range.setStartBefore(ph);
+      range.collapse(true);
+      ph.remove();
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      if (editor) {
+        if (isEditorEmpty(editor)) editor.classList.add("is-empty");
+        const btn = activeSendBtn(editor);
+        syncSend(editor, btn);
+      }
+    }
+
+    /** 光标在胶囊外侧紧贴、或整颗胶囊被选中时，才走「两次删除」 */
+    function getPhDeleteTarget(editor, key) {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return null;
+      const range = sel.getRangeAt(0);
+
+      function elOf(n) {
+        return n && n.nodeType === 3 ? n.parentElement : n;
+      }
+
+      const startPh = elOf(range.startContainer) && elOf(range.startContainer).closest
+        ? elOf(range.startContainer).closest(".ph")
+        : null;
+      const endPh = elOf(range.endContainer) && elOf(range.endContainer).closest
+        ? elOf(range.endContainer).closest(".ph")
+        : null;
+
+      if (startPh && startPh === endPh && editor.contains(startPh)) {
+        if (startPh.classList.contains("on")) return startPh;
+        if (!range.collapsed && sel.toString() === startPh.textContent) return startPh;
+        return null;
+      }
+
+      if (!range.collapsed) return null;
+
+      if (key === "Backspace") {
+        let node = range.startContainer;
+        let offset = range.startOffset;
+        if (node === editor && offset > 0) {
+          const prev = editor.childNodes[offset - 1];
+          if (prev && prev.classList && prev.classList.contains("ph")) return prev;
+        }
+        if (node.nodeType === 3 && offset === 0) {
+          const prev = node.previousSibling;
+          if (prev && prev.classList && prev.classList.contains("ph")) return prev;
+        }
+        if (node.nodeType === 1 && offset > 0) {
+          const prev = node.childNodes[offset - 1];
+          if (prev && prev.classList && prev.classList.contains("ph")) return prev;
+        }
+      }
+
+      if (key === "Delete") {
+        let node = range.startContainer;
+        let offset = range.startOffset;
+        if (node === editor) {
+          const next = editor.childNodes[offset];
+          if (next && next.classList && next.classList.contains("ph")) return next;
+        }
+        if (node.nodeType === 3 && offset === (node.textContent || "").length) {
+          const next = node.nextSibling;
+          if (next && next.classList && next.classList.contains("ph")) return next;
+        }
+        if (node.nodeType === 1) {
+          const next = node.childNodes[offset];
+          if (next && next.classList && next.classList.contains("ph")) return next;
+        }
+      }
+
+      return null;
+    }
+
+    function fillTemplate(tool) {
+      const tpl = TEMPLATES[tool];
+      if (!tpl) return;
+      const input = activeInput();
+      const btn = activeSendBtn(input);
+      input.innerHTML = tpl;
+      input.classList.remove("is-empty");
+      input.focus();
+      const first = input.querySelector(".ph");
+      selectPh(first);
+      bindPhClicks(input);
+      syncSend(input, btn);
+    }
+
+    function bindPhClicks(editor) {
+      editor.querySelectorAll(".ph").forEach(function (ph) {
+        ph.onclick = function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          selectPh(ph);
+        };
+      });
+    }
+
+    function replaceActivePhWithText(editor, text) {
+      const on = editor.querySelector(".ph.on") || editor.querySelector(".ph");
+      if (!on) return false;
+      const label = on.getAttribute("data-ph") || "";
+      on.textContent = text;
+      if (text && text !== label) on.classList.add("filled");
+      else on.classList.remove("filled");
+      on.classList.remove("on");
+      // place caret after the chip
+      const range = document.createRange();
+      range.setStartAfter(on);
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return true;
+    }
+
+    function extractListingSku(text) {
+      const m =
+        text.match(/「([^」【]+)」/) ||
+        text.match(/【(?!淘宝|拼多多|闲鱼|商品名称|平台)([^】]+)】/);
+      if (m && m[1] && m[1] !== "商品名称") return m[1].trim();
+      return null;
+    }
+
+    function handleSend(text) {
+      text = (text || "").trim();
+      if (!text) return;
+      if (/选品|清单|卖什么|客单价/.test(text)) runPicks(text);
+      else if (/上架|素材|详情|主图/.test(text)) runListing(extractListingSku(text), text);
+      else {
+        enterSession();
+        addMsg("user", "<p>" + escapeText(text) + "</p>");
+        const t = thinking();
+        setTimeout(function () {
+          t.remove();
+          addMsg(
+            "agent",
+            "<p>可以点上方快捷栏填入模板，点亮色标签改内容后发送；或直接说：帮我做家居选品。</p>"
+          );
+        }, 500);
+      }
+    }
+
+    function bindSend(inputId, btnId) {
+      const input = document.getElementById(inputId);
+      const btn = document.getElementById(btnId);
+      input.classList.add("is-empty");
+
+      function go() {
+        handleSend(getEditorText(input));
+        clearEditor(input);
+        syncSend(input, btn);
+      }
+      btn.onclick = go;
+
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          go();
+          return;
+        }
+        if (e.key === "Tab") {
+          clearPhPending(input);
+          const list = Array.prototype.slice.call(input.querySelectorAll(".ph"));
+          if (!list.length) return;
+          e.preventDefault();
+          const cur = input.querySelector(".ph.on");
+          let i = cur ? list.indexOf(cur) : -1;
+          i = e.shiftKey ? (i <= 0 ? list.length - 1 : i - 1) : (i + 1) % list.length;
+          selectPh(list[i]);
+          return;
+        }
+
+        if (e.key === "Backspace" || e.key === "Delete") {
+          const target = getPhDeleteTarget(input, e.key);
+          if (target) {
+            e.preventDefault();
+            e.stopPropagation();
+            // 胶囊内已填写内容：先逐字删，删空后再两次确认删整颗
+            if (
+              e.key === "Backspace" &&
+              target.classList.contains("on") &&
+              target.classList.contains("filled") &&
+              !target.classList.contains("pending-del")
+            ) {
+              const cur = target.textContent || "";
+              if (cur.length > 1) {
+                target.textContent = cur.slice(0, -1);
+                syncSend(input, btn);
+                return;
+              }
+              // 只剩 1 个字：恢复为原始占位文案
+              target.textContent = target.getAttribute("data-ph") || "";
+              target.classList.remove("filled");
+              syncSend(input, btn);
+              return;
+            }
+            if (target.classList.contains("pending-del")) {
+              removePh(target);
+            } else {
+              clearPhPending(input);
+              target.classList.add("pending-del");
+              target.classList.add("on");
+            }
+            return;
+          }
+          clearPhPending(input);
+          return;
+        }
+
+        // 选中胶囊后打字：写入胶囊内容（胶囊本身不可直接编辑）
+        if (
+          e.key.length === 1 &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey
+        ) {
+          const ph = input.querySelector(".ph.on");
+          if (ph) {
+            e.preventDefault();
+            clearPhPending(input);
+            const label = ph.getAttribute("data-ph") || "";
+            const cur = (ph.textContent || "").trim();
+            if (!ph.classList.contains("filled") || cur === label) {
+              ph.textContent = e.key;
+            } else {
+              ph.textContent = cur + e.key;
+            }
+            ph.classList.add("filled");
+            ph.classList.add("on");
+            syncSend(input, btn);
+            return;
+          }
+          clearPhPending(input);
+          return;
+        }
+
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          clearPhPending(input);
+        }
+      });
+
+      input.addEventListener("click", function () {
+        clearPhPending(input);
+      });
+
+      input.addEventListener("keyup", function () {
+        input.querySelectorAll(".ph").forEach(function (ph) {
+          const label = ph.getAttribute("data-ph") || "";
+          const val = (ph.textContent || "").trim();
+          ph.classList.toggle("filled", !!val && val !== label);
+        });
+      });
+
+      input.addEventListener("input", function () {
+        if (isEditorEmpty(input)) input.classList.add("is-empty");
+        else input.classList.remove("is-empty");
+        input.querySelectorAll(".ph").forEach(function (ph) {
+          const label = ph.getAttribute("data-ph") || "";
+          const val = (ph.textContent || "").trim();
+          ph.classList.toggle("filled", !!val && val !== label);
+        });
+        syncSend(input, btn);
+      });
+
+      input.addEventListener("paste", function (e) {
+        e.preventDefault();
+        clearPhPending(input);
+        const text = (e.clipboardData || window.clipboardData).getData("text").replace(/\n/g, " ");
+        document.execCommand("insertText", false, text);
+        syncSend(input, btn);
+      });
+    }
+
+    function syncSend(input, btn) {
+      if (!isEditorEmpty(input)) btn.classList.add("active");
+      else if (input.id === "home-input") btn.classList.remove("active");
+    }
+
+    bindSend("home-input", "home-send");
+    bindSend("session-input", "session-send");
+
+    document.querySelectorAll("[data-tool]").forEach(function (el) {
+      el.addEventListener("click", function () {
+        const tool = el.getAttribute("data-tool");
+        if (tool === "picks" || tool === "listing") fillTemplate(tool);
+        else if (tool === "more") {
+          const input = activeInput();
+          input.focus();
+          input.setAttribute("data-placeholder", "试试：帮我优化主图文案 / 对比两个选品…");
+        }
+      });
+    });
+  </script>
+</body>
+</html>

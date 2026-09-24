@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.xmut.lims.pi.agent.config.PiCheckpointAutoConfiguration,\
+com.xmut.lims.pi.agent.config.PiAutoConfiguration

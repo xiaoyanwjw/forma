@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>上架素材 — Adam</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ribbon">Demo · Listing 结果态</div>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="index.html">Adam<i>.</i></a>
+      <nav class="nav">
+        <a href="app.html">工作台</a>
+        <a class="on" href="listing.html">上架素材</a>
+        <a href="history.html">历史</a>
+        <span class="credit">剩 <b>12</b>/20</span>
+      </nav>
+    </header>
+
+    <h1 class="h1">生成上架素材</h1>
+    <p class="lede">主图方案 + 详情怎么写、怎么展示。不是实体包装设计。</p>
+
+    <section class="board">
+      <h2>商品</h2>
+      <p class="hint">可来自选品清单，也可手填。</p>
+      <label for="sku">名称</label>
+      <input id="sku" value="硅胶沥水垫（多色）" />
+      <div class="actions">
+        <a class="btn btn-stamp" href="#kit">生成素材</a>
+        <a class="btn btn-line" href="select.html">从清单挑</a>
+      </div>
+    </section>
+
+    <section class="board" id="kit">
+      <h2>Listing 套装</h2>
+      <p class="hint">上架前请人工核对文案与合规。</p>
+      <div class="kit">
+        <div>
+          <div class="stage"><span>主图方案</span></div>
+          <p style="font-size:0.8rem;color:var(--mute);margin:10px 0 0">建议：浅色台面俯拍，角落放色卡。</p>
+        </div>
+        <div class="copy">
+          <h3>详情标题</h3>
+          <p>食品级硅胶沥水垫 · 易清洗 · 多色可选 · 厨房台面速干</p>
+          <h3>详情正文</h3>
+          <p>水槽边总积水？软硅胶垫贴合台面，洗完随手一垫，水渍更好收干。可卷收纳，适配多数水槽宽度。</p>
+          <h3>展示建议</h3>
+          <ul>
+            <li>首屏主图氛围</li>
+            <li>第二屏湿/干对比</li>
+            <li>第三屏尺寸标注 + 清洗示意</li>
+          </ul>
+          <div class="actions">
+            <a class="btn btn-stamp" href="#">复制文案</a>
+            <a class="btn btn-line" href="#">下载主图</a>
+            <a class="btn btn-line" href="listing.html">重试</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="foot">上架素材 · UJ-2 · FR-9 / FR-10</p>
+  </div>
+</body>
+</html>

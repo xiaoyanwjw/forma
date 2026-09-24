@@ -1,0 +1,59 @@
+services:
+  mysql:
+    image: mysql:8.0.36
+    container_name: lippi-ebus-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${DB_NAME:-lippi_ebus}
+      MYSQL_USER: ${DB_USERNAME:-ebus}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-ebus123}
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../bootstrap/sql:/docker-entrypoint-initdb.d:ro
+    networks:
+      - lippi-ebus-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  starter:
+    image: lippi-ebus-starter:local
+    build:
+      context: ../..
+      dockerfile: APP-META/docker-config/Dockerfile_starter
+      args:
+        # Override when Hub/mirrors fail, e.g. STARTER_BASE_IMAGE=lippi-ebus-java8:local
+        BASE_IMAGE: ${STARTER_BASE_IMAGE:-eclipse-temurin:8-jre}
+    container_name: lippi-ebus-starter
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SERVER_PORT: "8080"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-lippi_ebus}
+      DB_USERNAME: ${DB_USERNAME:-ebus}
+      DB_PASSWORD: ${DB_PASSWORD:-ebus123}
+    ports:
+      - "${STARTER_PORT:-8080}:8080"
+    networks:
+      - lippi-ebus-network
+
+volumes:
+  mysql-data:
+
+networks:
+  lippi-ebus-network:
+    driver: bridge

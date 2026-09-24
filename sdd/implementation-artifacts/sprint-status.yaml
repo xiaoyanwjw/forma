@@ -1,0 +1,66 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 09-24-2026 11:36
+last_updated: 09-24-2026 13:54
+project: lippi-ai-ebusiness
+project_key: NOKEY
+tracking_system: file-system
+story_location: 
+  /Users/echo/workspace/lippi-ai-ebusiness/sdd/implementation-artifacts
+development_status:
+  epic-1: in-progress
+  1-1-可跑的仓库与本地-docker: done
+  1-2-注册与登录拿-jwt: backlog
+  1-3-积分账本-额度-预占-结算-月重置: backlog
+  1-4-登录后看见套餐与积分: backlog
+  1-5-手工改档升级: backlog
+  1-6-adam-落地页-品牌-清单感: backlog
+  1-7-协议声明与合规提示-ai-须人工复核: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-generationrun-与-sse-事件骨架: backlog
+  2-2-品类模板-三档通用: backlog
+  2-3-agent-对话壳与右侧预览: backlog
+  2-4-生成选品清单并结算-1-积分: backlog
+  2-5-单次生成模型成本可统计: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-生成-listing-套装-文案-主图媒体: backlog
+  3-2-导出图片与复制文案: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-不满意重试-新-run-新预占: backlog
+  4-2-提交-质量差-反馈: backlog
+  4-3-近-60-天生成历史: backlog
+  epic-4-retrospective: optional

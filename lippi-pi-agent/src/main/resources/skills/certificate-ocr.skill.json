@@ -1,0 +1,13 @@
+{
+  "id": "certificate.ocr",
+  "version": "1.0.0",
+  "displayName": "Certificate OCR",
+  "description": "Extract structured fields from qualification certificate images",
+  "skillsPrompt": null,
+  "promptRef": "classpath:skills/certificate-ocr.md",
+  "toolWhitelist": ["read_skill"],
+  "maxToolLevel": "READ",
+  "graphTopology": "SIMPLE_AGENT_END",
+  "modelUseCase": "certificate-ocr",
+  "contentHash": null
+}

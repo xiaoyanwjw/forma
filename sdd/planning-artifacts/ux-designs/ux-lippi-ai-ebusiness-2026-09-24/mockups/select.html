@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>选品清单 — Adam</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ribbon">Demo · 选品结果态</div>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="index.html">Adam<i>.</i></a>
+      <nav class="nav">
+        <a href="app.html">工作台</a>
+        <a class="on" href="select.html">选品</a>
+        <a href="history.html">历史</a>
+        <span class="credit">剩 <b>13</b>/20</span>
+      </nav>
+    </header>
+
+    <h1 class="h1">生成选品清单</h1>
+    <p class="lede">选品类，点一次生成。三档都能用全部模板。</p>
+
+    <section class="board">
+      <h2>怎么选</h2>
+      <p class="hint">补充说明可选，写客单价或平台偏好即可。</p>
+      <div class="fields">
+        <div>
+          <label for="cat">品类模板</label>
+          <select id="cat">
+            <option selected>家居类</option>
+            <option>电子类</option>
+            <option>服饰配件</option>
+          </select>
+        </div>
+        <div>
+          <label for="note">补充说明</label>
+          <input id="note" value="客单价 50–150，闲鱼+拼多多" />
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn btn-stamp" href="#out">生成清单</a>
+        <a class="btn btn-line" href="app.html">返回</a>
+      </div>
+    </section>
+
+    <section class="board" id="out">
+      <h2>本轮 10 个候选</h2>
+      <p class="hint">演示数据。挑一条去做上架素材。</p>
+      <ol class="picks">
+        <li>
+          <span class="n">01</span>
+          <div>
+            <div class="t">硅胶沥水垫（多色）</div>
+            <div class="r">厨房刚需、复购点清晰，图文易做差异化。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+        <li>
+          <span class="n">02</span>
+          <div>
+            <div class="t">壁挂式免打孔置物架</div>
+            <div class="r">租房人群搜索稳，包装轻、退货风险相对可控。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+        <li>
+          <span class="n">03</span>
+          <div>
+            <div class="t">可叠放透明收纳盒</div>
+            <div class="r">详情适合「空间对比」，前后对比主图好做。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+        <li>
+          <span class="n">04</span>
+          <div>
+            <div class="t">香薰蜡烛礼盒</div>
+            <div class="r">礼赠场景多；文案注意不夸大功效。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+        <li>
+          <span class="n">05</span>
+          <div>
+            <div class="t">床头触摸小夜灯</div>
+            <div class="r">夜间场景情感强，氛围图容易出片。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+        <li>
+          <span class="n">06</span>
+          <div>
+            <div class="t">可水洗短毛地垫</div>
+            <div class="r">季节性弱；评价关键词集中在掉毛与清洗。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+        <li>
+          <span class="n">07</span>
+          <div>
+            <div class="t">显示器增高架带抽屉</div>
+            <div class="r">桌面收纳刚需，参数页写清承重。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+        <li>
+          <span class="n">08</span>
+          <div>
+            <div class="t">磁吸理线器套装</div>
+            <div class="r">客单低、转化看图，适合测款走量。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+        <li>
+          <span class="n">09</span>
+          <div>
+            <div class="t">真空压缩袋（电泵）</div>
+            <div class="r">换季搜索高峰；详情强调密封与耐用。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+        <li>
+          <span class="n">10</span>
+          <div>
+            <div class="t">卫生间缝隙收纳架</div>
+            <div class="r">痛点直观，主图可用安装前后叙事。</div>
+          </div>
+          <a class="go" href="listing.html">做上架素材</a>
+        </li>
+      </ol>
+      <div class="actions">
+        <a class="btn btn-line" href="select.html">再生成一次</a>
+        <a class="btn btn-line" href="#">反馈质量差</a>
+      </div>
+    </section>
+
+    <p class="foot">选品 · UJ-1 · FR-7 / FR-8 / FR-11</p>
+  </div>
+</body>
+</html>

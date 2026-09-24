@@ -1,0 +1,129 @@
+# Aligned to sdd/planning-artifacts/epics.md (17 stories). Canonical for build order + AC: epics.md.
+# This file is the SPEC companion checklist (checkpoints / invoke hints).
+
+- id: "1.1"
+  title: 可跑的仓库与本地 Docker
+  description: >-
+    建立 Maven parent 与 lippi-ai-ebus-* / lippi-pi-* / lippi-ai-ebus-web 平铺结构，
+    配置 APP-META Docker（至少 starter+MySQL），vendor-copy lippi-pi-ai 与 lippi-pi-agent。
+  spec_checkpoint: true
+  invoke_dev_with: >-
+    Follow ARCHITECTURE-SPINE AD-10/AD-11/AD-13 and AGENTS.md §1/§3. Do not nest under backend/.
+    Package root com.xmut.ebus; Pi modules lippi-pi-ai / lippi-pi-agent.
+
+- id: "1.2"
+  title: 注册与登录拿 JWT
+  description: >-
+    用户名/邮箱+密码注册登录，签发 JWT；未登录不能启动计费生成；interfaces 频率限制。
+  invoke_dev_with: >-
+    Spine AD-8; sdd/context/02-be.md thin Controller + userId. No TenantContext. UUID IDs (AD-12).
+
+- id: "1.3"
+  title: 积分账本（额度 / 预占 / 结算 / 月重置）
+  description: >-
+    CreditLedger 唯一写余额；检查→预占 1→可用成果落库后结算否则释放；20/200/600；月重置清零。
+  spec_checkpoint: true
+  invoke_dev_with: >-
+    Spine AD-5/AD-6/AD-7. Agent tools never write credits. Never settle on SSE end alone.
+
+- id: "1.4"
+  title: 登录后看见套餐与积分
+  description: >-
+    展示套餐档、剩余积分、下次重置；套餐用价目表行；不足时人话提示。
+  invoke_dev_with: >-
+    FR2; UX-DR5 pricing rows not twin cards. NFR3 insufficient-credit copy.
+
+- id: "1.5"
+  title: 手工改档升级
+  description: >-
+    管理入口或受控脚本将用户从免费改为 Pro/Plus 并刷新额度；可审计；不接支付。
+  invoke_dev_with: >-
+    Spine AD-9 payment deferred. Audit who/when/from→to.
+
+- id: "1.6"
+  title: Adam 落地页（品牌 + 清单感）
+  description: >-
+    落地页品牌 Adam 英雄级 + 清单实物感；店章红/字体；CTA 进入登录或工具。
+  invoke_dev_with: >-
+    UX-DR1–3/8; Brand Adam; mockups under ux-lippi-ai-ebusiness-2026-09-24/mockups/.
+
+- id: "1.7"
+  title: 协议声明与合规提示（AI 须人工复核）
+  description: >-
+    注册或首次生成前明示 AI 须人工复核后再上架；用户确认已知悉（NFR4）。
+  invoke_dev_with: >-
+    NFR4; static copy OK; no full legal CMS in v1.
+
+- id: "2.1"
+  title: GenerationRun 与 SSE 事件骨架
+  description: >-
+    GenerationRun 关联 holdId/session/artifact；SSE 闭合事件名；fetch+ReadableStream+JWT 契约。
+  spec_checkpoint: true
+  invoke_dev_with: >-
+    Spine AD-4 events only: run_started|message_delta|tool_started|tool_finished|artifact_ready|run_failed|run_settled.
+
+- id: "2.2"
+  title: 品类模板（三档通用）
+  description: >-
+    已上线品类模板对免费/Pro/Plus 全部可用；稳定 templateId；CatalogTemplate 唯一写。
+  invoke_dev_with: >-
+    FR8; Spine AD-6 CatalogTemplate ownership.
+
+- id: "2.3"
+  title: Agent 对话壳与右侧预览
+  description: >-
+    中间会话、快捷栏、右预览、左历史+套餐；对齐 EXPERIENCE/mockups；不直连模型/不改积分。
+  invoke_dev_with: >-
+    CAP-8 FE; UX-DR4/6/7/8; sdd/context/03-fe.md; Brand Adam.
+
+- id: "2.4"
+  title: 生成选品清单并结算 1 积分
+  description: >-
+    选模板后经 Agent 生成约 8–12 条带理由候选并落库；成功结算 1 分；失败释放预占。
+  done_checkpoint: true
+  invoke_dev_with: >-
+    FR7; Picklist requires templateId; AgentSession via lippi-pi-agent. Model stub OK (AD-10).
+
+- id: "2.5"
+  title: 单次生成模型成本可统计
+  description: >-
+    GenerationRun（或关联记录）持久化可汇总成本/用量；支持按选品/Listing 汇总（NFR2）。
+  invoke_dev_with: >-
+    NFR2; do not replace CreditLedger; stub mode still writes measurable placeholders.
+
+- id: "3.1"
+  title: 生成 Listing 套装（文案 + 主图媒体）
+  description: >-
+    候选或自填生成详情文案/展示说明与主图；MediaStore→OSS；Listing 只存 mediaObjectId；成功扣 1 分。
+  done_checkpoint: true
+  invoke_dev_with: >-
+    FR9; Spine AD-9; optional picklistItemId; domestic generic style only.
+
+- id: "3.2"
+  title: 导出图片与复制文案
+  description: >-
+    下载主图、复制详情文案；导出不额外扣分。
+  invoke_dev_with: >-
+    FR10; NFR3 on export failures.
+
+- id: "4.1"
+  title: 不满意重试（新 Run + 新预占）
+  description: >-
+    重试创建新 GenerationRun+新预占；可复用 AgentSession；不覆盖旧成功成果。
+  invoke_dev_with: >-
+    FR11; Spine AD-7; never reuse old hold.
+
+- id: "4.2"
+  title: 提交「质量差」反馈
+  description: >-
+    对成果提交简短质量差反馈并落库；不扣积分；仅本人。
+  invoke_dev_with: >-
+    FR11; Feedback owner per AD-6.
+
+- id: "4.3"
+  title: 近 60 天生成历史
+  description: >-
+    查看本人近 60 天选品与 Listing；HistoryQuery 只读；成功记录独立保留。
+  done_checkpoint: true
+  invoke_dev_with: >-
+    FR12/CAP-7; retention 60 days as settled in SPEC.

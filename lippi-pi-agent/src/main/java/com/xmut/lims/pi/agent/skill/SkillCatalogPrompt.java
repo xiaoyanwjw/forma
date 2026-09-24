@@ -1,0 +1,55 @@
+package com.xmut.lims.pi.agent.skill;
+
+import org.springframework.util.StringUtils;
+
+import java.util.List;
+
+/**
+ * 组装 Stable {@code skills} 槽：目录摘要 +「用 read_skill 拉正文」指引。
+ *
+ * <p><strong>不</strong>把 Skill 全文写入 system（全文只经 {@code read_skill}）。
+ */
+public final class SkillCatalogPrompt {
+
+    public static final String READ_SKILL_HINT =
+            "If the active skill body is not already in a recent tool result, "
+                    + "call read_skill once with skill_id, then follow that body and output the final answer. "
+                    + "If the skill body is already present in tool results, do not call read_skill again. "
+                    + "Do not invent skill content.";
+
+    private SkillCatalogPrompt() {}
+
+    /**
+     * @param available 本轮目录（Active 时通常单元素；无 Active 时为全量）
+     * @param activeSkillId 已激活 id；可空
+     * @return 写入 SKILLS 的文本；无可列则 null
+     */
+    public static String build(List<SkillManifest> available, String activeSkillId) {
+        if (available == null || available.isEmpty()) {
+            if (StringUtils.hasText(activeSkillId)) {
+                return "Active skill: " + activeSkillId.trim() + ". " + READ_SKILL_HINT;
+            }
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("## Skills catalog\n");
+        for (SkillManifest m : available) {
+            if (m == null || !StringUtils.hasText(m.getId())) {
+                continue;
+            }
+            sb.append("- ").append(m.getId().trim());
+            if (StringUtils.hasText(m.getDisplayName())) {
+                sb.append(" (").append(m.getDisplayName().trim()).append(')');
+            }
+            if (StringUtils.hasText(m.getDescription())) {
+                sb.append(": ").append(m.getDescription().trim());
+            }
+            sb.append('\n');
+        }
+        if (StringUtils.hasText(activeSkillId)) {
+            sb.append("\nActive skill: ").append(activeSkillId.trim()).append('.');
+        }
+        sb.append('\n').append(READ_SKILL_HINT);
+        return sb.toString().trim();
+    }
+}
