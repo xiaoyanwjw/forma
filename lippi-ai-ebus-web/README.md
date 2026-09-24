@@ -35,7 +35,7 @@ npm install
 npm run dev
 ```
 
-开发服务器打开根路径 `/` 即见 Adam 落地页（品牌 + 清单样例）；登录/注册仍走 `/login`、`/register`。
+开发服务器打开根路径 `/` 即见 Manus 式居中提问门面（「我能为你做什么？」）；点输入/胶囊：未登录进 `/login`，已登录进 `/credits`。注册仍走 `/register`。
 
 ### Type-Check, Compile and Minify for Production
 

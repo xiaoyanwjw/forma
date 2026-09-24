@@ -53,57 +53,59 @@ describe('LandingPage', () => {
     unmount = undefined
   })
 
-  it('renders hero Adam and sample pick list', async () => {
+  it('renders Manus-style centered prompt home', async () => {
     const mounted = await mountLanding()
     unmount = mounted.unmount
     await flushUi()
 
-    const brand = mounted.root.querySelector('h1.brand')
-    expect(brand?.textContent?.trim()).toBe('Adam')
-    const picks = mounted.root.querySelectorAll('ol.picks li')
-    expect(picks.length).toBeGreaterThanOrEqual(6)
+    const headline = mounted.root.querySelector('h1.headline')
+    expect(headline?.textContent?.trim()).toBe('我能为你做什么？')
     expect(mounted.root.textContent).toMatch(/选品清单/)
+    expect(mounted.root.textContent).toMatch(/生成上架素材/)
+    expect(mounted.root.querySelector('.prompt')).toBeTruthy()
+    expect(mounted.root.querySelector('ol.picks')).toBeNull()
   })
 
-  it('guest CTA: login and register buttons navigate', async () => {
+  it('guest: prompt and pills navigate to login; register link works', async () => {
     const mounted = await mountLanding()
     unmount = mounted.unmount
     await flushUi()
 
-    const buttons = Array.from(mounted.root.querySelectorAll('button'))
-    const labels = buttons.map((b) => b.textContent?.trim() ?? '')
-    expect(labels).toContain('登录')
-    expect(labels).toContain('注册')
-    expect(labels.some((t) => t.includes('→'))).toBe(false)
+    const prompt = mounted.root.querySelector('.prompt') as HTMLButtonElement | null
+    expect(prompt).toBeTruthy()
+    expect(prompt?.tagName).toBe('BUTTON')
 
-    const loginBtn = buttons.find((b) => b.textContent?.trim() === '登录')
-    const registerBtn = buttons.find((b) => b.textContent?.trim() === '注册')
-    expect(loginBtn).toBeTruthy()
-    expect(registerBtn).toBeTruthy()
-
-    loginBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    prompt?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushUi()
     expect(mounted.push).toHaveBeenCalledWith({ name: 'login' })
 
     mounted.push.mockClear()
+    const pills = Array.from(mounted.root.querySelectorAll('.pill'))
+    expect(pills.length).toBeGreaterThanOrEqual(2)
+    pills[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushUi()
+    expect(mounted.push).toHaveBeenCalledWith({ name: 'login' })
+
+    mounted.push.mockClear()
+    const registerBtn = Array.from(mounted.root.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === '注册',
+    )
     registerBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushUi()
     expect(mounted.push).toHaveBeenCalledWith({ name: 'register' })
   })
 
-  it('logged-in CTA goes to credits without redirecting away from landing', async () => {
+  it('logged-in: stays on landing; prompt goes to credits', async () => {
     setToken('jwt-demo')
     const mounted = await mountLanding()
     unmount = mounted.unmount
     await flushUi()
 
     expect(mounted.router.currentRoute.value.name).toBe('landing')
-    const buttons = Array.from(mounted.root.querySelectorAll('button'))
-    const creditsBtn = buttons.find((b) => b.textContent?.includes('套餐'))
-    expect(creditsBtn).toBeTruthy()
-    expect(buttons.some((b) => b.textContent?.trim() === '登录')).toBe(false)
+    expect(mounted.root.querySelector('h1.headline')?.textContent?.trim()).toBe('我能为你做什么？')
 
-    creditsBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    const prompt = mounted.root.querySelector('.prompt')
+    prompt?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushUi()
     expect(mounted.push).toHaveBeenCalledWith({ name: 'credits' })
   })
@@ -127,14 +129,13 @@ describe('LandingPage', () => {
     expect(withArrow).toHaveLength(0)
   })
 
-  it('narrow viewport still shows brand and pick sheet (stack-friendly)', async () => {
-    // happy-dom 默认窄视口；移动优先布局须同时露出品牌与清单交付物
+  it('narrow viewport still shows headline and prompt', async () => {
     const mounted = await mountLanding()
     unmount = mounted.unmount
     await flushUi()
 
-    expect(mounted.root.querySelector('.hero .brand')).toBeTruthy()
-    expect(mounted.root.querySelector('aside.sheet ol.picks li')).toBeTruthy()
-    expect(mounted.root.querySelectorAll('ol.picks li').length).toBeGreaterThanOrEqual(6)
+    expect(mounted.root.querySelector('h1.headline')).toBeTruthy()
+    expect(mounted.root.querySelector('.prompt')).toBeTruthy()
+    expect(mounted.root.querySelectorAll('.pill').length).toBeGreaterThanOrEqual(2)
   })
 })
