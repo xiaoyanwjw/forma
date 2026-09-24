@@ -8,6 +8,8 @@ public enum ErrorCode {
     PARAM_INVALID("PARAM_INVALID", "参数无效", 400),
     UNAUTHORIZED("UNAUTHORIZED", "未授权，请先登录", 401),
     BAD_CREDENTIALS("BAD_CREDENTIALS", "用户名或密码错误", 401),
+    CREDIT_INSUFFICIENT("CREDIT_INSUFFICIENT", "积分不足", 402),
+    CREDIT_HOLD_INVALID("CREDIT_HOLD_INVALID", "预占无效或已完结", 400),
     CONFLICT("CONFLICT", "用户名或邮箱已被占用", 409),
     RATE_LIMITED("RATE_LIMITED", "请求过于频繁，请稍后再试", 429),
     SYSTEM_ERROR("SYSTEM_ERROR", "系统错误", 500);

@@ -1,5 +1,6 @@
 package com.xmut.ebus.application.identity.service;
 
+import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
 import com.xmut.ebus.application.identity.command.LoginCommand;
 import com.xmut.ebus.application.identity.command.RegisterCommand;
 import com.xmut.ebus.application.identity.dto.LoginResultDTO;
@@ -27,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,12 +43,15 @@ class IdentityApplicationServiceTest {
     private PasswordHasher passwordHasher;
     @Mock
     private JwtTokenPort jwtTokenPort;
+    @Mock
+    private CreditApplicationService creditApplicationService;
 
     private IdentityApplicationService service;
 
     @BeforeEach
     void setUp() {
-        service = new IdentityApplicationService(userRepository, passwordHasher, jwtTokenPort);
+        service = new IdentityApplicationService(
+                userRepository, passwordHasher, jwtTokenPort, creditApplicationService);
     }
 
     @Test
@@ -69,6 +74,7 @@ class IdentityApplicationServiceTest {
         assertTrue(UUID.fromString(saved.getId()).toString().equals(saved.getId()));
         assertEquals("HASH", saved.getPasswordHash());
         assertEquals("alice@example.com", saved.getEmail());
+        verify(creditApplicationService).initFreeAccount(eq(result.getUserId()), any(Instant.class));
     }
 
     @Test
@@ -88,6 +94,7 @@ class IdentityApplicationServiceTest {
         });
         assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
         verify(userRepository, never()).save(any(User.class));
+        verify(creditApplicationService, never()).initFreeAccount(anyString(), any(Instant.class));
     }
 
     @Test
@@ -109,6 +116,7 @@ class IdentityApplicationServiceTest {
             }
         });
         assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
+        verify(creditApplicationService, never()).initFreeAccount(anyString(), any(Instant.class));
     }
 
     @Test

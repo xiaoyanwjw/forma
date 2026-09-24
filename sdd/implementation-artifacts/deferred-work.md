@@ -31,3 +31,7 @@
 - source_spec: `sdd/implementation-artifacts/spec-1-2-注册与登录拿-jwt.md`
   summary: 用户名等于另一用户邮箱时 selectByUsernameOrEmail OR+LIMIT 1 匹配不确定。
   evidence: 日常极少；完整消歧需禁用户名像邮箱或改查找优先级，超出最小补丁。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-3-积分账本-额度-预占-结算-月重置.md`
+  summary: H2 schema-h2.sql 与 MySQL 002_ebus_credit.sql 双份手维护（FK/索引/精度），易漂移。
+  evidence: 评审确认 H2 省略 FK/索引且用 TIMESTAMP；与 1.2 用户表同类问题，本故事无共享 codegen。

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.ebus.infrastructure.persistence.mybatis.mapper.CreditAccountMapper">
+
+    <resultMap id="CreditAccountResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.CreditAccountPO">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="tier" column="tier"/>
+        <result property="balance" column="balance"/>
+        <result property="reserved" column="reserved"/>
+        <result property="periodAnchorAt" column="period_anchor_at"/>
+        <result property="nextResetAt" column="next_reset_at"/>
+        <result property="version" column="version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert">
+        INSERT INTO ebus_credit_account (
+            id, user_id, tier, balance, reserved,
+            period_anchor_at, next_reset_at, version, created_at, updated_at
+        ) VALUES (
+            #{id}, #{userId}, #{tier}, #{balance}, #{reserved},
+            #{periodAnchorAt}, #{nextResetAt}, #{version}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <select id="selectById" resultMap="CreditAccountResultMap">
+        SELECT id, user_id, tier, balance, reserved,
+               period_anchor_at, next_reset_at, version, created_at, updated_at
+        FROM ebus_credit_account
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByUserId" resultMap="CreditAccountResultMap">
+        SELECT id, user_id, tier, balance, reserved,
+               period_anchor_at, next_reset_at, version, created_at, updated_at
+        FROM ebus_credit_account
+        WHERE user_id = #{userId}
+    </select>
+
+    <update id="tryReserve">
+        UPDATE ebus_credit_account
+        SET reserved = reserved + #{amount},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND version = #{expectedVersion}
+          AND (balance - reserved) &gt;= #{amount}
+    </update>
+
+    <update id="trySettle">
+        UPDATE ebus_credit_account
+        SET balance = balance - #{amount},
+            reserved = reserved - #{amount},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND version = #{expectedVersion}
+          AND reserved &gt;= #{amount}
+          AND balance &gt;= #{amount}
+    </update>
+
+    <update id="tryRelease">
+        UPDATE ebus_credit_account
+        SET reserved = reserved - #{amount},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND version = #{expectedVersion}
+          AND reserved &gt;= #{amount}
+    </update>
+
+    <update id="tryApplyMonthlyReset">
+        UPDATE ebus_credit_account
+        SET balance = #{balance},
+            next_reset_at = #{nextResetAt},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND version = #{expectedVersion}
+    </update>
+</mapper>

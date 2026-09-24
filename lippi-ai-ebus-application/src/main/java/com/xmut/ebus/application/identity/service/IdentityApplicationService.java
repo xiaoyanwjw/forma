@@ -1,5 +1,6 @@
 package com.xmut.ebus.application.identity.service;
 
+import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
 import com.xmut.ebus.application.identity.command.LoginCommand;
 import com.xmut.ebus.application.identity.command.RegisterCommand;
 import com.xmut.ebus.application.identity.dto.LoginResultDTO;
@@ -31,6 +32,7 @@ public class IdentityApplicationService {
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
     private final JwtTokenPort jwtTokenPort;
+    private final CreditApplicationService creditApplicationService;
 
     @Transactional(rollbackFor = Exception.class)
     public RegisterResultDTO register(RegisterCommand command) {
@@ -56,6 +58,9 @@ public class IdentityApplicationService {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.CONFLICT, "用户名或邮箱已被占用");
         }
+
+        // 同事务建免费账本；失败则注册整体回滚
+        creditApplicationService.initFreeAccount(userId, now);
 
         log.info("user registered userId={}", userId);
         return new RegisterResultDTO(userId, username, email);
