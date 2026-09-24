@@ -1,6 +1,40 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { clearToken, setToken } from '@/api/http'
 import router from '@/router'
 import CreditPlan from '@/views/business/credit/CreditPlan.vue'
+import LandingPage from '@/views/marketing/LandingPage.vue'
+
+describe('router landing', () => {
+  afterEach(() => {
+    clearToken()
+  })
+
+  it('resolve / points to LandingPage (not redirect to login)', async () => {
+    const resolved = router.resolve('/')
+    expect(resolved.name).toBe('landing')
+    expect(resolved.path).toBe('/')
+    const loader = resolved.matched[0]?.components?.default
+    expect(typeof loader).toBe('function')
+    const mod = await (loader as () => Promise<{ default: unknown }>)()
+    expect(mod.default).toBe(LandingPage)
+  })
+
+  it('resolve name landing points to LandingPage', async () => {
+    const resolved = router.resolve({ name: 'landing' })
+    expect(resolved.path).toBe('/')
+    const loader = resolved.matched[0]?.components?.default
+    const mod = await (loader as () => Promise<{ default: unknown }>)()
+    expect(mod.default).toBe(LandingPage)
+  })
+
+  it('with JWT still stays on landing when navigating to /', async () => {
+    setToken('jwt-demo')
+    await router.push('/')
+    await router.isReady()
+    expect(router.currentRoute.value.name).toBe('landing')
+    clearToken()
+  })
+})
 
 describe('router credits', () => {
   it('resolve name credits points to CreditPlan', async () => {

@@ -35,6 +35,8 @@ npm install
 npm run dev
 ```
 
+开发服务器打开根路径 `/` 即见 Adam 落地页（品牌 + 清单样例）；登录/注册仍走 `/login`、`/register`。
+
 ### Type-Check, Compile and Minify for Production
 
 ```sh

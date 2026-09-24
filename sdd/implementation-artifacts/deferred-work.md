@@ -51,3 +51,7 @@
 - source_spec: `sdd/implementation-artifacts/spec-1-5-手工改档升级.md`
   summary: H2 审计表相对 MySQL 003 省略 FK，双份 schema 继续漂移。
   evidence: 与 1.2/1.3 已 defer 的 H2↔MySQL 双维护同类。
+
+- source_spec: `sdd/implementation-artifacts/spec-1-6-adam-落地页-品牌-清单感.md`
+  summary: 窄视口「堆叠可见」测只断言 DOM 存在，未观测布局几何。
+  evidence: verification-gap 演示隐藏 `.sheet` 仍可通过查询；本仓 FE 无视觉/e2e，英雄+清单存在已由主渲染测覆盖。
