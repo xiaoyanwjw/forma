@@ -64,6 +64,7 @@ class IdentityApplicationServiceTest {
                 .username("alice")
                 .email("alice@example.com")
                 .password("secret1")
+                .agreedToAiDisclaimer(true)
                 .build();
 
         RegisterResultDTO result = service.register(cmd);
@@ -86,6 +87,7 @@ class IdentityApplicationServiceTest {
                 .username("alice")
                 .email("other@example.com")
                 .password("secret1")
+                .agreedToAiDisclaimer(true)
                 .build();
 
         BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
@@ -110,6 +112,7 @@ class IdentityApplicationServiceTest {
                 .username("alice")
                 .email("alice@example.com")
                 .password("secret1")
+                .agreedToAiDisclaimer(true)
                 .build();
 
         BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
@@ -119,6 +122,27 @@ class IdentityApplicationServiceTest {
             }
         });
         assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
+        verify(creditApplicationService, never()).initFreeAccount(anyString(), any(Instant.class));
+    }
+
+    @Test
+    void registerRejectsWhenDisclaimerNotAgreed() {
+        RegisterCommand cmd = RegisterCommand.builder()
+                .username("alice")
+                .email("alice@example.com")
+                .password("secret1")
+                .agreedToAiDisclaimer(false)
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.register(cmd);
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        assertTrue(ex.getMessage().contains("人工复核"));
+        verify(userRepository, never()).save(any(User.class));
         verify(creditApplicationService, never()).initFreeAccount(anyString(), any(Instant.class));
     }
 

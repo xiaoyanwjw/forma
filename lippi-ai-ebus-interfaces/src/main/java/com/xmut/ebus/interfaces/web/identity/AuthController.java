@@ -35,6 +35,7 @@ public class AuthController {
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .password(request.getPassword())
+                .agreedToAiDisclaimer(request.isAgreedToAiDisclaimer())
                 .build();
         return ApiResponse.success(identityApplicationService.register(command));
     }

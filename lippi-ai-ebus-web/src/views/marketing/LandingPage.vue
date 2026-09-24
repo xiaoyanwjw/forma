@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { getToken } from '@/api/http'
+import { AI_DISCLAIMER_SHORT } from '@/constants/compliance'
 
 const router = useRouter()
 /** 入场时读一次 JWT；有 token 则点进 /credits，不强制 redirect */
@@ -62,6 +63,10 @@ function goRegister() {
         </span>
       </button>
     </div>
+
+    <footer class="foot" data-testid="ai-disclaimer-footer">
+      <p>{{ AI_DISCLAIMER_SHORT }}</p>
+    </footer>
   </main>
 </template>
 
@@ -275,5 +280,19 @@ function goRegister() {
 .prompt-send {
   background: #121212;
   color: #fff;
+}
+
+.foot {
+  padding: 0.75rem 1.25rem 1.25rem;
+  text-align: center;
+}
+
+.foot p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #98a2b3;
+  max-width: 36rem;
+  margin-inline: auto;
 }
 </style>

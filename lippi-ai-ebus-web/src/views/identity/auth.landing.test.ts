@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken } from '@/api/http'
 import AuthLogin from '@/views/identity/AuthLogin.vue'
 import AuthRegister from '@/views/identity/AuthRegister.vue'
+import { AI_DISCLAIMER_SHORT } from '@/constants/compliance'
 
 vi.mock('@/api/identity/auth', () => ({
   login: vi.fn(),
@@ -53,13 +54,13 @@ async function mountWithRouter(Component: typeof AuthLogin | typeof AuthRegister
   }
 }
 
-async function fillAndSubmit(root: HTMLElement, values: Record<string, string>) {
+async function fillAndSubmit(root: HTMLElement, values: Record<string, string>, opts?: { agree?: boolean }) {
   const inputs = Array.from(root.querySelectorAll('input'))
   const labels = Array.from(root.querySelectorAll('label'))
   for (const label of labels) {
     const text = label.textContent ?? ''
     const input = label.querySelector('input')
-    if (!input) continue
+    if (!input || input.type === 'checkbox') continue
     for (const [key, value] of Object.entries(values)) {
       if (text.includes(key)) {
         input.value = value
@@ -68,15 +69,24 @@ async function fillAndSubmit(root: HTMLElement, values: Record<string, string>) 
     }
   }
   // fallback by order if labels unexpected
-  if (inputs.length >= Object.keys(values).length) {
+  const textInputs = inputs.filter((i) => i.type !== 'checkbox')
+  if (textInputs.length >= Object.keys(values).length) {
     const ordered = Object.values(values)
     ordered.forEach((value, i) => {
-      const input = inputs[i]
+      const input = textInputs[i]
       if (input && !input.value) {
         input.value = value
         input.dispatchEvent(new Event('input', { bubbles: true }))
       }
     })
+  }
+  if (opts?.agree) {
+    const checkbox = root.querySelector('input[type="checkbox"]') as HTMLInputElement | null
+    if (checkbox && !checkbox.checked) {
+      checkbox.checked = true
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }))
+      checkbox.dispatchEvent(new Event('input', { bubbles: true }))
+    }
   }
   const form = root.querySelector('form')
   form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
@@ -125,10 +135,12 @@ describe('auth landing pushes credits', () => {
     expect(mounted.push).toHaveBeenCalledWith({ name: 'credits' })
   })
 
-  it('AuthRegister onSubmit pushes { name: credits }', async () => {
+  it('AuthRegister without disclaimer does not call register', async () => {
     const mounted = await mountWithRouter(AuthRegister, '/register')
     unmount = mounted.unmount
     await flushUi()
+
+    expect(mounted.root.textContent).toContain(AI_DISCLAIMER_SHORT)
 
     await fillAndSubmit(mounted.root, {
       用户名: 'alice',
@@ -136,7 +148,32 @@ describe('auth landing pushes credits', () => {
       密码: 'secret12',
     })
 
-    expect(register).toHaveBeenCalled()
+    expect(register).not.toHaveBeenCalled()
+    expect(mounted.root.textContent).toMatch(/确认/)
+    expect(mounted.push).not.toHaveBeenCalledWith({ name: 'credits' })
+  })
+
+  it('AuthRegister onSubmit pushes { name: credits }', async () => {
+    const mounted = await mountWithRouter(AuthRegister, '/register')
+    unmount = mounted.unmount
+    await flushUi()
+
+    await fillAndSubmit(
+      mounted.root,
+      {
+        用户名: 'alice',
+        邮箱: 'a@example.com',
+        密码: 'secret12',
+      },
+      { agree: true },
+    )
+
+    expect(register).toHaveBeenCalledWith({
+      username: 'alice',
+      email: 'a@example.com',
+      password: 'secret12',
+      agreedToAiDisclaimer: true,
+    })
     expect(login).toHaveBeenCalled()
     expect(afterLogin).toHaveBeenCalledWith('jwt-demo')
     expect(mounted.push).toHaveBeenCalledWith({ name: 'credits' })

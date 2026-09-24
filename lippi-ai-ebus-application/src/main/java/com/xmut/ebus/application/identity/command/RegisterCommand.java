@@ -9,6 +9,7 @@ import lombok.experimental.SuperBuilder;
  * 注册写命令。
  * <p>
  * 公开注册：{@link #getUsername()} 为待注册用户名，{@link #getUserId()} 为空。
+ * {@code agreedToAiDisclaimer} 仅作门禁，不落库。
  */
 @Getter
 @SuperBuilder
@@ -17,4 +18,5 @@ public class RegisterCommand extends BaseCommand {
 
     private final String email;
     private final String password;
+    private final boolean agreedToAiDisclaimer;
 }

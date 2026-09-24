@@ -564,7 +564,7 @@ class CreditIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"email\":\"" + email
-                                + "\",\"password\":\"secret12\"}"))
+                                + "\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":true}"))
                 .andExpect(status().isOk());
 
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login")

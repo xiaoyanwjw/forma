@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken } from '@/api/http'
 import LandingPage from '@/views/marketing/LandingPage.vue'
+import { AI_DISCLAIMER_SHORT } from '@/constants/compliance'
 
 async function flushUi() {
   await nextTick()
@@ -64,6 +65,18 @@ describe('LandingPage', () => {
     expect(mounted.root.textContent).toMatch(/生成上架素材/)
     expect(mounted.root.querySelector('.prompt')).toBeTruthy()
     expect(mounted.root.querySelector('ol.picks')).toBeNull()
+  })
+
+  it('shows AI compliance disclaimer in footer', async () => {
+    const mounted = await mountLanding()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const foot = mounted.root.querySelector('[data-testid="ai-disclaimer-footer"]')
+    expect(foot?.textContent).toContain(AI_DISCLAIMER_SHORT)
+    expect(foot?.textContent).toMatch(/人工复核/)
+    expect(foot?.textContent).toMatch(/不承诺销售效果/)
+    expect(mounted.root.querySelector('h1.headline')?.textContent?.trim()).toBe('我能为你做什么？')
   })
 
   it('guest: prompt and pills navigate to login; register link works', async () => {

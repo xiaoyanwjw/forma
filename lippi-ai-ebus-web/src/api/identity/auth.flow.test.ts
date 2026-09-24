@@ -95,7 +95,7 @@ describe('auth FE walkthrough helpers', () => {
     expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/me')
   })
 
-  it('register posts username+email+password', async () => {
+  it('register posts username+email+password+disclaimer', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ success: true, data: { userId: 'u-2' } }), {
         status: 200,
@@ -108,8 +108,11 @@ describe('auth FE walkthrough helpers', () => {
       username: 'bob',
       email: 'bob@example.com',
       password: 'secret12',
+      agreedToAiDisclaimer: true,
     })
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/auth/register')
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
+    expect(body.agreedToAiDisclaimer).toBe(true)
   })
 
   it('surfaces human error message when login fails', async () => {

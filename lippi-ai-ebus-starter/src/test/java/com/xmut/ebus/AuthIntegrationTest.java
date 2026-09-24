@@ -17,6 +17,8 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,7 +59,7 @@ class AuthIntegrationTest {
 
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"email\":\"" + email + "\",\"password\":\"secret12\"}"))
+                        .content("{\"username\":\"" + username + "\",\"email\":\"" + email + "\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.userId").isString());
@@ -92,7 +94,7 @@ class AuthIntegrationTest {
         String email = username + "@example.com";
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"email\":\"" + email + "\",\"password\":\"secret12\"}"))
+                        .content("{\"username\":\"" + username + "\",\"email\":\"" + email + "\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":true}"))
                 .andExpect(status().isOk());
 
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
@@ -110,10 +112,42 @@ class AuthIntegrationTest {
     }
 
     @Test
+    void registerWithoutDisclaimerRejected() throws Exception {
+        String username = "noagree_" + UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + username + "\",\"email\":\"" + username
+                                + "@example.com\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":false}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value(containsString("人工复核")));
+
+        Integer users = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ebus_user WHERE username = ?", Integer.class, username);
+        assertEquals(0, users);
+    }
+
+    @Test
+    void registerMissingDisclaimerRejected() throws Exception {
+        String username = "missagree_" + UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + username + "\",\"email\":\"" + username
+                                + "@example.com\",\"password\":\"secret12\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value(containsString("人工复核")));
+
+        Integer users = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ebus_user WHERE username = ?", Integer.class, username);
+        assertEquals(0, users);
+    }
+
+    @Test
     void registerDuplicateConflicts() throws Exception {
         String username = "dup_" + UUID.randomUUID().toString().substring(0, 8);
         String payload = "{\"username\":\"" + username + "\",\"email\":\"" + username
-                + "@example.com\",\"password\":\"secret12\"}";
+                + "@example.com\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":true}";
         mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(payload))
@@ -127,12 +161,12 @@ class AuthIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"user_a_" + UUID.randomUUID().toString().substring(0, 6)
-                                + "\",\"email\":\"" + email + "\",\"password\":\"secret12\"}"))
+                                + "\",\"email\":\"" + email + "\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":true}"))
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"user_b_" + UUID.randomUUID().toString().substring(0, 6)
-                                + "\",\"email\":\"" + email + "\",\"password\":\"secret12\"}"))
+                                + "\",\"email\":\"" + email + "\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":true}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("邮箱已被占用"));
     }
@@ -165,7 +199,7 @@ class AuthIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"email\":\"" + username
-                                + "@example.com\",\"password\":\"secret12\"}"))
+                                + "@example.com\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":true}"))
                 .andExpect(status().isOk());
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -190,7 +224,7 @@ class AuthIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"email\":\"" + username
-                                + "@example.com\",\"password\":\"secret12\"}"))
+                                + "@example.com\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":true}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/v1/auth/login")

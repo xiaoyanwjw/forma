@@ -60,7 +60,7 @@ class CreditRegisterRollbackIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"email\":\"" + username
-                                + "@example.com\",\"password\":\"secret12\"}"))
+                                + "@example.com\",\"password\":\"secret12\",\"agreedToAiDisclaimer\":true}"))
                 .andExpect(status().isInternalServerError());
 
         Integer users = jdbcTemplate.queryForObject(

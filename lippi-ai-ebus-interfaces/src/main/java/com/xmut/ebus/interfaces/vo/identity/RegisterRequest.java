@@ -1,5 +1,6 @@
 package com.xmut.ebus.interfaces.vo.identity;
 
+import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
@@ -24,6 +25,10 @@ public class RegisterRequest {
     @Size(min = 6, max = 72, message = "密码长度需在 6～72 之间")
     private String password;
 
+    /** 须为 true；缺省/false 拒绝。不落库。 */
+    @AssertTrue(message = "须先确认已知悉：AI 生成内容须人工复核后再上架，Adam 不承诺销售效果")
+    private boolean agreedToAiDisclaimer;
+
     public String getUsername() {
         return username;
     }
@@ -46,5 +51,13 @@ public class RegisterRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public boolean isAgreedToAiDisclaimer() {
+        return agreedToAiDisclaimer;
+    }
+
+    public void setAgreedToAiDisclaimer(boolean agreedToAiDisclaimer) {
+        this.agreedToAiDisclaimer = agreedToAiDisclaimer;
     }
 }

@@ -38,6 +38,10 @@ public class IdentityApplicationService {
 
     @Transactional(rollbackFor = Exception.class)
     public RegisterResultDTO register(RegisterCommand command) {
+        if (!command.isAgreedToAiDisclaimer()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID,
+                    "须先确认已知悉：AI 生成内容须人工复核后再上架，Adam 不承诺销售效果");
+        }
         String username = StringUtils.requireHasText(command.getUsername(), "用户名不能为空");
         String email = StringUtils.requireHasText(command.getEmail(), "邮箱不能为空").toLowerCase();
         String password = StringUtils.requireHasText(command.getPassword(), "密码不能为空");
