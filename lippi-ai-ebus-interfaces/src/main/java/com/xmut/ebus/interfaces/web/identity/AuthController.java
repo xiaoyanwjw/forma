@@ -30,18 +30,21 @@ public class AuthController {
 
     @PostMapping("/register")
     public ApiResponse<RegisterResultDTO> register(@Valid @RequestBody RegisterRequest request) {
-        RegisterCommand command = new RegisterCommand();
-        command.setUsername(request.getUsername());
-        command.setEmail(request.getEmail());
-        command.setPassword(request.getPassword());
+        // 公开注册：BaseCommand.username = 待注册用户名；userId 为空
+        RegisterCommand command = RegisterCommand.builder()
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .password(request.getPassword())
+                .build();
         return ApiResponse.success(identityApplicationService.register(command));
     }
 
     @PostMapping("/login")
     public ApiResponse<LoginResultDTO> login(@Valid @RequestBody LoginRequest request) {
-        LoginCommand command = new LoginCommand();
-        command.setAccount(request.getAccount());
-        command.setPassword(request.getPassword());
+        LoginCommand command = LoginCommand.builder()
+                .account(request.getAccount())
+                .password(request.getPassword())
+                .build();
         return ApiResponse.success(identityApplicationService.login(command));
     }
 }

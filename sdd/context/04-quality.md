@@ -82,8 +82,10 @@ if (userId != null) {
 
 | Good | Bad |
 |------|-----|
-| `StringUtils.hasText(s)` | 散落 `trim().isEmpty()` |
-| 空集合：`orElse(Collections.emptyList())` | NPE 后才发现 |
+| `StringUtils.requireHasText(s, "…")` / `(s, ErrorCode)` | 散落 `null \|\| trim().isEmpty()` |
+| `StringUtils.hasText(s)` / `isBlank(s)` | 手写空白判断 |
+| `ObjectUtils.requireNotEmpty(list, "…")` | 空集合后才 NPE |
+| 空集合兜底：`orElse(Collections.emptyList())` | — |
 | FE：`if (!token) return` | 假设一定有值 |
 
 ---

@@ -69,6 +69,7 @@ docker compose -f APP-META/docker-config/docker-compose.yml down
 
 - **不要**把整份风格指南贴进会话；按端打开上一节分片。
 - 包根 `com.xmut.ebus`；写 `*ApplicationService`，读 `*QueryService`；Controller 薄，注入 `userId`。
+- Command 继承 `BaseCommand`（userId/username），`@SuperBuilder` 创建；参数守卫 `StringUtils`/`ObjectUtils`；埋点 `LoggerUtils`（见 `02-be` §5）。
 - FE：`api` 只 HTTP；类型只在 `types`；详情靠路由 id + `get*`。
 - 计费 SSE：`fetch` + `ReadableStream` + JWT；不用原生 `EventSource`。
 - ID：UUID 字符串。范本域与目录配方见 `02-be` / `03-fe`。

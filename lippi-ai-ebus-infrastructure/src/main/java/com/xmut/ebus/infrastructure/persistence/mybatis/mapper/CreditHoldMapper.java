@@ -13,8 +13,8 @@ public interface CreditHoldMapper {
 
     CreditHoldPO selectById(@Param("id") String id);
 
-    int tryClaimFromActive(@Param("id") String id,
-                           @Param("userId") String userId,
-                           @Param("newStatus") String newStatus,
-                           @Param("updatedAt") Instant updatedAt);
+    int updateStatusIfActive(@Param("id") String id,
+                             @Param("userId") String userId,
+                             @Param("newStatus") String newStatus,
+                             @Param("updatedAt") Instant updatedAt);
 }

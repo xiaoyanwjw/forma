@@ -15,24 +15,24 @@ public interface CreditAccountMapper {
 
     CreditAccountPO selectByUserId(@Param("userId") String userId);
 
-    int tryReserve(@Param("id") String id,
-                   @Param("amount") int amount,
-                   @Param("expectedVersion") int expectedVersion,
-                   @Param("updatedAt") Instant updatedAt);
+    int updateAddReserved(@Param("id") String id,
+                          @Param("amount") int amount,
+                          @Param("expectedVersion") int expectedVersion,
+                          @Param("updatedAt") Instant updatedAt);
 
-    int trySettle(@Param("id") String id,
-                  @Param("amount") int amount,
-                  @Param("expectedVersion") int expectedVersion,
-                  @Param("updatedAt") Instant updatedAt);
+    int updateSubtractBalanceAndReserved(@Param("id") String id,
+                                         @Param("amount") int amount,
+                                         @Param("expectedVersion") int expectedVersion,
+                                         @Param("updatedAt") Instant updatedAt);
 
-    int tryRelease(@Param("id") String id,
-                   @Param("amount") int amount,
-                   @Param("expectedVersion") int expectedVersion,
-                   @Param("updatedAt") Instant updatedAt);
+    int updateSubtractReserved(@Param("id") String id,
+                               @Param("amount") int amount,
+                               @Param("expectedVersion") int expectedVersion,
+                               @Param("updatedAt") Instant updatedAt);
 
-    int tryApplyMonthlyReset(@Param("id") String id,
-                             @Param("balance") int balance,
-                             @Param("nextResetAt") Instant nextResetAt,
-                             @Param("expectedVersion") int expectedVersion,
-                             @Param("updatedAt") Instant updatedAt);
+    int updateBalanceAndNextReset(@Param("id") String id,
+                                  @Param("balance") int balance,
+                                  @Param("nextResetAt") Instant nextResetAt,
+                                  @Param("expectedVersion") int expectedVersion,
+                                  @Param("updatedAt") Instant updatedAt);
 }

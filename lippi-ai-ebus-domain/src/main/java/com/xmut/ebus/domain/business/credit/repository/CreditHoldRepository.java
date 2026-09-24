@@ -16,9 +16,9 @@ public interface CreditHoldRepository {
     Optional<CreditHold> findById(String id);
 
     /**
-     * 条件完结：仅当 hold 仍为 ACTIVE 且归属 userId 时转入 newStatus。
+     * 仅当 status=ACTIVE 且归属 userId 时更新 status。
      *
      * @return 影响行数（0 表示已被并发完结或归属不匹配）
      */
-    int tryClaimFromActive(String holdId, String userId, CreditHoldStatus newStatus, Instant updatedAt);
+    int updateStatusIfActive(String holdId, String userId, CreditHoldStatus newStatus, Instant updatedAt);
 }

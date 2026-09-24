@@ -23,7 +23,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -41,13 +40,16 @@ class CreditApplicationServiceTest {
     private CreditAccountRepository creditAccountRepository;
     @Mock
     private CreditHoldRepository creditHoldRepository;
+    @Mock
+    private CreditCasWriter creditCasWriter;
 
     private CreditApplicationService service;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-        service = new CreditApplicationService(creditAccountRepository, creditHoldRepository, clock);
+        service = new CreditApplicationService(
+                creditAccountRepository, creditHoldRepository, clock, creditCasWriter);
     }
 
     @Test
@@ -68,8 +70,8 @@ class CreditApplicationServiceTest {
 
     @Test
     void reserveRejectsWhenAvailableZero() {
-        CreditAccount account = freeAccount(0, 0);
-        when(creditAccountRepository.findByUserId(USER_ID)).thenReturn(Optional.of(account));
+        when(creditCasWriter.reserveAttempt(USER_ID))
+                .thenThrow(new BusinessException(ErrorCode.CREDIT_INSUFFICIENT));
 
         BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
             @Override
@@ -79,29 +81,24 @@ class CreditApplicationServiceTest {
         });
         assertEquals(ErrorCode.CREDIT_INSUFFICIENT, ex.getErrorCode());
         assertEquals("积分不足", ex.getMessage());
+        verify(creditCasWriter).reserveAttempt(USER_ID);
         verify(creditHoldRepository, never()).save(any(CreditHold.class));
     }
 
     @Test
     void reserveCreatesHoldWhenAvailable() {
-        CreditAccount account = freeAccount(20, 0);
-        when(creditAccountRepository.findByUserId(USER_ID)).thenReturn(Optional.of(account));
-        when(creditAccountRepository.tryReserve(eq(ACCOUNT_ID), eq(1), eq(0), eq(NOW))).thenReturn(1);
+        when(creditCasWriter.reserveAttempt(USER_ID)).thenReturn("hold-created");
 
         String holdId = service.reserveOne(USER_ID);
 
-        ArgumentCaptor<CreditHold> captor = ArgumentCaptor.forClass(CreditHold.class);
-        verify(creditHoldRepository).save(captor.capture());
-        assertEquals(holdId, captor.getValue().getId());
-        assertEquals(CreditHoldStatus.ACTIVE, captor.getValue().getStatus());
-        assertEquals(1, captor.getValue().getAmount());
+        assertEquals("hold-created", holdId);
+        verify(creditCasWriter).reserveAttempt(USER_ID);
     }
 
     @Test
     void reserveCasExhaustionThrowsSystemError() {
-        CreditAccount account = freeAccount(20, 0);
-        when(creditAccountRepository.findByUserId(USER_ID)).thenReturn(Optional.of(account));
-        when(creditAccountRepository.tryReserve(eq(ACCOUNT_ID), eq(1), eq(0), eq(NOW))).thenReturn(0);
+        when(creditCasWriter.reserveAttempt(USER_ID))
+                .thenThrow(new BusinessException(ErrorCode.SYSTEM_ERROR, "积分预占冲突，请稍后重试"));
 
         BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
             @Override
@@ -110,43 +107,37 @@ class CreditApplicationServiceTest {
             }
         });
         assertEquals(ErrorCode.SYSTEM_ERROR, ex.getErrorCode());
+        assertEquals("积分预占冲突，请稍后重试", ex.getMessage());
         verify(creditHoldRepository, never()).save(any(CreditHold.class));
     }
 
     @Test
     void settleClaimsHoldBeforeDebit() {
         CreditHold hold = CreditHold.createActive("hold-1", ACCOUNT_ID, USER_ID, 1, NOW);
-        CreditAccount account = freeAccount(20, 1);
-        account.setVersion(3);
         when(creditHoldRepository.findById("hold-1")).thenReturn(Optional.of(hold));
-        when(creditHoldRepository.tryClaimFromActive(
+        when(creditHoldRepository.updateStatusIfActive(
                 eq("hold-1"), eq(USER_ID), eq(CreditHoldStatus.SETTLED), eq(NOW))).thenReturn(1);
-        when(creditAccountRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(account));
-        when(creditAccountRepository.trySettle(eq(ACCOUNT_ID), eq(1), eq(3), eq(NOW))).thenReturn(1);
 
         service.settle(USER_ID, "hold-1");
 
-        verify(creditHoldRepository).tryClaimFromActive(
+        verify(creditHoldRepository).updateStatusIfActive(
                 eq("hold-1"), eq(USER_ID), eq(CreditHoldStatus.SETTLED), eq(NOW));
-        verify(creditAccountRepository).trySettle(eq(ACCOUNT_ID), eq(1), eq(3), eq(NOW));
+        verify(creditCasWriter).settleAccountAttempt(hold, NOW);
     }
 
     @Test
     void releaseClaimsHoldBeforeUnfreeze() {
         CreditHold hold = CreditHold.createActive("hold-1", ACCOUNT_ID, USER_ID, 1, NOW);
-        CreditAccount account = freeAccount(20, 1);
         when(creditHoldRepository.findById("hold-1")).thenReturn(Optional.of(hold));
-        when(creditHoldRepository.tryClaimFromActive(
+        when(creditHoldRepository.updateStatusIfActive(
                 eq("hold-1"), eq(USER_ID), eq(CreditHoldStatus.RELEASED), eq(NOW))).thenReturn(1);
-        when(creditAccountRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(account));
-        when(creditAccountRepository.tryRelease(eq(ACCOUNT_ID), eq(1), eq(0), eq(NOW))).thenReturn(1);
 
         service.release(USER_ID, "hold-1");
 
-        verify(creditHoldRepository).tryClaimFromActive(
+        verify(creditHoldRepository).updateStatusIfActive(
                 eq("hold-1"), eq(USER_ID), eq(CreditHoldStatus.RELEASED), eq(NOW));
-        verify(creditAccountRepository).tryRelease(eq(ACCOUNT_ID), eq(1), eq(0), eq(NOW));
-        verify(creditAccountRepository, never()).trySettle(anyString(), anyInt(), anyInt(), any(Instant.class));
+        verify(creditCasWriter).releaseAccountAttempt(hold, NOW);
+        verify(creditCasWriter, never()).settleAccountAttempt(any(CreditHold.class), any(Instant.class));
     }
 
     @Test
@@ -189,7 +180,7 @@ class CreditApplicationServiceTest {
     void settleClaimRaceReturnsHoldInvalid() {
         CreditHold hold = CreditHold.createActive("hold-1", ACCOUNT_ID, USER_ID, 1, NOW);
         when(creditHoldRepository.findById("hold-1")).thenReturn(Optional.of(hold));
-        when(creditHoldRepository.tryClaimFromActive(
+        when(creditHoldRepository.updateStatusIfActive(
                 eq("hold-1"), eq(USER_ID), eq(CreditHoldStatus.SETTLED), eq(NOW))).thenReturn(0);
 
         BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
@@ -199,7 +190,7 @@ class CreditApplicationServiceTest {
             }
         });
         assertEquals(ErrorCode.CREDIT_HOLD_INVALID, ex.getErrorCode());
-        verify(creditAccountRepository, never()).trySettle(anyString(), anyInt(), anyInt(), any(Instant.class));
+        verify(creditCasWriter, never()).settleAccountAttempt(any(CreditHold.class), any(Instant.class));
     }
 
     @Test
@@ -207,14 +198,16 @@ class CreditApplicationServiceTest {
         CreditAccount account = freeAccount(3, 0);
         account.setPeriodAnchorAt(Instant.parse("2026-01-15T08:00:00Z"));
         account.setNextResetAt(Instant.parse("2026-02-15T08:00:00Z"));
+        CreditAccount reset = freeAccount(20, 0);
+        reset.setNextResetAt(Instant.parse("2026-04-15T08:00:00Z"));
         when(creditAccountRepository.findByUserId(USER_ID)).thenReturn(Optional.of(account));
-        when(creditAccountRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(account));
-        when(creditAccountRepository.tryApplyMonthlyReset(any(CreditAccount.class), eq(0))).thenReturn(1);
+        when(creditCasWriter.monthlyResetAttempt(ACCOUNT_ID, NOW)).thenReturn(reset);
 
         CreditAccount ready = service.ensureReady(USER_ID);
 
         assertEquals(20, ready.getBalance());
         assertEquals(Instant.parse("2026-04-15T08:00:00Z"), ready.getNextResetAt());
+        verify(creditCasWriter).monthlyResetAttempt(ACCOUNT_ID, NOW);
     }
 
     private static CreditAccount freeAccount(int balance, int reserved) {

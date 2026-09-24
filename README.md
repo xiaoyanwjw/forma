@@ -64,5 +64,6 @@ docker compose -f APP-META/docker-config/docker-compose.yml up -d --build
 
 - Story 1.2 已落地注册/登录 JWT：`POST /api/v1/auth/register`、`POST /api/v1/auth/login`、`GET /api/v1/me`；前端 `/register`、`/login`。
 - Story 1.3 已落地积分账本：注册同事务建免费档（20）；`GET /api/v1/credits`（JWT）返回 `tier` / `available` / `balance` / `reserved` / `nextResetAt`；预占·结算·释放仅服务层（Epic 2 接线），无公开写 REST。已有 MySQL volume 需重建或执行 `APP-META/bootstrap/sql/002_ebus_credit.sql`。
+- 编码规约见 `sdd/context/`（后端 `02-be` §5：`StringUtils`/`ObjectUtils` + `LoggerUtils`；请求 `X-Trace-Id` / MDC `traceId`）。
 - 本地可不配大模型密钥；无 Key 时 Pi 有桩（StubModelProvider），端口形状不变。
 - 需配置 `JWT_SECRET`（≥32 字节），见 `APP-META/docker-config/environment/.env.example`。

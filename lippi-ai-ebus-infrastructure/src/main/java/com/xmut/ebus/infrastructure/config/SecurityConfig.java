@@ -5,6 +5,7 @@ import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.response.ApiResponse;
 import com.xmut.ebus.infrastructure.identity.JwtAuthenticationFilter;
 import com.xmut.ebus.infrastructure.persistence.mybatis.InstantTypeHandler;
+import com.xmut.ebus.infrastructure.web.TraceIdFilter;
 import org.mybatis.spring.annotation.MapperScan;
 import org.mybatis.spring.boot.autoconfigure.ConfigurationCustomizer;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +52,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
+            TraceIdFilter traceIdFilter,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             AuthenticationEntryPoint jsonAuthenticationEntryPoint) throws Exception {
         http
@@ -68,6 +70,7 @@ public class SecurityConfig {
                 ).permitAll()
                 .anyRequest().authenticated()
                 .and()
+                .addFilterBefore(traceIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

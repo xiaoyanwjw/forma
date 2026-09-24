@@ -7,6 +7,9 @@ import com.xmut.ebus.application.identity.dto.LoginResultDTO;
 import com.xmut.ebus.application.identity.dto.RegisterResultDTO;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
+import com.xmut.ebus.common.logging.LoggerUtils;
+import com.xmut.ebus.common.logging.NameValue;
+import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.domain.identity.model.User;
 import com.xmut.ebus.domain.identity.port.JwtTokenPort;
 import com.xmut.ebus.domain.identity.port.PasswordHasher;
@@ -16,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -36,9 +38,9 @@ public class IdentityApplicationService {
 
     @Transactional(rollbackFor = Exception.class)
     public RegisterResultDTO register(RegisterCommand command) {
-        String username = trimRequired(command.getUsername(), "用户名不能为空");
-        String email = trimRequired(command.getEmail(), "邮箱不能为空").toLowerCase();
-        String password = trimRequired(command.getPassword(), "密码不能为空");
+        String username = StringUtils.requireHasText(command.getUsername(), "用户名不能为空");
+        String email = StringUtils.requireHasText(command.getEmail(), "邮箱不能为空").toLowerCase();
+        String password = StringUtils.requireHasText(command.getPassword(), "密码不能为空");
         if (password.length() < 6) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "密码至少 6 位");
         }
@@ -62,14 +64,15 @@ public class IdentityApplicationService {
         // 同事务建免费账本；失败则注册整体回滚
         creditApplicationService.initFreeAccount(userId, now);
 
-        log.info("user registered userId={}", userId);
+        LoggerUtils.success(log, IdentityApplicationService.class, "register",
+                NameValue.create("userId", userId));
         return new RegisterResultDTO(userId, username, email);
     }
 
     @Transactional(readOnly = true)
     public LoginResultDTO login(LoginCommand command) {
-        String account = trimRequired(command.getAccount(), "账号不能为空");
-        String password = trimRequired(command.getPassword(), "密码不能为空");
+        String account = StringUtils.requireHasText(command.getAccount(), "账号不能为空");
+        String password = StringUtils.requireHasText(command.getPassword(), "密码不能为空");
         if (account.contains("@")) {
             account = account.toLowerCase();
         }
@@ -82,13 +85,8 @@ public class IdentityApplicationService {
         }
 
         String token = jwtTokenPort.generateToken(user.getId());
+        LoggerUtils.success(log, IdentityApplicationService.class, "login",
+                NameValue.create("userId", user.getId()));
         return new LoginResultDTO(token, user.getId(), user.getUsername(), user.getEmail());
-    }
-
-    private static String trimRequired(String value, String message) {
-        if (!StringUtils.hasText(value)) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID, message);
-        }
-        return value.trim();
     }
 }

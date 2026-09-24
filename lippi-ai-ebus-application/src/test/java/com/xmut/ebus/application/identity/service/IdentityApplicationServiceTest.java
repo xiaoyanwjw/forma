@@ -60,10 +60,11 @@ class IdentityApplicationServiceTest {
         when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.empty());
         when(passwordHasher.hash("secret1")).thenReturn("HASH");
 
-        RegisterCommand cmd = new RegisterCommand();
-        cmd.setUsername("alice");
-        cmd.setEmail("alice@example.com");
-        cmd.setPassword("secret1");
+        RegisterCommand cmd = RegisterCommand.builder()
+                .username("alice")
+                .email("alice@example.com")
+                .password("secret1")
+                .build();
 
         RegisterResultDTO result = service.register(cmd);
 
@@ -81,10 +82,11 @@ class IdentityApplicationServiceTest {
     void registerDuplicateUsernameConflicts() {
         when(userRepository.findByUsername("alice")).thenReturn(Optional.of(sampleUser()));
 
-        RegisterCommand cmd = new RegisterCommand();
-        cmd.setUsername("alice");
-        cmd.setEmail("other@example.com");
-        cmd.setPassword("secret1");
+        RegisterCommand cmd = RegisterCommand.builder()
+                .username("alice")
+                .email("other@example.com")
+                .password("secret1")
+                .build();
 
         BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
             @Override
@@ -104,10 +106,11 @@ class IdentityApplicationServiceTest {
         when(passwordHasher.hash("secret1")).thenReturn("HASH");
         doThrow(new DataIntegrityViolationException("uk")).when(userRepository).save(any(User.class));
 
-        RegisterCommand cmd = new RegisterCommand();
-        cmd.setUsername("alice");
-        cmd.setEmail("alice@example.com");
-        cmd.setPassword("secret1");
+        RegisterCommand cmd = RegisterCommand.builder()
+                .username("alice")
+                .email("alice@example.com")
+                .password("secret1")
+                .build();
 
         BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
             @Override
@@ -125,9 +128,10 @@ class IdentityApplicationServiceTest {
         when(userRepository.findByUsernameOrEmail("alice")).thenReturn(Optional.of(user));
         when(passwordHasher.matches("bad", "HASH")).thenReturn(false);
 
-        LoginCommand cmd = new LoginCommand();
-        cmd.setAccount("alice");
-        cmd.setPassword("bad");
+        LoginCommand cmd = LoginCommand.builder()
+                .account("alice")
+                .password("bad")
+                .build();
 
         BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
             @Override
@@ -147,9 +151,10 @@ class IdentityApplicationServiceTest {
         when(passwordHasher.matches("secret1", "HASH")).thenReturn(true);
         when(jwtTokenPort.generateToken(user.getId())).thenReturn("jwt-token");
 
-        LoginCommand cmd = new LoginCommand();
-        cmd.setAccount("Alice@Example.com");
-        cmd.setPassword("secret1");
+        LoginCommand cmd = LoginCommand.builder()
+                .account("Alice@Example.com")
+                .password("secret1")
+                .build();
 
         LoginResultDTO result = service.login(cmd);
         assertEquals("jwt-token", result.getToken());

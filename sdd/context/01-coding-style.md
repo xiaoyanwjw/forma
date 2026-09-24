@@ -6,7 +6,7 @@
 
 | 你在改… | 只读 |
 |---------|------|
-| Java / Controller / Command / 包结构 | [`02-be.md`](./02-be.md) |
+| Java / Controller / Command / 包结构 / **守卫·日志** | [`02-be.md`](./02-be.md)（含 §5 StringUtils/ObjectUtils 与日志） |
 | Vue / api / types / 路由 | [`03-fe.md`](./03-fe.md) |
 | 分支 / 校验 / 可读性（早返回等） | [`04-quality.md`](./04-quality.md) |
 | 两端一起的新功能 | 对齐勾选 + 按端开 02/03；写逻辑时加 04 |
@@ -53,3 +53,5 @@ FE views → api/<区>/*.ts（仅 HTTP）→ types/<区> → HTTP
 | `can*` / `is*` | 只返布尔，不抛 | `canRetry()` |
 
 少用 `assert*`（易与单测混淆）。
+
+跨服务复用的空值守卫用 `com.xmut.ebus.common.util.StringUtils` / `ObjectUtils`（见 [`02-be.md`](./02-be.md) §5）；域内规则仍用本类私有 `require*`。

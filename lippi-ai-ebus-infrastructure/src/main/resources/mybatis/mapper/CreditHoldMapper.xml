@@ -24,7 +24,7 @@
         WHERE id = #{id}
     </select>
 
-    <update id="tryClaimFromActive">
+    <update id="updateStatusIfActive">
         UPDATE ebus_credit_hold
         SET status = #{newStatus},
             updated_at = #{updatedAt}

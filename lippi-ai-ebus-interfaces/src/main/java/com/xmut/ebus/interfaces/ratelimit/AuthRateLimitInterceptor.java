@@ -2,6 +2,7 @@ package com.xmut.ebus.interfaces.ratelimit;
 
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
+import com.xmut.ebus.common.util.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -39,7 +40,7 @@ public class AuthRateLimitInterceptor implements HandlerInterceptor {
 
     static String resolveClientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.trim().isEmpty()) {
+        if (StringUtils.hasText(forwarded)) {
             return forwarded.split(",")[0].trim();
         }
         String ip = request.getRemoteAddr();

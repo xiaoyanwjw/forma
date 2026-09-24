@@ -1,26 +1,18 @@
 package com.xmut.ebus.application.identity.command;
 
+import com.xmut.ebus.common.command.BaseCommand;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.experimental.SuperBuilder;
+
 /**
- * 登录写命令：账号（用户名或邮箱）+ 密码。
+ * 登录写命令。公开接口：操作者 {@code userId}/{@code username} 为空。
  */
-public class LoginCommand {
+@Getter
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true)
+public class LoginCommand extends BaseCommand {
 
-    private String account;
-    private String password;
-
-    public String getAccount() {
-        return account;
-    }
-
-    public void setAccount(String account) {
-        this.account = account;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    private final String account;
+    private final String password;
 }

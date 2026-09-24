@@ -1,35 +1,20 @@
 package com.xmut.ebus.application.identity.command;
 
+import com.xmut.ebus.common.command.BaseCommand;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.experimental.SuperBuilder;
+
 /**
- * 注册写命令：用户名 + 邮箱 + 密码。
+ * 注册写命令。
+ * <p>
+ * 公开注册：{@link #getUsername()} 为待注册用户名，{@link #getUserId()} 为空。
  */
-public class RegisterCommand {
+@Getter
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true)
+public class RegisterCommand extends BaseCommand {
 
-    private String username;
-    private String email;
-    private String password;
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    private final String email;
+    private final String password;
 }

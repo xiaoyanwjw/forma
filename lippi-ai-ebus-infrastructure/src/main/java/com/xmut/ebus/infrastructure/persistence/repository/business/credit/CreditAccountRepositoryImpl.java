@@ -33,23 +33,23 @@ public class CreditAccountRepositoryImpl implements CreditAccountRepository {
     }
 
     @Override
-    public int tryReserve(String accountId, int amount, int expectedVersion, Instant updatedAt) {
-        return creditAccountMapper.tryReserve(accountId, amount, expectedVersion, updatedAt);
+    public int updateAddReserved(String accountId, int amount, int expectedVersion, Instant updatedAt) {
+        return creditAccountMapper.updateAddReserved(accountId, amount, expectedVersion, updatedAt);
     }
 
     @Override
-    public int trySettle(String accountId, int amount, int expectedVersion, Instant updatedAt) {
-        return creditAccountMapper.trySettle(accountId, amount, expectedVersion, updatedAt);
+    public int updateSubtractBalanceAndReserved(String accountId, int amount, int expectedVersion, Instant updatedAt) {
+        return creditAccountMapper.updateSubtractBalanceAndReserved(accountId, amount, expectedVersion, updatedAt);
     }
 
     @Override
-    public int tryRelease(String accountId, int amount, int expectedVersion, Instant updatedAt) {
-        return creditAccountMapper.tryRelease(accountId, amount, expectedVersion, updatedAt);
+    public int updateSubtractReserved(String accountId, int amount, int expectedVersion, Instant updatedAt) {
+        return creditAccountMapper.updateSubtractReserved(accountId, amount, expectedVersion, updatedAt);
     }
 
     @Override
-    public int tryApplyMonthlyReset(CreditAccount account, int expectedVersion) {
-        return creditAccountMapper.tryApplyMonthlyReset(
+    public int updateBalanceAndNextReset(CreditAccount account, int expectedVersion) {
+        return creditAccountMapper.updateBalanceAndNextReset(
                 account.getId(),
                 account.getBalance(),
                 account.getNextResetAt(),

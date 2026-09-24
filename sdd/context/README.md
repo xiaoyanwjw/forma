@@ -5,7 +5,7 @@
 | 编号 | 文件 | 何时读 |
 |------|------|--------|
 | 01 | [`01-coding-style.md`](./01-coding-style.md) | 索引 / 前后端对齐勾选 |
-| 02 | [`02-be.md`](./02-be.md) | Java / API / 包结构 / DDD |
+| 02 | [`02-be.md`](./02-be.md) | Java / API / 包结构 / DDD / **StringUtils·ObjectUtils·LoggerUtils** |
 | 03 | [`03-fe.md`](./03-fe.md) | Vue / api / types / 路由 |
 | 04 | [`04-quality.md`](./04-quality.md) | 分支、卫语句、可读性 |
 

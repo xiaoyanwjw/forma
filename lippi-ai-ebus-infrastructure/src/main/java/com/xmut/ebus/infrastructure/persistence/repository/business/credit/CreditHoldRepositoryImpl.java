@@ -28,8 +28,8 @@ public class CreditHoldRepositoryImpl implements CreditHoldRepository {
     }
 
     @Override
-    public int tryClaimFromActive(String holdId, String userId, CreditHoldStatus newStatus, Instant updatedAt) {
-        return creditHoldMapper.tryClaimFromActive(holdId, userId, newStatus.name(), updatedAt);
+    public int updateStatusIfActive(String holdId, String userId, CreditHoldStatus newStatus, Instant updatedAt) {
+        return creditHoldMapper.updateStatusIfActive(holdId, userId, newStatus.name(), updatedAt);
     }
 
     private CreditHoldPO toPo(CreditHold hold) {

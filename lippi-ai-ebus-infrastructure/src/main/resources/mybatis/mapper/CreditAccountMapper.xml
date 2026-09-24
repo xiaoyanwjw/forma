@@ -40,7 +40,7 @@
         WHERE user_id = #{userId}
     </select>
 
-    <update id="tryReserve">
+    <update id="updateAddReserved">
         UPDATE ebus_credit_account
         SET reserved = reserved + #{amount},
             version = version + 1,
@@ -50,7 +50,7 @@
           AND (balance - reserved) &gt;= #{amount}
     </update>
 
-    <update id="trySettle">
+    <update id="updateSubtractBalanceAndReserved">
         UPDATE ebus_credit_account
         SET balance = balance - #{amount},
             reserved = reserved - #{amount},
@@ -62,7 +62,7 @@
           AND balance &gt;= #{amount}
     </update>
 
-    <update id="tryRelease">
+    <update id="updateSubtractReserved">
         UPDATE ebus_credit_account
         SET reserved = reserved - #{amount},
             version = version + 1,
@@ -72,7 +72,7 @@
           AND reserved &gt;= #{amount}
     </update>
 
-    <update id="tryApplyMonthlyReset">
+    <update id="updateBalanceAndNextReset">
         UPDATE ebus_credit_account
         SET balance = #{balance},
             next_reset_at = #{nextResetAt},
