@@ -3,8 +3,8 @@ package com.xmut.lims.pi.agent.event;
 import lombok.Value;
 
 /**
- * Immutable lifecycle event. {@link #of(PiEventType)} is the kernel factory;
- * payload is optional context; {@code turnId} groups one LLM hop + its tools.
+ * 不可变生命周期事件。
+ * 功能描述：携带类型、可选 payload 与 turnId。
  */
 @Value
 public class PiEvent {

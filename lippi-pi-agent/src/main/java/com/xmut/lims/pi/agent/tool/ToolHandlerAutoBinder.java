@@ -14,10 +14,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 按 {@link ToolManifest#getHandlerClass()} 自动解析 / 创建 {@link ToolHandler}。
- *
- * <p>优先取 Spring 已有同类型 Bean；否则 {@link AutowireCapableBeanFactory#createBean(Class)}
- *（依赖可注入，无需再在 Config 里 {@code @Bean} Handler）。
+ * ToolHandler 自动装配器。
+ * 功能描述：按 Manifest.handlerClass 解析或创建 Handler Bean。
  */
 public final class ToolHandlerAutoBinder {
 

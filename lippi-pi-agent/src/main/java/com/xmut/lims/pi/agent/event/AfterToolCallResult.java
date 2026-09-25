@@ -4,8 +4,8 @@ import com.xmut.lims.pi.ai.tool.ToolResult;
 import lombok.Value;
 
 /**
- * Reduced result of {@link PiEventType#AFTER_TOOL_CALL}.
- * Last non-null write wins when multiple {@code on} handlers run.
+ * AFTER_TOOL_CALL 归约结果。
+ * 功能描述：可改写工具执行结果。
  */
 @Value
 public class AfterToolCallResult {

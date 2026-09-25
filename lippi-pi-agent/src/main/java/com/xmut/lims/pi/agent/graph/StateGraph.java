@@ -10,9 +10,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * LangGraph 形 StateGraph Builder：声明拓扑并编译为 {@link CompiledGraph}。
- *
- * <p>位于 pi-agent 模块内。
+ * StateGraph 构建器。
+ * 功能描述：声明节点与边并编译为 CompiledGraph。
  */
 public final class StateGraph {
 

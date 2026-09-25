@@ -25,10 +25,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Adam 生产 {@link SessionStore}：MySQL {@code pi_session} / {@code pi_session_entry}。
- *
- * <p>行为对齐 {@code InMemorySessionStore} / {@code SqliteSessionStore}（AD-S6..S8、AD-S11）。
- * Entry 仅为适配器私有编码；端口仍是 Message 投影。
+ * Adam 生产 SessionStore（MySQL）。
+ * 功能描述：用 pi_session / pi_session_entry 实现 Pi Message 投影端口。
+ * 关键设计：行为对齐 InMemory/Sqlite；Entry 为适配器私有编码；写路径对会话行 FOR UPDATE。
  */
 @Component
 @Primary
@@ -90,7 +89,7 @@ public class MysqlSessionStore implements SessionStore {
         if (row == null) {
             return Optional.empty();
         }
-        List<Message> projected = loadProjected(row.getSessionId(), row.getCompactAnchorSeq());
+        List<Message> projected = getMessages(row.getSessionId(), row.getCompactAnchorSeq());
         return Optional.of(toSession(row, projected));
     }
 
@@ -105,6 +104,9 @@ public class MysqlSessionStore implements SessionStore {
         sessionMapper.deleteById(id);
     }
 
+    /**
+     * 无则插入空会话（anchor=0）；有则返回投影。唯一键冲突按「再查返回」处理并发建号。
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Session getOrCreate(Session.Meta meta) {
@@ -113,33 +115,34 @@ public class MysqlSessionStore implements SessionStore {
                 ? requireSessionId(meta.getSessionId())
                 : UUID.randomUUID().toString();
         PiSessionPO existing = sessionMapper.selectById(sessionId);
-        if (existing != null) {
-            return toSession(existing, loadProjected(sessionId, existing.getCompactAnchorSeq()));
+        if (Objects.nonNull(existing)) {
+            return toSession(existing, getMessages(sessionId, existing.getCompactAnchorSeq()));
         }
+
         Instant now = Instant.now();
         String source = StringUtils.hasText(meta.getSource()) ? meta.getSource().trim() : "api";
-        PiSessionPO created = new PiSessionPO();
-        created.setSessionId(sessionId);
-        created.setUserId(null);
-        created.setTitle(meta.getTitle());
-        created.setSource(source);
-        created.setStatus("active");
-        created.setParentSessionId(meta.getParentSessionId());
-        created.setCompactAnchorSeq(0L);
-        created.setLastRunId(null);
-        created.setMessageCount(0);
-        created.setCreatedAt(now);
-        created.setUpdatedAt(now);
+        PiSessionPO session = new PiSessionPO();
+        session.setSessionId(sessionId);
+        session.setUserId(null);
+        session.setTitle(meta.getTitle());
+        session.setSource(source);
+        session.setStatus("active");
+        session.setParentSessionId(meta.getParentSessionId());
+        session.setCompactAnchorSeq(0L);
+        session.setLastRunId(null);
+        session.setMessageCount(0);
+        session.setCreatedAt(now);
+        session.setUpdatedAt(now);
         try {
-            sessionMapper.insert(created);
+            sessionMapper.insert(session);
         } catch (DuplicateKeyException e) {
             PiSessionPO raced = sessionMapper.selectById(sessionId);
             if (raced == null) {
                 throw new IllegalStateException("getOrCreate unique race but row missing", e);
             }
-            return toSession(raced, loadProjected(sessionId, raced.getCompactAnchorSeq()));
+            return toSession(raced, getMessages(sessionId, raced.getCompactAnchorSeq()));
         }
-        return toSession(created, Collections.emptyList());
+        return toSession(session, Collections.emptyList());
     }
 
     @Override
@@ -148,21 +151,26 @@ public class MysqlSessionStore implements SessionStore {
         if (!StringUtils.hasText(sessionId)) {
             return Collections.emptyList();
         }
-        PiSessionPO row = sessionMapper.selectById(sessionId.trim());
-        if (row == null) {
+        PiSessionPO session = sessionMapper.selectById(sessionId.trim());
+        if (session == null) {
             return Collections.emptyList();
         }
-        return loadProjected(row.getSessionId(), row.getCompactAnchorSeq());
+
+        return getMessages(session.getSessionId(), session.getCompactAnchorSeq());
     }
 
+    /**
+     * 追加本 turn：行锁 → 同 runId 整批跳过 → 丢弃 system → 单调 seq → 刷新 meta。
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void append(String sessionId, String runId, List<Message> messages) {
         if (!StringUtils.hasText(sessionId)) {
             throw new IllegalArgumentException("sessionId required");
         }
+
         String id = requireSessionId(sessionId);
-        // 行锁：同会话 seq 分配与 runId 幂等检查串行化
+        // 多 Pod：seq 分配与 runId 幂等检查必须串行
         if (sessionMapper.selectByIdForUpdate(id) == null) {
             throw new IllegalArgumentException("session not found: " + sessionId);
         }
@@ -184,10 +192,14 @@ public class MysqlSessionStore implements SessionStore {
         }
         if (any) {
             int count = entryMapper.countBySessionId(id);
-            sessionMapper.bumpAfterAppend(id, runId, count, now);
+            sessionMapper.updateAfterAppend(id, runId, count, now);
         }
     }
 
+    /**
+     * Compact = 只更新 {@code compact_anchor_seq}，不 DELETE entry。
+     * 同 seq 幂等；非 system summary 追加一条 {@code compact-seq-next} runId（计入幂等集）。
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void setCompactAnchor(String sessionId, long seq, Message summaryMessage) {
@@ -213,7 +225,7 @@ public class MysqlSessionStore implements SessionStore {
             String compactRunId = "compact-" + seq + "-" + next;
             insertEntry(id, next, compactRunId, summaryMessage, now);
             int count = entryMapper.countBySessionId(id);
-            sessionMapper.bumpMessageCountOnly(id, count, now);
+            sessionMapper.updateMessageCount(id, count, now);
         }
     }
 
@@ -221,7 +233,7 @@ public class MysqlSessionStore implements SessionStore {
     @Transactional(readOnly = true)
     public List<SessionSummary> listRecent(int limit) {
         int clamped = clampLimit(limit);
-        List<PiSessionPO> rows = sessionMapper.listRecent(clamped);
+        List<PiSessionPO> rows = sessionMapper.selectRecent(clamped);
         return toSummaries(rows);
     }
 
@@ -230,9 +242,9 @@ public class MysqlSessionStore implements SessionStore {
     public List<SessionSummary> listChildren(String parentSessionId) {
         List<PiSessionPO> rows;
         if (!StringUtils.hasText(parentSessionId)) {
-            rows = sessionMapper.listChildrenRoots();
+            rows = sessionMapper.selectChildrenRoots();
         } else {
-            rows = sessionMapper.listChildrenByParent(parentSessionId.trim());
+            rows = sessionMapper.selectChildrenByParent(parentSessionId.trim());
         }
         return toSummaries(rows);
     }
@@ -315,7 +327,8 @@ public class MysqlSessionStore implements SessionStore {
         return next == null ? 1L : next;
     }
 
-    private List<Message> loadProjected(String sessionId, long anchor) {
+    /** 投影：SQL 已滤 {@code seq > anchor}；此处再丢弃 system（与 InMemory 一致）。 */
+    private List<Message> getMessages(String sessionId, long anchor) {
         List<PiSessionEntryPO> rows = entryMapper.selectProjected(sessionId, anchor);
         List<Message> out = new ArrayList<>();
         for (PiSessionEntryPO row : rows) {

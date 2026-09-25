@@ -1,7 +1,8 @@
 package com.xmut.lims.pi.agent.tool;
 
 /**
- * ToolManifest 校验失败或扫描装载失败。
+ * 工具校验/装载异常。
+ * 功能描述：在 Manifest 非法或扫描失败时抛出。
  */
 public class ToolValidationException extends RuntimeException {
 

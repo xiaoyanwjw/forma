@@ -8,9 +8,8 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 内存检查点存储（默认 / 测试 / 无 Redis 回落）。
- *
- * <p>跨 Pod 不可用；生产应装配 Redis 实现（前缀 {@code pi:checkpoint:{runId}:}，无 tenant 段）。
+ * 内存 Checkpointer。
+ * 功能描述：进程内保存图检查点，作默认/测试回落。
  */
 public final class InMemoryCheckpointer implements Checkpointer {
 

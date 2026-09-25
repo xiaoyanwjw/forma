@@ -13,10 +13,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 产品 Session 实体（≠ Graph Checkpoint）。
- *
- * <p>{@code messages} 为投影视图（兼容旧 {@link SessionStore#save}/{@link SessionStore#find}）；
- * 真 transcript 行带 seq/runId，见 Store 实现。主键仅为 {@code sessionId}。
+ * 产品会话实体。
+ * 功能描述：承载 sessionId、投影 messages 与 compact 锚点等元数据。
+ * 关键设计：messages 是投影视图；真 transcript 行在 Store 实现里。≠ 图 Checkpoint。
  */
 @Value
 @Builder(toBuilder = true)

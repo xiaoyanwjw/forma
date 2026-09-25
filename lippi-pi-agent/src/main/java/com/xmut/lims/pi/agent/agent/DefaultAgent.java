@@ -32,19 +32,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * ConversationLoop 默认实现：唯一控制流 = hermes 内<strong>一张</strong> StateGraph（默认 Tool-loop）。
- *
- * <p>不存在 Planner/StepHandler；不委托 agent Graph / AgentRuntime。
- * 不按 Skill topology 换图——Skill 通过 whitelist / useCase / skills 文本约束行为
- * （如 OCR 空 whitelist → 不暴露 tools；未知 tool_calls → tools 节点闸门 fail-closed，不进 HITL）。
- *
- * <p>WRITE HITL：{@code tools} 节点在执行前申请挂起；resume 映射 {@link ToolDecision} →
- * {@link StateKeys#TOOL_APPROVAL} 后重跑同一节点。[LIMS] HITL ≠ 上游 Session {@code /resume}。
- *
- * <p>overallTimeout：分段（segment）—— resume 从 now 重算，HITL 等待不消耗执行预算。
- *
- * <p>resume 幂等：非空 {@link ResumeRequest#getConfirmRequestId()} 经
- * {@link ResumeIdempotencyStore} 原子占位；重复 APPROVE/DENY 不重入 WRITE handler。
+ * Agent 默认实现。
+ * 功能描述：运行模块内默认 Tool-loop 图（START → agent ⇄ tools → END）。
+ * 关键设计：不按 Skill 换图；WRITE HITL 为图级挂起；resume 幂等靠 confirmRequestId。
  */
 public final class DefaultAgent implements Agent {
 

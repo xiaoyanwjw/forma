@@ -3,8 +3,8 @@ package com.xmut.lims.pi.agent.extension;
 import com.xmut.lims.pi.agent.event.PiEventBus;
 
 /**
- * Startup registration: attach this extension's {@code on}/{@code observe} handlers
- * to the Session-owned bus. No public method-style fan-out.
+ * 扩展注册接口。
+ * 功能描述：在启动期把 on/observe 处理器挂到 Session 持有的 bus。
  */
 public interface PiExtensionRegistrar {
 

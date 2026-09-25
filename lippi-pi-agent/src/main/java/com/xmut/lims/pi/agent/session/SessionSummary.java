@@ -5,7 +5,10 @@ import lombok.Value;
 
 import java.time.Instant;
 
-/** 会话列表/树用轻量投影（不含 transcript 消息）。 */
+/**
+ * 会话轻量摘要。
+ * 功能描述：供 listRecent / listChildren 使用，不含 transcript 消息。
+ */
 @Value
 @Builder
 public class SessionSummary {

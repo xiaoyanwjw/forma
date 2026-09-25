@@ -1,7 +1,8 @@
 package com.xmut.lims.pi.agent.graph;
 
 /**
- * 条件路由：读取状态返回 pathMap 键。
+ * 条件路由接口。
+ * 功能描述：读取状态并返回 pathMap 键以选择下游边。
  */
 @FunctionalInterface
 public interface EdgeCondition {

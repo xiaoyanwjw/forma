@@ -4,36 +4,28 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Unified lifecycle bus: {@code observe} is read-only fan-out;
- * {@code on} is typed, awaited, and reduced.
- *
- * <p>{@code emit} order is locked: all {@code observe} handlers run synchronously
- * (exceptions swallowed), then matching {@code on} handlers reduce.
+ * 生命周期事件总线。
+ * 功能描述：提供 observe 只读扇出与 on 类型化归约。
+ * 关键设计：emit 顺序固定：先 observe 后 on。
  */
 public interface PiEventBus extends Emitter {
 
     /**
-     * Subscribe a read-only observer. Invoked synchronously during {@link #emit}
-     * before {@code on} reduce so ordering is preserved.
+     * 只读订阅。在 {@link #emit} 时同步调用（先于 on），保证顺序。
      *
-     * <p>Handlers <strong>must be non-blocking</strong>: no I/O, no waiting, no
-     * barriers. Exceptions are logged and swallowed; they must not stop emit
-     * or later observers.
+     * <p>处理器须非阻塞（禁 I/O / 等待）。异常只打日志，不中断后续。
      *
-     * @return closeable that unsubscribes this handler
+     * @return 关闭即退订
      */
     AutoCloseable subscribe(Consumer<PiEvent> handler);
 
     /**
-     * Register a mutable handler for {@code type}. Invoked synchronously during
-     * {@code emit} after observe fan-out; return values are reduced by type.
+     * 注册可变处理器。emit 时在 observe 之后同步调用；返回值按类型归约。
      *
-     * @return closeable that unsubscribes this handler
+     * @return 关闭即退订
      */
     AutoCloseable register(PiEventType type, Function<PiEvent, Object> handler);
 
-    /**
-     * Drop all observe and on handlers.
-     */
+    /** 清空全部 observe / on。 */
     void clear();
 }

@@ -1,9 +1,9 @@
 package com.xmut.lims.pi.agent.tool;
 
 /**
- * [LIMS] 工具分级；上游 Hermes {@code tools/approval.py} 仅有危险命令 approval，无此四级。
- *
- * <p>禁止伪称 Hermes native 原语。
+ * 工具分级枚举。
+ * 功能描述：区分 READ / SUGGEST / WRITE / FORBIDDEN 的执行前策略。
+ * 关键设计：≠ 上游仅危险命令 approval 的二元模型。
  */
 public enum ToolLevel {
 

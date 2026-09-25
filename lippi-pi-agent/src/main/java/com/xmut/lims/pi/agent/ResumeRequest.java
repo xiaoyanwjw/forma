@@ -6,9 +6,9 @@ import lombok.Builder;
 import lombok.Value;
 
 /**
- * {@link com.xmut.lims.pi.agent.agent.Agent#resume} 入参：HITL / checkpoint 恢复。
- *
- * <p>[LIMS] HITL；≠ 上游 Session {@code /resume}。禁止命名为 {@code HermesResumeRequest}。
+ * Agent.resume 入参。
+ * 功能描述：用于图级 HITL / checkpoint 恢复。
+ * 关键设计：≠ 上游 Session 的 /resume 斜杠命令。
  */
 @Value
 @Builder(toBuilder = true)

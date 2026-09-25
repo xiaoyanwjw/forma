@@ -3,10 +3,8 @@ package com.xmut.lims.pi.agent.resource;
 import java.util.Optional;
 
 /**
- * 扫描并冻结 Agent Context（skills / tools / prompts）。
- *
- * <p>架构概念名 ResourceLoader；Java 接口刻意避开 Spring
- * {@code org.springframework.core.io.ResourceLoader}。
+ * Agent 资源加载端口。
+ * 功能描述：扫描并冻结 skills / tools / prompts 等 Agent Context。
  */
 public interface PiResourceLoader {
 

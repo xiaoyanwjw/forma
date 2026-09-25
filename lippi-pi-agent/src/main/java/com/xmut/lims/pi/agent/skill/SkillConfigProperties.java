@@ -1,10 +1,8 @@
 package com.xmut.lims.pi.agent.skill;
 
 /**
- * SkillConfig 运行时突变开关（Story 51-9 / FR24）。
- *
- * <p>配置键：{@code pi.skills.allow-runtime-mutation}，默认 {@code false}。
- * 生产禁止 agent/模型热更新 Config；仅启动装载（bootstrap）或测试显式打开。
+ * SkillConfig 运行时开关。
+ * 功能描述：控制是否允许运行时突变（默认 false）。
  */
 public final class SkillConfigProperties {
 

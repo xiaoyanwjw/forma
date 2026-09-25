@@ -6,9 +6,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 进程内 resume 幂等（测试 / 无 Redis 回落）。跨 Pod 不可用。
- *
- * <p>键：{@code runId + "|" + confirmRequestId}（无 tenant 段）。
+ * 进程内 resume 幂等实现。
+ * 功能描述：用内存 map 做占位；跨 Pod 不可用。
  */
 public final class InMemoryResumeIdempotencyStore implements ResumeIdempotencyStore {
 

@@ -4,10 +4,8 @@ import com.xmut.lims.pi.agent.graph.node.ToolHandler;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 
 /**
- * 已安装工具条目 = {@link ToolManifest} + {@link ToolHandler}。
- *
- * <p>保留此类型以兼容既有装配/测试；新代码优先用 {@link ToolManifest} + {@link ToolBinding}。
- * {@code getName()/getSchema()/getLevel()} 委托 Manifest。
+ * 已安装工具条目。
+ * 功能描述：等于 ToolManifest + ToolHandler，供启动装载。
  */
 public final class ToolRegistration {
 

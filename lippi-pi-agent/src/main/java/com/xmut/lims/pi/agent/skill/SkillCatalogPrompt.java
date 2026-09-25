@@ -5,9 +5,8 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 
 /**
- * 组装 Stable {@code skills} 槽：目录摘要 +「用 read_skill 拉正文」指引。
- *
- * <p><strong>不</strong>把 Skill 全文写入 system（全文只经 {@code read_skill}）。
+ * Skills 目录提示组装器。
+ * 功能描述：生成 Stable skills 槽的目录摘要与 read_skill 指引。
  */
 public final class SkillCatalogPrompt {
 

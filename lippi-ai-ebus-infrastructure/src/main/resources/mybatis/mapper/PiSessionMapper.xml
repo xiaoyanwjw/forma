@@ -65,7 +65,7 @@
         WHERE session_id = #{sessionId}
     </update>
 
-    <update id="bumpAfterAppend">
+    <update id="updateAfterAppend">
         UPDATE pi_session
         SET last_run_id = #{lastRunId},
             message_count = #{messageCount},
@@ -73,7 +73,7 @@
         WHERE session_id = #{sessionId}
     </update>
 
-    <update id="bumpMessageCountOnly">
+    <update id="updateMessageCount">
         UPDATE pi_session
         SET message_count = #{messageCount},
             updated_at = #{updatedAt}
@@ -87,21 +87,21 @@
         WHERE session_id = #{sessionId}
     </update>
 
-    <select id="listRecent" resultMap="PiSessionResultMap">
+    <select id="selectRecent" resultMap="PiSessionResultMap">
         SELECT <include refid="SessionColumns"/>
         FROM pi_session
         ORDER BY updated_at DESC
         LIMIT #{limit}
     </select>
 
-    <select id="listChildrenRoots" resultMap="PiSessionResultMap">
+    <select id="selectChildrenRoots" resultMap="PiSessionResultMap">
         SELECT <include refid="SessionColumns"/>
         FROM pi_session
         WHERE parent_session_id IS NULL
         ORDER BY updated_at DESC
     </select>
 
-    <select id="listChildrenByParent" resultMap="PiSessionResultMap">
+    <select id="selectChildrenByParent" resultMap="PiSessionResultMap">
         SELECT <include refid="SessionColumns"/>
         FROM pi_session
         WHERE parent_session_id = #{parentSessionId}

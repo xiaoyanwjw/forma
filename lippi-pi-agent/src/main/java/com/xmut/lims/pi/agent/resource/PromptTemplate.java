@@ -3,9 +3,8 @@ package com.xmut.lims.pi.agent.resource;
 import lombok.Value;
 
 /**
- * prompts/*.md 斜杠模板（Story 51-14）。
- *
- * <p>{@code name} 无前导 {@code /}、无 {@code .md}；{@code body} 已去掉 frontmatter。
+ * 斜杠 Prompt 模板。
+ * 功能描述：对应 prompts/*.md；name 无前导 / 与 .md 后缀。
  */
 @Value
 public class PromptTemplate {

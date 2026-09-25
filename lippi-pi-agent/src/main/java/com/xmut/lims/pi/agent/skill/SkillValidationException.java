@@ -1,7 +1,8 @@
 package com.xmut.lims.pi.agent.skill;
 
 /**
- * SkillManifest 校验失败或生产运行时突变被拒（Story 51-9）。
+ * Skill 校验/突变异常。
+ * 功能描述：在 Manifest 非法或生产拒绝运行时突变时抛出。
  */
 public class SkillValidationException extends RuntimeException {
 

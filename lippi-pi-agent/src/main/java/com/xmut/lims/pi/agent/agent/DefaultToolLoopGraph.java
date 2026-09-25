@@ -19,9 +19,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 默认 Tool-loop 图：{@code START → agent ⇄ tools → agent → END}。
- *
- * <p>入口仅两个：{@link #build}（生产装配）与 {@link #create}（自定义 agent 节点 / 单测）。
+ * 默认 Tool-loop 图工厂。
+ * 功能描述：构建 START → agent ⇄ tools → END 拓扑。
  */
 public final class DefaultToolLoopGraph {
 

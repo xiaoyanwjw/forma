@@ -9,9 +9,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {@link AgentSession#prompt} 入参。
- *
- * <p>历史由 SessionStore hydrate；本对象只携带本轮增量与会话标识。
+ * AgentSession.prompt 入参。
+ * 功能描述：携带本轮增量与会话标识；历史由 SessionStore hydrate。
  */
 @Value
 @Builder(toBuilder = true)

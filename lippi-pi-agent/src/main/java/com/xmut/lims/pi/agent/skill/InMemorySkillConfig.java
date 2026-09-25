@@ -12,12 +12,9 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 进程内 {@link SkillConfig}（Story 51-9）。
- *
- * <p>{@link #resolve(String)}：取该 id 最近一次成功入册更新的「当前」指针（注册序覆盖，非 semver 比较）。
- *
- * <p>生产默认 {@code allowRuntimeMutation=false}：对外 {@link #register}/{@link #unregister}/
- * {@link #replace} 拒绝；{@link #registerBootstrap} 供启动装载。
+ * 进程内 SkillConfig 实现。
+ * 功能描述：保存 Skill 目录并提供 resolve/register。
+ * 关键设计：resolve 取该 id 最近入册指针；启动用 registerBootstrap。
  */
 public final class InMemorySkillConfig implements SkillConfig {
 

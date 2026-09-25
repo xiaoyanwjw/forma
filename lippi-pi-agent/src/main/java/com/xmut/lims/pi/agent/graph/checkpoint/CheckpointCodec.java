@@ -27,10 +27,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Graph Checkpoint [Lippi HITL] 的 typed JSON 编解码。
- *
- * <p>禁止把 {@link GraphState} 当裸 Map 往返——{@link Message}/{@link ToolCallEntry} 等会丢类型导致 resume NPE。
- * 反序列化失败返回 {@link Optional#empty()}，由调用方记日志并 fail。
+ * Checkpoint JSON 编解码器。
+ * 功能描述：在存储与内存对象之间转换 Checkpoint。
  */
 public final class CheckpointCodec {
 

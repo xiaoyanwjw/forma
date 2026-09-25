@@ -6,10 +6,9 @@ import com.xmut.lims.pi.agent.graph.StateKeys;
 import org.springframework.util.StringUtils;
 
 /**
- * [LIMS] 工具执行上下文：run / trace / activeSkillId。
- *
- * <p>hermes 自有类型；禁止复用 agent {@code ToolContext}。
- * 不携带 tenant / user。
+ * 工具执行上下文。
+ * 功能描述：携带 runId / traceId / activeSkillId。
+ * 关键设计：不携带 tenant / user。
  */
 public final class ToolContext {
 

@@ -4,11 +4,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * L3 Skill 配置端口（与 {@link com.xmut.lims.pi.agent.tool.ToolConfig} 对称；Story 51-9 / FR22）。
- *
- * <p>≠ 上游 {@code ~/.hermes/skills} 可自改；≠ agent {@code ToolRegistry}；≠ {@code SkillRouter}（51-10）。
- *
- * <p>共享目录 API：{@link #get} / {@link #resolve} / {@link #manifests}。
+ * Skill 配置端口。
+ * 功能描述：登记、解析与列举 SkillManifest。
+ * 关键设计：与 ToolConfig 对称；生产默认可禁运行时突变。
  */
 public interface SkillConfig {
 

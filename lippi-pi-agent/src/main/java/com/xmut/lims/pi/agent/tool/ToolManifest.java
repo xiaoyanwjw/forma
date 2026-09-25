@@ -5,12 +5,9 @@ import lombok.Builder;
 import lombok.Value;
 
 /**
- * 不可变工具资产说明书（与 {@code SkillManifest} 对称）。
- *
- * <p>声明「是什么 / 什么级别 / 给模型看什么」；<strong>不含</strong> {@link com.xmut.lims.pi.agent.graph.node.ToolHandler}。
- * 执行绑定见 {@link ToolBinding} / {@link ToolRegistration}。
- *
- * <p>{@link #text} → Stable {@code tools} 段；{@link #schema} → API {@code AVAILABLE_TOOLS}。
+ * 不可变工具资产说明书。
+ * 功能描述：声明工具是什么、级别、给模型看的文本/schema。
+ * 关键设计：不含 ToolHandler；执行绑定见 ToolBinding。
  */
 @Value
 @Builder(toBuilder = true)

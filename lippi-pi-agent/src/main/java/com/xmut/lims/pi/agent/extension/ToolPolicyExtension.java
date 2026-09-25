@@ -16,15 +16,9 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * [LIMS] 必装工具策略闸门：FORBIDDEN/deny → {@code block}；
- * 未批准 WRITE → {@code needs_hitl}（仅当 WRITE 审批开启）；否则 allow。
- *
- * <p>Adam 默认关闭 WRITE 审批（AD-S2）：无显式开启时 WRITE 与 READ 同策略面直接执行，
- * 仍拦截 FORBIDDEN。挂起 / resume / Checkpointer 端口保留供 {@code ask_human}（2.9）。
- *
- * <p>Not a GraphNode. Registers {@code BEFORE_TOOL_CALL} / {@code AFTER_TOOL_CALL}
- * on the Session bus. ToolNode evaluates per call (open-source order); HITL
- * suspends that call, not a disguised whole-batch gate.
+ * 必装工具策略闸门扩展。
+ * 功能描述：在工具执行前按等级与审批策略决定 allow / block / needs_hitl。
+ * 关键设计：不是 GraphNode；Adam 默认关闭 WRITE 审批，仍拦截 FORBIDDEN。
  */
 public final class ToolPolicyExtension implements PiExtension {
 

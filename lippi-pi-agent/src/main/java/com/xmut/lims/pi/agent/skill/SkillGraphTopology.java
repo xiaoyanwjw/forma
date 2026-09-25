@@ -3,11 +3,9 @@ package com.xmut.lims.pi.agent.skill;
 import com.xmut.lims.pi.agent.agent.DefaultAgent;
 
 /**
- * Skill 声明的图拓扑偏好（Story 51-9）。
- *
- * <p>存入 Manifest 供校验 / 文档 / 后续 Router 参考；
- * {@link DefaultAgent} <strong>不</strong>按此换图——
- * Loop 始终一张 Tool-loop；无 tools 的 Skill（如 OCR）靠空 whitelist 约束。
+ * Skill 图拓扑偏好枚举。
+ * 功能描述：写入 Manifest 供校验/文档参考。
+ * 关键设计：DefaultAgent 不按此换图，始终一张 Tool-loop。
  */
 public enum SkillGraphTopology {
 

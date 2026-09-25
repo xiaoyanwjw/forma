@@ -19,11 +19,9 @@ import org.springframework.context.annotation.Primary;
 import redis.clients.jedis.JedisPool;
 
 /**
- * 显式开启 Redis Checkpointer 时注册 Redis 实现（{@code @Primary}）。
- *
- * <p>条件：{@code lims.pi.checkpoint.redis.enabled=true} <b>且</b> 存在 {@link JedisPool}。
- * 仅有 {@code JedisPool} 不得抢默认（AD-S2/S9）。未开启时留给 {@link AgentConfiguration}
- * 的 InMemory 回落。Adam 生产目标为 MySQL CP（Story 2.8）。
+ * Redis Checkpointer 条件装配。
+ * 功能描述：在显式开启且存在 JedisPool 时注册 Redis Checkpointer 为 @Primary。
+ * 关键设计：仅有 JedisPool 不得抢默认（AD-S2/S9）。
  */
 @AutoConfiguration
 @ConditionalOnClass(JedisPool.class)

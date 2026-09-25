@@ -16,23 +16,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * In-process {@link PiEventBus}.
- *
- * <p><strong>Emit order (locked, D4):</strong> synchronously invoke every
- * {@code observe} handler (exceptions logged and swallowed), then synchronously
- * await and reduce matching {@code on} handlers.
- *
- * <p>{@code observe} handlers <strong>must be non-blocking</strong>. They are
- * still called on the emit thread so ordering is preserved; callers must not
- * treat observe as a wait barrier and must not perform blocking I/O inside
- * an observer.
- *
- * <p>Only {@link PiEventType#COMMAND}, {@link PiEventType#BEFORE_AGENT_START},
- * {@link PiEventType#BEFORE_TOOL_CALL}, and {@link PiEventType#AFTER_TOOL_CALL}
- * run {@code on} reduce. {@code BEFORE_TOOL_CALL} handler exceptions are
- * fail-closed ({@link BeforeToolCallResult#block(String)}). {@code BEFORE_AGENT_START}
- * merges {@link ContextModifier}：overwrite 后写覆盖，append 按序拼接。
- * Other {@code on} exceptions are logged and treated as no return.
+ * 进程内 PiEventBus 实现。
+ * 功能描述：同步执行 observe 与可归约 on 处理器。
+ * 关键设计：observe 须非阻塞；BEFORE_TOOL_CALL 异常 fail-closed。
  */
 public final class DefaultPiEventBus implements PiEventBus {
 

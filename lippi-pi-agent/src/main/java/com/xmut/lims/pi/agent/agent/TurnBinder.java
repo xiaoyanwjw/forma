@@ -15,18 +15,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 极薄投影：{@link ToolConfig} + {@link SkillConfig} + {@link ActiveSkill} → {@link TurnBindings}。
- *
- * <p>不做 resolve（{@link com.xmut.lims.pi.agent.skill.SkillSelector}）；
- * 不做 classpath 扫描（Skill/Tool Bootstrap）。
- *
- * <pre>
- *   skillsText      ↔  toolsText
- *   availableSkills ↔  availableTools
- * </pre>
- *
- * <p>{@code availableSkills}：有 Active → 当前 skill；无 Active → {@code skillConfig.manifests()} 目录。
- * {@code skillsText}：目录摘要 + {@code read_skill} 指引（不是 Skill 全文；全文经 tool）。
+ * 本轮入图投影器。
+ * 功能描述：把 ToolConfig + SkillConfig + ActiveSkill 投影为 TurnBindings。
  */
 public final class TurnBinder {
 

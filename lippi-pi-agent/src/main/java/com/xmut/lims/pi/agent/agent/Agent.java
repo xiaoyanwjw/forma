@@ -6,10 +6,9 @@ import com.xmut.lims.pi.agent.TurnInput;
 import com.xmut.lims.pi.agent.event.Emitter;
 
 /**
- * Pi ConversationLoop：内部控制流 = 模块内 StateGraph 超步（invoke / resume）。
- *
- * <p>仅供 {@link com.xmut.lims.pi.agent.session.AgentSession} 内部委托；禁止作为业务门面注入。
- * <p>入参是已绑定的 {@link TurnInput}（完整 chat 轴），不是「半成品 Prompt」。
+ * 内部对话控制流（ConversationLoop）。
+ * 功能描述：在一张 StateGraph 上执行 invoke / resume 超步。
+ * 关键设计：仅供 AgentSession 委托；入参是已绑定的 TurnInput，不是半成品 Prompt。
  */
 public interface Agent {
 

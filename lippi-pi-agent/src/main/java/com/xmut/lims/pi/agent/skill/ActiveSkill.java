@@ -7,9 +7,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 本轮已激活的 Skill（EXPLICIT）；NONE = 未指定 / resolve 失败。
- *
- * <p>选择发生在 {@link SkillSelector}；{@link TurnBinder} 只投影。
+ * 本轮已激活 Skill。
+ * 功能描述：表示显式选中的 Skill；NONE 表示未指定或 resolve 失败。
  */
 public final class ActiveSkill {
 

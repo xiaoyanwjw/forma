@@ -3,9 +3,9 @@ package com.xmut.lims.pi.agent.event;
 import lombok.Value;
 
 /**
- * Reduced result of {@link PiEventType#BEFORE_TOOL_CALL}.
- *
- * <p>{@code block} / {@code needsHitl} short-circuit remaining {@code on} handlers.
+ * BEFORE_TOOL_CALL 归约结果。
+ * 功能描述：表达 allow / block / needs_hitl。
+ * 关键设计：block 与 needs_hitl 会短路后续 on 处理器。
  */
 @Value
 public class BeforeToolCallResult {

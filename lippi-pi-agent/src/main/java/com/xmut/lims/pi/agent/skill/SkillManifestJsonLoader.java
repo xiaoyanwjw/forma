@@ -11,7 +11,8 @@ import java.util.List;
 import com.xmut.lims.pi.agent.tool.ToolLevel;
 
 /**
- * {@code *.skill.json} → {@link SkillManifest}（classpath / 文件共用）。
+ * SkillManifest JSON 加载器。
+ * 功能描述：把 *.skill.json 解析为 SkillManifest。
  */
 public final class SkillManifestJsonLoader {
 

@@ -22,13 +22,8 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 /**
- * 读 {@code TOOL_CALLS}，按开源 Pi 逐 call 顺序执行后写入 {@code MESSAGES}。
- *
- * <p>顺序（锁定）：{@code tool_execution_start} → {@code before_tool_call}
- * → execute（若 allow）→ {@code after_tool_call} → {@code tool_execution_end}
- * → toolResult {@code message_start/end}。禁止 {@code before_tool_call} 包在 start 之前。
- *
- * <p>HITL 来自该 call 的 {@code before_tool_call}（{@link BeforeToolCallResult#needsHitl}）。
+ * Tools 执行节点。
+ * 功能描述：按开源 Pi 顺序逐个执行 TOOL_CALLS，结果写入 MESSAGES。
  */
 public final class ToolNode implements GraphNode {
 

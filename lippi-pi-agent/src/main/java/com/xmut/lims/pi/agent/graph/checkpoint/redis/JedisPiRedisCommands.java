@@ -5,7 +5,8 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.params.SetParams;
 
 /**
- * {@link PiRedisCommands} 的 Jedis 实现。连接池由宿主应用提供（LIMS {@code JedisConfig}）。
+ * PiRedisCommands 的 Jedis 实现。
+ * 功能描述：通过宿主提供的 JedisPool 访问 Redis。
  */
 public final class JedisPiRedisCommands implements PiRedisCommands {
 

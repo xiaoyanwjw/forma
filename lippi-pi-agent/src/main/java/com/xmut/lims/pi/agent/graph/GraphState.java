@@ -8,9 +8,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 图状态容器：不可变；未注册 Channel 时按 last-value 合并（本故事不做完整 Channel reducer）。
- *
- * <p>嵌套 {@link Collection}/{@link Map} 在写入时做防御性拷贝，避免与 checkpoint 共享可变引用。
+ * 图状态容器。
+ * 功能描述：不可变持有键值；未注册 Channel 时按 last-value 合并。
  */
 public final class GraphState {
 

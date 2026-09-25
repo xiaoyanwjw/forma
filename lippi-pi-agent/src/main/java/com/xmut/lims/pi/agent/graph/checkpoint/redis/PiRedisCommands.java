@@ -1,10 +1,8 @@
 package com.xmut.lims.pi.agent.graph.checkpoint.redis;
 
 /**
- * Checkpoint / resume 幂等所需的最小 Redis 命令。
- *
- * <p>语义对齐 LIMS {@code RedisClient} 的四个方法，便于单测 mock；
- * 不复制完整 Redis 客户端。pi-agent 不得依赖 infrastructure。
+ * Checkpoint/幂等所需最小 Redis 命令集。
+ * 功能描述：隔离具体 Redis 客户端 API。
  */
 public interface PiRedisCommands {
 

@@ -1,7 +1,8 @@
 package com.xmut.lims.pi.agent.tool;
 
 /**
- * [LIMS] 工具策略审计事件。
+ * 工具策略审计事件。
+ * 功能描述：记录 FORBIDDEN / SUSPEND / APPROVE / DENY / EXECUTE 等决策。
  */
 public final class ToolAuditEvent {
 

@@ -8,10 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * {@code *.tool.json} → {@link ToolManifest}（classpath / 文件共用）。
- *
- * <p>不含 {@link com.xmut.lims.pi.agent.graph.node.ToolHandler}——若 JSON 含
- * {@code handlerClass}，由 {@link ToolHandlerAutoBinder} 自动创建并合并。
+ * ToolManifest JSON 加载器。
+ * 功能描述：把 *.tool.json 解析为 ToolManifest。
  */
 public final class ToolManifestJsonLoader {
 

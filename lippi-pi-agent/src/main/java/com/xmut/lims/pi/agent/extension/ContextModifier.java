@@ -3,10 +3,8 @@ package com.xmut.lims.pi.agent.extension;
 import lombok.Value;
 
 /**
- * {@code before_agent_start} 对 system prompt 三槽的修改：
- * {@link #overwrite} 整段替换；{@link #append} 接到该段末尾。
- *
- * <p>应用到 {@code SystemPromptInput} 时固定顺序：先 overwrite，再 append。
+ * before_agent_start 上下文修改量。
+ * 功能描述：对 system prompt 三槽做 overwrite 或 append。
  */
 @Value
 public class ContextModifier {

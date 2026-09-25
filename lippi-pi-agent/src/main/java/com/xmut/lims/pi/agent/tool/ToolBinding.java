@@ -6,9 +6,8 @@ import com.xmut.lims.pi.ai.model.ToolSchema;
 import java.util.Objects;
 
 /**
- * 工具运行时绑定：{@link ToolManifest}（声明）+ {@link ToolHandler}（执行）。
- *
- * <p>与 Skill 侧对比：Skill 只有 Manifest（无 handler）；Tool 需要 Binding 才能跑。
+ * 工具运行时绑定。
+ * 功能描述：组合 ToolManifest（声明）与 ToolHandler（执行）。
  */
 public final class ToolBinding {
 

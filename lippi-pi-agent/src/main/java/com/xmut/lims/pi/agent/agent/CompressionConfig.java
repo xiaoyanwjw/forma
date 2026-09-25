@@ -4,9 +4,8 @@ import lombok.Builder;
 import lombok.Value;
 
 /**
- * L2 ContextCompressor 阈值配置（Story 51-8）。
- *
- * <p>字符 rough estimate：{@code approxTokens ≈ chars / 4}（非精确 tokenizer）。
+ * ContextCompressor 阈值配置。
+ * 功能描述：控制是否启用及字符/token 粗估阈值。
  */
 @Value
 @Builder(toBuilder = true)
@@ -38,9 +37,9 @@ public class CompressionConfig {
     @Builder.Default
     int digestPerMessageChars = 120;
 
-    /** deterministic digest 总长上限。 */
+    /** deterministic / LLM 摘要总长上限（结构化 Pi 摘要默认给足空间）。 */
     @Builder.Default
-    int digestMaxChars = 2_000;
+    int digestMaxChars = 4_000;
 
     /** Phase0：尾外过长 tool 结果改为一行摘要的阈值（字符）；≤0 关闭。 */
     @Builder.Default

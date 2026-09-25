@@ -9,7 +9,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {@link com.xmut.lims.pi.agent.agent.Agent#run} / {@link com.xmut.lims.pi.agent.agent.Agent#resume} 出参（字段对齐 Hermes）。
+ * Agent.run / resume 内部出参。
+ * 功能描述：再映射为对外 TurnResult。
  */
 @Value
 @Builder(toBuilder = true)
@@ -18,14 +19,14 @@ public class ConversationResult {
     /** 本次 run 标识；cancel / resume 使用。 */
     String runId;
 
-    /** Hermes {@code final_response}。 */
+    /** 终态回复文本（可空）。 */
     String finalResponse;
 
-    /** Hermes {@code messages}。 */
+    /** 本轮结束后的完整 chat 轴（投影，不含 system）。 */
     @Builder.Default
     List<Message> messages = Collections.emptyList();
 
-    /** LIMS 扩展：运行状态。 */
+    /** 运行状态。 */
     @Builder.Default
     Status status = Status.OK;
 

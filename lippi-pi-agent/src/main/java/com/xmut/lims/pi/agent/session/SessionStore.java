@@ -6,16 +6,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Session 持久化端口（≠ {@code Checkpointer} / CheckpointStore）。
- *
- * <p><b>Adam 生产默认</b>：ebus-infrastructure {@code MysqlSessionStore}（{@code @Primary}；表 {@code pi_session}/{@code pi_session_entry}）。
- * <p><b>本模块过渡默认</b>：{@link InMemorySessionStore}（MissingBean；进程内，非跨实例真相）。
- * {@link SqliteSessionStore} 仅显式 {@code lims.pi.session.sqlite-path} / 单测 opt-in，
- * <b>禁止</b>静默落到 {@code {cwd}/.lippi-pi/state.db}（AD-S8）。
- *
- * <p>键仅为 {@code sessionId}（全局唯一）；无 tenant / user。
- *
- * <p><b>禁止</b>与 Checkpoint 共用 key 空间（Checkpoint={@code pi:checkpoint:}）。
+ * 会话 transcript 持久化端口。
+ * 功能描述：提供 Message 投影的读写（getOrCreate / append / load / compact 锚点等）。
+ * 关键设计：对外只有 Message 投影，不是 Entry 树协议；与 Checkpointer 键空间/生命周期分离。
  */
 public interface SessionStore {
 

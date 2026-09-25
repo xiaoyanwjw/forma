@@ -4,8 +4,8 @@ import lombok.Value;
 import org.springframework.util.StringUtils;
 
 /**
- * System prompt 三段（stable / context / variable）的字符串增量。
- * {@code null} 或空白表示该段不动。
+ * System prompt 三段增量。
+ * 功能描述：承载 stable / context / variable 的字符串增量。
  */
 @Value
 public class PromptSegments {

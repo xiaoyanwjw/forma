@@ -23,9 +23,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@link PiResourceLoader} 默认实现：启动扫描 prompts，委托既有 Skill/Tool 配置。
- *
- * <p>禁止类名 {@code DefaultResourceLoader}（与 Spring 撞名）。
+ * PiResourceLoader 默认实现。
+ * 功能描述：启动扫描 prompts，并委托既有 Skill/Tool 配置。
  */
 public final class DefaultPiResourceLoader implements PiResourceLoader {
 

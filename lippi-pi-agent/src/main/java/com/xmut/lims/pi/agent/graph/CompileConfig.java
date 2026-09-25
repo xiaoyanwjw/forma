@@ -8,7 +8,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 图编译配置：maxSupersteps / overallTimeout / interrupt 钩子 / CheckpointStore。
+ * 图编译配置。
+ * 功能描述：设置 maxSupersteps、overallTimeout、interrupt 与 Checkpointer 等。
  */
 public final class CompileConfig {
 

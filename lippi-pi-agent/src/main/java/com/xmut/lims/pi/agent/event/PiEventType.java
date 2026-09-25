@@ -1,10 +1,9 @@
 package com.xmut.lims.pi.agent.event;
 
 /**
- * Lifecycle facts emitted through {@link PiEventBus}.
- *
- * <p>Only {@link #COMMAND}, {@link #BEFORE_AGENT_START}, {@link #BEFORE_TOOL_CALL},
- * and {@link #AFTER_TOOL_CALL} are reducible via {@code on} handlers.
+ * 生命周期事件类型枚举。
+ * 功能描述：定义经 PiEventBus 发出的事件名。
+ * 关键设计：仅 COMMAND / BEFORE_AGENT_START / BEFORE_TOOL_CALL / AFTER_TOOL_CALL 可 on 归约。
  */
 public enum PiEventType {
     AGENT_START,

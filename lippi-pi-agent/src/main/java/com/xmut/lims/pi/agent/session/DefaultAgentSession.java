@@ -21,14 +21,9 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * {@link AgentSession} 默认实现：SessionStore hydrate + 委托 {@link Agent}。
- *
- * <p>持有 {@link PiEventBus}：{@link #subscribe} 走 {@code observe}；构造期对扩展
- * {@code register(bus)}；{@link #prompt} / {@link #resume(ResumeRequest)} 经 bus
- * {@code emit}，并把窄口 {@code Emitter} 传入 Loop。
- *
- * <p><b>Transcript 所有权：</b>{@link Session} 负责 merge / delta；
- * 本类负责 I/O 与 fork。产出 {@link TurnInput}（已绑定完整 chat 轴）交给 Loop。
+ * AgentSession 默认实现。
+ * 功能描述：完成 SessionStore hydrate/merge/落库，并委托内部 Agent 执行。
+ * 关键设计：成功路径才 append；历史前缀漂移时 fork 子会话；终态统一走 agent_end。
  */
 public final class DefaultAgentSession implements AgentSession {
 
@@ -58,37 +53,43 @@ public final class DefaultAgentSession implements AgentSession {
         return eventBus.subscribe(handler);
     }
 
+    /**
+     * 一轮对话主路径：hydrate →（可选命令短路）→ 扩 slash → 合并 transcript →
+     * before_agent_start → Agent.run → 成功则 append 增量 → agent_end。
+     *
+     * <p>失败/短路也走 {@link #onAgentEnd}，保证订阅方总能收到终态。
+     */
     @Override
     public TurnResult prompt(PromptRequest request) {
         if (request == null) {
             return TurnResult.failed(null, "PromptRequest required");
         }
 
-        // 1.获取或创建会话
+        // 稳定 sessionId / runId：空则建会话、缺 runId 则发 UUID（幂等键交给 SessionStore.append）
+        String sessionId = request.getSessionId();
+        String runId = getRunId(request);
         final Session session = sessionStore.getOrCreate(Session.Meta
                 .builder()
-                .sessionId(request.getSessionId())
+                .sessionId(sessionId)
                 .source("api")
                 .build());
-        String sessionId = session.getSessionId();
-        String runId = getRunId(request);
+        sessionId = session.getSessionId();
 
-        // 2.尝试命令式处理（可被扩展覆盖）
+        // 扩展可吞掉本轮（斜杠命令等）；非 null 即短路，不再进模型
         TurnResult result = command(request);
         if (result != null) {
             return onAgentEnd(withSession(result, sessionId));
         }
 
-        // 3.展开 slash / skill
         final String context = request.getContext();
         final ExpandedTurn expanded = expand(request);
 
-        // 4.加载历史 + 本轮 user → 合并
+        // load 已是 compact 投影；merge 后把完整 chat 轴交给 Loop（本类不改写历史）
         List<Message> existing = sessionStore.load(sessionId);
         List<Message> user = Session.resolveThisTurnUser(request, expanded.text);
         List<Message> messages = Session.merge(existing, user);
 
-        // 5.[回调]触发 before_agent_start
+        // 扩展可改写 system/上下文；抛错则本轮失败，不调模型
         ContextModifier overwrite;
         try {
             overwrite = beforeAgentStart(runId, expanded.text, context);
@@ -96,13 +97,10 @@ public final class DefaultAgentSession implements AgentSession {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "before_agent_start failed")));
         }
 
-        // 6.构造 TurnInput
         TurnInput input = toTurnInput(request, sessionId, runId, expanded.skillId, context, overwrite, messages);
 
-        // 7.[回调]触发 agent_start
         onAgentStart(sessionId);
 
-        // 8.ConversationLoop.run
         try {
             ConversationResult raw = agent.run(input, eventBus);
             result = mapToTurnResult(raw, sessionId);
@@ -110,7 +108,7 @@ public final class DefaultAgentSession implements AgentSession {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "prompt failed")));
         }
 
-        // 9.持久化增量（前缀不匹配时 fork → sessionId 可能变）
+        // 仅 OK 落库：delta 可 append；前缀漂移则 fork 新会话，避免污染原 transcript
         if (TurnResult.Status.OK.equals(result.getStatus())) {
             try {
                 final List<Message> updated = result.getMessages();
@@ -121,11 +119,11 @@ public final class DefaultAgentSession implements AgentSession {
             }
         }
 
-        // 10.[回调]触发 agent_end
         return onAgentEnd(result);
 
     }
 
+    /** COMMAND 扩展：有人返回 TurnResult 则吞掉本轮；异常/无人处理 → null 继续主路径。 */
     private TurnResult command(PromptRequest request) {
         try {
             return eventBus.emit(PiEvent.of(PiEventType.COMMAND, request), TurnResult.class);
@@ -134,6 +132,7 @@ public final class DefaultAgentSession implements AgentSession {
         }
     }
 
+    /** 跑模型前的上下文改写钩子；emit 失败降级为空 modifier，不阻断主路径。 */
     private ContextModifier beforeAgentStart(String runId, String text, String context) {
         try {
             final PiEvent piEvent = PiEvent.of(PiEventType.BEFORE_AGENT_START, new BeforeAgentStartEvent(runId, text, context));
@@ -146,6 +145,7 @@ public final class DefaultAgentSession implements AgentSession {
         }
     }
 
+    /** 通知订阅方「模型回合开始」；emit 失败只打日志。 */
     private void onAgentStart(String sessionId) {
         try {
             eventBus.emit(PiEvent.of(PiEventType.AGENT_START, sessionId));
@@ -154,6 +154,10 @@ public final class DefaultAgentSession implements AgentSession {
         }
     }
 
+    /**
+     * 统一终态出口：HITL 先发 {@code SUSPENDED}，再发 {@code AGENT_END}。
+     * emit 失败吞掉，避免总线问题掩盖业务结果。
+     */
     private TurnResult onAgentEnd(TurnResult result) {
         try {
             if (TurnResult.Status.SUSPENDED.equals(result.getStatus())) {
@@ -203,6 +207,16 @@ public final class DefaultAgentSession implements AgentSession {
         return UUID.randomUUID().toString();
     }
 
+    /**
+     * 把本轮产出写回 SessionStore。
+     *
+     * <ul>
+     *   <li>新消息能接在 {@code histBase} 后 → {@code append}（同 runId 幂等）</li>
+     *   <li>否则前缀已漂 → fork 子会话写全量非 system，父会话不动</li>
+     * </ul>
+     *
+     * @return 实际使用的 sessionId（fork 时为新 id）
+     */
     private String persistTurnDelta(String sessionId, String runId, List<Message> histBase, List<Message> histDelta) {
         if (!StringUtils.hasText(sessionId)) {
             return sessionId;
@@ -214,6 +228,7 @@ public final class DefaultAgentSession implements AgentSession {
             return sessionId;
         }
 
+        // Loop 改写了历史前缀：不能原地 append，否则破坏单调 seq / 投影语义
         Session forked = sessionStore.getOrCreate(Session.Meta.builder()
                 .source("api")
                 .parentSessionId(sessionId)
@@ -254,7 +269,7 @@ public final class DefaultAgentSession implements AgentSession {
         if (resourceLoader == null) {
             return new ExpandedTurn(text, skillId);
         }
-        // expandSlash：无 text / 非 / 前缀 → unchanged；有模板或 /skill: 才改写
+        // 无 text / 非 / 前缀 → 原样；命中模板或 /skill: 才改写 text/skillId
         SlashExpansion expansion = resourceLoader.expandSlash(text);
         if (expansion != null && expansion.isExpanded()) {
             text = expansion.getText();

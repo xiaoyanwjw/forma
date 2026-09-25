@@ -9,10 +9,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 不可变 Skill 版本化资产描述（Story 51-9 / FR24）。
- *
- * <p>四要素：prompt（{@code skillsPrompt} 或 {@code promptRef}）、{@code toolWhitelist}、
- * {@code maxToolLevel}、{@code graphTopology}。
+ * 不可变 Skill 资产描述。
+ * 功能描述：声明 prompt、toolWhitelist、maxToolLevel、graphTopology。
  */
 @Value
 @Builder(toBuilder = true)

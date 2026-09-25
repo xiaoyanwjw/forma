@@ -6,10 +6,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 /**
- * 本轮 Skill 选择（EXPLICIT）：{@code skillId} 优先于 {@code domain}。
- *
- * <p>不属于 {@code TurnBinder}——选择与投影分离。
- * 显式 skillId / domain 未入册时 fail-closed（禁止回落全量 tools）。
+ * 本轮 Skill 选择器。
+ * 功能描述：按 skillId 优先于 domain 做显式选择。
+ * 关键设计：未入册时 fail-closed，不回落全量 tools。
  */
 public final class SkillSelector {
 

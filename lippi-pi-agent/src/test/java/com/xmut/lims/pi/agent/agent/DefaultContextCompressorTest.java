@@ -163,12 +163,26 @@ class DefaultContextCompressorTest {
     }
 
     @Test
-    void llm_doSummary_uses_independent_use_case() {
+    void llm_doSummary_uses_pi_compaction_prompts() {
         AtomicInteger calls = new AtomicInteger();
         ModelProvider ok = request -> {
             calls.incrementAndGet();
             assertThat(request.getUseCase()).isEqualTo("pi.compression");
             assertThat(request.getUseCase()).isNotEqualTo("pi.default");
+            assertThat(request.getMessages()).hasSize(2);
+            assertThat(request.getMessages().get(0).getRole()).isEqualTo("system");
+            assertThat(request.getMessages().get(0).getContent())
+                    .isEqualTo(CompactionPrompts.SUMMARIZATION_SYSTEM_PROMPT);
+            assertThat(request.getMessages().get(0).getContent())
+                    .contains("same primary language");
+            String user = request.getMessages().get(1).getContent();
+            assertThat(user).contains("<conversation>");
+            assertThat(user).contains("</conversation>");
+            assertThat(user).contains("## Goal");
+            assertThat(user).contains(CompactionPrompts.SUMMARIZATION_PROMPT);
+            assertThat(user).contains("Match the primary language");
+            assertThat(user).doesNotContain("<previous-summary>");
+            assertThat(user).contains("[User]:");
             return ModelResponse.builder().content("LLM_SUMMARY").build();
         };
         CompressionConfig config = CompressionConfig.builder()
@@ -189,6 +203,53 @@ class DefaultContextCompressorTest {
 
         assertThat(calls.get()).isEqualTo(1);
         assertThat(result.getMessages().get(0).getContent()).isEqualTo("[context_summary]\nLLM_SUMMARY");
+    }
+
+    @Test
+    void llm_doSummary_with_previous_summary_uses_update_prompt() {
+        AtomicInteger calls = new AtomicInteger();
+        ModelProvider ok = request -> {
+            calls.incrementAndGet();
+            String user = request.getMessages().get(1).getContent();
+            assertThat(user).contains("<previous-summary>");
+            assertThat(user).contains("## Goal\nold-goal");
+            assertThat(user).contains(CompactionPrompts.UPDATE_SUMMARIZATION_PROMPT);
+            assertThat(user).contains("[User]:");
+            assertThat(user).contains("new-turn");
+            return ModelResponse.builder().content("UPDATED_SUMMARY").build();
+        };
+        CompressionConfig config = CompressionConfig.builder()
+                .maxPromptChars(50)
+                .protectLastK(1)
+                .build();
+        DefaultContextCompressor compressor = new DefaultContextCompressor(config, ok);
+
+        List<Message> messages = new ArrayList<>();
+        messages.add(Message.user("[context_summary]\n## Goal\nold-goal"));
+        messages.add(Message.user("new-turn " + repeat("x", 40)));
+        messages.add(Message.user("tail-keep " + repeat("y", 40)));
+        messages.add(Message.user("tail-last"));
+
+        CompressionResult result = compressor.compress(CompressionRequest.builder()
+                .messages(messages)
+                .systemMessage(Message.system("s"))
+                .build());
+
+        assertThat(calls.get()).isEqualTo(1);
+        assertThat(result.getMessages().get(0).getContent())
+                .isEqualTo("[context_summary]\nUPDATED_SUMMARY");
+    }
+
+    @Test
+    void splitPreviousSummary_extracts_prefix_message() {
+        List<Message> middle = new ArrayList<>();
+        middle.add(Message.user("[context_summary]\n## Goal\nkeep"));
+        middle.add(Message.user("delta"));
+        DefaultContextCompressor.PreviousSummarySplit split =
+                DefaultContextCompressor.splitPreviousSummary(middle, "[context_summary]\n");
+        assertThat(split.previousSummary).isEqualTo("## Goal\nkeep");
+        assertThat(split.toSummarize).hasSize(1);
+        assertThat(split.toSummarize.get(0).getContent()).isEqualTo("delta");
     }
 
     @Test

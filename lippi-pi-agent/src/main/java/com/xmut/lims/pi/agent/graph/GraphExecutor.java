@@ -13,9 +13,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * 串行超步执行引擎（包可见）。
- *
- * <p>在每个超步边界检查：cancel、overallTimeout、maxSupersteps（对齐 NFR9；补齐 agent 引擎缺口）。
+ * 图超步执行引擎。
+ * 功能描述：串行推进超步并处理中断、超时与 checkpoint。
  */
 final class GraphExecutor {
 

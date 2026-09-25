@@ -14,7 +14,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * [LIMS] 默认 {@link ToolConfig}：Manifest 目录 + Binding；未登记工具一律 FORBIDDEN。
+ * ToolConfig 默认实现。
+ * 功能描述：维护 Manifest 目录与 Binding；未登记工具一律 FORBIDDEN。
  */
 public final class DefaultToolConfig implements ToolConfig {
 

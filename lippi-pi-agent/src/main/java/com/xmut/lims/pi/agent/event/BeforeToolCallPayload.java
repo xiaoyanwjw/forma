@@ -4,8 +4,8 @@ import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import lombok.Value;
 
 /**
- * Payload for {@link PiEventType#BEFORE_TOOL_CALL}: the current call plus
- * HITL decision fields from graph state (approval is not on {@link ToolCallEntry}).
+ * BEFORE_TOOL_CALL 载荷。
+ * 功能描述：携带当前 tool call 及执行上下文。
  */
 @Value
 public class BeforeToolCallPayload {

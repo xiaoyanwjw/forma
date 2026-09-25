@@ -3,13 +3,8 @@ package com.xmut.lims.pi.agent;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 对齐 Hermes {@code IterationBudget(max_total)}：可变计数器，支持 {@link #consume} / {@link #refund}。
- *
- * <p>LIMS 语义：一次 {@code consume} = 一次 StateGraph 超步（NFR9 {@code maxSupersteps} 语义）。
- * 配置侧仍可称 maxSupersteps；本类型字段名固定为 {@code maxTotal}。
- *
- * <p>{@code overallTimeoutMs} 由 Loop 映射为 {@code CompileConfig.overallTimeout}，
- * 在 GraphExecutor 超步边界强制检查。
+ * 超步预算计数器。
+ * 功能描述：通过 consume / refund 限制 StateGraph 超步次数，并可带整体超时。
  */
 public final class IterationBudget {
 

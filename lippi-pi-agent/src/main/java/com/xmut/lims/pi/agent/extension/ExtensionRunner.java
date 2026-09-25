@@ -11,12 +11,8 @@ import java.util.List;
 import java.util.ServiceLoader;
 
 /**
- * Extension registrar: discovers Spring/SPI {@link PiExtension}s, requires
- * exactly one {@link ToolPolicyExtension} (registered first), and attaches
- * them to a {@link PiEventBus}.
- *
- * <p>No public method-style fan-out ({@code beforeAgentStart}, {@code tryCommand},
- * {@code beforeToolCall}, …). Handlers run via {@code bus.on}/{@code observe}.
+ * 扩展装配器。
+ * 功能描述：发现并注册 PiExtension，要求恰好一个 ToolPolicyExtension 且最先挂载。
  */
 public final class ExtensionRunner implements PiExtensionRegistrar {
 

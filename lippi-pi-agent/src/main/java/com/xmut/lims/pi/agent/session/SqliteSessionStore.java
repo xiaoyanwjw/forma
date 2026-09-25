@@ -35,13 +35,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * 本地 SQLite SessionStore（<b>非</b>生产默认；AD-S8）。
- *
- * <p>仅显式 {@code lims.pi.session.sqlite-path} / 单测 opt-in。
- * {@link #resolveSqlitePath} 在空白配置时仍解析到 {@code {user.dir}/.lippi-pi/state.db}，
- * 但自动装配<b>不得</b>在空路径下调用本类。行为对齐 {@link InMemorySessionStore}。
- * Schema v1：主键仅为 {@code sessionId}。旧库（含 {@code tenant_id} 或 {@code user_version < 1}）拒绝打开。
- * Adam 生产默认 MySQL → ebus-infrastructure {@code MysqlSessionStore}。
+ * 本地 SQLite SessionStore。
+ * 功能描述：把会话 transcript 落到显式配置的 sqlite 文件。
+ * 关键设计：非生产默认（AD-S8）；禁止在空路径下静默落 {cwd}/.lippi-pi/state.db。
  */
 public final class SqliteSessionStore implements SessionStore, AutoCloseable {
 

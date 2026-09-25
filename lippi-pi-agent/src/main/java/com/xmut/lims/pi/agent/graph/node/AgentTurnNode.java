@@ -36,18 +36,9 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * agent 轮次薄节点（对齐开源 pi）：
- * <ol>
- *   <li>{@code messages} ← state</li>
- *   <li>{@code system} ← {@link StateKeys#SYSTEM_PROMPT}</li>
- *   <li>compress → format → {@link ModelProvider#stream}（厂商 SSE；Stub 则 fallback {@code complete}）</li>
- *   <li>assistant 写入 messages；流式增量经 {@link #onTextDelta}</li>
- * </ol>
- *
- * <p>生产路径：{@link ModelProvider} / {@link PromptBuilder} 构造期必填（fail-fast）。
- * 图拓扑单测用 {@link #forTopologyTest()}。自定义 agent 行为请直接向
- * {@link DefaultToolLoopGraph#create} 传入 {@link GraphNode}，
- * 勿再包装本类。
+ * Agent 轮次节点。
+ * 功能描述：读取 messages/system，调用模型并把 assistant 写回 messages。
+ * 关键设计：生产路径 ModelProvider/PromptBuilder 构造期必填。
  */
 public final class AgentTurnNode implements GraphNode {
 

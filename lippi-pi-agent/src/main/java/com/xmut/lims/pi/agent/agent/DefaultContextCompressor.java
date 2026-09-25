@@ -7,6 +7,7 @@ import com.xmut.lims.pi.ai.model.ModelRequest;
 import com.xmut.lims.pi.ai.model.ModelResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,10 +17,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 默认可注入 {@link ContextCompressor}：deterministic history 折叠 + Context 段硬上限。
- *
- * <p>可选 {@link ModelProvider}：{@link ContextCompressor#USE_CASE_COMPRESSION} 摘要；
- * Catalog 未注册 / 调用失败 → deterministic。字符估 token：{@code chars / 4}。
+ * ContextCompressor 默认实现。
+ * 功能描述：对 history 做确定性折叠，并对 Context 段施加硬上限；可选 LLM 摘要。
+ * 关键设计：LLM 摘要提示词对齐 Pi CompactionPrompts；失败降级 deterministic，不导致 turn FAILED。
  */
 public final class DefaultContextCompressor implements ContextCompressor {
 
@@ -191,12 +191,12 @@ public final class DefaultContextCompressor implements ContextCompressor {
     private String summary(List<Message> middle, String sessionId, String runId) {
         if (model != null) {
             try {
-                String llm = doSummary(middle, sessionId, runId);
-                if (llm != null && !llm.trim().isEmpty()) {
-                    return truncate(llm.trim(), config.getDigestMaxChars());
+                String message = doSummary(middle, sessionId, runId);
+                if (StringUtils.hasText(message)) {
+                    return truncate(message.trim(), config.getDigestMaxChars());
                 }
             } catch (RuntimeException ex) {
-                log.warn("hermes compression LLM failed, falling back to deterministic: {}",
+                log.warn("compression LLM failed, falling back to deterministic: {}",
                         ex.toString());
             }
         }
@@ -204,13 +204,14 @@ public final class DefaultContextCompressor implements ContextCompressor {
     }
 
     private String doSummary(List<Message> middle, String sessionId, String runId) {
-        // 给模型看比 digest 更完整的 middle 文本（仍有硬上限），输出再截到 digestMaxChars
-        int llmInputMax = Math.max(config.getDigestMaxChars() * 4, config.getDigestMaxChars());
-        String body = buildMiddleText(middle, llmInputMax);
+        PreviousSummarySplit split = splitPreviousSummary(middle, config.getSummaryPrefix());
+        int maxChars = Math.max(config.getDigestMaxChars() * 8, 8_000);
+        String conversationText = serializeForSummarization(split.toSummarize, maxChars);
+        String userPrompt = CompactionPrompts.toUserPrompt(conversationText, split.previousSummary);
+
         List<Message> prompt = new ArrayList<>(2);
-        prompt.add(Message.system(
-                "Summarize the following conversation middle turns briefly for context continuity."));
-        prompt.add(Message.user(body));
+        prompt.add(Message.system(CompactionPrompts.SUMMARIZATION_SYSTEM_PROMPT));
+        prompt.add(Message.user(userPrompt));
         ModelResponse response = model.complete(ModelRequest.builder()
                 .messages(prompt)
                 .useCase(USE_CASE_COMPRESSION)
@@ -223,8 +224,101 @@ public final class DefaultContextCompressor implements ContextCompressor {
         return response.getContent();
     }
 
+    /**
+     * 若 middle 含既有 {@code [context_summary]}，拆出 previousSummary 并只摘要其后增量（对齐 Pi UPDATE）。
+     */
+    static PreviousSummarySplit splitPreviousSummary(List<Message> middle, String summaryPrefix) {
+        if (middle == null || middle.isEmpty() || !StringUtils.hasText(summaryPrefix)) {
+            return new PreviousSummarySplit(middle, null);
+        }
+        for (int i = 0; i < middle.size(); i++) {
+            Message m = middle.get(i);
+            if (m == null || m.getContent() == null) {
+                continue;
+            }
+            if (!m.getContent().startsWith(summaryPrefix)) {
+                continue;
+            }
+            String previous = m.getContent().substring(summaryPrefix.length()).trim();
+            List<Message> rest = new ArrayList<>(middle.subList(i + 1, middle.size()));
+            if (rest.isEmpty()) {
+                // 只有旧摘要、没有新消息：仍把旧摘要当对话正文做首次式重摘要
+                return new PreviousSummarySplit(middle, null);
+            }
+            return new PreviousSummarySplit(rest, previous.isEmpty() ? null : previous);
+        }
+        return new PreviousSummarySplit(middle, null);
+    }
+
     String deterministicDigest(List<Message> middle) {
         return buildMiddleText(middle, config.getDigestMaxChars());
+    }
+
+    /**
+     * 对齐 Pi serializeConversation 风格，避免模型把序列化文本当续聊。
+     */
+    String serializeForSummarization(List<Message> middle, int maxChars) {
+        StringBuilder sb = new StringBuilder();
+        int per = Math.max(40, config.getDigestPerMessageChars() * 2);
+        int max = Math.max(per, maxChars);
+        int toolMax = Math.max(200, config.getToolResultMaxChars() > 0
+                ? Math.min(config.getToolResultMaxChars() * 2, 2_000) : 2_000);
+        for (Message m : middle) {
+            if (m == null) {
+                continue;
+            }
+            if (sb.length() >= max) {
+                break;
+            }
+            String role = m.getRole() != null ? m.getRole() : "?";
+            String content = nullToEmpty(m.getContent());
+            if ("user".equalsIgnoreCase(role)) {
+                appendBlock(sb, "[User]: ", truncate(content, per), max);
+            } else if ("assistant".equalsIgnoreCase(role)) {
+                if (StringUtils.hasText(content)) {
+                    appendBlock(sb, "[Assistant]: ", truncate(content, per), max);
+                }
+                if (m.getToolCalls() != null && !m.getToolCalls().isEmpty()) {
+                    StringBuilder tools = new StringBuilder();
+                    boolean first = true;
+                    for (ToolCallEntry tc : m.getToolCalls()) {
+                        if (tc == null || tc.getToolName() == null) {
+                            continue;
+                        }
+                        if (!first) {
+                            tools.append("; ");
+                        }
+                        tools.append(tc.getToolName()).append("()");
+                        first = false;
+                    }
+                    if (tools.length() > 0) {
+                        appendBlock(sb, "[Assistant tool calls]: ", tools.toString(), max);
+                    }
+                }
+            } else if ("tool".equalsIgnoreCase(role)) {
+                appendBlock(sb, "[Tool result]: ", truncate(content, toolMax), max);
+            } else if ("system".equalsIgnoreCase(role)) {
+                // system 不进摘要对话正文
+                continue;
+            } else {
+                appendBlock(sb, "[" + role + "]: ", truncate(content, per), max);
+            }
+        }
+        String out = sb.toString();
+        if (out.length() > max) {
+            return truncate(out, max);
+        }
+        return out;
+    }
+
+    private static void appendBlock(StringBuilder sb, String prefix, String body, int max) {
+        if (sb.length() >= max) {
+            return;
+        }
+        if (sb.length() > 0) {
+            sb.append("\n\n");
+        }
+        sb.append(prefix).append(body);
     }
 
     private String buildMiddleText(List<Message> middle, int maxChars) {
@@ -263,6 +357,16 @@ public final class DefaultContextCompressor implements ContextCompressor {
             return truncate(out, max);
         }
         return out;
+    }
+
+    static final class PreviousSummarySplit {
+        final List<Message> toSummarize;
+        final String previousSummary;
+
+        PreviousSummarySplit(List<Message> toSummarize, String previousSummary) {
+            this.toSummarize = toSummarize == null ? Collections.emptyList() : toSummarize;
+            this.previousSummary = previousSummary;
+        }
     }
 
     List<Message> pruneLongToolResultsOutsideTail(List<Message> messages) {

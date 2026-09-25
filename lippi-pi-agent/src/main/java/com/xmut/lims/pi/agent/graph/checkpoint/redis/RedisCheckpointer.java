@@ -16,11 +16,9 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Hermes Graph Checkpoint Redis 适配 [Lippi HITL]。
- *
- * <p>Key 前缀 {@code pi:checkpoint:}。
- * 键：{@code pi:checkpoint:{runId}:latest|ids|{checkpointId}}（无 tenant 段；旧 key 不迁移）。
- * 实现完整 {@link Checkpointer} 含 {@link #deleteByRun}；typed 编解码见 {@link CheckpointCodec}。
+ * Redis Checkpointer 实现。
+ * 功能描述：把图检查点存到 Redis（前缀 pi:checkpoint:）。
+ * 关键设计：仅在显式开启时注册，不作为静默默认。
  */
 public final class RedisCheckpointer implements Checkpointer {
 

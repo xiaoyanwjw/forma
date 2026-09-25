@@ -4,7 +4,8 @@ import lombok.Builder;
 import lombok.Value;
 
 /**
- * {@link AgentSession#compact} 入参（M1 端口形状；实现可桩）。
+ * AgentSession.compact 入参。
+ * 功能描述：指定要压缩的会话；实现当前可为 NOOP。
  */
 @Value
 @Builder

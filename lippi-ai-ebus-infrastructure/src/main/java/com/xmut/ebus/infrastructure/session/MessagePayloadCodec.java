@@ -14,7 +14,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Message ↔ {@code pi_session_entry.payload}（单个 Message JSON 对象，非数组/非 envelope）。
+ * Message 与 entry.payload 编解码器。
+ * 功能描述：在单个 Message JSON 对象与领域 Message 之间转换。
+ * 关键设计：payload 非数组、非 envelope（1 行 = 1 Message）。
  */
 final class MessagePayloadCodec {
 

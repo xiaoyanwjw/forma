@@ -3,7 +3,8 @@ package com.xmut.lims.pi.agent.resource;
 import lombok.Value;
 
 /**
- * 斜杠展开结果。未展开时 {@code text} 原样、{@code skillId} 空。
+ * 斜杠展开结果。
+ * 功能描述：表示展开后的 text / skillId；未展开时 text 原样。
  */
 @Value
 public class SlashExpansion {

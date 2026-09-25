@@ -15,11 +15,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 启动扫描：预设目录 {@code *.tool.json} → {@link ToolManifest} 列表。
- *
- * <p>默认 pattern：{@code classpath*:tools/*.tool.json}。
- * <strong>不含 Handler</strong>——与代码侧 {@link ToolBinding} 经
- * {@link DefaultToolConfig#merge(List, List)} 合并。
+ * Tool 启动扫描器。
+ * 功能描述：扫描 *.tool.json 得到 ToolManifest 列表。
  */
 public final class ClasspathToolBootstrap {
 

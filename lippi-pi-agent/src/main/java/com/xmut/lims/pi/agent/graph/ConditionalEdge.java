@@ -5,7 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 条件路由边：condition 返回值映射到目标节点名。
+ * 条件路由边。
+ * 功能描述：按 condition 返回值映射到目标节点。
  */
 final class ConditionalEdge {
 

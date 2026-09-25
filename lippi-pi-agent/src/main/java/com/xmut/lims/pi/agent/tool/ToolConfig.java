@@ -7,13 +7,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * [LIMS] 工具配置端口（与 {@link com.xmut.lims.pi.agent.skill.SkillConfig} 对称）。
- *
- * <p>Manifest 目录 + 分级闸门；缺省/未知 fail-closed（FORBIDDEN）。
- * 对齐上游 approval「执行前闸门」语义，但<strong>不是</strong>上游原语。
- *
- * <p>共享目录 API：{@link #get} / {@link #resolve} / {@link #manifests}；
- * 投影：{@link #textForModel} → Stable；{@link #schemasForModel} → API。
+ * 工具配置端口。
+ * 功能描述：提供 Manifest 目录、分级闸门与模型可见投影。
+ * 关键设计：未登记/未知 fail-closed；与 SkillConfig 对称。
  */
 public interface ToolConfig {
 

@@ -1,7 +1,8 @@
 package com.xmut.lims.pi.agent.graph;
 
 /**
- * 图执行期错误。
+ * 图执行期异常。
+ * 功能描述：在超步执行失败时抛出。
  */
 public class GraphExecutionException extends RuntimeException {
 

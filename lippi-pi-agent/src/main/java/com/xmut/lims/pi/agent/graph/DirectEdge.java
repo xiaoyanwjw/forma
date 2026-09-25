@@ -2,6 +2,7 @@ package com.xmut.lims.pi.agent.graph;
 
 /**
  * 无条件直连边。
+ * 功能描述：固定连接两个节点。
  */
 final class DirectEdge {
 

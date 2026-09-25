@@ -9,7 +9,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {@link AgentSession#prompt} / {@link AgentSession#resume} 出参（Story 51-12 AC3）。
+ * AgentSession.prompt / resume 出参。
+ * 功能描述：返回本轮终态状态、消息与 sessionId。
  */
 @Value
 @Builder(toBuilder = true)

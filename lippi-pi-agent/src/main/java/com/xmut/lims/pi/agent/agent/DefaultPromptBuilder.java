@@ -7,10 +7,8 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 
 /**
- * {@link PromptBuilder} 默认实现：委托 {@link SystemPromptInput#format()} + sanitize。
- *
- * <p>唯一 system 组装器；注入键仅 AD-S10 allowlist（无 contribution SPI）。
- * Context 硬上限与 history 压缩由 {@link ContextCompressor} 负责。
+ * PromptBuilder 默认实现。
+ * 功能描述：委托 SystemPromptInput.format 并做 sanitize。
  */
 public final class DefaultPromptBuilder implements PromptBuilder {
 

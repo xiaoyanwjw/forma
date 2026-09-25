@@ -3,7 +3,8 @@ package com.xmut.lims.pi.agent.graph;
 import com.xmut.lims.pi.agent.graph.checkpoint.Checkpoint;
 
 /**
- * Graph 执行终态结果。
+ * 图执行终态结果。
+ * 功能描述：表达成功、失败或挂起等结局及最终状态。
  */
 public final class GraphOutcome {
 

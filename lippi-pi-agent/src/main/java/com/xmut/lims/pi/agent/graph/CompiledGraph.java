@@ -5,7 +5,8 @@ import com.xmut.lims.pi.agent.graph.checkpoint.Checkpointer;
 import java.util.Map;
 
 /**
- * 不可变编译后图；{@link #invoke} / {@link #resume} 为 ConversationLoop 唯一控制流入口。
+ * 不可变已编译图。
+ * 功能描述：提供 invoke / resume 作为 Agent 控制流入口。
  */
 public final class CompiledGraph {
 

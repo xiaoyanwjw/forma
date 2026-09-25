@@ -4,7 +4,8 @@ import lombok.Builder;
 import lombok.Value;
 
 /**
- * {@link AgentSession#compact} 出参（M1 端口形状；实现可桩）。
+ * AgentSession.compact 出参。
+ * 功能描述：说明是否真正压缩及提示信息。
  */
 @Value
 @Builder

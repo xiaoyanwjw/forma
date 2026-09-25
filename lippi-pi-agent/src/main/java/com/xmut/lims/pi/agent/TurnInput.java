@@ -11,12 +11,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Loop / Graph 的<strong>已绑定 Turn</strong>入参。
- *
- * <p>由 {@link com.xmut.lims.pi.agent.session.AgentSession} hydrate+merge 后产出；
- * {@link #messages} 即进图完整 chat 轴（不含 system）。Loop <strong>不再</strong>追加 user。
- *
- * <p>直测请用 {@link #withUser(String)}，勿再发明「旁路 user 字段」。
+ * 已绑定的一轮图入参。
+ * 功能描述：携带完整 chat 轴（不含 system）及 run/session 标识。
+ * 关键设计：由 AgentSession hydrate+merge 后产出；Agent 不再追加 user。
  */
 @Value
 @Builder(toBuilder = true)

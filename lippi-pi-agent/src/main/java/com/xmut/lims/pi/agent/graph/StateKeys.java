@@ -3,7 +3,8 @@ package com.xmut.lims.pi.agent.graph;
 import com.xmut.lims.pi.agent.agent.TurnBinder;
 
 /**
- * Graph 通用状态键。
+ * 图通用状态键常量。
+ * 功能描述：约定 messages、system_prompt、tool 决策等键名。
  */
 public final class StateKeys {
 
@@ -35,14 +36,14 @@ public final class StateKeys {
     public static final String SKILLS = "skills";
 
     /**
-     * {@code String} — 本轮已 resolve 的 skill id（Story 51-9；便于测与 51-5/51-10）。
+     * {@code String} — 本轮已 resolve 的 skill id。
      *
-     * <p>由 {@code DefaultConversationLoop.input} / {@code TurnBinder} 写入；节点只读。
+     * <p>由 {@code DefaultAgent} / {@link TurnBinder} 写入；节点只读。
      */
     public static final String ACTIVE_SKILL_ID = "active_skill_id";
 
     /**
-     * {@code String} — 本轮模型 useCase（Story 51-5；取自 ActiveSkill.modelUseCase）。
+     * {@code String} — 本轮模型 useCase（取自 ActiveSkill.modelUseCase）。
      *
      * <p>由 {@link TurnBinder} 写入；{@code AgentTurnNode} 读入
      * {@code ModelRequest.useCase}；缺省回落 {@code pi.default}。
@@ -88,8 +89,8 @@ public final class StateKeys {
     /**
      * {@code String} — 入图前已 format 好的 system 全文。
      *
-     * <p>{@code AgentTurnNode} 只认此键；原料在 {@code DefaultConversationLoop.input}
-     * 经 {@code SystemPromptInput.format()} 拼好。
+     * <p>{@code AgentTurnNode} 只认此键；由 {@code DefaultAgent} 入图前经
+     * {@code SystemPromptInput.format()} 写好。
      */
     public static final String SYSTEM_PROMPT = "system_prompt";
 
@@ -130,7 +131,7 @@ public final class StateKeys {
     /**
      * {@link com.xmut.lims.pi.agent.tool.ToolDecision} 或字符串 — WRITE HITL 批准决策。
      *
-     * <p>由 {@code DefaultConversationLoop.resume} 写入；{@code ToolPolicyExtension} 一次性消费后清空。
+     * <p>由 {@code DefaultAgent.resume} 写入；{@code ToolPolicyExtension} 一次性消费后清空。
      */
     public static final String TOOL_APPROVAL = "tool_approval";
 

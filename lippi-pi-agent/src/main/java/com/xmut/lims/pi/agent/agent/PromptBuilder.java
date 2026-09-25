@@ -5,11 +5,9 @@ import com.xmut.lims.pi.ai.message.Message;
 import java.util.List;
 
 /**
- * L2 提示组装器：对齐上游 {@code prompt_builder} / Prompt Assembly。
- *
- * <p>只负责可缓存 system 三段与发出前清洗；chat {@code messages} 由 AgentTurn 维护。
- *
- * <p>类型名必须是 {@code PromptBuilder}；禁止 {@code PromptAssembler}。
+ * 系统提示组装端口。
+ * 功能描述：组装可缓存 system 三段并在发出前清洗。
+ * 关键设计：chat messages 由 AgentTurn 维护，不归本端口。
  */
 public interface PromptBuilder {
 

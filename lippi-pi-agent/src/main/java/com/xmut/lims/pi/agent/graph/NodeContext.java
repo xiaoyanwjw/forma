@@ -3,10 +3,9 @@ package com.xmut.lims.pi.agent.graph;
 import com.xmut.lims.pi.agent.event.Emitter;
 
 /**
- * 节点执行上下文（不可变）。不携带 agent Capability / ToolExecutor。
- *
- * <p>身份仅 {@code runId} + 可选 {@code traceId}；不携带 tenant / user。
- * <p>生命周期事实只经 {@link Emitter}；禁止依赖 {@code StreamObserver}。
+ * 节点执行上下文。
+ * 功能描述：向节点提供只读运行信息与 Emitter 等协作面。
+ * 关键设计：不携带 Capability / ToolExecutor。
  */
 public final class NodeContext {
 

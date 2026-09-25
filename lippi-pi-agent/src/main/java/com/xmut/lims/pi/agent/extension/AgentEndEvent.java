@@ -4,7 +4,8 @@ import com.xmut.lims.pi.agent.session.TurnResult;
 import lombok.Value;
 
 /**
- * {@code agent_end} 事件：prompt / resume 返回前。不实现 51-11 指标。
+ * agent_end 事件载荷。
+ * 功能描述：在 prompt / resume 返回前发出。
  */
 @Value
 public class AgentEndEvent {

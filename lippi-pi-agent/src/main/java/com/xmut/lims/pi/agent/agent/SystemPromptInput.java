@@ -7,10 +7,8 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 
 /**
- * 可缓存 system prompt 原料：Stable / Context / Variable 三个有序 map，
- * 外加 {@link ContextModifier} 的整段覆盖 / 追加。
- *
- * <p>{@link #format()} 为唯一 system 全文出口。注入键仅 AD-S10 allowlist。
+ * 可缓存 system prompt 原料。
+ * 功能描述：以 Stable / Context / Variable 三个有序 map 组装 system 全文。
  */
 public final class SystemPromptInput {
 

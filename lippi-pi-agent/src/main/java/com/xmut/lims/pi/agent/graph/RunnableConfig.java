@@ -9,9 +9,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
 /**
- * 图执行运行时配置；携带 cancel 信号供 Executor 在超步边界检查。
- *
- * <p>身份仅 {@code runId} + 可选 {@code traceId}；不携带 tenant / user。
+ * 图执行运行时配置。
+ * 功能描述：携带 cancel 信号等，供 Executor 在超步边界检查。
  */
 public final class RunnableConfig {
 

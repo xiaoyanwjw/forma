@@ -10,11 +10,8 @@ import org.springframework.util.StringUtils;
 import java.io.InputStream;
 
 /**
- * 启动扫描：预设目录 {@code *.skill.json} → {@link SkillConfig#registerBootstrap}。
- *
- * <p>默认 pattern：{@code classpath*:skills/*.skill.json}（含 hermes JAR 内置 Skill，
- * 如同名 id+version 多份则跳过重复）。
- * 不参与 Turn；运行时只读 Config + 极薄 bind。
+ * Skill 启动扫描器。
+ * 功能描述：扫描 *.skill.json 并 registerBootstrap 到 SkillConfig。
  */
 public final class ClasspathSkillBootstrap {
 

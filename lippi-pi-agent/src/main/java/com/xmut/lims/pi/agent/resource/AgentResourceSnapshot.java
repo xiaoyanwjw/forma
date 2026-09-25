@@ -9,7 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 冻结的 Agent Context 视图：skills 目录、prompt 模板、已登记 extension 名。
+ * 冻结的 Agent Context 视图。
+ * 功能描述：包含 skills 目录、prompt 模板与已登记 extension 名。
  */
 @Value
 public class AgentResourceSnapshot {

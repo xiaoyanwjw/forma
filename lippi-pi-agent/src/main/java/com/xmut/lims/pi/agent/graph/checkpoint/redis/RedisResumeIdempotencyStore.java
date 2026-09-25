@@ -17,9 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * resume {@code (runId, confirmRequestId)} 幂等 Redis 实现：{@code SET NX EX}。
- *
- * <p>Key：{@code pi:resume-idem:{runId}:{confirmRequestId}}（无 tenant 段；旧 key 不迁移）。
+ * Redis resume 幂等实现。
+ * 功能描述：用 SET NX EX 对 (runId, confirmRequestId) 占位。
  */
 public final class RedisResumeIdempotencyStore implements ResumeIdempotencyStore {
 

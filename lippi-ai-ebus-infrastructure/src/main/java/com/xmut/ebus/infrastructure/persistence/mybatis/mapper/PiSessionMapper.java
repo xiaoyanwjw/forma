@@ -25,22 +25,22 @@ public interface PiSessionMapper {
                             @Param("compactAnchorSeq") long compactAnchorSeq,
                             @Param("updatedAt") Instant updatedAt);
 
-    int bumpAfterAppend(@Param("sessionId") String sessionId,
-                        @Param("lastRunId") String lastRunId,
-                        @Param("messageCount") int messageCount,
-                        @Param("updatedAt") Instant updatedAt);
+    int updateAfterAppend(@Param("sessionId") String sessionId,
+                          @Param("lastRunId") String lastRunId,
+                          @Param("messageCount") int messageCount,
+                          @Param("updatedAt") Instant updatedAt);
 
-    int bumpMessageCountOnly(@Param("sessionId") String sessionId,
-                             @Param("messageCount") int messageCount,
-                             @Param("updatedAt") Instant updatedAt);
+    int updateMessageCount(@Param("sessionId") String sessionId,
+                           @Param("messageCount") int messageCount,
+                           @Param("updatedAt") Instant updatedAt);
 
     int updateTitle(@Param("sessionId") String sessionId,
                     @Param("title") String title,
                     @Param("updatedAt") Instant updatedAt);
 
-    List<PiSessionPO> listRecent(@Param("limit") int limit);
+    List<PiSessionPO> selectRecent(@Param("limit") int limit);
 
-    List<PiSessionPO> listChildrenRoots();
+    List<PiSessionPO> selectChildrenRoots();
 
-    List<PiSessionPO> listChildrenByParent(@Param("parentSessionId") String parentSessionId);
+    List<PiSessionPO> selectChildrenByParent(@Param("parentSessionId") String parentSessionId);
 }

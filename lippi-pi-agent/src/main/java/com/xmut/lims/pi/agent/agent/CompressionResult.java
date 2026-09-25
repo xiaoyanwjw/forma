@@ -9,6 +9,7 @@ import java.util.List;
 
 /**
  * ContextCompressor 输出。
+ * 功能描述：返回压缩后的 messages / context 视图。
  */
 @Value
 @Builder(toBuilder = true)

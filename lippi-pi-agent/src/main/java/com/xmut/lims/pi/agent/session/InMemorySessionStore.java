@@ -18,10 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * 同进程内存 SessionStore：与 {@link SqliteSessionStore} / 未来 MySQL 同端口语义。
- *
- * <p>本模块 MissingBean 过渡默认（AD-S8）；<b>不是</b>跨进程 / 生产真相。
- * Adam 生产默认 MySQL → ebus-infrastructure {@code MysqlSessionStore}。键 = {@code sessionId}（禁止 {@code ':'}）；独立于 Checkpoint。
+ * 进程内 SessionStore 实现。
+ * 功能描述：与 Sqlite/MySQL 适配器对齐同一套端口语义，作本模块 MissingBean 过渡默认。
+ * 关键设计：不是跨进程/生产真相；行为金样见 append 幂等与 compact 锚点投影。
  */
 public final class InMemorySessionStore implements SessionStore {
 
@@ -241,6 +240,10 @@ public final class InMemorySessionStore implements SessionStore {
             this.updatedAt = now;
         }
 
+        /**
+         * 兼容旧 {@link SessionStore#save}：用投影视图整表重写 rows。
+         * 注意：与 {@link #setCompactAnchor}「不删历史」不同——此处按调用方传入的 messages 重建。
+         */
         void applyCompatSave(Session session) {
             if (StringUtils.hasText(session.getSource())) {
                 this.source = session.getSource();
@@ -265,6 +268,9 @@ public final class InMemorySessionStore implements SessionStore {
             }
         }
 
+        /**
+         * 追加本 turn：同 runId 整批跳过；丢弃 system；seq 从 1 单调递增。
+         */
         void append(String runId, List<Message> messages) {
             if (StringUtils.hasText(runId) && this.appendedRunIds.contains(runId)) {
                 return;
@@ -289,6 +295,9 @@ public final class InMemorySessionStore implements SessionStore {
             }
         }
 
+        /**
+         * Compact = 只挪锚点，不删 rows。同 seq 幂等；可追加一条 summary（runId={@code compact-seq-next}）。
+         */
         void setCompactAnchor(long seq, Message summaryMessage) {
             if (seq < 0L || seq >= this.nextSeq) {
                 throw new IllegalArgumentException(
@@ -306,6 +315,7 @@ public final class InMemorySessionStore implements SessionStore {
             }
         }
 
+        /** load/find 投影：仅 {@code seq > anchor} 且非 system；锚点前行仍留在 {@link #rows}。 */
         List<Message> projectMessages() {
             List<Message> out = new ArrayList<>();
             for (Row row : this.rows) {

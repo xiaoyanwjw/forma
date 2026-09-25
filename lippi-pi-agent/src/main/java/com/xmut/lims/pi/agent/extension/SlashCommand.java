@@ -4,7 +4,8 @@ import lombok.Value;
 import org.springframework.util.StringUtils;
 
 /**
- * 已登记斜杠命令（Story 51-14）。{@code name} 无前导 {@code /}。
+ * 已登记斜杠命令。
+ * 功能描述：描述命令名与处理信息；name 不含前导 /。
  */
 @Value
 public class SlashCommand {

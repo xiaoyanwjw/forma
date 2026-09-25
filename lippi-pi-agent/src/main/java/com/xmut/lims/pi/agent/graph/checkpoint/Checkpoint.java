@@ -8,7 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 不可变检查点：某超步后的状态快照。键维度仅 {@code runId}（无 tenant）。
+ * 不可变图检查点。
+ * 功能描述：记录某超步后的状态快照。
  */
 public final class Checkpoint {
 

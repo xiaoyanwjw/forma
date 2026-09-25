@@ -15,7 +15,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 启动扫描 {@code prompts/*.md} → {@link PromptTemplate}（对标 Skill/Tool bootstrap）。
+ * Prompt 模板启动扫描器。
+ * 功能描述：扫描 prompts/*.md 得到 PromptTemplate。
  */
 public final class ClasspathPromptBootstrap {
 

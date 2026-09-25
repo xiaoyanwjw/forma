@@ -3,10 +3,8 @@ package com.xmut.lims.pi.agent.graph.checkpoint;
 import com.xmut.lims.pi.agent.ConversationResult;
 
 /**
- * {@code (runId, confirmRequestId)} resume 幂等占位 [Lippi HITL]。
- *
- * <p>可选 Redis（仅 {@code lims.pi.checkpoint.redis.enabled=true}）；
- * 默认内存实现。键无 tenant。≠ SessionStore。Adam 生产目标 MySQL CP（Story 2.8）。
+ * resume 幂等占位端口。
+ * 功能描述：对 (runId, confirmRequestId) 做原子占位，防止重复审批。
  */
 public interface ResumeIdempotencyStore {
 

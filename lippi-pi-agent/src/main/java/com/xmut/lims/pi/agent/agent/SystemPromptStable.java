@@ -5,10 +5,7 @@ import lombok.Value;
 
 /**
  * System prompt 三段文本袋。
- *
- * <p>字段 {@link #variable} 对应上游 key {@code volatile}（避开 Java 保留字）。
- *
- * @see SystemPromptInput#parts()
+ * 功能描述：存放 stable / context / variable 三段字符串。
  */
 @Value
 @Builder

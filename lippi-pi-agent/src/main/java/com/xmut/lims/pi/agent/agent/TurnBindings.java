@@ -13,14 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 本轮入图装载快照 — Skill ‖ Tool 字段对称：
- *
- * <pre>
- *   skillsText      ↔  toolsText
- *   availableSkills ↔  availableTools
- * </pre>
- *
- * <p>由 {@link TurnBinder} 唯一产出；Loop 只 {@link #applyTo}，节点只读 state。
+ * 本轮入图装载快照。
+ * 功能描述：对称携带本轮 Skill 与 Tool 相关字段。
  */
 @Value
 @Builder

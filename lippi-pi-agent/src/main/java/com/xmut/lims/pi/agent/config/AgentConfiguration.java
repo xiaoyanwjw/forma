@@ -57,31 +57,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Pi Runtime 装配（Story 51-1 … 51-12）：对外唯一门面 {@link AgentSession}。
- *
- * <p>组装 PromptBuilder + ModelProvider + ToolConfig [LIMS] + ContextCompressor +
- * SkillConfig + 默认 Tool-loop 图与 {@link DefaultAgent}。
- *
- * <p>Checkpoint：默认 {@link InMemoryCheckpointer}；Redis 仅当
- * {@code lims.pi.checkpoint.redis.enabled=true} 且存在 {@code JedisPool} 时由
- * {@link PiCheckpointAutoConfiguration} 以 {@code @Primary} 注册（AD-S2/S9）。
- *
- * <p>Session：MissingBean 时默认 {@link InMemorySessionStore}（进程内过渡，非生产真相）；
- * 仅当显式配置 {@code lims.pi.session.sqlite-path} 时注册 {@link SqliteSessionStore}。
- * <b>禁止</b>静默落到 {@code {cwd}/.lippi-pi/state.db}（AD-S8）。生产目标 MySQL → Story 2.7。
- * ≠ Checkpoint。Memory 层暂未接入。
- *
- * <p>ContextCompressor：默认 {@link DefaultContextCompressor}；{@code pi.compression.enabled=false}
- * 时注册 {@link ContextCompressor#NOOP}。
- *
- * <p>SkillConfig：启动扫 {@code classpath*:skills/*.skill.json}
- * （含 {@code certificate.ocr}）；然后 {@code sealBootstrap}；
- * {@code pi.skills.allow-runtime-mutation=false}。
- *
- * <p>{@link Agent}（Runtime）：仅被 {@link AgentSession} 内部委托；禁止业务直接注入作门面。
- *
- * <p>ToolConfig：启动扫 {@code classpath*:tools/*.tool.json}。
- * WRITE 审批默认关（{@code lims.pi.tool.write-approval.enabled=false}）。
+ * Pi Runtime Spring 装配配置。
+ * 功能描述：对外暴露 AgentSession，并组装图、模型、Skill、Tool、Session 等默认 Bean。
+ * 关键设计：Session MissingBean 回落 InMemory；Sqlite 仅显式路径；Checkpoint 默认 InMemory。
  */
 @Configuration
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -229,7 +207,7 @@ public class AgentConfiguration {
     }
 
     /**
-     * [LIMS] 必装工具策略闸门。作为 {@link PiExtension} 进 Runner 列表。
+     * 必装工具策略闸门；作为 {@link PiExtension} 进入 Runner。
      *
      * <p>WRITE 审批默认关（AD-S2）；{@code lims.pi.tool.write-approval.enabled=true} 可开。
      */

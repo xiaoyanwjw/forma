@@ -8,7 +8,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * ContextCompressor 输入（append 后、发模型前的 messages 视图）。
+ * ContextCompressor 输入。
+ * 功能描述：携带发模型前的 messages 视图。
  */
 @Value
 @Builder(toBuilder = true)

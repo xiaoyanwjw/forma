@@ -20,10 +20,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 /**
- * {@code read_skill}：按 skill_id 读取 Skill 正文（md / 内联 prompt）。
- *
- * <p>只读；不写 Registry。由 {@code tools/read-skill.tool.json#handlerClass} 自动装配
- *（仅依赖 {@link SkillConfig}）。正文加载逻辑内聚本类，不另挂 SkillReader Bean。
+ * read_skill 工具实现。
+ * 功能描述：按 skill_id 读取 Skill 正文（md / 内联 prompt）。
+ * 关键设计：只读，不写 Registry。
  */
 public final class ReadSkill implements ToolHandler {
 
