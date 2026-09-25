@@ -77,10 +77,7 @@ class DefaultPiResourceLoaderTest {
                 .maxToolLevel(ToolLevel.READ)
                 .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(
-                new PathMatchingResourcePatternResolver(),
-                skills,
-                DefaultToolConfig.empty());
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
         SlashExpansion expanded = loader.expandSlash("/skill:certificate.ocr");
         assertThat(expanded.isExpanded()).isTrue();
         assertThat(expanded.getSkillId()).isEqualTo("certificate.ocr");
@@ -99,10 +96,7 @@ class DefaultPiResourceLoaderTest {
                 .maxToolLevel(ToolLevel.READ)
                 .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(
-                new PathMatchingResourcePatternResolver(),
-                skills,
-                DefaultToolConfig.empty());
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
         SlashExpansion expanded = loader.expandSlash("/skill:test-standard-schema");
         assertThat(expanded.isExpanded()).isTrue();
         assertThat(expanded.getSkillId()).isEqualTo("test-standard-schema");
@@ -122,10 +116,7 @@ class DefaultPiResourceLoaderTest {
                 .maxToolLevel(ToolLevel.READ)
                 .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(
-                new PathMatchingResourcePatternResolver(),
-                skills,
-                DefaultToolConfig.empty());
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
         SlashExpansion expanded = loader.expandSlash("/skill:walk-in-import");
         assertThat(expanded.isExpanded()).isTrue();
         assertThat(expanded.getSkillId()).isEqualTo("walk-in-import");
@@ -147,10 +138,7 @@ class DefaultPiResourceLoaderTest {
                 .maxToolLevel(ToolLevel.READ)
                 .graphTopology(SkillGraphTopology.TOOL_LOOP)
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(
-                new PathMatchingResourcePatternResolver(),
-                skills,
-                DefaultToolConfig.empty());
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
         SlashExpansion expanded = loader.expandSlash("/skill:broken.skill");
         assertThat(expanded.isExpanded()).isFalse();
         assertThat(expanded.getText()).isEqualTo("/skill:broken.skill");
@@ -168,10 +156,7 @@ class DefaultPiResourceLoaderTest {
                 .maxToolLevel(ToolLevel.READ)
                 .graphTopology(SkillGraphTopology.TOOL_LOOP)
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(
-                new PathMatchingResourcePatternResolver(),
-                skills,
-                DefaultToolConfig.empty());
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
         AgentResourceSnapshot snap = loader.snapshot();
         assertThat(snap.getSkillIds()).contains("demo.skill");
         assertThat(snap.getExtensionNames()).isEmpty();

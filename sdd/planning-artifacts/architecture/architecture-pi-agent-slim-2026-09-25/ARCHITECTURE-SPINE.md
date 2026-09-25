@@ -129,9 +129,9 @@ flowchart TB
 
 ### AD-S10 — Prompt 注入线型冻结 [ADOPTED]
 
-- **Binds:** `SystemPromptInput`、`ContextOverwrite`、`before_agent_start`
+- **Binds:** `SystemPromptInput`、`ContextModifier`、`before_agent_start`
 - **Prevents:** 三不透明 blob vs 自由 named maps 半迁移
-- **Rule:** 采用 **现有三槽 `Map<String,String>` + 键 allowlist**（与 `SystemPromptInput` 常量一致：`soul`/`skills`/`tools`/`core`/`agents`/`hermes`/`context`/`memory`/`user`/`before_agent_start`；**本阶段禁止新增键**，含禁用新 `contribution` SPI）。调用方写入的是各键的 **字符串值**。`ContextOverwrite` **只追加**到已有槽位的 allowlist 键（典型 `before_agent_start`）。基槽填充：application / `before_agent_start` 增量；**唯一** format 出口。
+- **Rule:** 采用 **现有三槽 `Map<String,String>` + 键 allowlist**（与 `SystemPromptInput` 常量一致：`soul`/`skills`/`tools`/`core`/`agents`/`hermes`/`context`/`memory`/`user`/`before_agent_start`；**本阶段禁止新增键**，含禁用新 `contribution` SPI）。调用方写入的是各键的 **字符串值**。`ContextModifier` 对三槽支持 **整段 overwrite** 与 **append**（先覆盖后追加；多扩展时 overwrite 后写覆盖、append 拼接）。基槽填充：application / `before_agent_start` 增量；**唯一** format 出口。
 
 ### AD-S11 — 列表 ACL、元数据下限、append 幂等 [ADOPTED]
 
@@ -174,7 +174,7 @@ flowchart TB
 | Graph CP 表 | `pi_graph_checkpoint`（按 runId；≠ session 表） |
 | HITL | `ask_human` + resume；WRITE 审批默认关；SSE `human_input_required` |
 | Compaction | 仅 `compact_anchor_seq`；无 `entry_type=compaction` |
-| Prompt | 三槽 allowlist 键；`ContextOverwrite` 只追加；唯一 format |
+| Prompt | 三槽 allowlist 键；`ContextModifier` overwrite+append；唯一 format |
 | 事件 | Pi 枚举 + ebus 映射；AD-4 含 `human_input_required` |
 | 对齐上游 | 行为对齐 events+tool hooks；Session 为 pi Entry **混合子集** |
 | ID | UUID 字符串（AD-12） |

@@ -23,7 +23,7 @@ class DefaultPromptBuilderTest {
                         SystemPromptInput.CORE, "CORE"))
                 .context(SystemPromptInput.mapOf(
                         SystemPromptInput.AGENTS, "AGENTS.md",
-                        SystemPromptInput.HERMES, "HERMES.md"))
+                        SystemPromptInput.PI, "HERMES.md"))
                 .variable(SystemPromptInput.mapOf(
                         SystemPromptInput.MEMORY, "MEMORY",
                         SystemPromptInput.USER, "USER.md"))

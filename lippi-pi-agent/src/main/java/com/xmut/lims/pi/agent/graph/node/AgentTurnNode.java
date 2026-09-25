@@ -62,20 +62,13 @@ public final class AgentTurnNode implements GraphNode {
         return new AgentTurnNode(new StubModelProvider(), new DefaultPromptBuilder(), ContextCompressor.NOOP);
     }
 
-    public AgentTurnNode(ModelProvider model) {
-        this(model, new DefaultPromptBuilder(), ContextCompressor.NOOP);
-    }
-
-    public AgentTurnNode(ModelProvider model, PromptBuilder prompt) {
-        this(model, prompt, ContextCompressor.NOOP);
-    }
-
+    /** 三参均必填。 */
     public AgentTurnNode(ModelProvider model,
                          PromptBuilder prompt,
                          ContextCompressor compressor) {
         this.model = Objects.requireNonNull(model, "modelProvider");
         this.prompt = Objects.requireNonNull(prompt, "promptBuilder");
-        this.compressor = compressor != null ? compressor : ContextCompressor.NOOP;
+        this.compressor = Objects.requireNonNull(compressor, "compressor");
     }
 
     @Override
@@ -157,7 +150,6 @@ public final class AgentTurnNode implements GraphNode {
 
     private List<Message> compress(List<Message> messages, Message system,
                                    String sessionId, String runId) {
-        List<Message> before = messages;
         try {
             CompressionResult result = compressor.compress(CompressionRequest.builder()
                     .systemMessage(system)
@@ -165,13 +157,16 @@ public final class AgentTurnNode implements GraphNode {
                     .sessionId(sessionId)
                     .runId(runId)
                     .build());
+
             if (result.isCompressed()) {
                 return new ArrayList<>(result.getMessages());
             }
+
         } catch (RuntimeException ex) {
             log.warn("ContextCompressor failed; continuing turn uncompressed: {}", ex.toString());
-            return before;
+            return messages;
         }
+
         return messages;
     }
 

@@ -20,12 +20,13 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.xmut.lims.pi.agent.graph.node.AgentTurnNode;
 
 class DefaultToolLoopGraphTest {
 
     @Test
     void defaultTopology_noToolCalls_endsWithOkPath() {
-        StateGraph graph = DefaultToolLoopGraph.build();
+        StateGraph graph = DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty());
         CompiledGraph compiled = graph.compile(CompileConfig.builder().maxSupersteps(10).build());
 
         Map<String, Object> input = new HashMap<>();
@@ -49,20 +50,20 @@ class DefaultToolLoopGraphTest {
 
     @Test
     void factory_hasNoLoadMemoryOrPolicyNodes() {
-        StateGraph graph = DefaultToolLoopGraph.build();
+        StateGraph graph = DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty());
         assertThatThrownBy(() -> graph.compile(CompileConfig.builder()
                 .interruptBefore(Collections.singletonList("load_memory")).build()))
                 .isInstanceOf(GraphCompilationException.class)
                 .hasMessageContaining("load_memory");
-        assertThatThrownBy(() -> DefaultToolLoopGraph.build().compile(CompileConfig.builder()
+        assertThatThrownBy(() -> DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()).compile(CompileConfig.builder()
                 .interruptBefore(Collections.singletonList("policy")).build()))
                 .isInstanceOf(GraphCompilationException.class)
                 .hasMessageContaining("policy");
-        assertThatThrownBy(() -> DefaultToolLoopGraph.build().compile(CompileConfig.builder()
+        assertThatThrownBy(() -> DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()).compile(CompileConfig.builder()
                 .interruptBefore(Collections.singletonList("human")).build()))
                 .isInstanceOf(GraphCompilationException.class)
                 .hasMessageContaining("human");
-        assertThatThrownBy(() -> DefaultToolLoopGraph.build().compile(CompileConfig.builder()
+        assertThatThrownBy(() -> DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()).compile(CompileConfig.builder()
                 .interruptBefore(Collections.singletonList("tool_call")).build()))
                 .isInstanceOf(GraphCompilationException.class)
                 .hasMessageContaining("tool_call");

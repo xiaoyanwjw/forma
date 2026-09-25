@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -36,7 +37,7 @@ public final class InMemorySkillConfig implements SkillConfig {
     }
 
     public InMemorySkillConfig(SkillConfigProperties properties) {
-        this.properties = properties != null ? properties : SkillConfigProperties.defaults();
+        this.properties = Objects.requireNonNull(properties, "properties");
     }
 
     public SkillConfigProperties properties() {

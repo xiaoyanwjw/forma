@@ -8,8 +8,7 @@ import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventBus;
 import com.xmut.lims.pi.agent.event.PiEventType;
 import com.xmut.lims.pi.agent.extension.BeforeAgentStartEvent;
-import com.xmut.lims.pi.agent.extension.ContextOverwrite;
-import com.xmut.lims.pi.agent.extension.ExtensionRunner;
+import com.xmut.lims.pi.agent.extension.ContextModifier;
 import com.xmut.lims.pi.agent.agent.Agent;
 import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.agent.resource.PiResourceLoader;
@@ -41,14 +40,7 @@ public final class DefaultAgentSession implements AgentSession {
     private final PiEventBus eventBus;
 
     public DefaultAgentSession(Agent agent, SessionStore sessionStore) {
-        this(agent, sessionStore, null, (PiEventBus) null);
-    }
-
-    public DefaultAgentSession(Agent agent,
-                               SessionStore sessionStore,
-                               PiResourceLoader resourceLoader,
-                               ExtensionRunner extensionRunner) {
-        this(agent, sessionStore, resourceLoader, busWith(extensionRunner));
+        this(agent, sessionStore, null, new DefaultPiEventBus());
     }
 
     public DefaultAgentSession(Agent agent,
@@ -57,9 +49,8 @@ public final class DefaultAgentSession implements AgentSession {
                                PiEventBus eventBus) {
         this.agent = Objects.requireNonNull(agent, "agent");
         this.sessionStore = Objects.requireNonNull(sessionStore, "sessionStore");
-
         this.resourceLoader = resourceLoader;
-        this.eventBus = eventBus != null ? eventBus : new DefaultPiEventBus();
+        this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
     }
 
     @Override
@@ -69,6 +60,9 @@ public final class DefaultAgentSession implements AgentSession {
 
     @Override
     public TurnResult prompt(PromptRequest request) {
+        if (request == null) {
+            return TurnResult.failed(null, "PromptRequest required");
+        }
 
         // 1.获取或创建会话
         final Session session = sessionStore.getOrCreate(Session.Meta
@@ -92,18 +86,19 @@ public final class DefaultAgentSession implements AgentSession {
         // 4.加载历史 + 本轮 user → 合并
         List<Message> existing = sessionStore.load(sessionId);
         List<Message> user = Session.resolveThisTurnUser(request, expanded.text);
-        List<Message> merged = Session.merge(existing, user);
+        List<Message> messages = Session.merge(existing, user);
 
         // 5.[回调]触发 before_agent_start
-        ContextOverwrite overwrite;
+        ContextModifier overwrite;
         try {
             overwrite = beforeAgentStart(runId, expanded.text, context);
-        } catch (RuntimeException ex) {
+        } catch (Exception ex) {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "before_agent_start failed")));
         }
 
         // 6.构造 TurnInput
-        TurnInput input = toTurnInput(request, sessionId, runId, expanded.skillId, context, overwrite, merged);
+        TurnInput input = toTurnInput(request, sessionId, runId, expanded.skillId, context, overwrite, messages);
+
         // 7.[回调]触发 agent_start
         onAgentStart(sessionId);
 
@@ -111,22 +106,23 @@ public final class DefaultAgentSession implements AgentSession {
         try {
             ConversationResult raw = agent.run(input, eventBus);
             result = mapToTurnResult(raw, sessionId);
-        } catch (RuntimeException ex) {
+        } catch (Exception ex) {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "prompt failed")));
         }
 
-        // 9.持久化增量
+        // 9.持久化增量（前缀不匹配时 fork → sessionId 可能变）
         if (TurnResult.Status.OK.equals(result.getStatus())) {
             try {
-                final List<Message> messages = result.getMessages();
-                sessionId = persistTurnDelta(sessionId, runId, existing, messages);
-            } catch (RuntimeException ex) {
+                final List<Message> updated = result.getMessages();
+                sessionId = persistTurnDelta(sessionId, runId, existing, updated);
+                result = withSession(result, sessionId);
+            } catch (Exception ex) {
                 log.warn("append after OK failed sessionId={} runId={}: {}", sessionId, runId, ex.toString());
             }
         }
 
         // 10.[回调]触发 agent_end
-        return onAgentEnd(withSession(result, sessionId));
+        return onAgentEnd(result);
 
     }
 
@@ -138,15 +134,15 @@ public final class DefaultAgentSession implements AgentSession {
         }
     }
 
-    private ContextOverwrite beforeAgentStart(String runId, String text, String context) {
+    private ContextModifier beforeAgentStart(String runId, String text, String context) {
         try {
             final PiEvent piEvent = PiEvent.of(PiEventType.BEFORE_AGENT_START, new BeforeAgentStartEvent(runId, text, context));
-            ContextOverwrite result = eventBus.emit(piEvent, ContextOverwrite.class);
+            ContextModifier result = eventBus.emit(piEvent, ContextModifier.class);
 
-            return result != null ? result : ContextOverwrite.empty();
+            return result != null ? result : ContextModifier.empty();
         } catch (RuntimeException e) {
             log.warn("before_agent_start failed for runId={} text={} context={}: {}", runId, text, context, e.toString());
-            return ContextOverwrite.empty();
+            return ContextModifier.empty();
         }
     }
 
@@ -238,21 +234,17 @@ public final class DefaultAgentSession implements AgentSession {
                                  String runId,
                                  String skillId,
                                  String context,
-                                 ContextOverwrite overwrite,
-                                 List<Message> histories) {
-        List<Message> history = histories != null
-                ? new ArrayList<>(histories)
-                : new ArrayList<>();
-
+                                 ContextModifier overwrite,
+                                 List<Message> messages) {
         return TurnInput.builder()
-                .messages(history)
-                .context(context)
-                .contextOverwrite(overwrite)
-                .skillId(skillId)
                 .sessionId(sessionId)
-                .runId(runId)
-                .traceId(request.getTraceId())
                 .domain(request.getDomain())
+                .runId(runId)
+                .skillId(skillId)
+                .context(context)
+                .contextModifier(overwrite)
+                .messages(messages)
+                .traceId(request.getTraceId())
                 .build();
     }
 
@@ -262,12 +254,7 @@ public final class DefaultAgentSession implements AgentSession {
         if (resourceLoader == null) {
             return new ExpandedTurn(text, skillId);
         }
-        if (Session.hasImageParts(request.getMessages()) && !isSlashPrefixed(text)) {
-            return new ExpandedTurn(text, skillId);
-        }
-        if (!StringUtils.hasText(text)) {
-            return new ExpandedTurn(text, skillId);
-        }
+        // expandSlash：无 text / 非 / 前缀 → unchanged；有模板或 /skill: 才改写
         SlashExpansion expansion = resourceLoader.expandSlash(text);
         if (expansion != null && expansion.isExpanded()) {
             text = expansion.getText();
@@ -276,18 +263,6 @@ public final class DefaultAgentSession implements AgentSession {
             }
         }
         return new ExpandedTurn(text, skillId);
-    }
-
-    private static boolean isSlashPrefixed(String text) {
-        return StringUtils.hasText(text) && text.trim().startsWith("/");
-    }
-
-    private static PiEventBus busWith(ExtensionRunner runner) {
-        PiEventBus bus = new DefaultPiEventBus();
-        if (runner != null) {
-            runner.register(bus);
-        }
-        return bus;
     }
 
     private static TurnResult withSession(TurnResult result, String sessionId) {
@@ -303,7 +278,7 @@ public final class DefaultAgentSession implements AgentSession {
         return result.toBuilder().sessionId(sessionId).build();
     }
 
-    private static String messageOr(RuntimeException ex, String fallback) {
+    private static String messageOr(Exception ex, String fallback) {
         return ex.getMessage() != null ? ex.getMessage() : fallback;
     }
 

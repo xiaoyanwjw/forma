@@ -1,9 +1,11 @@
 package com.xmut.lims.pi.agent.event;
 
-import com.xmut.lims.pi.agent.extension.ContextOverwrite;
+import com.xmut.lims.pi.agent.extension.ContextModifier;
+import com.xmut.lims.pi.agent.extension.PromptSegments;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -29,8 +31,8 @@ import java.util.function.Function;
  * {@link PiEventType#BEFORE_TOOL_CALL}, and {@link PiEventType#AFTER_TOOL_CALL}
  * run {@code on} reduce. {@code BEFORE_TOOL_CALL} handler exceptions are
  * fail-closed ({@link BeforeToolCallResult#block(String)}). {@code BEFORE_AGENT_START}
- * merges each handler's three prompt segments (append-only). Other {@code on}
- * exceptions are logged and treated as no return.
+ * merges {@link ContextModifier}：overwrite 后写覆盖，append 按序拼接。
+ * Other {@code on} exceptions are logged and treated as no return.
  */
 public final class DefaultPiEventBus implements PiEventBus {
 
@@ -114,17 +116,20 @@ public final class DefaultPiEventBus implements PiEventBus {
     }
 
     /**
-     * Merge each handler's stable / context / variable increments (append-only),
-     * matching {@link ContextOverwrite} semantics. Not last-write-wins.
+     * Merge handlers：overwrite 每段后写覆盖；append 每段按序拼接。
      */
-    private ContextOverwrite beforeAgentStart(PiEvent event, List<Function<PiEvent, Object>> handlers) {
+    private ContextModifier beforeAgentStart(PiEvent event, List<Function<PiEvent, Object>> handlers) {
         if (CollectionUtils.isEmpty(handlers)) {
-            return ContextOverwrite.empty();
+            return ContextModifier.empty();
         }
 
-        String stable = null;
-        String context = null;
-        String variable = null;
+        String owStable = null;
+        String owContext = null;
+        String owVariable = null;
+        String apStable = null;
+        String apContext = null;
+        String apVariable = null;
+
         for (Function<PiEvent, Object> handler : handlers) {
             Object raw = null;
             try {
@@ -132,15 +137,34 @@ public final class DefaultPiEventBus implements PiEventBus {
             } catch (Exception e) {
                 log.warn("on handler failed for {}: {}", event.getType(), e.toString());
             }
-            if (!(raw instanceof ContextOverwrite)) {
+            if (!(raw instanceof ContextModifier)) {
                 continue;
             }
-            ContextOverwrite piece = (ContextOverwrite) raw;
-            stable = join(stable, piece.getStable());
-            context = join(context, piece.getContext());
-            variable = join(variable, piece.getVariable());
+            ContextModifier piece = (ContextModifier) raw;
+            PromptSegments ow = piece.getOverwrite();
+            if (ow != null) {
+                owStable = lastNonBlank(owStable, ow.getStable());
+                owContext = lastNonBlank(owContext, ow.getContext());
+                owVariable = lastNonBlank(owVariable, ow.getVariable());
+            }
+            PromptSegments ap = piece.getAppend();
+            if (ap != null) {
+                apStable = join(apStable, ap.getStable());
+                apContext = join(apContext, ap.getContext());
+                apVariable = join(apVariable, ap.getVariable());
+            }
         }
-        return ContextOverwrite.of(stable, context, variable);
+
+        PromptSegments overwrite = anyText(owStable, owContext, owVariable)
+                ? PromptSegments.of(owStable, owContext, owVariable)
+                : null;
+        PromptSegments append = anyText(apStable, apContext, apVariable)
+                ? PromptSegments.of(apStable, apContext, apVariable)
+                : null;
+        if (overwrite == null && append == null) {
+            return ContextModifier.empty();
+        }
+        return ContextModifier.of(overwrite, append);
     }
 
     private Object firstNonNull(PiEvent event, List<Function<PiEvent, Object>> handlers) {
@@ -212,15 +236,26 @@ public final class DefaultPiEventBus implements PiEventBus {
         return acc;
     }
 
+    private static String lastNonBlank(String previous, String next) {
+        if (!StringUtils.hasText(next)) {
+            return previous;
+        }
+        return next.trim();
+    }
+
     private static String join(String left, String right) {
-        if (right == null || right.trim().isEmpty()) {
+        if (!StringUtils.hasText(right)) {
             return left;
         }
         String trimmed = right.trim();
-        if (left == null || left.trim().isEmpty()) {
+        if (!StringUtils.hasText(left)) {
             return trimmed;
         }
         return left + "\n\n" + trimmed;
+    }
+
+    private static boolean anyText(String a, String b, String c) {
+        return StringUtils.hasText(a) || StringUtils.hasText(b) || StringUtils.hasText(c);
     }
 
     @Override

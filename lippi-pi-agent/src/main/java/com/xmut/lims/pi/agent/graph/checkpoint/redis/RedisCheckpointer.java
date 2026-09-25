@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -34,8 +35,8 @@ public final class RedisCheckpointer implements Checkpointer {
     private final int ttlSeconds;
 
     public RedisCheckpointer(PiRedisCommands redis, CheckpointCodec codec, int ttlSeconds) {
-        this.redis = redis;
-        this.codec = codec != null ? codec : new CheckpointCodec();
+        this.redis = Objects.requireNonNull(redis, "redis");
+        this.codec = Objects.requireNonNull(codec, "codec");
         this.idsMapper = CheckpointCodec.defaultMapper();
         this.ttlSeconds = ttlSeconds > 0 ? ttlSeconds : DEFAULT_TTL_SECONDS;
     }

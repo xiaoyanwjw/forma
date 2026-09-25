@@ -31,6 +31,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.xmut.lims.pi.agent.IterationBudget;
+import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryResumeIdempotencyStore;
 
 /**
  * AC5：FORBIDDEN / WRITE HITL approve·deny / READ 直过。
@@ -77,8 +79,7 @@ class ToolConfigHitlIntegrationTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         ConversationResult result = loop.run(TurnInput.withUser("try forbidden")
                 .build(), PiTestBus.withPolicy(policy, events::add));
@@ -120,8 +121,7 @@ class ToolConfigHitlIntegrationTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
 
         ConversationResult first = loop.run(TurnInput.builder()
@@ -152,8 +152,7 @@ class ToolConfigHitlIntegrationTest {
         GraphNode agent = visitingAgent("save");
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
 
         ConversationResult first = loop.run(TurnInput.builder()
@@ -185,8 +184,7 @@ class ToolConfigHitlIntegrationTest {
         GraphNode agent = visitingAgent("save");
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy, events::add);
 
         ConversationResult first = loop.run(TurnInput.builder()
@@ -220,8 +218,7 @@ class ToolConfigHitlIntegrationTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(visitingAgent("save"), policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
 
         ConversationResult first = loop.run(TurnInput.builder()
@@ -278,8 +275,7 @@ class ToolConfigHitlIntegrationTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy, events::add);
 
         ConversationResult first = loop.run(TurnInput.builder()
@@ -313,8 +309,7 @@ class ToolConfigHitlIntegrationTest {
         GraphNode agent = visitingAgent("lookup");
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         ConversationResult result = loop.run(TurnInput.withUser("lookup")
                 .build());
@@ -332,8 +327,7 @@ class ToolConfigHitlIntegrationTest {
         GraphNode agent = visitingAgent("lookup");
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         List<PiEvent> events = new ArrayList<>();
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
@@ -367,8 +361,7 @@ class ToolConfigHitlIntegrationTest {
         GraphNode agent = visitingAgent("save");
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         List<PiEvent> events = new ArrayList<>();
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);

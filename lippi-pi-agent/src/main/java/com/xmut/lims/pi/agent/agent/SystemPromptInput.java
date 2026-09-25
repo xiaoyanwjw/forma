@@ -1,22 +1,16 @@
 package com.xmut.lims.pi.agent.agent;
 
-import com.xmut.lims.pi.agent.extension.ContextOverwrite;
+import com.xmut.lims.pi.agent.extension.ContextModifier;
+import com.xmut.lims.pi.agent.extension.PromptSegments;
 import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
- * 可缓存 system prompt 原料：只有 Stable / Context / Variable 三个有序 map。
+ * 可缓存 system prompt 原料：Stable / Context / Variable 三个有序 map，
+ * 外加 {@link ContextModifier} 的整段覆盖 / 追加。
  *
- * <p>{@link #format()} 输出一条 system 全文。{@link ContextOverwrite} 按段
- * {@link #extend(ContextOverwrite) 追加} 到对应 map（键 {@link #BEFORE_AGENT_START}）。
- *
- * <p>注入键仅 AD-S10 allowlist；{@link #put} / Builder 对非法键忽略（不扩 SPI）。
+ * <p>{@link #format()} 为唯一 system 全文出口。注入键仅 AD-S10 allowlist。
  */
 public final class SystemPromptInput {
 
@@ -25,7 +19,7 @@ public final class SystemPromptInput {
     public static final String TOOLS = "tools";
     public static final String CORE = "core";
     public static final String AGENTS = "agents";
-    public static final String HERMES = "hermes";
+    public static final String PI = "pi";
     public static final String CONTEXT = "context";
     public static final String MEMORY = "memory";
     public static final String USER = "user";
@@ -33,26 +27,47 @@ public final class SystemPromptInput {
 
     /** AD-S10 冻结 allowlist；本阶段禁止新增键。 */
     public static final Set<String> ALLOWED_KEYS = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
-            SOUL, SKILLS, TOOLS, CORE, AGENTS, HERMES, CONTEXT, MEMORY, USER, BEFORE_AGENT_START)));
+            SOUL, SKILLS, TOOLS, CORE, AGENTS, PI, CONTEXT, MEMORY, USER, BEFORE_AGENT_START)));
 
     public static final int DEFAULT_STABLE_MAX_CHARS = 8_000;
     public static final String TRUNCATION_MARKER = "...[truncated]";
     public static final String DEFAULT_SOUL =
-            "You are AI LIMS Hermes assistant. Follow tenant policy and tool-use rules.";
+            "You are Pi assistant. Follow tenant policy and tool-use rules.";
 
     private final Map<String, String> stable;
     private final Map<String, String> context;
     private final Map<String, String> variable;
     private final int stableMaxChars;
 
+    /** 非空时 format 忽略对应 map，整段使用该字符串。 */
+    private final String stableOverride;
+    private final String contextOverride;
+    private final String variableOverride;
+
+    private final String stableAppend;
+    private final String contextAppend;
+    private final String variableAppend;
+
     SystemPromptInput(Map<String, String> stable,
                       Map<String, String> context,
                       Map<String, String> variable,
-                      int stableMaxChars) {
+                      int stableMaxChars,
+                      String stableOverride,
+                      String contextOverride,
+                      String variableOverride,
+                      String stableAppend,
+                      String contextAppend,
+                      String variableAppend) {
         this.stable = copy(stable);
         this.context = copy(context);
         this.variable = copy(variable);
         this.stableMaxChars = stableMaxChars;
+        this.stableOverride = text(stableOverride);
+        this.contextOverride = text(contextOverride);
+        this.variableOverride = text(variableOverride);
+        this.stableAppend = text(stableAppend);
+        this.contextAppend = text(contextAppend);
+        this.variableAppend = text(variableAppend);
     }
 
     public static Builder builder() {
@@ -99,14 +114,18 @@ public final class SystemPromptInput {
                 .stable(stable)
                 .context(context)
                 .variable(variable)
-                .stableMaxChars(stableMaxChars);
+                .stableMaxChars(stableMaxChars)
+                .stableOverride(stableOverride)
+                .contextOverride(contextOverride)
+                .variableOverride(variableOverride)
+                .stableAppend(stableAppend)
+                .contextAppend(contextAppend)
+                .variableAppend(variableAppend);
     }
 
-    /**
-     * 把钩子三段增量追加进对应 map；空白忽略。
-     */
-    public SystemPromptInput extend(ContextOverwrite extra) {
-        return toBuilder().extend(extra).build();
+    /** 先 overwrite 再 append；空白字段忽略。 */
+    public SystemPromptInput apply(ContextModifier modifier) {
+        return toBuilder().apply(modifier).build();
     }
 
     /**
@@ -121,29 +140,23 @@ public final class SystemPromptInput {
     }
 
     public String formatStable() {
-        StringBuilder sb = new StringBuilder();
-        String soul = text(stable.get(SOUL));
-        block(sb, StringUtils.hasText(soul) ? soul : DEFAULT_SOUL);
-        for (Map.Entry<String, String> e : stable.entrySet()) {
-            if (SOUL.equals(e.getKey())) {
-                continue;
-            }
-            block(sb, e.getValue());
-        }
-        String text = sb.toString().trim();
-        if (!StringUtils.hasText(text)) {
+        String base = StringUtils.hasText(stableOverride) ? stableOverride : formatStableFromMaps();
+        String withAppend = joinBlocks(base, stableAppend);
+        if (!StringUtils.hasText(withAppend)) {
             return "";
         }
         int max = stableMaxChars > 0 ? stableMaxChars : DEFAULT_STABLE_MAX_CHARS;
-        return truncate(text, max);
+        return truncate(withAppend, max);
     }
 
     public String formatContext() {
-        return joinValues(context);
+        String base = StringUtils.hasText(contextOverride) ? contextOverride : joinValues(context);
+        return joinBlocks(base, contextAppend);
     }
 
     public String formatVariable() {
-        return joinValues(variable);
+        String base = StringUtils.hasText(variableOverride) ? variableOverride : joinValues(variable);
+        return joinBlocks(base, variableAppend);
     }
 
     public SystemPromptStable parts() {
@@ -184,12 +197,35 @@ public final class SystemPromptInput {
         map.put(key, value.trim());
     }
 
+    private String formatStableFromMaps() {
+        StringBuilder sb = new StringBuilder();
+        String soul = text(stable.get(SOUL));
+        block(sb, StringUtils.hasText(soul) ? soul : DEFAULT_SOUL);
+        for (Map.Entry<String, String> e : stable.entrySet()) {
+            if (SOUL.equals(e.getKey())) {
+                continue;
+            }
+            block(sb, e.getValue());
+        }
+        return sb.toString().trim();
+    }
+
     private static String joinValues(Map<String, String> map) {
         StringBuilder sb = new StringBuilder();
         for (String value : map.values()) {
             block(sb, value);
         }
         return sb.toString().trim();
+    }
+
+    private static String joinBlocks(String left, String right) {
+        if (!StringUtils.hasText(right)) {
+            return StringUtils.hasText(left) ? left.trim() : "";
+        }
+        if (!StringUtils.hasText(left)) {
+            return right.trim();
+        }
+        return left.trim() + "\n\n" + right.trim();
     }
 
     private static void block(StringBuilder sb, String block) {
@@ -218,6 +254,12 @@ public final class SystemPromptInput {
         private final LinkedHashMap<String, String> context = new LinkedHashMap<String, String>();
         private final LinkedHashMap<String, String> variable = new LinkedHashMap<String, String>();
         private int stableMaxChars;
+        private String stableOverride;
+        private String contextOverride;
+        private String variableOverride;
+        private String stableAppend;
+        private String contextAppend;
+        private String variableAppend;
 
         public Builder stable(Map<String, String> map) {
             replace(stable, map);
@@ -239,18 +281,68 @@ public final class SystemPromptInput {
             return this;
         }
 
-        public Builder extend(ContextOverwrite extra) {
-            if (extra == null) {
+        Builder stableOverride(String value) {
+            this.stableOverride = value;
+            return this;
+        }
+
+        Builder contextOverride(String value) {
+            this.contextOverride = value;
+            return this;
+        }
+
+        Builder variableOverride(String value) {
+            this.variableOverride = value;
+            return this;
+        }
+
+        Builder stableAppend(String value) {
+            this.stableAppend = value;
+            return this;
+        }
+
+        Builder contextAppend(String value) {
+            this.contextAppend = value;
+            return this;
+        }
+
+        Builder variableAppend(String value) {
+            this.variableAppend = value;
+            return this;
+        }
+
+        /** 先 overwrite（后写覆盖），再 append（拼接）。 */
+        public Builder apply(ContextModifier modifier) {
+            if (Objects.isNull(modifier)) {
                 return this;
             }
-            joinPut(stable, BEFORE_AGENT_START, extra.getStable());
-            joinPut(context, BEFORE_AGENT_START, extra.getContext());
-            joinPut(variable, BEFORE_AGENT_START, extra.getVariable());
+
+            PromptSegments ow = modifier.getOverwrite();
+            if (Objects.nonNull(ow)) {
+                if (StringUtils.hasText(ow.getStable())) {
+                    this.stableOverride = ow.getStable().trim();
+                }
+                if (StringUtils.hasText(ow.getContext())) {
+                    this.contextOverride = ow.getContext().trim();
+                }
+                if (StringUtils.hasText(ow.getVariable())) {
+                    this.variableOverride = ow.getVariable().trim();
+                }
+            }
+            PromptSegments ap = modifier.getAppend();
+            if (Objects.nonNull(ap)) {
+                this.stableAppend = joinBlocks(this.stableAppend, ap.getStable());
+                this.contextAppend = joinBlocks(this.contextAppend, ap.getContext());
+                this.variableAppend = joinBlocks(this.variableAppend, ap.getVariable());
+            }
             return this;
         }
 
         public SystemPromptInput build() {
-            return new SystemPromptInput(stable, context, variable, stableMaxChars);
+            return new SystemPromptInput(
+                    stable, context, variable, stableMaxChars,
+                    stableOverride, contextOverride, variableOverride,
+                    stableAppend, contextAppend, variableAppend);
         }
 
         private static void replace(LinkedHashMap<String, String> target, Map<String, String> src) {
@@ -261,21 +353,6 @@ public final class SystemPromptInput {
             for (Map.Entry<String, String> e : src.entrySet()) {
                 put(target, e.getKey(), e.getValue());
             }
-        }
-
-        private static void joinPut(Map<String, String> map, String key, String value) {
-            if (!StringUtils.hasText(value)) {
-                return;
-            }
-            if (!ALLOWED_KEYS.contains(key)) {
-                return;
-            }
-            String existing = map.get(key);
-            if (!StringUtils.hasText(existing)) {
-                map.put(key, value.trim());
-                return;
-            }
-            map.put(key, existing + "\n\n" + value.trim());
         }
     }
 }

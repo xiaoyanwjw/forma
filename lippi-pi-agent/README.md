@@ -162,7 +162,7 @@ START → agent ⇄ tools → agent → END
 
 `SystemPromptInput.format()` = join 三个 map（跳过空白）；**入图前**由 `DefaultAgent.input` 写成 `SYSTEM_PROMPT`。图内 `AgentTurnNode` 只读这一条。
 
-`ContextOverwrite{stable, context, variable}` 按段 `extend` 进对应 map（键 `before_agent_start`），**不**和 page/`context` 混成一坨。
+`ContextModifier{overwrite, append}` 各含 `stable/context/variable`；应用到 `SystemPromptInput` 时先整段覆盖再追加，**不**和 page/`context` 混成一坨。
 
 > **命名纠正（FR23）：** Core → **Stable**。`memory` **仅** Recall → variable。勿把 Core 折叠进 `memory`。
 
@@ -180,7 +180,7 @@ Stable 拼接序：map 插入序（soul 缺省时补 `DEFAULT_SOUL`）→ 整段
 | 类型 | 说明 |
 | ---- | ---- |
 | `PromptBuilder` | `stable` / `system` / 消息 `format` / `sanitize` |
-| `SystemPromptInput` | 三个有序 map + allowlist + `format()` / `extend(ContextOverwrite)` |
+| `SystemPromptInput` | 三个有序 map + allowlist + `format()` / `apply(ContextModifier)` |
 | `SystemPromptStable` | 三段袋（`variable` ≈ upstream `volatile`） |
 | `SYSTEM_PROMPT` | 入图前 format 好的 system 全文；节点只读此键 |
 

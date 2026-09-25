@@ -1,6 +1,6 @@
 package com.xmut.lims.pi.agent;
 
-import com.xmut.lims.pi.agent.extension.ContextOverwrite;
+import com.xmut.lims.pi.agent.extension.ContextModifier;
 import com.xmut.lims.pi.ai.message.Message;
 import lombok.Builder;
 import lombok.Value;
@@ -41,8 +41,8 @@ public class TurnInput {
     /** 页面上下文 → {@code SystemPromptInput.context}。 */
     String context;
 
-    /** {@code before_agent_start} 三段增量。 */
-    ContextOverwrite contextOverwrite;
+    /** {@code before_agent_start} 对三槽的 overwrite / append。 */
+    ContextModifier contextModifier;
 
     TurnInput(String runId,
               List<Message> messages,
@@ -52,7 +52,7 @@ public class TurnInput {
               String skillId,
               String domain,
               String context,
-              ContextOverwrite contextOverwrite) {
+              ContextModifier contextModifier) {
         this.runId = runId;
         this.messages = messages == null
                 ? Collections.emptyList()
@@ -63,7 +63,7 @@ public class TurnInput {
         this.skillId = skillId;
         this.domain = domain;
         this.context = context;
-        this.contextOverwrite = contextOverwrite;
+        this.contextModifier = contextModifier;
     }
 
     /**

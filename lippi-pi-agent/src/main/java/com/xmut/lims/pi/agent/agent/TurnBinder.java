@@ -5,7 +5,6 @@ import com.xmut.lims.pi.agent.skill.ActiveSkill;
 import com.xmut.lims.pi.agent.skill.SkillCatalogPrompt;
 import com.xmut.lims.pi.agent.skill.SkillConfig;
 import com.xmut.lims.pi.agent.skill.SkillManifest;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
 import com.xmut.lims.pi.agent.tool.ToolConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +12,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 极薄投影：{@link ToolConfig} + {@link SkillConfig} + {@link ActiveSkill} → {@link TurnBindings}。
@@ -35,24 +35,25 @@ public final class TurnBinder {
     private TurnBinder() {}
 
     /**
-     * 纯投影。{@code activeSkill == null} 视为 {@link ActiveSkill#NONE}。
+     * 纯投影。{@code toolConfig}/{@code activeSkill} 必填；
+     * {@code skillConfig} 可为 null（无 Skill 目录，与 {@link DefaultAgent} 一致）。
      */
     public static TurnBindings bind(ToolConfig toolConfig,
                                     SkillConfig skillConfig,
                                     ActiveSkill activeSkill) {
-        ToolConfig tools = toolConfig != null ? toolConfig : DefaultToolConfig.empty();
-        ActiveSkill skill = activeSkill != null ? activeSkill : ActiveSkill.NONE;
+        Objects.requireNonNull(toolConfig, "toolConfig");
+        Objects.requireNonNull(activeSkill, "activeSkill");
 
-        List<String> whitelist = skill.toolWhitelist();
-        List<ToolSchema> availableTools = tools.schemasForModel(whitelist);
-        String toolsText = tools.textForModel(whitelist);
+        List<String> whitelist = activeSkill.toolWhitelist();
+        List<ToolSchema> availableTools = toolConfig.schemasForModel(whitelist);
+        String toolsText = toolConfig.textForModel(whitelist);
 
-        final List<SkillManifest> availableSkills = manifestForConfig(skillConfig, skill);
-        final String skillText = SkillCatalogPrompt.build(availableSkills, skill.getId());
-        if (skill.isPresent() && !StringUtils.hasText(skillText)) {
-            SkillManifest m = skill.getManifest();
+        final List<SkillManifest> availableSkills = manifestForConfig(skillConfig, activeSkill);
+        final String skillText = SkillCatalogPrompt.build(availableSkills, activeSkill.getId());
+        if (activeSkill.isPresent() && !StringUtils.hasText(skillText)) {
+            SkillManifest m = activeSkill.getManifest();
             log.debug("TurnBinder: active skill id={} produced empty catalog text (promptRef={})",
-                    skill.getId(), m != null ? m.getPromptRef() : null);
+                    activeSkill.getId(), m != null ? m.getPromptRef() : null);
         }
 
         return TurnBindings.builder()
@@ -60,8 +61,8 @@ public final class TurnBinder {
                 .toolsText(toolsText)
                 .availableSkills(availableSkills)
                 .skillsText(skillText)
-                .activeSkillId(skill.getId())
-                .modelUseCase(skill.modelUseCase())
+                .activeSkillId(activeSkill.getId())
+                .modelUseCase(activeSkill.modelUseCase())
                 .build();
     }
 

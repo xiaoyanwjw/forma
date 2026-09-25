@@ -12,6 +12,7 @@ import com.xmut.lims.pi.agent.tool.ToolDecision;
 import com.xmut.lims.pi.agent.tool.ToolLevel;
 import com.xmut.lims.pi.agent.tool.ToolConfig;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -50,7 +51,7 @@ public final class ToolPolicyExtension implements PiExtension {
      * @param writeApprovalEnabled {@code true} 时未批准 WRITE 挂起；{@code false} 时 WRITE 直接执行
      */
     public ToolPolicyExtension(ToolConfig config, boolean writeApprovalEnabled) {
-        this.config = config;
+        this.config = Objects.requireNonNull(config, "config");
         this.writeApprovalEnabled = writeApprovalEnabled;
     }
 
@@ -69,8 +70,7 @@ public final class ToolPolicyExtension implements PiExtension {
     }
 
     public void bind(Consumer<ToolAuditEvent> audit) {
-        this.audit = audit != null ? audit : event -> {
-        };
+        this.audit = Objects.requireNonNull(audit, "audit");
     }
 
     Object onBeforeToolCall(PiEvent event) {

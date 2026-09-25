@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.xmut.lims.pi.agent.IterationBudget;
+import com.xmut.lims.pi.agent.agent.ContextCompressor;
 
 /**
  * certificate.ocr：目录进 Stable + 首轮 read_skill 拉 md + 次轮出 JSON。
@@ -97,8 +99,8 @@ class CertificateOcrPiIntegrationTest {
         };
 
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.build(fake, new DefaultPromptBuilder(), toolConfig),
-                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), null, toolConfig, skills);
+                DefaultToolLoopGraph.build(fake, new DefaultPromptBuilder(), toolConfig, ContextCompressor.NOOP),
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), toolConfig, skills);
 
         Message user = Message.user(Arrays.asList(
                 ContentPart.text("extract"),
@@ -147,8 +149,8 @@ class CertificateOcrPiIntegrationTest {
                 DefaultToolLoopGraph.build(request -> ModelResponse.builder()
                         .content("should-not-run")
                         .toolCalls(Collections.emptyList())
-                        .build()),
-                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), null, DefaultToolConfig.empty(),
+                        .build(), new DefaultPromptBuilder(), DefaultToolConfig.empty(), ContextCompressor.NOOP),
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(),
                 new InMemorySkillConfig(SkillConfigProperties.defaults()));
 
         ConversationResult result = loop.run(TurnInput.builder()
@@ -172,8 +174,7 @@ class CertificateOcrPiIntegrationTest {
         };
 
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.build(fake),
-                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), null, DefaultToolConfig.empty(), null);
+                DefaultToolLoopGraph.build(fake, new DefaultPromptBuilder(), DefaultToolConfig.empty(), ContextCompressor.NOOP), new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
 
         ConversationResult result = loop.run(TurnInput.withUser("hello")
                 .build());

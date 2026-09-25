@@ -1,6 +1,6 @@
 package com.xmut.lims.pi.agent.event;
 
-import com.xmut.lims.pi.agent.extension.ContextOverwrite;
+import com.xmut.lims.pi.agent.extension.ContextModifier;
 import com.xmut.lims.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.Test;
 
@@ -115,18 +115,34 @@ class DefaultPiEventBusTest {
     }
 
     @Test
-    void before_agent_start_merges_three_segments_not_last_wins() {
+    void before_agent_start_merges_append_segments_not_last_wins() {
         PiEventBus bus = new DefaultPiEventBus();
         bus.register(PiEventType.BEFORE_AGENT_START, e ->
-                ContextOverwrite.of("S1", "C1", "V1"));
+                ContextModifier.append("S1", "C1", "V1"));
         bus.register(PiEventType.BEFORE_AGENT_START, e ->
-                ContextOverwrite.of("S2", null, "V2"));
-        ContextOverwrite r = bus.emit(
+                ContextModifier.append("S2", null, "V2"));
+        ContextModifier r = bus.emit(
                 PiEvent.of(PiEventType.BEFORE_AGENT_START),
-                ContextOverwrite.class);
-        assertThat(r.getStable()).isEqualTo("S1\n\nS2");
-        assertThat(r.getContext()).isEqualTo("C1");
-        assertThat(r.getVariable()).isEqualTo("V1\n\nV2");
+                ContextModifier.class);
+        assertThat(r.getAppend().getStable()).isEqualTo("S1\n\nS2");
+        assertThat(r.getAppend().getContext()).isEqualTo("C1");
+        assertThat(r.getAppend().getVariable()).isEqualTo("V1\n\nV2");
+        assertThat(r.getOverwrite()).isNull();
+    }
+
+    @Test
+    void before_agent_start_overwrite_last_non_blank_wins() {
+        PiEventBus bus = new DefaultPiEventBus();
+        bus.register(PiEventType.BEFORE_AGENT_START, e ->
+                ContextModifier.overwrite("S1", "C1", "V1"));
+        bus.register(PiEventType.BEFORE_AGENT_START, e ->
+                ContextModifier.overwrite("S2", null, "V2"));
+        ContextModifier r = bus.emit(
+                PiEvent.of(PiEventType.BEFORE_AGENT_START),
+                ContextModifier.class);
+        assertThat(r.getOverwrite().getStable()).isEqualTo("S2");
+        assertThat(r.getOverwrite().getContext()).isEqualTo("C1");
+        assertThat(r.getOverwrite().getVariable()).isEqualTo("V2");
     }
 
     @Test

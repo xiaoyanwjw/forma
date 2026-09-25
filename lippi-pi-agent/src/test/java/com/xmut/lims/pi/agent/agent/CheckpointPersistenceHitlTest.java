@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.xmut.lims.pi.agent.IterationBudget;
 
 /**
  * AC2/AC3/AC5：跨实例 loadLatest+resume、confirmRequestId 幂等、终态清理。
@@ -41,10 +42,10 @@ class CheckpointPersistenceHitlTest {
 
         GraphNode agent = stateAwareAgent("save");
         DefaultAgent loopA = new DefaultAgent(
-                DefaultToolLoopGraph.create(agent, policy), storeA, idem, null, policy, null);
+                DefaultToolLoopGraph.create(agent, policy), storeA, idem, new IterationBudget(25), policy, null);
         // Pod B：新 JVM 上的新图实例，但共享 Redis 态（SharedJson + 同一 idem）
         DefaultAgent loopB = new DefaultAgent(
-                DefaultToolLoopGraph.create(stateAwareAgent("save"), policy), storeB, idem, null, policy, null);
+                DefaultToolLoopGraph.create(stateAwareAgent("save"), policy), storeB, idem, new IterationBudget(25), policy, null);
 
         ConversationResult first = loopA.run(TurnInput.builder()
                 .runId("cross-run")
@@ -73,7 +74,7 @@ class CheckpointPersistenceHitlTest {
         InMemoryResumeIdempotencyStore idem = new InMemoryResumeIdempotencyStore();
 
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.create(visitingAgent("save"), policy), store, idem, null, policy, null);
+                DefaultToolLoopGraph.create(visitingAgent("save"), policy), store, idem, new IterationBudget(25), policy, null);
 
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
         assertThat(loop.run(TurnInput.builder()
@@ -103,10 +104,7 @@ class CheckpointPersistenceHitlTest {
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(visitingAgent("save"), policy),
                 store,
-                new InMemoryResumeIdempotencyStore(),
-                null,
-                policy,
-                null);
+                new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
         assertThat(loop.run(TurnInput.builder()
@@ -144,7 +142,7 @@ class CheckpointPersistenceHitlTest {
         SharedJsonCheckpointStore store = new SharedJsonCheckpointStore();
         InMemoryResumeIdempotencyStore idem = new InMemoryResumeIdempotencyStore();
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.create(agent, policy), store, idem, null, policy, null);
+                DefaultToolLoopGraph.create(agent, policy), store, idem, new IterationBudget(25), policy, null);
 
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
         assertThat(loop.run(TurnInput.builder()

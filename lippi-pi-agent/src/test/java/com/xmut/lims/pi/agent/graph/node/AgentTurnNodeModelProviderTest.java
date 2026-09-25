@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.xmut.lims.pi.agent.graph.GraphState;
 import com.xmut.lims.pi.agent.graph.NodeContext;
 import com.xmut.lims.pi.agent.graph.StateKeys;
+import com.xmut.lims.pi.agent.agent.ContextCompressor;
+import com.xmut.lims.pi.agent.agent.DefaultPromptBuilder;
 import com.xmut.lims.pi.agent.agent.PromptBuilder;
 import com.xmut.lims.pi.agent.agent.SystemPromptInput;
 import com.xmut.lims.pi.agent.agent.SystemPromptStable;
@@ -38,7 +40,7 @@ class AgentTurnNodeModelProviderTest {
                     .toolCalls(Collections.emptyList())
                     .build();
         };
-        AgentTurnNode node = new AgentTurnNode(fake);
+        AgentTurnNode node = new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP);
         Map<String, Object> initial = new HashMap<>();
         initial.put(StateKeys.MESSAGES, Collections.singletonList(
                 Message.builder().role("user").content("q").build()));
@@ -58,7 +60,7 @@ class AgentTurnNodeModelProviderTest {
                 .finishReason("stop")
                 .build();
 
-        AgentTurnNode node = new AgentTurnNode(fake);
+        AgentTurnNode node = new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP);
         Map<String, Object> initial = new HashMap<>();
         initial.put(StateKeys.MESSAGES, Collections.singletonList(
                 Message.builder().role("user").content("q").build()));
@@ -96,7 +98,7 @@ class AgentTurnNodeModelProviderTest {
                     .build();
         };
 
-        AgentTurnNode node = new AgentTurnNode(fake);
+        AgentTurnNode node = new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP);
         Map<String, Object> initial = new HashMap<>();
         initial.put(StateKeys.MESSAGES, Collections.singletonList(
                 Message.builder().role("user").content("q").build()));
@@ -130,7 +132,7 @@ class AgentTurnNodeModelProviderTest {
                     .toolCalls(Collections.emptyList())
                     .build();
         };
-        AgentTurnNode node = new AgentTurnNode(fake);
+        AgentTurnNode node = new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP);
         Map<String, Object> initial = new HashMap<>();
         initial.put(StateKeys.MESSAGES, Message.withToolResults(
                 Collections.singletonList(Message.builder().role("user").content("q").build()),
@@ -161,7 +163,7 @@ class AgentTurnNodeModelProviderTest {
                                     JsonNodeFactory.instance.objectNode())))
                     .build();
         };
-        AgentTurnNode node = new AgentTurnNode(fake);
+        AgentTurnNode node = new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP);
         Map<String, Object> initial = new HashMap<>();
         initial.put(StateKeys.MESSAGES, Collections.singletonList(
                 Message.builder().role("user").content("q").build()));
@@ -216,7 +218,7 @@ class AgentTurnNodeModelProviderTest {
                     .build();
         };
 
-        AgentTurnNode node = new AgentTurnNode(fake, recording);
+        AgentTurnNode node = new AgentTurnNode(fake, recording, ContextCompressor.NOOP);
         Map<String, Object> initial = new HashMap<>();
         initial.put(StateKeys.SYSTEM_PROMPT, "PREFORMATTED");
         initial.put(StateKeys.MESSAGES, Collections.singletonList(
@@ -245,7 +247,7 @@ class AgentTurnNodeModelProviderTest {
                     .toolCalls(Collections.emptyList())
                     .build();
         };
-        AgentTurnNode node = new AgentTurnNode(fake);
+        AgentTurnNode node = new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP);
         Map<String, Object> initial = new HashMap<>();
         List<Message> history = new ArrayList<>();
         history.add(Message.builder().role("user").content("hist").build());
@@ -294,7 +296,7 @@ class AgentTurnNodeModelProviderTest {
                 .content("ok")
                 .toolCalls(Collections.emptyList())
                 .build();
-        AgentTurnNode node = new AgentTurnNode(fake, counting);
+        AgentTurnNode node = new AgentTurnNode(fake, counting, ContextCompressor.NOOP);
 
         Map<String, Object> initial = new HashMap<>();
         initial.put(StateKeys.SYSTEM_PROMPT, "PREFORMATTED");
@@ -320,7 +322,7 @@ class AgentTurnNodeModelProviderTest {
                     .toolCalls(Collections.emptyList())
                     .build();
         };
-        AgentTurnNode node = new AgentTurnNode(fake);
+        AgentTurnNode node = new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP);
         // blank callId 的 tool 结果不应被 withToolResults 写进 transcript
         List<Message> msgs = Message.withToolResults(
                 Collections.singletonList(Message.builder().role("user").content("q").build()),

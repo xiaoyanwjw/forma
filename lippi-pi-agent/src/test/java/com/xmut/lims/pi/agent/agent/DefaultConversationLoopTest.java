@@ -28,12 +28,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryResumeIdempotencyStore;
+import com.xmut.lims.pi.agent.graph.node.AgentTurnNode;
 
 class DefaultConversationLoopTest {
 
     @Test
     void noTool_oneRound_returnsOk_withRunId() {
-        DefaultAgent loop = new DefaultAgent();
+        DefaultAgent loop = new DefaultAgent(DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()), new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
         ConversationResult result = loop.run(TurnInput.withUser("hello hermes")
                 .build());
 
@@ -55,7 +57,7 @@ class DefaultConversationLoopTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, DefaultToolConfig.empty()),
-                new InMemoryCheckpointer());
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
 
         Emitter emitter = new Emitter() {
             @Override
@@ -88,7 +90,7 @@ class DefaultConversationLoopTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, DefaultToolConfig.empty()),
-                new InMemoryCheckpointer());
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
 
         ConversationResult result = loop.run(TurnInput.withUser("hi")
                 .build());
@@ -121,8 +123,7 @@ class DefaultConversationLoopTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         ConversationResult first = loop.run(TurnInput.builder()
                 .runId("resume-emit")
@@ -164,7 +165,7 @@ class DefaultConversationLoopTest {
 
     @Test
     void run_null_request_fails_fast() {
-        DefaultAgent loop = new DefaultAgent();
+        DefaultAgent loop = new DefaultAgent(DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()), new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
         ConversationResult result = loop.run(null);
         assertThat(result.getStatus()).isEqualTo(ConversationResult.Status.FAILED);
         assertThat(result.getFinalResponse()).contains("request required");
@@ -172,7 +173,7 @@ class DefaultConversationLoopTest {
 
     @Test
     void clientProvidedRunId_isEchoed() {
-        DefaultAgent loop = new DefaultAgent();
+        DefaultAgent loop = new DefaultAgent(DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()), new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
         ConversationResult result = loop.run(TurnInput.builder()
                 .runId("client-run-1")
                 .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("hello")))
@@ -205,8 +206,7 @@ class DefaultConversationLoopTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         ConversationResult result = loop.run(TurnInput.withUser("use tool")
                 .build());
@@ -250,8 +250,7 @@ class DefaultConversationLoopTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(agent, policy),
-                new InMemoryCheckpointer(),
-                policy);
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         AtomicReference<ConversationResult> resultRef = new AtomicReference<>();
         Thread t = new Thread(() -> resultRef.set(loop.run(TurnInput.builder()
@@ -297,9 +296,7 @@ class DefaultConversationLoopTest {
 
         InMemoryCheckpointer store = new InMemoryCheckpointer();
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.create(agent, policy),
-                store,
-                policy);
+                DefaultToolLoopGraph.create(agent, policy), store, new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         Thread t = new Thread(() -> loop.run(TurnInput.builder()
                 .runId(runId)
@@ -335,7 +332,7 @@ class DefaultConversationLoopTest {
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(foreverTools, policy),
                 new InMemoryCheckpointer(),
-                null,
+                new InMemoryResumeIdempotencyStore(),
                 new IterationBudget(3),
                 policy,
                 null);
@@ -350,7 +347,7 @@ class DefaultConversationLoopTest {
 
     @Test
     void cancel_blankRunId_isSilent() {
-        DefaultAgent loop = new DefaultAgent();
+        DefaultAgent loop = new DefaultAgent(DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()), new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
         loop.cancel(null, "x");
         loop.cancel("", "x");
         loop.cancel("   ", "x");
@@ -377,7 +374,7 @@ class DefaultConversationLoopTest {
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(slow, DefaultToolConfig.empty()),
-                new InMemoryCheckpointer());
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
 
         Thread t = new Thread(() -> loop.run(TurnInput.builder()
                 .runId(runId)

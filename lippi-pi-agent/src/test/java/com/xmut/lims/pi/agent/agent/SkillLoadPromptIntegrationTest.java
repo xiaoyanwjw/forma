@@ -28,6 +28,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.xmut.lims.pi.agent.IterationBudget;
+import com.xmut.lims.pi.agent.agent.ContextCompressor;
 
 /**
  * SkillConfig → Loop.input → SKILLS 目录 / AVAILABLE_TOOLS → PromptBuilder。
@@ -62,11 +64,9 @@ class SkillLoadPromptIntegrationTest {
 
         DefaultPromptBuilder promptBuilder = new DefaultPromptBuilder();
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.build(fake, promptBuilder, tools),
+                DefaultToolLoopGraph.build(fake, promptBuilder, tools, ContextCompressor.NOOP),
                 new InMemoryCheckpointer(),
-                new InMemoryResumeIdempotencyStore(),
-                null,
-                tools,
+                new InMemoryResumeIdempotencyStore(), new IterationBudget(25), tools,
                 registry);
 
         ConversationResult result = loop.run(TurnInput.withUser("ocr please")

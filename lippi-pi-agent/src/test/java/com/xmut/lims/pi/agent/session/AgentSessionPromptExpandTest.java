@@ -3,7 +3,7 @@ package com.xmut.lims.pi.agent.session;
 import com.xmut.lims.pi.agent.TurnInput;
 import com.xmut.lims.pi.agent.ConversationResult;
 import com.xmut.lims.pi.agent.ResumeRequest;
-import com.xmut.lims.pi.agent.extension.ContextOverwrite;
+import com.xmut.lims.pi.agent.extension.ContextModifier;
 import com.xmut.lims.pi.agent.extension.ExtensionRunner;
 import com.xmut.lims.pi.agent.extension.PiExtension;
 import com.xmut.lims.pi.agent.extension.SlashCommand;
@@ -47,6 +47,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.xmut.lims.pi.agent.IterationBudget;
+import com.xmut.lims.pi.agent.agent.ContextCompressor;
 
 @ExtendWith(MockitoExtension.class)
 class AgentSessionPromptExpandTest {
@@ -111,10 +113,7 @@ class AgentSessionPromptExpandTest {
                 .maxToolLevel(ToolLevel.READ)
                 .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(
-                new PathMatchingResourcePatternResolver(),
-                skills,
-                DefaultToolConfig.empty());
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
         DefaultAgentSession session = sessionWith(runner(), loader);
 
         session.prompt(PromptRequest.builder()
@@ -155,18 +154,15 @@ class AgentSessionPromptExpandTest {
                         .schema(ToolSchema.builder().name("read_skill").build())
                         .build(), (call, ctx) -> null)));
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.build(fake, new DefaultPromptBuilder(), tools),
+                DefaultToolLoopGraph.build(fake, new DefaultPromptBuilder(), tools, ContextCompressor.NOOP),
                 new InMemoryCheckpointer(),
-                new InMemoryResumeIdempotencyStore(),
-                null,
-                tools,
+                new InMemoryResumeIdempotencyStore(), new IterationBudget(25), tools,
                 skills);
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(
-                new PathMatchingResourcePatternResolver(),
-                skills,
-                tools);
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, tools, java.util.Collections.emptyList());
+        com.xmut.lims.pi.agent.event.PiEventBus bus = new com.xmut.lims.pi.agent.event.DefaultPiEventBus();
+        runner().register(bus);
         DefaultAgentSession session = new DefaultAgentSession(
-                loop, new InMemorySessionStore(), loader, runner());
+                loop, new InMemorySessionStore(), loader, bus);
 
         session.prompt(PromptRequest.builder()
                 .text("/skill:certificate.ocr")
@@ -186,15 +182,6 @@ class AgentSessionPromptExpandTest {
         assertThat(user).contains("certType");
     }
 
-    @Test
-    void rewrite_replaces_user_when_whitespace_differs() {
-        List<Message> rewritten = Session.rewriteUserHistory(
-                Collections.singletonList(Message.user("/echo hello")),
-                "echo: hello",
-                "  /echo hello  ");
-        assertThat(rewritten).hasSize(1);
-        assertThat(rewritten.get(0).getContent()).isEqualTo("echo: hello");
-    }
 
     @Test
     void echo_slash_with_padded_text_and_history_does_not_double() {
@@ -231,7 +218,7 @@ class AgentSessionPromptExpandTest {
     }
 
     @Test
-    void ocr_multimodal_without_slash_skips_expand() {
+    void ocr_multimodal_without_slash_keeps_image_and_skill() {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenReturn(ConversationResult.ok("r1", "ok", Collections.emptyList()));
         Message ocr = Message.user(Arrays.asList(
@@ -256,7 +243,7 @@ class AgentSessionPromptExpandTest {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenReturn(ConversationResult.ok("r1", "ok", Collections.emptyList()));
         PiExtension ext = bus -> bus.register(com.xmut.lims.pi.agent.event.PiEventType.BEFORE_AGENT_START, e ->
-                ContextOverwrite.variable("VOL-FROM-EXT"));
+                ContextModifier.appendVariable("VOL-FROM-EXT"));
         DefaultAgentSession session = sessionWith(runner(ext), testLoader());
 
         session.prompt(PromptRequest.builder()
@@ -266,7 +253,7 @@ class AgentSessionPromptExpandTest {
 
         ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
         verify(conversationLoop).run(cap.capture(), any());
-        assertThat(cap.getValue().getContextOverwrite().getVariable()).isEqualTo("VOL-FROM-EXT");
+        assertThat(cap.getValue().getContextModifier().getAppend().getVariable()).isEqualTo("VOL-FROM-EXT");
         assertThat(cap.getValue().getContext()).isEqualTo("PAGE");
     }
 
@@ -348,7 +335,11 @@ class AgentSessionPromptExpandTest {
     }
 
     private DefaultAgentSession sessionWith(ExtensionRunner runner, DefaultPiResourceLoader loader) {
-        return new DefaultAgentSession(conversationLoop, sessionStore, loader, runner);
+        com.xmut.lims.pi.agent.event.PiEventBus bus = new com.xmut.lims.pi.agent.event.DefaultPiEventBus();
+        if (runner != null) {
+            runner.register(bus);
+        }
+        return new DefaultAgentSession(conversationLoop, sessionStore, loader, bus);
     }
 
     private static ExtensionRunner runner(PiExtension... extras) {

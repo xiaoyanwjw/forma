@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.xmut.lims.pi.agent.IterationBudget;
+import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryResumeIdempotencyStore;
 
 /**
  * AgentTurnNode + FakeProvider 经完整 ConversationLoop 一圈 / 直接 END。
@@ -33,8 +35,8 @@ class AgentTurnNodeLoopIntegrationTest {
                 .toolCalls(Collections.emptyList())
                 .build();
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.build(fake),
-                new InMemoryCheckpointer());
+                DefaultToolLoopGraph.build(fake, new DefaultPromptBuilder(), DefaultToolConfig.empty(), ContextCompressor.NOOP),
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
 
         ConversationResult result = loop.run(TurnInput.withUser("q")
                 .build());
@@ -67,9 +69,8 @@ class AgentTurnNodeLoopIntegrationTest {
         DefaultToolConfig policy = ToolTestSupport.readConfig(handlers);
 
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.create(new AgentTurnNode(fake), policy),
-                new InMemoryCheckpointer(),
-                policy);
+                DefaultToolLoopGraph.create(new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP), policy),
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         ConversationResult result = loop.run(TurnInput.withUser("q")
                 .build());

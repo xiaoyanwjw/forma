@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -40,25 +41,18 @@ public final class DefaultPiResourceLoader implements PiResourceLoader {
     private volatile Map<String, PromptTemplate> prompts;
 
     public DefaultPiResourceLoader() {
-        this(new PathMatchingResourcePatternResolver(), null, null);
-    }
-
-    public DefaultPiResourceLoader(ResourcePatternResolver resolver,
-                                   SkillConfig skillConfig,
-                                   ToolConfig toolConfig) {
-        this(resolver, skillConfig, toolConfig, Collections.emptyList());
+        this(new PathMatchingResourcePatternResolver(), null, null, Collections.emptyList());
     }
 
     public DefaultPiResourceLoader(ResourcePatternResolver resolver,
                                    SkillConfig skillConfig,
                                    ToolConfig toolConfig,
                                    List<String> extensionNames) {
-        this.resolver = resolver != null ? resolver : new PathMatchingResourcePatternResolver();
+        this.resolver = Objects.requireNonNull(resolver, "resolver");
         this.skillConfig = skillConfig;
         this.toolConfig = toolConfig;
-        this.extensionNames = extensionNames == null
-                ? Collections.emptyList()
-                : Collections.unmodifiableList(new ArrayList<>(extensionNames));
+        this.extensionNames = Collections.unmodifiableList(
+                new ArrayList<>(Objects.requireNonNull(extensionNames, "extensionNames")));
         this.prompts = ClasspathPromptBootstrap.load(this.resolver);
     }
 

@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -42,7 +43,7 @@ public final class CheckpointCodec {
     }
 
     public CheckpointCodec(ObjectMapper mapper) {
-        this.mapper = mapper != null ? mapper : defaultMapper();
+        this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
     public static ObjectMapper defaultMapper() {

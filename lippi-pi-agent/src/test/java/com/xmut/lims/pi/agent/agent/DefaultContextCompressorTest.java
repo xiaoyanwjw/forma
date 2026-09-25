@@ -82,7 +82,7 @@ class DefaultContextCompressorTest {
                         SystemPromptInput.CORE, "CORE_MEMORY"))
                 .context(SystemPromptInput.mapOf(
                         SystemPromptInput.AGENTS, agents,
-                        SystemPromptInput.HERMES, "HERMES_MD"))
+                        SystemPromptInput.PI, "HERMES_MD"))
                 .variable(SystemPromptInput.mapOf(
                         SystemPromptInput.MEMORY, "RECALL",
                         SystemPromptInput.USER, "USER_MD"))
@@ -101,7 +101,7 @@ class DefaultContextCompressorTest {
         assertThat(result.getSystemInput().getVariable().get(SystemPromptInput.MEMORY)).isEqualTo("RECALL");
         assertThat(result.getSystemInput().getVariable().get(SystemPromptInput.USER)).isEqualTo("USER_MD");
         String ctx = nullToEmpty(result.getSystemInput().getContext().get(SystemPromptInput.AGENTS))
-                + nullToEmpty(result.getSystemInput().getContext().get(SystemPromptInput.HERMES));
+                + nullToEmpty(result.getSystemInput().getContext().get(SystemPromptInput.PI));
         assertThat(ctx.length()).isLessThanOrEqualTo(40);
         assertThat(ctx).contains(DefaultPromptBuilder.TRUNCATION_MARKER);
     }
@@ -256,7 +256,7 @@ class DefaultContextCompressorTest {
                 .systemInput(SystemPromptInput.builder()
                         .context(SystemPromptInput.mapOf(
                                 SystemPromptInput.AGENTS, "ABC",
-                                SystemPromptInput.HERMES, "XYZ"))
+                                SystemPromptInput.PI, "XYZ"))
                         .build())
                 .systemMessage(Message.system("s"))
                 .build());

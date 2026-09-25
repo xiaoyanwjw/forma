@@ -13,15 +13,12 @@ import com.xmut.lims.pi.agent.graph.StateGraph;
 import com.xmut.lims.pi.agent.graph.StateKeys;
 import com.xmut.lims.pi.agent.graph.checkpoint.Checkpoint;
 import com.xmut.lims.pi.agent.graph.checkpoint.Checkpointer;
-import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryCheckpointer;
-import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryResumeIdempotencyStore;
 import com.xmut.lims.pi.agent.graph.checkpoint.ResumeIdempotencyStore;
 import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.agent.skill.ActiveSkill;
 import com.xmut.lims.pi.agent.skill.SkillConfig;
 import com.xmut.lims.pi.agent.skill.SkillSelector;
 import com.xmut.lims.pi.agent.event.Emitter;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
 import com.xmut.lims.pi.agent.tool.ToolDecision;
 import com.xmut.lims.pi.agent.tool.ToolConfig;
 import org.slf4j.Logger;
@@ -64,23 +61,8 @@ public final class DefaultAgent implements Agent {
     private final SkillConfig skillConfig;
     private final ConcurrentHashMap<String, CancelHandle> activeRuns = new ConcurrentHashMap<>();
 
-    /** 拓扑 / 单测：默认空图 + 内存 checkpoint + 空 ToolConfig。 */
-    public DefaultAgent() {
-        this(DefaultToolLoopGraph.build(), new InMemoryCheckpointer());
-    }
-
-    /** 自定义图 + checkpoint；其余用内存默认。 */
-    public DefaultAgent(StateGraph stateGraph, Checkpointer checkpointer) {
-        this(stateGraph, checkpointer, DefaultToolConfig.empty());
-    }
-
-    /** 图 + checkpoint + ToolConfig。 */
-    public DefaultAgent(StateGraph stateGraph, Checkpointer checkpointer, ToolConfig toolConfig) {
-        this(stateGraph, checkpointer, null, null, toolConfig, null);
-    }
-
     /**
-     * 全参装配。{@code resumeIdempotencyStore}/{@code budget}/{@code toolConfig} 可为 null → 内存/默认值。
+     * 全参装配。{@code skillConfig} 可为 null（无 Skill 约束）；其余均必填。
      */
     public DefaultAgent(StateGraph stateGraph,
                         Checkpointer checkpointer,
@@ -90,10 +72,9 @@ public final class DefaultAgent implements Agent {
                         SkillConfig skillConfig) {
         this.stateGraph = Objects.requireNonNull(stateGraph, "stateGraph");
         this.checkpointer = Objects.requireNonNull(checkpointer, "checkpointer");
-
-        this.resumeIdempotencyStore = Optional.ofNullable(resumeIdempotencyStore).orElse(new InMemoryResumeIdempotencyStore());
-        this.budget = Optional.ofNullable(budget).orElse(new IterationBudget(DEFAULT_MAX_SUPERSTEPS));
-        this.toolConfig = toolConfig != null ? toolConfig : DefaultToolConfig.empty();
+        this.resumeIdempotencyStore = Objects.requireNonNull(resumeIdempotencyStore, "resumeIdempotencyStore");
+        this.budget = Objects.requireNonNull(budget, "budget");
+        this.toolConfig = Objects.requireNonNull(toolConfig, "toolConfig");
         this.skillConfig = skillConfig;
     }
 
@@ -104,6 +85,10 @@ public final class DefaultAgent implements Agent {
 
     @Override
     public ConversationResult run(TurnInput turnInput, Emitter emitter) {
+        if (turnInput == null) {
+            return ConversationResult.failed(null, "request required");
+        }
+
         CancelHandle handle = new CancelHandle();
         String runId = getRunId(turnInput);
 
@@ -167,7 +152,7 @@ public final class DefaultAgent implements Agent {
                         SystemPromptInput.TOOLS, textOrNull(bindings.getToolsText())))
                 .context(SystemPromptInput.mapOf(
                         SystemPromptInput.CONTEXT, textOrNull(turnInput.getContext())))
-                .extend(turnInput.getContextOverwrite())
+                .apply(turnInput.getContextModifier())
                 .build();
 
         input.put(StateKeys.SYSTEM_PROMPT, in.format());

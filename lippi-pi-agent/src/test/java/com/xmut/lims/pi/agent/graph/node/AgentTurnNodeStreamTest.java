@@ -1,5 +1,7 @@
 package com.xmut.lims.pi.agent.graph.node;
 
+import com.xmut.lims.pi.agent.agent.ContextCompressor;
+import com.xmut.lims.pi.agent.agent.DefaultPromptBuilder;
 import com.xmut.lims.pi.agent.event.Emitter;
 import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventType;
@@ -31,14 +33,14 @@ class AgentTurnNodeStreamTest {
                 .build();
 
         List<PiEvent> events = new ArrayList<>();
-        AgentTurnNode node = new AgentTurnNode(fake);
+        AgentTurnNode node = new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP);
         Map<String, Object> updates = node.execute(
                 GraphState.create(userTurn()),
                 new NodeContext("r1", "tr1", recording(events)));
 
         assertThat(events).extracting(PiEvent::getType)
-                .containsExactly(PiEventType.MESSAGE_UPDATE);
-        assertThat(events.get(0).getPayload()).isEqualTo("hello-delta");
+                .containsExactly(PiEventType.TURN_START, PiEventType.MESSAGE_UPDATE, PiEventType.TURN_END);
+        assertThat(events.get(1).getPayload()).isEqualTo("hello-delta");
         assertThat(updates.get(StateKeys.LLM_RESPONSE)).isEqualTo("hello-delta");
         @SuppressWarnings("unchecked")
         List<Message> msgs = (List<Message>) updates.get(StateKeys.MESSAGES);
@@ -69,11 +71,11 @@ class AgentTurnNodeStreamTest {
             }
         };
 
-        Map<String, Object> updates = new AgentTurnNode(fake).execute(
+        Map<String, Object> updates = new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP).execute(
                 GraphState.create(userTurn()),
                 new NodeContext("r1", "tr1", emitter));
 
-        assertThat(hits.get()).isEqualTo(1);
+        assertThat(hits.get()).isEqualTo(3);
         assertThat(updates.get(StateKeys.LLM_RESPONSE)).isEqualTo("answer");
     }
 

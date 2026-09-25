@@ -73,24 +73,19 @@ public class Session {
      * 本轮 user：
      * <ol>
      *   <li>messages 含 image → 保留多模态 user（OCR）</li>
-     *   <li>有 text（含展开后）→ {@code Message.user(expandedText)}</li>
+     *   <li>有 text（含斜杠展开后）→ {@code Message.user(expandedText)}</li>
      *   <li>否则 messages 中的 user</li>
      * </ol>
      */
     public static List<Message> resolveThisTurnUser(PromptRequest request, String expandedText) {
-        if (request == null) {
-            return Collections.emptyList();
-        }
         if (hasImageParts(request.getMessages())) {
-            return extractUsers(rewriteUserHistory(
-                    request.getMessages(), expandedText, request.getText()));
+            return extractUsers(request.getMessages());
         }
         if (StringUtils.hasText(expandedText)) {
             return Collections.singletonList(Message.user(expandedText));
         }
         if (!CollectionUtils.isEmpty(request.getMessages())) {
-            return extractUsers(rewriteUserHistory(
-                    request.getMessages(), expandedText, request.getText()));
+            return extractUsers(request.getMessages());
         }
         return Collections.emptyList();
     }
@@ -136,32 +131,6 @@ public class Session {
         return out;
     }
 
-    /** 展开后的文本写入本 turn user；保留 OCR image parts。 */
-    public static List<Message> rewriteUserHistory(List<Message> messages,
-                                                   String expandedText,
-                                                   String originalText) {
-        if (CollectionUtils.isEmpty(messages)) {
-            return Collections.emptyList();
-        }
-        if (!StringUtils.hasText(expandedText) || Objects.equals(expandedText, originalText)) {
-            return messages;
-        }
-
-        List<Message> out = new ArrayList<>(messages.size());
-        boolean replaced = false;
-        for (Message m : messages) {
-            if (!replaced && m != null && "user".equalsIgnoreCase(m.getRole())
-                    && !m.hasImagePart()
-                    && textEqualsTrimmed(originalText, m.getContent())) {
-                out.add(Message.user(expandedText));
-                replaced = true;
-            } else {
-                out.add(m);
-            }
-        }
-        return out;
-    }
-
     public static boolean hasImageParts(List<Message> messages) {
         if (messages == null) {
             return false;
@@ -194,13 +163,6 @@ public class Session {
             }
         }
         return users;
-    }
-
-    private static boolean textEqualsTrimmed(String left, String right) {
-        if (left == null || right == null) {
-            return false;
-        }
-        return left.trim().equals(right.trim());
     }
 
     @Value

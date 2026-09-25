@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 默认可注入 {@link ContextCompressor}：deterministic history 折叠 + Context 段硬上限。
@@ -27,16 +28,15 @@ public final class DefaultContextCompressor implements ContextCompressor {
     private final CompressionConfig config;
     private final ModelProvider model;
 
-    public DefaultContextCompressor() {
-        this(CompressionConfig.defaults(), null);
-    }
-
     public DefaultContextCompressor(CompressionConfig config) {
         this(config, null);
     }
 
+    /**
+     * @param model 可选；null 时仅做 deterministic 压缩
+     */
     public DefaultContextCompressor(CompressionConfig config, ModelProvider model) {
-        this.config = config != null ? config : CompressionConfig.defaults();
+        this.config = Objects.requireNonNull(config, "config");
         this.model = model;
     }
 
@@ -124,7 +124,7 @@ public final class DefaultContextCompressor implements ContextCompressor {
             return 0;
         }
         String agents = nullToEmpty(input.getContext().get(SystemPromptInput.AGENTS));
-        String hermes = nullToEmpty(input.getContext().get(SystemPromptInput.HERMES));
+        String hermes = nullToEmpty(input.getContext().get(SystemPromptInput.PI));
         int sep = (!agents.isEmpty() && !hermes.isEmpty()) ? 2 : 0;
         return agents.length() + hermes.length() + sep;
     }
@@ -134,7 +134,7 @@ public final class DefaultContextCompressor implements ContextCompressor {
             return null;
         }
         String agents = nullToEmpty(input.getContext().get(SystemPromptInput.AGENTS));
-        String hermes = nullToEmpty(input.getContext().get(SystemPromptInput.HERMES));
+        String hermes = nullToEmpty(input.getContext().get(SystemPromptInput.PI));
         int len = contextChars(input);
         if (len <= config.getContextMaxChars()) {
             return input;
@@ -143,7 +143,7 @@ public final class DefaultContextCompressor implements ContextCompressor {
         String truncated = truncate(joined, config.getContextMaxChars());
         Map<String, String> ctx = new LinkedHashMap<String, String>(input.getContext());
         SystemPromptInput.put(ctx, SystemPromptInput.AGENTS, truncated);
-        SystemPromptInput.put(ctx, SystemPromptInput.HERMES, null);
+        SystemPromptInput.put(ctx, SystemPromptInput.PI, null);
         return input.toBuilder().context(ctx).build();
     }
 
