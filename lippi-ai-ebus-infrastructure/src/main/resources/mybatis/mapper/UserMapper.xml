@@ -5,6 +5,7 @@
 
     <resultMap id="UserResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.UserPO">
         <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
         <result property="username" column="username"/>
         <result property="email" column="email"/>
         <result property="passwordHash" column="password_hash"/>
@@ -12,31 +13,35 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <insert id="insert">
-        INSERT INTO ebus_user (id, username, email, password_hash, created_at, updated_at)
-        VALUES (#{id}, #{username}, #{email}, #{passwordHash}, #{createdAt}, #{updatedAt})
+    <sql id="UserColumns">
+        id, biz_id, username, email, password_hash, created_at, updated_at
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO ebus_user (biz_id, username, email, password_hash, created_at, updated_at)
+        VALUES (#{bizId}, #{username}, #{email}, #{passwordHash}, #{createdAt}, #{updatedAt})
     </insert>
 
     <select id="selectById" resultMap="UserResultMap">
-        SELECT id, username, email, password_hash, created_at, updated_at
+        SELECT <include refid="UserColumns"/>
         FROM ebus_user
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
     </select>
 
     <select id="selectByUsername" resultMap="UserResultMap">
-        SELECT id, username, email, password_hash, created_at, updated_at
+        SELECT <include refid="UserColumns"/>
         FROM ebus_user
         WHERE username = #{username}
     </select>
 
     <select id="selectByEmail" resultMap="UserResultMap">
-        SELECT id, username, email, password_hash, created_at, updated_at
+        SELECT <include refid="UserColumns"/>
         FROM ebus_user
         WHERE email = #{email}
     </select>
 
     <select id="selectByUsernameOrEmail" resultMap="UserResultMap">
-        SELECT id, username, email, password_hash, created_at, updated_at
+        SELECT <include refid="UserColumns"/>
         FROM ebus_user
         WHERE username = #{account} OR email = #{account}
         LIMIT 1

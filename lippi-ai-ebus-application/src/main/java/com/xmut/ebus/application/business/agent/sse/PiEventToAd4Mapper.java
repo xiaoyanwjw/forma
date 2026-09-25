@@ -22,7 +22,7 @@ public final class PiEventToAd4Mapper {
     /**
      * 映射可流式进度类事件；无法映射则 empty（调用方勿把 Pi 名直接下发）。
      */
-    public static Optional<Ad4SseEvent> mapProgress(PiEvent event) {
+    public static Optional<Ad4SseEvent> mapEvent(PiEvent event) {
         if (event == null || event.getType() == null) {
             return Optional.empty();
         }

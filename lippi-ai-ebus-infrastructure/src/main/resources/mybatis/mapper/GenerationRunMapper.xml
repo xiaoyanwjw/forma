@@ -5,6 +5,7 @@
 
     <resultMap id="GenerationRunResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.GenerationRunPO">
         <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
         <result property="userId" column="user_id"/>
         <result property="holdId" column="hold_id"/>
         <result property="sessionId" column="session_id"/>
@@ -14,11 +15,11 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <insert id="insert">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO ebus_generation_run
-            (id, user_id, hold_id, session_id, artifact_ref, status, created_at, updated_at)
+            (biz_id, user_id, hold_id, session_id, artifact_ref, status, created_at, updated_at)
         VALUES
-            (#{id}, #{userId}, #{holdId}, #{sessionId}, #{artifactRef}, #{status}, #{createdAt}, #{updatedAt})
+            (#{bizId}, #{userId}, #{holdId}, #{sessionId}, #{artifactRef}, #{status}, #{createdAt}, #{updatedAt})
     </insert>
 
     <update id="update">
@@ -28,12 +29,12 @@
             artifact_ref = #{artifactRef},
             status = #{status},
             updated_at = #{updatedAt}
-        WHERE id = #{id}
+        WHERE biz_id = #{bizId}
     </update>
 
     <select id="selectById" resultMap="GenerationRunResultMap">
-        SELECT id, user_id, hold_id, session_id, artifact_ref, status, created_at, updated_at
+        SELECT id, biz_id, user_id, hold_id, session_id, artifact_ref, status, created_at, updated_at
         FROM ebus_generation_run
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
     </select>
 </mapper>

@@ -58,16 +58,16 @@ class CreditAdminWhitelistPropertyIntegrationTest {
     void propertyWhitelistAllowsAdminWithoutReplace() throws Exception {
         Instant now = Instant.now();
         jdbcTemplate.update(
-                "INSERT INTO ebus_user (id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO ebus_user (biz_id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
                 ADMIN_ID, "prop_admin", "prop_admin@example.com",
                 "$2a$10$abcdefghijklmnopqrstuu", Timestamp.from(now), Timestamp.from(now));
         String targetId = UUID.randomUUID().toString();
         jdbcTemplate.update(
-                "INSERT INTO ebus_user (id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO ebus_user (biz_id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
                 targetId, "prop_tgt", "prop_tgt@example.com",
                 "$2a$10$abcdefghijklmnopqrstuu", Timestamp.from(now), Timestamp.from(now));
         jdbcTemplate.update(
-                "INSERT INTO ebus_credit_account (id, user_id, tier, balance, reserved, period_anchor_at, next_reset_at, version, created_at, updated_at)"
+                "INSERT INTO ebus_credit_account (biz_id, user_id, tier, balance, reserved, period_anchor_at, next_reset_at, version, created_at, updated_at)"
                         + " VALUES (?,?,?,?,?,?,?,?,?,?)",
                 UUID.randomUUID().toString(), targetId, "FREE", 20, 0,
                 Timestamp.from(now), Timestamp.from(now.plusSeconds(86400L * 30)), 0,
@@ -91,11 +91,11 @@ class CreditAdminWhitelistPropertyIntegrationTest {
         Instant now = Instant.now();
         String strangerId = UUID.randomUUID().toString();
         jdbcTemplate.update(
-                "INSERT INTO ebus_user (id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO ebus_user (biz_id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
                 strangerId, "prop_str", "prop_str@example.com",
                 "$2a$10$abcdefghijklmnopqrstuu", Timestamp.from(now), Timestamp.from(now));
         jdbcTemplate.update(
-                "INSERT INTO ebus_credit_account (id, user_id, tier, balance, reserved, period_anchor_at, next_reset_at, version, created_at, updated_at)"
+                "INSERT INTO ebus_credit_account (biz_id, user_id, tier, balance, reserved, period_anchor_at, next_reset_at, version, created_at, updated_at)"
                         + " VALUES (?,?,?,?,?,?,?,?,?,?)",
                 UUID.randomUUID().toString(), strangerId, "FREE", 20, 0,
                 Timestamp.from(now), Timestamp.from(now.plusSeconds(86400L * 30)), 0,

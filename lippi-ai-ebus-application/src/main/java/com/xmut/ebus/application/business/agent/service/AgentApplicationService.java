@@ -46,10 +46,19 @@ public class AgentApplicationService {
     static final String SSE_SEND_FAILED_RELEASED = "SSE 下发失败，预占已释放";
     static final String SSE_SEND_FAILED_RELEASE_FAILED = "SSE 下发失败且预占释放失败";
 
-    private final CreditApplicationService creditApplicationService;
+    private final CreditApplicationService creditService;
     private final GenerationRunRepository generationRunRepository;
     private final AgentSession agentSession;
     private final Clock clock;
+
+    /**
+     * 一站式：预占建 Run 后立刻流式（便于单测）。积分不足时不调 sink。
+     */
+    public EmptyRunContext startEmptyRun(StartEmptyRunCommand command, Consumer<Ad4SseEvent> sink) {
+        EmptyRunContext context = prepareEmptyRun(command);
+        streamEmptyRun(context, sink);
+        return context;
+    }
 
     /**
      * 同步预占并落 GenerationRun；积分不足时抛错且不创建 Run（调用方勿已打开成功 SSE）。
@@ -59,7 +68,7 @@ public class AgentApplicationService {
         ObjectUtils.requireNonNull(command, "空跑命令不能为空");
         String userId = StringUtils.requireHasText(command.getUserId(), "用户 ID 不能为空");
 
-        String holdId = creditApplicationService.reserveOne(userId);
+        String holdId = reverseOne(userId);
         String sessionId = StringUtils.hasText(command.getSessionId())
                 ? command.getSessionId().trim()
                 : UUID.randomUUID().toString();
@@ -76,6 +85,10 @@ public class AgentApplicationService {
         return new EmptyRunContext(runId, userId, holdId, sessionId);
     }
 
+    private String reverseOne(String userId) {
+        return creditService.reserveOne(userId);
+    }
+
     /**
      * 流式空跑：{@code run_started} → Pi 进度映射 → 结束 release + {@code run_failed}。
      * 绝不调用 settle；异常路径同样尝试 release + {@code run_failed}。
@@ -84,26 +97,26 @@ public class AgentApplicationService {
         ObjectUtils.requireNonNull(context, "空跑上下文不能为空");
         ObjectUtils.requireNonNull(sink, "SSE sink 不能为空");
 
-        AtomicBoolean sawMessageDelta = new AtomicBoolean(false);
+        AtomicBoolean hasMessageDelta = new AtomicBoolean(false);
         AtomicBoolean aborted = new AtomicBoolean(false);
         AutoCloseable subscription = null;
         boolean released = false;
         try {
-            emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, runStartedData(context)));
+            emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context)));
 
-            subscription = agentSession.subscribe(new Consumer<PiEvent>() {
+            final Consumer<PiEvent> listener = new Consumer<PiEvent>() {
                 @Override
                 public void accept(PiEvent event) {
                     if (aborted.get()) {
                         return;
                     }
-                    PiEventToAd4Mapper.mapProgress(event).ifPresent(mapped -> {
+                    PiEventToAd4Mapper.mapEvent(event).ifPresent(mapped -> {
                         if (aborted.get()) {
                             return;
                         }
                         try {
-                            if (mapped.getName() == Ad4EventName.message_delta) {
-                                sawMessageDelta.set(true);
+                            if (Ad4EventName.message_delta.equals(mapped.getName())) {
+                                hasMessageDelta.set(true);
                             }
                             emit(sink, mapped);
                         } catch (RuntimeException ex) {
@@ -114,7 +127,9 @@ public class AgentApplicationService {
                         }
                     });
                 }
-            });
+            };
+
+            subscription = agentSession.subscribe(listener);
 
             TurnResult result = agentSession.prompt(PromptRequest.builder()
                     .runId(context.getRunId())
@@ -123,11 +138,13 @@ public class AgentApplicationService {
                     .build());
 
             if (aborted.get()) {
-                released = finishAborted(context, sink);
+                boolean releaseOk = release(context);
+                markRunFailed(context.getRunId());
+                emitRunFailed(sink, releaseOk ? SSE_SEND_FAILED_RELEASED : SSE_SEND_FAILED_RELEASE_FAILED);
                 return;
             }
 
-            if (!sawMessageDelta.get()) {
+            if (!hasMessageDelta.get()) {
                 Map<String, Object> delta = new LinkedHashMap<String, Object>();
                 delta.put("text", result != null && StringUtils.hasText(result.getFinalResponse())
                         ? result.getFinalResponse()
@@ -135,26 +152,26 @@ public class AgentApplicationService {
                 emit(sink, Ad4SseEvent.of(Ad4EventName.message_delta, delta));
             }
 
-            boolean releaseOk = releaseHoldSafe(context);
+            boolean releaseOk = release(context);
             released = releaseOk;
             markRunFailed(context.getRunId());
-            emitRunFailedSafe(sink, releaseOk ? EMPTY_RUN_FAIL_REASON : RELEASE_FAILED_REASON);
+            emitRunFailed(sink, releaseOk ? EMPTY_RUN_FAIL_REASON : RELEASE_FAILED_REASON);
         } catch (RuntimeException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "streamEmptyRun",
                     ex.getMessage() != null ? ex.getMessage() : "stream failed",
                     NameValue.create("runId", context.getRunId()));
             if (!released) {
-                boolean releaseOk = releaseHoldSafe(context);
+                boolean releaseOk = release(context);
                 released = releaseOk;
                 markRunFailed(context.getRunId());
                 if (releaseOk) {
-                    emitRunFailedSafe(sink, StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "生成失败");
+                    emitRunFailed(sink, StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "生成失败");
                 } else {
-                    emitRunFailedSafe(sink, RELEASE_FAILED_REASON);
+                    emitRunFailed(sink, RELEASE_FAILED_REASON);
                 }
             } else {
                 markRunFailed(context.getRunId());
-                emitRunFailedSafe(sink, StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "生成失败");
+                emitRunFailed(sink, StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "生成失败");
             }
         } finally {
             closeQuietly(subscription);
@@ -162,27 +179,11 @@ public class AgentApplicationService {
     }
 
     /**
-     * 一站式：预占建 Run 后立刻流式（便于单测）。积分不足时不调 sink。
-     */
-    public EmptyRunContext startEmptyRun(StartEmptyRunCommand command, Consumer<Ad4SseEvent> sink) {
-        EmptyRunContext context = prepareEmptyRun(command);
-        streamEmptyRun(context, sink);
-        return context;
-    }
-
-    private boolean finishAborted(EmptyRunContext context, Consumer<Ad4SseEvent> sink) {
-        boolean releaseOk = releaseHoldSafe(context);
-        markRunFailed(context.getRunId());
-        emitRunFailedSafe(sink, releaseOk ? SSE_SEND_FAILED_RELEASED : SSE_SEND_FAILED_RELEASE_FAILED);
-        return releaseOk;
-    }
-
-    /**
      * @return true 仅当 release 成功
      */
-    private boolean releaseHoldSafe(EmptyRunContext context) {
+    private boolean release(EmptyRunContext context) {
         try {
-            creditApplicationService.release(context.getUserId(), context.getHoldId());
+            creditService.release(context.getUserId(), context.getHoldId());
             LoggerUtils.success(log, AgentApplicationService.class, "release",
                     NameValue.create("userId", context.getUserId()),
                     NameValue.create("holdId", context.getHoldId()),
@@ -212,7 +213,7 @@ public class AgentApplicationService {
         generationRunRepository.update(run);
     }
 
-    private static Map<String, Object> runStartedData(EmptyRunContext context) {
+    private static Map<String, Object> toRunStarted(EmptyRunContext context) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("runId", context.getRunId());
         data.put("sessionId", context.getSessionId());
@@ -220,7 +221,7 @@ public class AgentApplicationService {
         return data;
     }
 
-    private static Map<String, Object> failData(String reason) {
+    private static Map<String, Object> toRunFailed(String reason) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("reason", reason);
         data.put("emptyRun", true);
@@ -231,9 +232,9 @@ public class AgentApplicationService {
         sink.accept(event);
     }
 
-    private static void emitRunFailedSafe(Consumer<Ad4SseEvent> sink, String reason) {
+    private static void emitRunFailed(Consumer<Ad4SseEvent> sink, String reason) {
         try {
-            emit(sink, Ad4SseEvent.of(Ad4EventName.run_failed, failData(reason)));
+            emit(sink, Ad4SseEvent.of(Ad4EventName.run_failed, toRunFailed(reason)));
         } catch (RuntimeException ignored) {
             // 第二次抛错不应抹掉失败收尾尝试
         }

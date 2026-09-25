@@ -5,6 +5,7 @@
 
     <resultMap id="PiSessionEntryResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.PiSessionEntryPO">
         <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
         <result property="sessionId" column="session_id"/>
         <result property="seq" column="seq"/>
         <result property="entryType" column="entry_type"/>
@@ -14,11 +15,11 @@
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
-    <insert id="insert">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO pi_session_entry
-            (id, session_id, seq, entry_type, parent_id, run_id, payload, created_at)
+            (biz_id, session_id, seq, entry_type, parent_id, run_id, payload, created_at)
         VALUES
-            (#{id}, #{sessionId}, #{seq}, #{entryType}, #{parentId}, #{runId}, #{payload}, #{createdAt})
+            (#{bizId}, #{sessionId}, #{seq}, #{entryType}, #{parentId}, #{runId}, #{payload}, #{createdAt})
     </insert>
 
     <delete id="deleteBySessionId">
@@ -45,7 +46,7 @@
     </select>
 
     <select id="selectProjected" resultMap="PiSessionEntryResultMap">
-        SELECT id, session_id, seq, entry_type, parent_id, run_id, payload, created_at
+        SELECT id, biz_id, session_id, seq, entry_type, parent_id, run_id, payload, created_at
         FROM pi_session_entry
         WHERE session_id = #{sessionId}
           AND seq &gt; #{anchorSeq}
@@ -53,7 +54,7 @@
     </select>
 
     <select id="selectAllBySessionId" resultMap="PiSessionEntryResultMap">
-        SELECT id, session_id, seq, entry_type, parent_id, run_id, payload, created_at
+        SELECT id, biz_id, session_id, seq, entry_type, parent_id, run_id, payload, created_at
         FROM pi_session_entry
         WHERE session_id = #{sessionId}
         ORDER BY seq ASC

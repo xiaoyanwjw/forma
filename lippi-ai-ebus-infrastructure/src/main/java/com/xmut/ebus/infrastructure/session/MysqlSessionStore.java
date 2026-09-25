@@ -311,7 +311,7 @@ public class MysqlSessionStore implements SessionStore {
     private void insertEntry(String sessionId, long seq, String runId,
                              Message message, Instant createdAt) {
         PiSessionEntryPO entry = new PiSessionEntryPO();
-        entry.setId(UUID.randomUUID().toString());
+        entry.setBizId(UUID.randomUUID().toString());
         entry.setSessionId(sessionId);
         entry.setSeq(seq);
         entry.setEntryType(ENTRY_TYPE_MESSAGE);

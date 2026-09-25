@@ -125,13 +125,13 @@ class AgentEmptyRunIntegrationTest {
         }
 
         Map<String, Object> run = jdbcTemplate.queryForMap(
-                "SELECT id, hold_id, session_id, artifact_ref, status FROM ebus_generation_run WHERE user_id = ?",
+                "SELECT biz_id, hold_id, session_id, artifact_ref, status FROM ebus_generation_run WHERE user_id = ?",
                 userId);
         assertEquals(GenerationRunStatus.FAILED.name(), run.get("status"));
         assertTrue(run.get("artifact_ref") == null || "".equals(run.get("artifact_ref")));
         String holdId = String.valueOf(run.get("hold_id"));
         String holdStatus = jdbcTemplate.queryForObject(
-                "SELECT status FROM ebus_credit_hold WHERE id = ?", String.class, holdId);
+                "SELECT status FROM ebus_credit_hold WHERE biz_id = ?", String.class, holdId);
         assertEquals(CreditHoldStatus.RELEASED.name(), holdStatus);
 
         mockMvc.perform(get("/api/v1/credits").header("Authorization", "Bearer " + token))
@@ -172,7 +172,7 @@ class AgentEmptyRunIntegrationTest {
 
     private String userIdOf(String username) {
         return jdbcTemplate.queryForObject(
-                "SELECT id FROM ebus_user WHERE username = ?", String.class, username);
+                "SELECT biz_id FROM ebus_user WHERE username = ?", String.class, username);
     }
 
     private static String shortId() {

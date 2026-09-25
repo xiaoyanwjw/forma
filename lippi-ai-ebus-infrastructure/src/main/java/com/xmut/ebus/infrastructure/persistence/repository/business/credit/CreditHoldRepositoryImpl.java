@@ -34,7 +34,7 @@ public class CreditHoldRepositoryImpl implements CreditHoldRepository {
 
     private CreditHoldPO toPo(CreditHold hold) {
         CreditHoldPO po = new CreditHoldPO();
-        po.setId(hold.getId());
+        po.setBizId(hold.getId());
         po.setAccountId(hold.getAccountId());
         po.setUserId(hold.getUserId());
         po.setAmount(hold.getAmount());
@@ -46,7 +46,7 @@ public class CreditHoldRepositoryImpl implements CreditHoldRepository {
 
     private CreditHold toDomain(CreditHoldPO po) {
         CreditHold hold = new CreditHold();
-        hold.setId(po.getId());
+        hold.setId(po.getBizId());
         hold.setAccountId(po.getAccountId());
         hold.setUserId(po.getUserId());
         hold.setAmount(po.getAmount());

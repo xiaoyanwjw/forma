@@ -47,6 +47,10 @@ docker compose -f APP-META/docker-config/docker-compose.yml up -d --build
 
 密钥、模型 Key、OSS Key **只**放环境变量 / compose `.env`，不要提交进仓。
 
+本地 MySQL / `dev` profile 默认按 **北京时间** 写 `DATETIME`（`MYSQL_TZ` + `DB_SERVER_TIMEZONE=Asia/Shanghai`），方便直接看库；架构上生产仍存 UTC。改 TZ 后需重启 mysql 容器；**改 TZ 前写入的旧行不会自动换算**，对比时间请看新数据或重建 volume。
+
+表主键：库内 `id BIGINT AUTO_INCREMENT`，业务/对外 ID 在 `biz_id`（或 `session_id` / `run_id` 等自然键）。**已有 MySQL volume 必须重建**（`docker compose ... down -v` 再 `up`），否则旧 UUID 主键表结构会对不上。
+
 ## 目录（扁平仓）
 
 | 路径 | 用途 |

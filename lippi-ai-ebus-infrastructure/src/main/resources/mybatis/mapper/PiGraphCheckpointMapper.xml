@@ -5,7 +5,8 @@
 
     <resultMap id="PiGraphCheckpointResultMap"
                type="com.xmut.ebus.infrastructure.persistence.mybatis.po.PiGraphCheckpointPO">
-        <id property="runId" column="run_id"/>
+        <id property="id" column="id"/>
+        <result property="runId" column="run_id"/>
         <result property="checkpointId" column="checkpoint_id"/>
         <result property="graphState" column="graph_state"/>
         <result property="updatedAt" column="updated_at"/>
@@ -13,7 +14,7 @@
     </resultMap>
 
     <sql id="CheckpointColumns">
-        run_id, checkpoint_id, graph_state, updated_at, expires_at
+        id, run_id, checkpoint_id, graph_state, updated_at, expires_at
     </sql>
 
     <insert id="upsert">

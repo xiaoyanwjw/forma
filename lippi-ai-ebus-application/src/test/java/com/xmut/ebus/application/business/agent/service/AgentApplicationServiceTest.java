@@ -131,7 +131,7 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void streamEmptyRunEmitsStartedDeltaFailedAndReleasesWithoutSettle() {
+    void streamEmptyRunEmitsStartedDeltaToRunFailedAndReleasesWithoutSettle() {
         EmptyRunContext ctx = new EmptyRunContext("run-1", USER_ID, HOLD_ID, "session-1");
         AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
         when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
@@ -239,7 +239,7 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void streamEmptyRunAbortsOnSinkFailureThenReleasesAndEmitsRunFailed() {
+    void streamEmptyRunAbortsOnSinkFailureThenReleasesAndEmitsRunToRunFailed() {
         EmptyRunContext ctx = new EmptyRunContext("run-5", USER_ID, HOLD_ID, "session-5");
         AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
         when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {

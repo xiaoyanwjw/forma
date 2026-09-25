@@ -5,6 +5,7 @@
 
     <resultMap id="CreditTierChangeResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.CreditTierChangePO">
         <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
         <result property="accountId" column="account_id"/>
         <result property="targetUserId" column="target_user_id"/>
         <result property="operatorUserId" column="operator_user_id"/>
@@ -13,18 +14,18 @@
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
-    <insert id="insert">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO ebus_credit_tier_change (
-            id, account_id, target_user_id, operator_user_id,
+            biz_id, account_id, target_user_id, operator_user_id,
             from_tier, to_tier, created_at
         ) VALUES (
-            #{id}, #{accountId}, #{targetUserId}, #{operatorUserId},
+            #{bizId}, #{accountId}, #{targetUserId}, #{operatorUserId},
             #{fromTier}, #{toTier}, #{createdAt}
         )
     </insert>
 
     <select id="selectByTargetUserId" resultMap="CreditTierChangeResultMap">
-        SELECT id, account_id, target_user_id, operator_user_id,
+        SELECT id, biz_id, account_id, target_user_id, operator_user_id,
                from_tier, to_tier, created_at
         FROM ebus_credit_tier_change
         WHERE target_user_id = #{targetUserId}

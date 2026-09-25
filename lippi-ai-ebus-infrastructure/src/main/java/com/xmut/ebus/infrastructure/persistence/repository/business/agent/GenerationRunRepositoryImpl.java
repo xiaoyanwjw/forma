@@ -33,7 +33,7 @@ public class GenerationRunRepositoryImpl implements GenerationRunRepository {
 
     private GenerationRunPO toPo(GenerationRun run) {
         GenerationRunPO po = new GenerationRunPO();
-        po.setId(run.getId());
+        po.setBizId(run.getId());
         po.setUserId(run.getUserId());
         po.setHoldId(run.getHoldId());
         po.setSessionId(run.getSessionId());
@@ -46,7 +46,7 @@ public class GenerationRunRepositoryImpl implements GenerationRunRepository {
 
     private GenerationRun toDomain(GenerationRunPO po) {
         GenerationRun run = new GenerationRun();
-        run.setId(po.getId());
+        run.setId(po.getBizId());
         run.setUserId(po.getUserId());
         run.setHoldId(po.getHoldId());
         run.setSessionId(po.getSessionId());

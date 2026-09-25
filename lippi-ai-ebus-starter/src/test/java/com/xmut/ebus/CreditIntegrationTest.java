@@ -116,7 +116,7 @@ class CreditIntegrationTest {
                 .andExpect(jsonPath("$.data.reserved").value(0));
 
         String status = jdbcTemplate.queryForObject(
-                "SELECT status FROM ebus_credit_hold WHERE id = ?", String.class, holdId);
+                "SELECT status FROM ebus_credit_hold WHERE biz_id = ?", String.class, holdId);
         assertEquals(CreditHoldStatus.SETTLED.name(), status);
 
         BusinessException again = assertThrows(BusinessException.class,
@@ -231,7 +231,7 @@ class CreditIntegrationTest {
         assertEquals(reservedBefore, jdbcTemplate.queryForObject(
                 "SELECT reserved FROM ebus_credit_account WHERE user_id = ?", Integer.class, ownerId));
         assertEquals(CreditHoldStatus.ACTIVE.name(), jdbcTemplate.queryForObject(
-                "SELECT status FROM ebus_credit_hold WHERE id = ?", String.class, holdId));
+                "SELECT status FROM ebus_credit_hold WHERE biz_id = ?", String.class, holdId));
     }
 
     @Test
@@ -255,7 +255,7 @@ class CreditIntegrationTest {
         assertEquals(reservedBefore, jdbcTemplate.queryForObject(
                 "SELECT reserved FROM ebus_credit_account WHERE user_id = ?", Integer.class, ownerId));
         assertEquals(CreditHoldStatus.ACTIVE.name(), jdbcTemplate.queryForObject(
-                "SELECT status FROM ebus_credit_hold WHERE id = ?", String.class, holdId));
+                "SELECT status FROM ebus_credit_hold WHERE biz_id = ?", String.class, holdId));
     }
 
     @Test
@@ -264,7 +264,7 @@ class CreditIntegrationTest {
         String username = "legacy_" + shortId();
         Instant now = Instant.now();
         jdbcTemplate.update(
-                "INSERT INTO ebus_user (id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO ebus_user (biz_id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
                 userId, username, username + "@example.com",
                 "$2a$10$abcdefghijklmnopqrstuu", Timestamp.from(now), Timestamp.from(now));
 
@@ -518,7 +518,7 @@ class CreditIntegrationTest {
         String legacyId = UUID.randomUUID().toString();
         Instant now = Instant.now();
         jdbcTemplate.update(
-                "INSERT INTO ebus_user (id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO ebus_user (biz_id, username, email, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)",
                 legacyId, "leg_" + shortId(), "leg_" + shortId() + "@example.com",
                 "$2a$10$abcdefghijklmnopqrstuu", Timestamp.from(now), Timestamp.from(now));
 
@@ -578,7 +578,7 @@ class CreditIntegrationTest {
 
     private String userIdOf(String username) {
         return jdbcTemplate.queryForObject(
-                "SELECT id FROM ebus_user WHERE username = ?", String.class, username);
+                "SELECT biz_id FROM ebus_user WHERE username = ?", String.class, username);
     }
 
     private static String shortId() {

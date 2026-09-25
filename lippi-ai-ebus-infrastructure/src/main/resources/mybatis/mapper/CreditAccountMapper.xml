@@ -5,6 +5,7 @@
 
     <resultMap id="CreditAccountResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.CreditAccountPO">
         <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
         <result property="userId" column="user_id"/>
         <result property="tier" column="tier"/>
         <result property="balance" column="balance"/>
@@ -16,26 +17,29 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <insert id="insert">
+    <sql id="AccountColumns">
+        id, biz_id, user_id, tier, balance, reserved,
+        period_anchor_at, next_reset_at, version, created_at, updated_at
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO ebus_credit_account (
-            id, user_id, tier, balance, reserved,
+            biz_id, user_id, tier, balance, reserved,
             period_anchor_at, next_reset_at, version, created_at, updated_at
         ) VALUES (
-            #{id}, #{userId}, #{tier}, #{balance}, #{reserved},
+            #{bizId}, #{userId}, #{tier}, #{balance}, #{reserved},
             #{periodAnchorAt}, #{nextResetAt}, #{version}, #{createdAt}, #{updatedAt}
         )
     </insert>
 
     <select id="selectById" resultMap="CreditAccountResultMap">
-        SELECT id, user_id, tier, balance, reserved,
-               period_anchor_at, next_reset_at, version, created_at, updated_at
+        SELECT <include refid="AccountColumns"/>
         FROM ebus_credit_account
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
     </select>
 
     <select id="selectByUserId" resultMap="CreditAccountResultMap">
-        SELECT id, user_id, tier, balance, reserved,
-               period_anchor_at, next_reset_at, version, created_at, updated_at
+        SELECT <include refid="AccountColumns"/>
         FROM ebus_credit_account
         WHERE user_id = #{userId}
     </select>
@@ -45,7 +49,7 @@
         SET reserved = reserved + #{amount},
             version = version + 1,
             updated_at = #{updatedAt}
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
           AND version = #{expectedVersion}
           AND (balance - reserved) &gt;= #{amount}
     </update>
@@ -56,7 +60,7 @@
             reserved = reserved - #{amount},
             version = version + 1,
             updated_at = #{updatedAt}
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
           AND version = #{expectedVersion}
           AND reserved &gt;= #{amount}
           AND balance &gt;= #{amount}
@@ -67,7 +71,7 @@
         SET reserved = reserved - #{amount},
             version = version + 1,
             updated_at = #{updatedAt}
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
           AND version = #{expectedVersion}
           AND reserved &gt;= #{amount}
     </update>
@@ -78,7 +82,7 @@
             next_reset_at = #{nextResetAt},
             version = version + 1,
             updated_at = #{updatedAt}
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
           AND version = #{expectedVersion}
     </update>
 
@@ -90,7 +94,7 @@
             next_reset_at = #{nextResetAt},
             version = version + 1,
             updated_at = #{updatedAt}
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
           AND version = #{expectedVersion}
     </update>
 </mapper>

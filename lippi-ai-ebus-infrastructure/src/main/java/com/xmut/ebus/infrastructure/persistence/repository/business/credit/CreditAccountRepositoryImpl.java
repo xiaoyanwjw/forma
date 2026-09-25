@@ -71,7 +71,7 @@ public class CreditAccountRepositoryImpl implements CreditAccountRepository {
 
     private CreditAccountPO toPo(CreditAccount account) {
         CreditAccountPO po = new CreditAccountPO();
-        po.setId(account.getId());
+        po.setBizId(account.getId());
         po.setUserId(account.getUserId());
         po.setTier(account.getTier().name());
         po.setBalance(account.getBalance());
@@ -86,7 +86,7 @@ public class CreditAccountRepositoryImpl implements CreditAccountRepository {
 
     private CreditAccount toDomain(CreditAccountPO po) {
         CreditAccount account = new CreditAccount();
-        account.setId(po.getId());
+        account.setId(po.getBizId());
         account.setUserId(po.getUserId());
         account.setTier(CreditTier.fromCode(po.getTier()));
         account.setBalance(po.getBalance());

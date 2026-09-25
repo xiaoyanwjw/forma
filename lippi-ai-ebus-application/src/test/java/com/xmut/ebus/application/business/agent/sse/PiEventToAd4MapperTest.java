@@ -34,7 +34,7 @@ class PiEventToAd4MapperTest {
 
     @Test
     void mapsMessageUpdateToMessageDelta() {
-        Optional<Ad4SseEvent> mapped = PiEventToAd4Mapper.mapProgress(
+        Optional<Ad4SseEvent> mapped = PiEventToAd4Mapper.mapEvent(
                 PiEvent.of(PiEventType.MESSAGE_UPDATE, "chunk"));
         assertTrue(mapped.isPresent());
         assertEquals(Ad4EventName.message_delta, mapped.get().getName());
@@ -43,15 +43,15 @@ class PiEventToAd4MapperTest {
     @Test
     void mapsToolStartAndEnd() {
         assertEquals(Ad4EventName.tool_started,
-                PiEventToAd4Mapper.mapProgress(PiEvent.of(PiEventType.TOOL_EXECUTION_START)).get().getName());
+                PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.TOOL_EXECUTION_START)).get().getName());
         assertEquals(Ad4EventName.tool_finished,
-                PiEventToAd4Mapper.mapProgress(PiEvent.of(PiEventType.TOOL_EXECUTION_END)).get().getName());
+                PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.TOOL_EXECUTION_END)).get().getName());
     }
 
     @Test
     void doesNotExposeAgentInternalNames() {
-        assertFalse(PiEventToAd4Mapper.mapProgress(PiEvent.of(PiEventType.AGENT_START)).isPresent());
-        assertFalse(PiEventToAd4Mapper.mapProgress(PiEvent.of(PiEventType.AGENT_END)).isPresent());
-        assertFalse(PiEventToAd4Mapper.mapProgress(PiEvent.of(PiEventType.MESSAGE_START)).isPresent());
+        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.AGENT_START)).isPresent());
+        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.AGENT_END)).isPresent());
+        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.MESSAGE_START)).isPresent());
     }
 }

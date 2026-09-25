@@ -77,7 +77,7 @@ class AuthIntegrationTest {
         assertNotNull(UUID.fromString(userId));
 
         String hash = jdbcTemplate.queryForObject(
-                "SELECT password_hash FROM ebus_user WHERE id = ?", String.class, userId);
+                "SELECT password_hash FROM ebus_user WHERE biz_id = ?", String.class, userId);
         assertNotNull(hash);
         assertFalse(hash.contains("secret12"));
         assertTrue(hash.startsWith("$2"));

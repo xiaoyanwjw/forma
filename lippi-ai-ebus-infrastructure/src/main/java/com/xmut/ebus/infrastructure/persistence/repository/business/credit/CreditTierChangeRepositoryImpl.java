@@ -38,7 +38,7 @@ public class CreditTierChangeRepositoryImpl implements CreditTierChangeRepositor
 
     private CreditTierChangePO toPo(CreditTierChange change) {
         CreditTierChangePO po = new CreditTierChangePO();
-        po.setId(change.getId());
+        po.setBizId(change.getId());
         po.setAccountId(change.getAccountId());
         po.setTargetUserId(change.getTargetUserId());
         po.setOperatorUserId(change.getOperatorUserId());
@@ -50,7 +50,7 @@ public class CreditTierChangeRepositoryImpl implements CreditTierChangeRepositor
 
     private CreditTierChange toDomain(CreditTierChangePO po) {
         CreditTierChange change = new CreditTierChange();
-        change.setId(po.getId());
+        change.setId(po.getBizId());
         change.setAccountId(po.getAccountId());
         change.setTargetUserId(po.getTargetUserId());
         change.setOperatorUserId(po.getOperatorUserId());

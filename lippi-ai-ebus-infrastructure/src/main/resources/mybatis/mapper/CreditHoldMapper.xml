@@ -5,6 +5,7 @@
 
     <resultMap id="CreditHoldResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.CreditHoldPO">
         <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
         <result property="accountId" column="account_id"/>
         <result property="userId" column="user_id"/>
         <result property="amount" column="amount"/>
@@ -13,22 +14,22 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <insert id="insert">
-        INSERT INTO ebus_credit_hold (id, account_id, user_id, amount, status, created_at, updated_at)
-        VALUES (#{id}, #{accountId}, #{userId}, #{amount}, #{status}, #{createdAt}, #{updatedAt})
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO ebus_credit_hold (biz_id, account_id, user_id, amount, status, created_at, updated_at)
+        VALUES (#{bizId}, #{accountId}, #{userId}, #{amount}, #{status}, #{createdAt}, #{updatedAt})
     </insert>
 
     <select id="selectById" resultMap="CreditHoldResultMap">
-        SELECT id, account_id, user_id, amount, status, created_at, updated_at
+        SELECT id, biz_id, account_id, user_id, amount, status, created_at, updated_at
         FROM ebus_credit_hold
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
     </select>
 
     <update id="updateStatusIfActive">
         UPDATE ebus_credit_hold
         SET status = #{newStatus},
             updated_at = #{updatedAt}
-        WHERE id = #{id}
+        WHERE biz_id = #{id}
           AND user_id = #{userId}
           AND status = 'ACTIVE'
     </update>

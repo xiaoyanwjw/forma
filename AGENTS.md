@@ -72,7 +72,7 @@ docker compose -f APP-META/docker-config/docker-compose.yml down
 - Command 继承 `BaseCommand`（userId/username），`@SuperBuilder` 创建；参数守卫 `StringUtils`/`ObjectUtils`；埋点 `LoggerUtils`（见 `02-be` §5）。
 - FE：`api` 只 HTTP；类型只在 `types`；详情靠路由 id + `get*`。
 - 计费 SSE：`fetch` + `ReadableStream` + JWT；不用原生 `EventSource`。
-- ID：UUID 字符串。范本域与目录配方见 `02-be` / `03-fe`。
+- ID：对外/业务用 UUID 字符串（`biz_id`）；库内可有 `BIGINT` 自增代理主键。范本域与目录配方见 `02-be` / `03-fe`。
 
 ---
 

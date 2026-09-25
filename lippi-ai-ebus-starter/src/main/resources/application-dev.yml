@@ -1,0 +1,6 @@
+# 本地/dev：库内 DATETIME 按东八区墙钟写入，客户端直接看北京时间。
+# 业务 Clock 仍为 UTC Instant；仅 JDBC 会话时区影响落库展示。
+# 生产请用非 dev profile，或显式 DB_SERVER_TIMEZONE=UTC。
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:lippi_ebus}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=${DB_SERVER_TIMEZONE:Asia/Shanghai}

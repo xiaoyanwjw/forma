@@ -158,7 +158,7 @@ flowchart TB
 
 - **Binds:** all persisted entities, API
 - **Prevents:** 雪花 vs UUID 混用
-- **Rule:** 业务主键与对外 ID 一律 **UUID 字符串**；禁止自增 ID 对外暴露。
+- **Rule:** 业务主键与对外 ID 一律 **UUID 字符串**（表列 `biz_id` 或业务自然键）；禁止自增 ID 对外暴露。库内可另有 `BIGINT AUTO_INCREMENT` 代理主键 `id`，仅供存储层使用。
 
 ### AD-13 — 多模块命名与扁平仓结构 [ADOPTED]
 
@@ -171,7 +171,7 @@ flowchart TB
 | Concern | Convention |
 | --- | --- |
 | 命名 | 业务模块前缀 `lippi-ai-ebus-`；Pi 拷贝模块 `lippi-pi-ai` / `lippi-pi-agent`（AD-3/AD-13）；Java 包按所有者；前端文案中文 |
-| ID | AD-12（UUID 字符串） |
+| ID | AD-12（对外 UUID；库内可有 BIGINT 自增代理主键） |
 | 时间 | 存储 UTC；展示东八区；月重置按用户订阅周期锚点 |
 | 错误 | REST：`code` + 人话 `message`（NFR-3）；SSE：用 `run_failed`，不静默断流 |
 | 鉴权 | 除注册/登录/公开落地页外，REST 与 SSE 均需 JWT |

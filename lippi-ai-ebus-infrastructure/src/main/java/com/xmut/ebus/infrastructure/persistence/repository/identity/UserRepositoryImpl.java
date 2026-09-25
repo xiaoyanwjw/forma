@@ -42,7 +42,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     private UserPO toPo(User user) {
         UserPO po = new UserPO();
-        po.setId(user.getId());
+        po.setBizId(user.getId());
         po.setUsername(user.getUsername());
         po.setEmail(user.getEmail());
         po.setPasswordHash(user.getPasswordHash());
@@ -53,7 +53,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     private User toDomain(UserPO po) {
         User user = new User();
-        user.setId(po.getId());
+        user.setId(po.getBizId());
         user.setUsername(po.getUsername());
         user.setEmail(po.getEmail());
         user.setPasswordHash(po.getPasswordHash());

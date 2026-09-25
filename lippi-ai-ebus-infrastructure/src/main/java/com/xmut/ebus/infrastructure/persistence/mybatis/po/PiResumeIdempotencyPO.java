@@ -7,12 +7,21 @@ import java.time.Instant;
  */
 public class PiResumeIdempotencyPO {
 
+    private Long id;
     private String runId;
     private String confirmRequestId;
     private String phase;
     private String resultSummary;
     private Instant updatedAt;
     private Instant expiresAt;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     public String getRunId() {
         return runId;

@@ -35,7 +35,7 @@ public class AgentController {
 
     private static final long SSE_TIMEOUT_MS = 120_000L;
 
-    private final AgentApplicationService agentApplicationService;
+    private final AgentApplicationService agentService;
 
     private final ExecutorService sseExecutor = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "agent-sse");
@@ -49,8 +49,7 @@ public class AgentController {
      * @param sessionId 可选，复用同一聊天 session（每次仍新 hold）
      */
     @PostMapping(value = "/runs/empty")
-    public Object startEmptyRun(
-            @RequestParam(value = "sessionId", required = false) String sessionId) {
+    public Object startEmptyRun(@RequestParam(value = "sessionId", required = false) String sessionId) {
         String userId = SecuritySupport.requireUserId();
         StartEmptyRunCommand command = StartEmptyRunCommand.builder()
                 .userId(userId)
@@ -60,7 +59,7 @@ public class AgentController {
 
         final EmptyRunContext context;
         try {
-            context = agentApplicationService.prepareEmptyRun(command);
+            context = agentService.prepareEmptyRun(command);
         } catch (BusinessException ex) {
             int status = ex.getErrorCode().getHttpStatus();
             return ResponseEntity.status(status)
@@ -71,7 +70,7 @@ public class AgentController {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         sseExecutor.execute(() -> {
             try {
-                agentApplicationService.streamEmptyRun(context, event -> sendEvent(emitter, event));
+                agentService.streamEmptyRun(context, event -> sendEvent(emitter, event));
                 emitter.complete();
             } catch (Exception ex) {
                 log.warn("empty run sse failed runId={}: {}", context.getRunId(), ex.toString());

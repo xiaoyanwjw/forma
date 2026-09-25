@@ -4,7 +4,8 @@
 <mapper namespace="com.xmut.ebus.infrastructure.persistence.mybatis.mapper.PiSessionMapper">
 
     <resultMap id="PiSessionResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.PiSessionPO">
-        <id property="sessionId" column="session_id"/>
+        <id property="id" column="id"/>
+        <result property="sessionId" column="session_id"/>
         <result property="userId" column="user_id"/>
         <result property="title" column="title"/>
         <result property="source" column="source"/>
@@ -18,11 +19,11 @@
     </resultMap>
 
     <sql id="SessionColumns">
-        session_id, user_id, title, source, status, parent_session_id,
+        id, session_id, user_id, title, source, status, parent_session_id,
         compact_anchor_seq, last_run_id, message_count, created_at, updated_at
     </sql>
 
-    <insert id="insert">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO pi_session
             (session_id, user_id, title, source, status, parent_session_id,
              compact_anchor_seq, last_run_id, message_count, created_at, updated_at)

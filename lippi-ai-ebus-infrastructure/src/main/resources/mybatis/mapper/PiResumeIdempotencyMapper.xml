@@ -5,8 +5,9 @@
 
     <resultMap id="PiResumeIdempotencyResultMap"
                type="com.xmut.ebus.infrastructure.persistence.mybatis.po.PiResumeIdempotencyPO">
-        <id property="runId" column="run_id"/>
-        <id property="confirmRequestId" column="confirm_request_id"/>
+        <id property="id" column="id"/>
+        <result property="runId" column="run_id"/>
+        <result property="confirmRequestId" column="confirm_request_id"/>
         <result property="phase" column="phase"/>
         <result property="resultSummary" column="result_summary"/>
         <result property="updatedAt" column="updated_at"/>
@@ -14,10 +15,10 @@
     </resultMap>
 
     <sql id="IdemColumns">
-        run_id, confirm_request_id, phase, result_summary, updated_at, expires_at
+        id, run_id, confirm_request_id, phase, result_summary, updated_at, expires_at
     </sql>
 
-    <insert id="insert">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO pi_resume_idempotency
             (run_id, confirm_request_id, phase, result_summary, updated_at, expires_at)
         VALUES

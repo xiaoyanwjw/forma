@@ -7,6 +7,7 @@ import java.time.Instant;
  */
 public class PiSessionPO {
 
+    private Long id;
     private String sessionId;
     private String userId;
     private String title;
@@ -18,6 +19,14 @@ public class PiSessionPO {
     private int messageCount;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     public String getSessionId() {
         return sessionId;

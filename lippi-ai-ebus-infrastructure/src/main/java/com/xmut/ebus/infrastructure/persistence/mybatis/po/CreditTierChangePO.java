@@ -3,11 +3,12 @@ package com.xmut.ebus.infrastructure.persistence.mybatis.po;
 import java.time.Instant;
 
 /**
- * ebus_credit_tier_change 表 PO。
+ * ebus_credit_tier_change 表 PO（id=库内自增；bizId=对外 UUID）。
  */
 public class CreditTierChangePO {
 
-    private String id;
+    private Long id;
+    private String bizId;
     private String accountId;
     private String targetUserId;
     private String operatorUserId;
@@ -15,12 +16,20 @@ public class CreditTierChangePO {
     private String toTier;
     private Instant createdAt;
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getBizId() {
+        return bizId;
+    }
+
+    public void setBizId(String bizId) {
+        this.bizId = bizId;
     }
 
     public String getAccountId() {

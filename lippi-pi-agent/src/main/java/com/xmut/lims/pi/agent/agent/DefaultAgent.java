@@ -153,19 +153,19 @@ public final class DefaultAgent implements Agent {
 
     ConversationResult mapOutcome(String runId, GraphOutcome outcome) {
         if (outcome == null) {
-            cleanupTerminal(runId);
+            cleanup(runId);
             return ConversationResult.failed(runId, "null GraphOutcome");
         }
         switch (outcome.getKind()) {
             case SUCCESS:
-                cleanupTerminal(runId);
+                cleanup(runId);
                 return mapSuccess(runId, outcome.getFinalState());
             case FAILED:
-                cleanupTerminal(runId);
+                cleanup(runId);
                 return ConversationResult.failed(runId,
                         outcome.getErrorMessage() != null ? outcome.getErrorMessage() : "graph failed");
             case CANCELLED:
-                cleanupTerminal(runId);
+                cleanup(runId);
                 return ConversationResult.cancelled(runId,
                         outcome.getCancelReason() != null ? outcome.getCancelReason() : "cancelled");
             case SUSPENDED:
@@ -174,7 +174,7 @@ public final class DefaultAgent implements Agent {
                 return ConversationResult.suspended(runId,
                         node != null ? "suspended at node: " + node : "suspended");
             default:
-                cleanupTerminal(runId);
+                cleanup(runId);
                 return ConversationResult.failed(runId, "unknown GraphOutcome kind: " + outcome.getKind());
         }
     }
@@ -183,13 +183,13 @@ public final class DefaultAgent implements Agent {
         if (state == null) {
             return ConversationResult.ok(runId, null, Collections.emptyList());
         }
-        String finalResponse = resolveFinalResponse(state);
+        String response = resolveResponse(state);
         List<Message> messages = resolve(state);
-        return ConversationResult.ok(runId, finalResponse, messages);
+        return ConversationResult.ok(runId, response, messages);
     }
 
     @SuppressWarnings("unchecked")
-    static String resolveFinalResponse(GraphState state) {
+    static String resolveResponse(GraphState state) {
         Object llm = state.get(StateKeys.LLM_RESPONSE);
         if (llm instanceof String && StringUtils.hasText((String) llm)) {
             return (String) llm;
@@ -221,8 +221,8 @@ public final class DefaultAgent implements Agent {
      * 幂等摘要<strong>不</strong>在此删除——须保留至 TTL，以便重复 {@code (runId, confirmRequestId)}
      * 返回缓存结果（AC3）；显式 {@link ResumeIdempotencyStore#deleteByRun} 留给运维/覆盖写。
      */
-    private void cleanupTerminal(String runId) {
-        if (runId != null && checkpointer != null) {
+    private void cleanup(String runId) {
+        if (runId != null) {
             checkpointer.deleteByRun(runId);
         }
     }

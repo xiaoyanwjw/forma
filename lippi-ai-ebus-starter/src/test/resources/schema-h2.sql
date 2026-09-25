@@ -1,16 +1,19 @@
 CREATE TABLE IF NOT EXISTS ebus_user (
-    id            VARCHAR(36)  NOT NULL PRIMARY KEY,
+    id            BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    biz_id        VARCHAR(36)  NOT NULL,
     username      VARCHAR(64)  NOT NULL,
     email         VARCHAR(255) NOT NULL,
     password_hash VARCHAR(100) NOT NULL,
     created_at    TIMESTAMP    NOT NULL,
     updated_at    TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_ebus_user_biz UNIQUE (biz_id),
     CONSTRAINT uk_ebus_user_username UNIQUE (username),
     CONSTRAINT uk_ebus_user_email UNIQUE (email)
 );
 
 CREATE TABLE IF NOT EXISTS ebus_credit_account (
-    id               VARCHAR(36)  NOT NULL PRIMARY KEY,
+    id               BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    biz_id           VARCHAR(36)  NOT NULL,
     user_id          VARCHAR(36)  NOT NULL,
     tier             VARCHAR(16)  NOT NULL,
     balance          INT          NOT NULL,
@@ -20,38 +23,45 @@ CREATE TABLE IF NOT EXISTS ebus_credit_account (
     version          INT          NOT NULL DEFAULT 0,
     created_at       TIMESTAMP    NOT NULL,
     updated_at       TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_ebus_credit_account_biz UNIQUE (biz_id),
     CONSTRAINT uk_ebus_credit_account_user UNIQUE (user_id)
 );
 
 CREATE TABLE IF NOT EXISTS ebus_credit_hold (
-    id         VARCHAR(36)  NOT NULL PRIMARY KEY,
+    id         BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    biz_id     VARCHAR(36)  NOT NULL,
     account_id VARCHAR(36)  NOT NULL,
     user_id    VARCHAR(36)  NOT NULL,
     amount     INT          NOT NULL DEFAULT 1,
     status     VARCHAR(16)  NOT NULL,
     created_at TIMESTAMP    NOT NULL,
-    updated_at TIMESTAMP    NOT NULL
+    updated_at TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_ebus_credit_hold_biz UNIQUE (biz_id)
 );
 
 CREATE TABLE IF NOT EXISTS ebus_credit_tier_change (
-    id               VARCHAR(36)  NOT NULL PRIMARY KEY,
+    id               BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    biz_id           VARCHAR(36)  NOT NULL,
     account_id       VARCHAR(36)  NOT NULL,
     target_user_id   VARCHAR(36)  NOT NULL,
     operator_user_id VARCHAR(36)  NOT NULL,
     from_tier        VARCHAR(16)  NOT NULL,
     to_tier          VARCHAR(16)  NOT NULL,
-    created_at       TIMESTAMP    NOT NULL
+    created_at       TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_ebus_credit_tier_change_biz UNIQUE (biz_id)
 );
 
 CREATE TABLE IF NOT EXISTS ebus_generation_run (
-    id           VARCHAR(36)  NOT NULL PRIMARY KEY,
+    id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    biz_id       VARCHAR(36)  NOT NULL,
     user_id      VARCHAR(36)  NOT NULL,
     hold_id      VARCHAR(36)  NOT NULL,
     session_id   VARCHAR(36)  NOT NULL,
     artifact_ref VARCHAR(36)  NULL,
     status       VARCHAR(16)  NOT NULL,
     created_at   TIMESTAMP    NOT NULL,
-    updated_at   TIMESTAMP    NOT NULL
+    updated_at   TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_ebus_generation_run_biz UNIQUE (biz_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_user ON ebus_generation_run (user_id);
@@ -59,7 +69,8 @@ CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_hold ON ebus_generation_run (
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_session ON ebus_generation_run (session_id);
 
 CREATE TABLE IF NOT EXISTS pi_session (
-    session_id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+    id                  BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    session_id          VARCHAR(64)  NOT NULL,
     user_id             VARCHAR(36)  NULL,
     title               VARCHAR(255) NULL,
     source              VARCHAR(32)  NOT NULL DEFAULT 'api',
@@ -69,14 +80,16 @@ CREATE TABLE IF NOT EXISTS pi_session (
     last_run_id         VARCHAR(64)  NULL,
     message_count       INT          NOT NULL DEFAULT 0,
     created_at          TIMESTAMP    NOT NULL,
-    updated_at          TIMESTAMP    NOT NULL
+    updated_at          TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_pi_session_session_id UNIQUE (session_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_pi_session_updated ON pi_session (updated_at);
 CREATE INDEX IF NOT EXISTS idx_pi_session_parent ON pi_session (parent_session_id);
 
 CREATE TABLE IF NOT EXISTS pi_session_entry (
-    id           VARCHAR(36)  NOT NULL PRIMARY KEY,
+    id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    biz_id       VARCHAR(36)  NOT NULL,
     session_id   VARCHAR(64)  NOT NULL,
     seq          BIGINT       NOT NULL,
     entry_type   VARCHAR(32)  NOT NULL DEFAULT 'message',
@@ -84,29 +97,33 @@ CREATE TABLE IF NOT EXISTS pi_session_entry (
     run_id       VARCHAR(64)  NULL,
     payload      CLOB         NOT NULL,
     created_at   TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_pi_session_entry_biz UNIQUE (biz_id),
     CONSTRAINT uk_pi_session_entry_seq UNIQUE (session_id, seq)
 );
 
 CREATE INDEX IF NOT EXISTS idx_pi_session_entry_run ON pi_session_entry (session_id, run_id);
 
 CREATE TABLE IF NOT EXISTS pi_graph_checkpoint (
-    run_id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+    id              BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    run_id          VARCHAR(64)  NOT NULL,
     checkpoint_id   VARCHAR(64)  NULL,
     graph_state     CLOB         NOT NULL,
     updated_at      TIMESTAMP    NOT NULL,
-    expires_at      TIMESTAMP    NOT NULL
+    expires_at      TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_pi_graph_checkpoint_run UNIQUE (run_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_pi_graph_checkpoint_expires ON pi_graph_checkpoint (expires_at);
 
 CREATE TABLE IF NOT EXISTS pi_resume_idempotency (
+    id                  BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     run_id              VARCHAR(64)  NOT NULL,
     confirm_request_id  VARCHAR(128) NOT NULL,
     phase               VARCHAR(32)  NOT NULL,
     result_summary      CLOB         NULL,
     updated_at          TIMESTAMP    NOT NULL,
     expires_at          TIMESTAMP    NOT NULL,
-    PRIMARY KEY (run_id, confirm_request_id)
+    CONSTRAINT uk_pi_resume_idempotency_biz UNIQUE (run_id, confirm_request_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_pi_resume_idempotency_expires ON pi_resume_idempotency (expires_at);
