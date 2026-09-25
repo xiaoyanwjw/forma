@@ -281,7 +281,7 @@ class CheckpointPersistenceHitlTest {
                         && "should-not-inject".equals(m.getContent()));
     }
 
-    /** finishClaim(null)：resume 抛错 → abandon；同 confirmId 可再 claim。 */
+    /** complete(null)：resume 抛错 → store.abandon；同 confirmId 可再 claim。 */
     @Test
     void resume_runtimeException_abandonsConfirm_allowsReclaim() {
         DefaultToolConfig policy = writeConfig(new AtomicInteger());

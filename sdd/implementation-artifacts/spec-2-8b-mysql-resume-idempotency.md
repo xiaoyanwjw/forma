@@ -18,13 +18,13 @@ context:
 
 **Problem:** 2.8 后图 CP 已落 MySQL，但 `ResumeIdempotencyStore` 默认仍是进程内 InMemory；多 Pod 下同一 `confirmRequestId` 可能双跑工具。Redis 幂等仅随 Redis CP 显式开启，不是 Adam 默认。
 
-**Approach:** 在 ebus-infrastructure 落地 `@Primary MysqlResumeIdempotencyStore`（表 `pi_resume_idempotency`），语义对齐 InMemory/Redis；与 CP/Session 分表。顺带在 `DefaultAgent.resume` 抽出 `finishClaim` 小助手收敛 complete/abandon 样板（**不改** claim→跑→complete/abandon 状态机）。打通多实例 resume 幂等，供 2.9 使用。
+**Approach:** 在 ebus-infrastructure 落地 `@Primary MysqlResumeIdempotencyStore`（表 `pi_resume_idempotency`），语义对齐 InMemory/Redis；与 CP/Session 分表。顺带在 `DefaultAgent.resume` 抽出 `claim` / `resolveResumeResult` / `complete` 收敛幂等与双模式样板（**不改** claim→跑→complete/abandon 状态机）。打通多实例 resume 幂等，供 2.9 使用。
 
 **Decisions:**
 - 表 PK：`(run_id, confirm_request_id)`；列含 `phase`（in_progress/completed）、结果摘要 JSON、`updated_at`、`expires_at`（TTL 默认 86400，属性仍用 `lims.pi.resume-idem.ttl-seconds`，**本故事不改 lims 前缀**）
 - 装配门闩对齐 2.8：无 `RedisCheckpointer`/`RedisResumeIdempotencyStore` bean 时 Mysql 为 Primary；显式 Redis CP 开启时 Redis 幂等抢 Primary
 - `claim` 用 DB 原子插入（或等价 UNIQUE 冲突处理）模拟 SET NX
-- **B 路径：** `DefaultAgent` 私有 `finishClaim(claimed, runId, confirmId, result)`（或等价命名）：SUSPENDED/异常路径 → `abandon`；其余终态（含 fail-closed）→ `complete`；未 claim 则 no-op。既有 HITL 金样须仍绿
+- **B 路径：** `DefaultAgent` 私有助手命名：`claim`（占位门闸）→ `resolveResumeResult`（双模式）→ `complete(claimed,…)`（SUSPENDED/异常 → store.abandon；其余终态 → store.complete；未 claim → no-op）。既有 HITL 金样须仍绿
 
 ## Boundaries & Constraints
 
@@ -61,7 +61,7 @@ context:
 - `lippi-pi-agent/.../graph/checkpoint/ResumeIdempotencyStore.java` — 端口（勿改签名）
 - `…/InMemoryResumeIdempotencyStore.java` · `…/redis/RedisResumeIdempotencyStore.java` · `RedisResumeIdempotencyStoreTest` — 金样（claim NX、complete 摘要、abandon、corrupt→FAILED、TTL）
 - Redis 摘要 JSON：`{phase, runId, status, finalResponse, messages[{role,content,toolCallId}]}`（复用同形状）
-- `…/agent/DefaultAgent.java` `resume` — `claim`/`complete`/`abandon`；抽出 `finishClaim` 收敛样板；**不**调 `deleteByRun`（AC3 保留幂等键；勿改状态机语义）
+- `…/agent/DefaultAgent.java` `resume` — `claim` / `resolveResumeResult` / `complete`（store.abandon|store.complete）；**不**调 `deleteByRun`（AC3 保留幂等键；勿改状态机语义）
 - `…/config/AgentConfiguration.java` — MissingBean→InMemoryResumeIdempotencyStore
 - `…/config/PiCheckpointAutoConfiguration.java` — Redis 幂等 `@Primary`（`lims.pi.checkpoint.redis.enabled` + JedisPool）
 - Continuity 2.8：`…/checkpoint/MysqlCheckpointerConfiguration.java` — `@AutoConfigureAfter(PiCheckpointAutoConfiguration)` + `@ConditionalOnMissingBean(RedisCheckpointer)`；本故事对幂等镜像 `@ConditionalOnMissingBean(RedisResumeIdempotencyStore)`（可同 Configuration 类增 Bean 或邻类）
@@ -71,14 +71,14 @@ context:
 
 **Reuse：** Redis 编解码形状；MysqlCheckpointer 装配门闩；MyBatis PO/Mapper 配方。
 
-**Do not change：** 端口签名；claim→complete/abandon **语义**（仅允许 finishClaim 样板收敛）；Checkpointer/Session；ask_human；`lims.pi` 前缀批量改名。
+**Do not change：** 端口签名；claim→store.complete/abandon **语义**（仅允许 `DefaultAgent.claim`/`resolveResumeResult`/`complete` 样板收敛）；Checkpointer/Session；ask_human；`lims.pi` 前缀批量改名。
 
 ## Tasks & Acceptance
 
 **Execution:**
 - [x] `APP-META/bootstrap/sql/007_pi_resume_idempotency.sql` + `schema-h2.sql` — 建 `pi_resume_idempotency` — 表真相
 - [x] `…/infrastructure/checkpoint/`（PO/Mapper/XML + `MysqlResumeIdempotencyStore` `@Primary`，门闩对齐 2.8）— 实现端口 — 多 Pod 幂等
-- [x] `DefaultAgent.java` — 抽出 `finishClaim`，替换散落的 complete/abandon — 样板收敛、语义不变
+- [x] `DefaultAgent.java` — 抽出 `claim` / `resolveResumeResult` / `complete`，替换散落的 store complete/abandon — 样板收敛、语义不变
 - [x] starter/IT — 覆盖矩阵（claim/complete/重放/in_progress/abandon/过期/Primary/Redis 让位）— 防回归
 - [x] `lippi-pi-agent` README 一句 — Adam 生产默认 MySQL resume 幂等 — 叙事一致
 
@@ -86,7 +86,7 @@ context:
 - Given 2.8 CP 已 MySQL，when 装配 MysqlResumeIdempotencyStore，then 同 `(runId, confirmRequestId)` 重放不双跑
 - Given Redis CP 未开，when 解析 ResumeIdempotencyStore，then 为 Mysql 实现
 - Given Redis CP 显式开启且有 JedisPool，when 解析，then Redis 幂等为 Primary、Mysql 不抢
-- Given `finishClaim` 落地后，when 跑 `CheckpointPersistenceHitlTest`（含双批准/再挂起 abandon），then 行为与重构前一致
+- Given `DefaultAgent.complete` 落地后，when 跑 `CheckpointPersistenceHitlTest`（含双批准/再挂起 abandon），then 行为与重构前一致
 - Given 本故事完成，when 审查范围，then 无 ask_human UI、无 lims.pi 前缀大改名、未改幂等状态机语义
 
 ## Implementation Notes
@@ -94,11 +94,13 @@ context:
 - 落地 `007_pi_resume_idempotency.sql` + H2 同步；`MysqlResumeIdempotencyStore` `@Primary`，门闩 `@ConditionalOnMissingBean(RedisResumeIdempotencyStore)` + `AutoConfigureAfter(PiCheckpointAutoConfiguration)`。
 - `claim` 用 INSERT + UNIQUE 冲突模拟 SET NX；过期行删后重试一次；`complete` upsert 摘要 JSON（对齐 Redis 形状）；`abandon`/`deleteByRun` 删行。
 - `PiCheckpointAutoConfiguration` Redis 幂等 Bean 返回类型改为 `RedisResumeIdempotencyStore`（与 RedisCheckpointer 一致，便于 MissingBean 门闩）。
-- `DefaultAgent.finishClaim`：未 claim no-op；SUSPENDED/异常(null) → abandon；其余终态 → complete。
+- `DefaultAgent.complete`：未 claim no-op；SUSPENDED/异常(null) → store.abandon；其余终态 → store.complete。配套 `claim` / `resolveResumeResult`。
 - 验证命令见 Verification。
-- Review patch：过期删带 `expires_at` 谓词；读删路径统一 IllegalStateException；补 TTL 与 finishClaim(null)→abandon 测；sprint 2-8 改回 review。
+- Review patch：过期删带 `expires_at` 谓词；读删路径统一 IllegalStateException；补 TTL 与 complete(null)→abandon 测；sprint 2-8 改回 review。
 
 ## Spec Change Log
+
+- 助手更名：`finishClaim`→`complete`，`beginClaim`→`claim`，`resolveResumeModes`→`resolveResumeResult`，`ClaimGate`→`Claim`，`ResumeModes`→`ResumeResult`；语义不变。避免已知坏状态：文档仍写旧名导致实现/审查对不上。KEEP：幂等状态机与 Mysql 表形不变。
 
 ## Review Triage Log
 
@@ -121,7 +123,7 @@ context:
 ## Design Notes
 
 - **为何独立故事：** 2.8 聚焦 CP + tool-result；幂等表是多 Pod 正确性补强。
-- **`finishClaim`（路径 B）：** 只消重复 `if (claimed) complete/abandon`；SUSPENDED 与 catch 仍 abandon，fail-closed/成功仍 complete。
+- **`complete`（路径 B）：** 只消重复 `if (claimed) store.complete/abandon`；SUSPENDED 与 catch 仍 abandon，fail-closed/成功仍 complete。与 `claim` / `resolveResumeResult` 配套。
 - **`deleteByRun`：** 端口必实现且 IT 覆盖；`DefaultAgent` 终态只删 CP、保留幂等键（与现网一致）。
 - **装配：** 镜像 `MysqlCheckpointerConfiguration`；条件用 `RedisResumeIdempotencyStore`。
 - **`lims.pi` 前缀：** 只消费既有 TTL 键，不改名。

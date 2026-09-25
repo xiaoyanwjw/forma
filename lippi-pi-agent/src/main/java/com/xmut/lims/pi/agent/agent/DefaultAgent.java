@@ -248,50 +248,30 @@ public final class DefaultAgent implements Agent {
                 return ConversationResult.failed(runId, "run already active: " + runId);
             }
 
-            if (confirmId != null) {
-                ResumeIdempotencyStore.ClaimResult claim = resumeIdempotencyStore.claim(runId, confirmId);
-                switch (claim.getStatus()) {
-                    case COMPLETED:
-                        return claim.getCompletedResult() != null
-                                ? claim.getCompletedResult()
-                                : ConversationResult.failed(runId, "idempotent resume: empty cached result");
-                    case IN_PROGRESS:
-                        return ConversationResult.failed(runId,
-                                "resume already in progress for confirmRequestId=" + confirmId);
-                    case CLAIMED:
-                        claimed = true;
-                        break;
-                    default:
-                        return ConversationResult.failed(runId, "unknown claim status");
-                }
+            Claim claim = claim(runId, confirmId);
+            if (claim.result != null) {
+                return claim.result;
             }
+            
+            claimed = claim.claimed;
 
-            boolean toolResultMode = StringUtils.hasText(request.getToolCallId());
-            ToolDecision decision = resolveDecision(request);
-            if (toolResultMode && decision != null) {
-                ConversationResult failed = ConversationResult.failed(runId,
-                        "resume tool-result and WRITE decision are mutually exclusive");
-                finishClaim(claimed, runId, confirmId, failed);
-                return failed;
-            }
-            if (!toolResultMode && decision == null) {
-                ConversationResult failed = ConversationResult.failed(runId,
-                        "resume requires toolCallId+result or decision (APPROVE|DENY)/approved");
-                finishClaim(claimed, runId, confirmId, failed);
-                return failed;
+            ResumeResult resumeResult = resolveResumeResult(request, runId);
+            if (resumeResult.invalid != null) {
+                complete(claimed, runId, confirmId, resumeResult.invalid);
+                return resumeResult.invalid;
             }
 
             final Map<String, Object> input;
-            if (toolResultMode) {
+            if (resumeResult.toolResultMode) {
                 try {
                     input = prepareToolResult(request, runId);
                 } catch (IllegalArgumentException ex) {
                     ConversationResult failed = ConversationResult.failed(runId, ex.getMessage());
-                    finishClaim(claimed, runId, confirmId, failed);
+                    complete(claimed, runId, confirmId, failed);
                     return failed;
                 }
             } else {
-                input = prepareWrite(request, decision, runId);
+                input = prepareWrite(request, resumeResult.decision, runId);
             }
 
             CompiledGraph compiled = stateGraph.compile(CompileConfig.builder()
@@ -312,11 +292,11 @@ public final class DefaultAgent implements Agent {
             ConversationResult result = mapOutcome(runId, outcome);
 
             // 再次挂起：abandon 释放占位；其余终态（含 fail-closed）→ complete
-            finishClaim(claimed, runId, confirmId, result);
+            complete(claimed, runId, confirmId, result);
             return result;
         } catch (RuntimeException ex) {
             try {
-                finishClaim(claimed, runId, confirmId, null);
+                complete(claimed, runId, confirmId, null);
             } catch (RuntimeException abandonEx) {
                 log.warn("resume abandon after failure failed runId={}: {}", runId, abandonEx.toString());
             }
@@ -328,10 +308,54 @@ public final class DefaultAgent implements Agent {
     }
 
     /**
-     * 收敛 claim 后的 complete/abandon 样板。
-     * 功能描述：未 claim 则 no-op；SUSPENDED 或异常（result==null）→ abandon；其余终态 → complete。
+     * 幂等占位入口。
+     * 功能描述：无 confirmId 则跳过；COMPLETED/IN_PROGRESS 经 {@link Claim#result} 短路返回。
      */
-    private void finishClaim(boolean claimed, String runId, String confirmId, ConversationResult result) {
+    private Claim claim(String runId, String confirmId) {
+        if (confirmId == null) {
+            return Claim.skipped();
+        }
+
+        ResumeIdempotencyStore.ClaimResult claim = resumeIdempotencyStore.claim(runId, confirmId);
+        switch (claim.getStatus()) {
+            case COMPLETED:
+                ConversationResult cached = claim.getCompletedResult() != null
+                        ? claim.getCompletedResult()
+                        : ConversationResult.failed(runId, "idempotent resume: empty cached result");
+                return Claim.completed(cached);
+            case IN_PROGRESS:
+                return Claim.completed(ConversationResult.failed(runId,
+                        "resume already in progress for confirmRequestId=" + confirmId));
+            case CLAIMED:
+                return Claim.claimed();
+            default:
+                return Claim.completed(ConversationResult.failed(runId, "unknown claim status"));
+        }
+    }
+
+    /**
+     * 解析 resume 双模式（tool-result vs WRITE）。
+     * 功能描述：互斥或都缺时 {@link ResumeResult#invalid} 非空（fail-closed）。
+     */
+    private static ResumeResult resolveResumeResult(ResumeRequest request, String runId) {
+        boolean toolResultMode = StringUtils.hasText(request.getToolCallId());
+        ToolDecision decision = resolveDecision(request);
+        if (toolResultMode && decision != null) {
+            return ResumeResult.invalid(ConversationResult.failed(runId,
+                    "resume tool-result and WRITE decision are mutually exclusive"));
+        }
+        if (!toolResultMode && decision == null) {
+            return ResumeResult.invalid(ConversationResult.failed(runId,
+                    "resume requires toolCallId+result or decision (APPROVE|DENY)/approved"));
+        }
+        return ResumeResult.ok(toolResultMode, decision);
+    }
+
+    /**
+     * 收敛 claim 后的 store complete/abandon 样板。
+     * 功能描述：未 claim 则 no-op；SUSPENDED 或异常（result==null）→ store.abandon；其余终态 → store.complete。
+     */
+    private void complete(boolean claimed, String runId, String confirmId, ConversationResult result) {
         if (!claimed) {
             return;
         }
@@ -339,6 +363,50 @@ public final class DefaultAgent implements Agent {
             resumeIdempotencyStore.abandon(runId, confirmId);
         } else {
             resumeIdempotencyStore.complete(runId, confirmId, result);
+        }
+    }
+
+    /** {@link #claim} 结果：{@code result} 非空则立即返回；否则看 {@code claimed}。 */
+    private static final class Claim {
+        final boolean claimed;
+        final ConversationResult result;
+
+        private Claim(boolean claimed, ConversationResult result) {
+            this.claimed = claimed;
+            this.result = result;
+        }
+
+        static Claim skipped() {
+            return new Claim(false, null);
+        }
+
+        static Claim claimed() {
+            return new Claim(true, null);
+        }
+
+        static Claim completed(ConversationResult result) {
+            return new Claim(false, result);
+        }
+    }
+
+    /** {@link #resolveResumeResult} 结果：{@code invalid} 非空则 fail-closed。 */
+    private static final class ResumeResult {
+        final boolean toolResultMode;
+        final ToolDecision decision;
+        final ConversationResult invalid;
+
+        private ResumeResult(boolean toolResultMode, ToolDecision decision, ConversationResult invalid) {
+            this.toolResultMode = toolResultMode;
+            this.decision = decision;
+            this.invalid = invalid;
+        }
+
+        static ResumeResult ok(boolean toolResultMode, ToolDecision decision) {
+            return new ResumeResult(toolResultMode, decision, null);
+        }
+
+        static ResumeResult invalid(ConversationResult failed) {
+            return new ResumeResult(false, null, failed);
         }
     }
 
