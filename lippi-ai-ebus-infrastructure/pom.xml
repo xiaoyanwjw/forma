@@ -24,6 +24,11 @@
             <groupId>com.lippi</groupId>
             <artifactId>lippi-ai-ebus-common</artifactId>
         </dependency>
+        <!-- Pi Session（及后续 Checkpoint）适配器例外：infrastructure → pi-agent 端口实现；pi-agent 不依赖 MyBatis（AD-11） -->
+        <dependency>
+            <groupId>com.lippi</groupId>
+            <artifactId>lippi-pi-agent</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>

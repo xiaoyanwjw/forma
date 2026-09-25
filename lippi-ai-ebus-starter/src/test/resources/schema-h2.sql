@@ -57,3 +57,34 @@ CREATE TABLE IF NOT EXISTS ebus_generation_run (
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_user ON ebus_generation_run (user_id);
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_hold ON ebus_generation_run (hold_id);
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_session ON ebus_generation_run (session_id);
+
+CREATE TABLE IF NOT EXISTS pi_session (
+    session_id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+    user_id             VARCHAR(36)  NULL,
+    title               VARCHAR(255) NULL,
+    source              VARCHAR(32)  NOT NULL DEFAULT 'api',
+    status              VARCHAR(16)  NOT NULL DEFAULT 'active',
+    parent_session_id   VARCHAR(64)  NULL,
+    compact_anchor_seq  BIGINT       NOT NULL DEFAULT 0,
+    last_run_id         VARCHAR(64)  NULL,
+    message_count       INT          NOT NULL DEFAULT 0,
+    created_at          TIMESTAMP    NOT NULL,
+    updated_at          TIMESTAMP    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_pi_session_updated ON pi_session (updated_at);
+CREATE INDEX IF NOT EXISTS idx_pi_session_parent ON pi_session (parent_session_id);
+
+CREATE TABLE IF NOT EXISTS pi_session_entry (
+    id           VARCHAR(36)  NOT NULL PRIMARY KEY,
+    session_id   VARCHAR(64)  NOT NULL,
+    seq          BIGINT       NOT NULL,
+    entry_type   VARCHAR(32)  NOT NULL DEFAULT 'message',
+    parent_id    VARCHAR(36)  NULL,
+    run_id       VARCHAR(64)  NULL,
+    payload      CLOB         NOT NULL,
+    created_at   TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_pi_session_entry_seq UNIQUE (session_id, seq)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pi_session_entry_run ON pi_session_entry (session_id, run_id);

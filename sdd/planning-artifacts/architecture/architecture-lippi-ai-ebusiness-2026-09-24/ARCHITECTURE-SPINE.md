@@ -143,6 +143,7 @@ flowchart TB
   application --> pi_agent[lippi-pi-agent]
   pi_agent --> pi_ai[lippi-pi-ai]
   infrastructure[lippi-ai-ebus-infrastructure] --> domain
+  infrastructure --> pi_agent
   interfaces --> infrastructure
   application --> common[lippi-ai-ebus-common]
   domain --> common
@@ -150,6 +151,8 @@ flowchart TB
 ```
 
 `domain` / `pi-*` 不依赖 `interfaces`。成果模块不依赖 CreditLedger 实现细节；由 `application` 编排「落库 → 结算」。
+
+**例外（Pi 适配器）：** `lippi-ai-ebus-infrastructure` → `lippi-pi-agent` 仅用于实现 Pi 端口适配器（`MysqlSessionStore` / 后续 `MysqlCheckpointer` 等）。适配器代码留在 infrastructure，**禁止**把实现塞进 `starter` / `application`；`pi-agent` **仍不**依赖 MyBatis。
 
 ### AD-12 — 标识符 [ADOPTED]
 

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.ebus.infrastructure.persistence.mybatis.mapper.PiSessionMapper">
+
+    <resultMap id="PiSessionResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.PiSessionPO">
+        <id property="sessionId" column="session_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="source" column="source"/>
+        <result property="status" column="status"/>
+        <result property="parentSessionId" column="parent_session_id"/>
+        <result property="compactAnchorSeq" column="compact_anchor_seq"/>
+        <result property="lastRunId" column="last_run_id"/>
+        <result property="messageCount" column="message_count"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="SessionColumns">
+        session_id, user_id, title, source, status, parent_session_id,
+        compact_anchor_seq, last_run_id, message_count, created_at, updated_at
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO pi_session
+            (session_id, user_id, title, source, status, parent_session_id,
+             compact_anchor_seq, last_run_id, message_count, created_at, updated_at)
+        VALUES
+            (#{sessionId}, #{userId}, #{title}, #{source}, #{status}, #{parentSessionId},
+             #{compactAnchorSeq}, #{lastRunId}, #{messageCount}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="selectById" resultMap="PiSessionResultMap">
+        SELECT <include refid="SessionColumns"/>
+        FROM pi_session
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="PiSessionResultMap">
+        SELECT <include refid="SessionColumns"/>
+        FROM pi_session
+        WHERE session_id = #{sessionId}
+        FOR UPDATE
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM pi_session WHERE session_id = #{sessionId}
+    </delete>
+
+    <update id="updateMeta">
+        UPDATE pi_session
+        SET source = COALESCE(#{source}, source),
+            compact_anchor_seq = #{compactAnchorSeq},
+            last_run_id = #{lastRunId},
+            message_count = #{messageCount},
+            updated_at = #{updatedAt}
+        WHERE session_id = #{sessionId}
+    </update>
+
+    <update id="updateCompactAnchor">
+        UPDATE pi_session
+        SET compact_anchor_seq = #{compactAnchorSeq},
+            updated_at = #{updatedAt}
+        WHERE session_id = #{sessionId}
+    </update>
+
+    <update id="bumpAfterAppend">
+        UPDATE pi_session
+        SET last_run_id = #{lastRunId},
+            message_count = #{messageCount},
+            updated_at = #{updatedAt}
+        WHERE session_id = #{sessionId}
+    </update>
+
+    <update id="bumpMessageCountOnly">
+        UPDATE pi_session
+        SET message_count = #{messageCount},
+            updated_at = #{updatedAt}
+        WHERE session_id = #{sessionId}
+    </update>
+
+    <update id="updateTitle">
+        UPDATE pi_session
+        SET title = #{title},
+            updated_at = #{updatedAt}
+        WHERE session_id = #{sessionId}
+    </update>
+
+    <select id="listRecent" resultMap="PiSessionResultMap">
+        SELECT <include refid="SessionColumns"/>
+        FROM pi_session
+        ORDER BY updated_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listChildrenRoots" resultMap="PiSessionResultMap">
+        SELECT <include refid="SessionColumns"/>
+        FROM pi_session
+        WHERE parent_session_id IS NULL
+        ORDER BY updated_at DESC
+    </select>
+
+    <select id="listChildrenByParent" resultMap="PiSessionResultMap">
+        SELECT <include refid="SessionColumns"/>
+        FROM pi_session
+        WHERE parent_session_id = #{parentSessionId}
+        ORDER BY updated_at DESC
+    </select>
+</mapper>

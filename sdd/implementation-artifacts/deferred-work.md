@@ -75,3 +75,15 @@
 - source_spec: `sdd/implementation-artifacts/spec-2-6-pi-运行时默认装配与噪音清理-重构先行.md`
   summary: `lims.pi.checkpoint.redis.enabled=true` 但无 JedisPool 时静默回落 InMemory，无 fail-fast。
   evidence: 条件注解按设计；启动失败语义需另定，超出本故事最小补丁。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-7-mysql-sessionstore-pi_session-pi_session_entry.md`
+  summary: 生产 `005_pi_session.sql` 无自动化执行（仅 H2 schema-h2）；缺 MySQL/Testcontainers 或 compose 冒烟门禁。
+  evidence: verification-gap 确认仓内无 Testcontainers；IT 只跑 H2；compose/initdb 为手工检查。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-7-mysql-sessionstore-pi_session-pi_session_entry.md`
+  summary: H2 TIMESTAMP/CLOB 与 MySQL DATETIME(3)/JSON 双份 DDL 行为可能漂移。
+  evidence: 与既有 ebus H2/MySQL 双维护模式相同；本故事未引入共享 DDL 源。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-7-mysql-sessionstore-pi_session-pi_session_entry.md`
+  summary: compose/bootstrap 文档未提示已初始化 volume 需手工跑 `005`。
+  evidence: Implementation Notes 已写；改运维文档超出最小补丁。

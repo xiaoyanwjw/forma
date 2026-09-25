@@ -8,7 +8,7 @@ import java.util.Optional;
 /**
  * Session 持久化端口（≠ {@code Checkpointer} / CheckpointStore）。
  *
- * <p><b>生产目标</b>：MySQL（Story 2.7，ebus-infrastructure {@code MysqlSessionStore}）。
+ * <p><b>Adam 生产默认</b>：ebus-infrastructure {@code MysqlSessionStore}（{@code @Primary}；表 {@code pi_session}/{@code pi_session_entry}）。
  * <p><b>本模块过渡默认</b>：{@link InMemorySessionStore}（MissingBean；进程内，非跨实例真相）。
  * {@link SqliteSessionStore} 仅显式 {@code lims.pi.session.sqlite-path} / 单测 opt-in，
  * <b>禁止</b>静默落到 {@code {cwd}/.lippi-pi/state.db}（AD-S8）。

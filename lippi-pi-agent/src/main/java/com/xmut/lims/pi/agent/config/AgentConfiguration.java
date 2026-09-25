@@ -199,7 +199,7 @@ public class AgentConfiguration {
      *
      * <p>仅当 {@code lims.pi.session.sqlite-path} 非空时显式 opt-in {@link SqliteSessionStore}。
      * 空路径<b>不得</b>静默创建 {@code {cwd}/.lippi-pi/state.db}（AD-S8）。
-     * 生产 MySQL SessionStore → Story 2.7（ebus-infrastructure {@code @Primary}）。
+     * Adam 生产默认：ebus-infrastructure {@code MysqlSessionStore} {@code @Primary}。
      */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(SessionStore.class)

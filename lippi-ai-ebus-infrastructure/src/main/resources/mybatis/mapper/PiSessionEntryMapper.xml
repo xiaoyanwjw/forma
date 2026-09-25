@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.ebus.infrastructure.persistence.mybatis.mapper.PiSessionEntryMapper">
+
+    <resultMap id="PiSessionEntryResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.PiSessionEntryPO">
+        <id property="id" column="id"/>
+        <result property="sessionId" column="session_id"/>
+        <result property="seq" column="seq"/>
+        <result property="entryType" column="entry_type"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="runId" column="run_id"/>
+        <result property="payload" column="payload"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert">
+        INSERT INTO pi_session_entry
+            (id, session_id, seq, entry_type, parent_id, run_id, payload, created_at)
+        VALUES
+            (#{id}, #{sessionId}, #{seq}, #{entryType}, #{parentId}, #{runId}, #{payload}, #{createdAt})
+    </insert>
+
+    <delete id="deleteBySessionId">
+        DELETE FROM pi_session_entry WHERE session_id = #{sessionId}
+    </delete>
+
+    <select id="countBySessionAndRunId" resultType="int">
+        SELECT COUNT(*)
+        FROM pi_session_entry
+        WHERE session_id = #{sessionId}
+          AND run_id = #{runId}
+    </select>
+
+    <select id="selectNextSeq" resultType="long">
+        SELECT COALESCE(MAX(seq), 0) + 1
+        FROM pi_session_entry
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <select id="countBySessionId" resultType="int">
+        SELECT COUNT(*)
+        FROM pi_session_entry
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <select id="selectProjected" resultMap="PiSessionEntryResultMap">
+        SELECT id, session_id, seq, entry_type, parent_id, run_id, payload, created_at
+        FROM pi_session_entry
+        WHERE session_id = #{sessionId}
+          AND seq &gt; #{anchorSeq}
+        ORDER BY seq ASC
+    </select>
+
+    <select id="selectAllBySessionId" resultMap="PiSessionEntryResultMap">
+        SELECT id, session_id, seq, entry_type, parent_id, run_id, payload, created_at
+        FROM pi_session_entry
+        WHERE session_id = #{sessionId}
+        ORDER BY seq ASC
+    </select>
+</mapper>

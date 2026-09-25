@@ -41,7 +41,7 @@ import java.util.UUID;
  * {@link #resolveSqlitePath} 在空白配置时仍解析到 {@code {user.dir}/.lippi-pi/state.db}，
  * 但自动装配<b>不得</b>在空路径下调用本类。行为对齐 {@link InMemorySessionStore}。
  * Schema v1：主键仅为 {@code sessionId}。旧库（含 {@code tenant_id} 或 {@code user_version < 1}）拒绝打开。
- * 生产目标 MySQL → Story 2.7。
+ * Adam 生产默认 MySQL → ebus-infrastructure {@code MysqlSessionStore}。
  */
 public final class SqliteSessionStore implements SessionStore, AutoCloseable {
 

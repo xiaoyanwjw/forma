@@ -35,7 +35,7 @@ RUNTIME   DefaultAgent → StateGraph（agent ⇄ tools）；Node 只 Emitter.em
 | --- | --- | --- |
 | AgentSession | subscribe / prompt / resume / cancel；订 Session；持有 PiEventBus | 拼 Prompt、选模型、直连 HTTP |
 | Agent + PromptBuilder | 三段 system、模型/工具编排 | 对外门面 |
-| SessionStore | 会话投影 / append transcript（过渡默认 **InMemorySessionStore**；Sqlite 仅显式 `sqlite-path`；生产目标 MySQL → 2.7） | 静默落 `{cwd}/.lippi-pi/state.db`；与 `pi:checkpoint:` 混存 |
+| SessionStore | 会话投影 / append transcript（**Adam 生产默认** ebus-infrastructure `MysqlSessionStore` `@Primary`；本模块 MissingBean 过渡仍为 **InMemorySessionStore**；Sqlite 仅显式 `sqlite-path`） | 静默落 `{cwd}/.lippi-pi/state.db`；与 `pi:checkpoint:` 混存 |
 | StateGraph [Lippi] | 可取消超步 / HITL interrupt | 认知决策 |
 
 ### 命名速查
@@ -146,7 +146,7 @@ START → agent ⇄ tools → agent → END
 
 启动扫 `classpath*:prompts/*.md`；`reload()` 始终可重扫，不走配置。
 
-**本故事不做：** SkillRouter / `lims.nav`（51-10）；token/费用指标（51-11）。Session hydrate 见 **51-16**；Sqlite opt-in 见 **51-17**（生产目标 MySQL Session → Story 2.7）。
+**本故事不做：** SkillRouter / `lims.nav`（51-10）；token/费用指标（51-11）。Session hydrate 见 **51-16**；Sqlite opt-in 见 **51-17**；Adam 生产 Session 默认 MySQL（Story 2.7）。
 
 ## L2 PromptBuilder（Hermes naming）✅
 
@@ -378,7 +378,7 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 
 - `PiCheckpointAutoConfiguration`（仅 `lims.pi.checkpoint.redis.enabled=true` + `JedisPool` 时 `@Primary` Redis）→ `PiAutoConfiguration` → `AgentConfiguration`
 - `META-INF/spring.factories`（Boot 2.7）
-- 默认 Bean：`Checkpointer`（InMemory；Redis 需显式 enabled）、`ResumeIdempotencyStore`、`SessionStore`（**InMemorySessionStore**；显式 `lims.pi.session.sqlite-path` → Sqlite）、`ModelCatalog`、`ModelProvider`、`PromptBuilder`、`CompressionConfig`、`ContextCompressor`、`ToolConfig`、`SkillConfig`、`PiResourceLoader`、`ToolPolicyExtension`（WRITE 审批默认关）、`ExtensionRunner`（`PiExtensionRegistrar`）、**`AgentSession`**（持有 `PiEventBus`）
+- 默认 Bean：`Checkpointer`（InMemory；Redis 需显式 enabled）、`ResumeIdempotencyStore`、`SessionStore`（MissingBean → **InMemorySessionStore**；Adam 装配时由 ebus-infrastructure **`MysqlSessionStore` `@Primary`** 覆盖；显式 `lims.pi.session.sqlite-path` → Sqlite）、`ModelCatalog`、`ModelProvider`、`PromptBuilder`、`CompressionConfig`、`ContextCompressor`、`ToolConfig`、`SkillConfig`、`PiResourceLoader`、`ToolPolicyExtension`（WRITE 审批默认关）、`ExtensionRunner`（`PiExtensionRegistrar`）、**`AgentSession`**（持有 `PiEventBus`）
 - **不**注册公共 `Agent` Bean（仅 Session 内部委托）
 
 ### Session 运维注意（Story 51-17 / AD-S8）
@@ -386,9 +386,9 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 | 项 | 说明 |
 | --- | --- |
 | 过渡默认 | `InMemorySessionStore`（MissingBean；进程内；**非**生产真相） |
-| 生产目标 | MySQL `pi_session` / `pi_session_entry`（Story 2.7；ebus-infrastructure `@Primary`） |
+| Adam 生产默认 | ebus-infrastructure `MysqlSessionStore` `@Primary`（表 `pi_session` / `pi_session_entry`；Story 2.7） |
 | Sqlite | 仅显式 `lims.pi.session.sqlite-path` / 单测；**禁止**空路径静默创建 `{cwd}/.lippi-pi/state.db` |
-| 主键 | Schema v1：`UNIQUE(session_id)`；**已移除** `tenant_id` / `user_id` |
+| 主键 | Sqlite Schema v1：`UNIQUE(session_id)`，无 `tenant_id`/`user_id`；Adam MySQL：`user_id` 可空列（Meta 尚无 userId，暂写 NULL） |
 | 旧库 | 含 `tenant_id` 或 `user_version < 1` → **拒绝打开**；请删除该 `state.db` 后重试（不迁移） |
 | WRITE 审批 | 默认关；`lims.pi.tool.write-approval.enabled=true` 可开 |
 | Redis CP | 默认关；`lims.pi.checkpoint.redis.enabled=true` 才可 Primary |
@@ -413,6 +413,6 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 | **51-14** | M3 | ResourceLoader + prompts/ + ExtensionRunner ✅ |
 | **51-15** | CLI | 独立模块 `lippi-ai-lims-pi-cli` 开发者 REPL（无 `-p`；真模型 fail-fast）✅ |
 | **51-16** | M4 | SessionStore hydrate：`getOrCreate`/`load`/`appendMessages`；prompt 前强制 load；InMemory 同语义 ✅ |
-| **51-17** | M4 | SqliteSessionStore（显式 path opt-in；**非**生产默认；生产目标 MySQL → 2.7）✅ |
+| **51-17** | M4 | SqliteSessionStore（显式 path opt-in；**非**生产默认；Adam 生产 MySQL → Story 2.7 ✅）✅ |
 | 51-10 | L2 | lims.nav + SkillRouter（仍后续） |
 | 51-11 | L3 | 使用指标（挂 `agent_end`；仍后续） |

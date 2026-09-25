@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * 同进程内存 SessionStore：与 {@link SqliteSessionStore} / 未来 MySQL 同端口语义。
  *
  * <p>本模块 MissingBean 过渡默认（AD-S8）；<b>不是</b>跨进程 / 生产真相。
- * 生产目标 MySQL → Story 2.7。键 = {@code sessionId}（禁止 {@code ':'}）；独立于 Checkpoint。
+ * Adam 生产默认 MySQL → ebus-infrastructure {@code MysqlSessionStore}。键 = {@code sessionId}（禁止 {@code ':'}）；独立于 Checkpoint。
  */
 public final class InMemorySessionStore implements SessionStore {
 
