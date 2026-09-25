@@ -180,8 +180,10 @@ class DefaultContextCompressorTest {
             assertThat(user).contains("</conversation>");
             assertThat(user).contains("## Goal");
             assertThat(user).contains(CompactionPrompts.SUMMARIZATION_PROMPT);
+            assertThat(user).contains("When there is NO `<previous-summary>` above");
             assertThat(user).contains("Match the primary language");
-            assertThat(user).doesNotContain("<previous-summary>");
+            // 指令文案会提到标签名；无 previous 时不应出现成对 previous-summary 块
+            assertThat(user).doesNotContain("</previous-summary>");
             assertThat(user).contains("[User]:");
             return ModelResponse.builder().content("LLM_SUMMARY").build();
         };
@@ -206,14 +208,16 @@ class DefaultContextCompressorTest {
     }
 
     @Test
-    void llm_doSummary_with_previous_summary_uses_update_prompt() {
+    void llm_doSummary_with_previous_summary_uses_shared_prompt_and_previous_block() {
         AtomicInteger calls = new AtomicInteger();
         ModelProvider ok = request -> {
             calls.incrementAndGet();
             String user = request.getMessages().get(1).getContent();
             assertThat(user).contains("<previous-summary>");
+            assertThat(user).contains("</previous-summary>");
             assertThat(user).contains("## Goal\nold-goal");
-            assertThat(user).contains(CompactionPrompts.UPDATE_SUMMARIZATION_PROMPT);
+            assertThat(user).contains(CompactionPrompts.SUMMARIZATION_PROMPT);
+            assertThat(user).contains("When there IS a `<previous-summary>` above");
             assertThat(user).contains("[User]:");
             assertThat(user).contains("new-turn");
             return ModelResponse.builder().content("UPDATED_SUMMARY").build();
