@@ -67,3 +67,11 @@
 - source_spec: `sdd/implementation-artifacts/spec-2-1-generationrun-与-sse-事件骨架.md`
   summary: `startEmptyRun` 便利方法自调用可能绕过 prepareEmptyRun 的事务代理（Controller 主路径无此问题）。
   evidence: 生产入口为 prepareEmptyRun+streamEmptyRun；startEmptyRun 主要用于单测。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-6-pi-运行时默认装配与噪音清理-重构先行.md`
+  summary: 切到 InMemory 默认后，若 cwd 仍残留旧 `.lippi-pi/state.db`，无告警提示历史被弃用。
+  evidence: MissingBean→InMemory 是 Decision B；加启动 warn 属过渡运维体验，非本故事最小补丁。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-6-pi-运行时默认装配与噪音清理-重构先行.md`
+  summary: `lims.pi.checkpoint.redis.enabled=true` 但无 JedisPool 时静默回落 InMemory，无 fail-fast。
+  evidence: 条件注解按设计；启动失败语义需另定，超出本故事最小补丁。

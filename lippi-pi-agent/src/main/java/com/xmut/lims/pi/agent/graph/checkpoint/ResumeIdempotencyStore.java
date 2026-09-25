@@ -5,8 +5,8 @@ import com.xmut.lims.pi.agent.ConversationResult;
 /**
  * {@code (runId, confirmRequestId)} resume 幂等占位 [Lippi HITL]。
  *
- * <p>生产默认 Redis（{@code SET NX EX}）；内存实现仅单测 / 本地回落。
- * 键无 tenant。≠ SessionStore。
+ * <p>可选 Redis（仅 {@code lims.pi.checkpoint.redis.enabled=true}）；
+ * 默认内存实现。键无 tenant。≠ SessionStore。Adam 生产目标 MySQL CP（Story 2.8）。
  */
 public interface ResumeIdempotencyStore {
 

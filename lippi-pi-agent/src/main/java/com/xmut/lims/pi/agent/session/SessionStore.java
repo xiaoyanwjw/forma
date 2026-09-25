@@ -8,9 +8,10 @@ import java.util.Optional;
 /**
  * Session 持久化端口（≠ {@code Checkpointer} / CheckpointStore）。
  *
- * <p><b>生产真相</b>：SQLite 文件库（{@link SqliteSessionStore}，默认
- * {@code {cwd}/.lippi-pi/state.db}）。Session <b>不做</b> Redis / MySQL（architecture/25）。
- * 单测可用 {@link InMemorySessionStore}（同语义、仅同进程）。
+ * <p><b>生产目标</b>：MySQL（Story 2.7，ebus-infrastructure {@code MysqlSessionStore}）。
+ * <p><b>本模块过渡默认</b>：{@link InMemorySessionStore}（MissingBean；进程内，非跨实例真相）。
+ * {@link SqliteSessionStore} 仅显式 {@code lims.pi.session.sqlite-path} / 单测 opt-in，
+ * <b>禁止</b>静默落到 {@code {cwd}/.lippi-pi/state.db}（AD-S8）。
  *
  * <p>键仅为 {@code sessionId}（全局唯一）；无 tenant / user。
  *
@@ -21,10 +22,9 @@ public interface SessionStore {
     /**
      * 历史 Redis 会话前缀占位（文档边界用）。
      *
-     * <p><b>生产不做 Redis Session</b>；仅用于单测断言「Session ≠ Checkpoint」前缀隔离。
-     * 真持久化 = SQLite（51-17）。
+     * <p><b>不做 Redis Session</b>；仅用于单测断言「Session ≠ Checkpoint」前缀隔离。
      *
-     * @deprecated 见 architecture/25；勿据此实现 Redis SessionStore
+     * @deprecated 勿据此实现 Redis SessionStore
      */
     @Deprecated
     String REDIS_KEY_PREFIX = "pi:session:";

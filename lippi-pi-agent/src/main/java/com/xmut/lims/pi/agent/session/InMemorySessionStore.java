@@ -18,9 +18,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * 同进程内存 SessionStore：与生产 SQLite 同端口语义。
+ * 同进程内存 SessionStore：与 {@link SqliteSessionStore} / 未来 MySQL 同端口语义。
  *
- * <p><b>不是</b>跨进程方案。键 = {@code sessionId}（禁止 {@code ':'}）；独立于 Checkpoint。
+ * <p>本模块 MissingBean 过渡默认（AD-S8）；<b>不是</b>跨进程 / 生产真相。
+ * 生产目标 MySQL → Story 2.7。键 = {@code sessionId}（禁止 {@code ':'}）；独立于 Checkpoint。
  */
 public final class InMemorySessionStore implements SessionStore {
 
@@ -355,5 +356,10 @@ public final class InMemorySessionStore implements SessionStore {
         private static boolean isSystem(Message m) {
             return m != null && "system".equalsIgnoreCase(m.getRole());
         }
+    }
+
+    /** Spring {@code destroyMethod=close} 兼容；内存无资源可释。 */
+    public void close() {
+        // no-op
     }
 }

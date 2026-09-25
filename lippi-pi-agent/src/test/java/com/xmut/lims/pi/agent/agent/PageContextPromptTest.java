@@ -26,38 +26,6 @@ class PageContextPromptTest {
     }
 
     @Test
-    void loop_input_writes_page_context_and_volatile_extra_into_system_prompt() {
-    }
-
-    @Test
-    void cache_key_is_run_only() {
-        assertThat(SystemPromptCache.cacheKey("r1")).isEqualTo("r1");
-        assertThat(SystemPromptCache.cacheKey("r1")).doesNotContain("|");
-        assertThat(SystemPromptCache.cacheKey("r1")).doesNotContain("PAGE");
-        DefaultPromptBuilder builder = new DefaultPromptBuilder();
-        SystemPromptCache cache = new SystemPromptCache();
-        SystemPromptInput first = SystemPromptInput.builder()
-                .stable(SystemPromptInput.mapOf(SystemPromptInput.SOUL, "SOUL"))
-                .context(SystemPromptInput.mapOf(SystemPromptInput.CONTEXT, "PAGE-A"))
-                .variable(SystemPromptInput.mapOf(SystemPromptInput.BEFORE_AGENT_START, "VOL-A"))
-                .build();
-        String cached = cache.getOrBuild(builder, first, "r1").getContent();
-        assertThat(cached).contains("PAGE-A").contains("VOL-A");
-        SystemPromptInput second = SystemPromptInput.builder()
-                .stable(SystemPromptInput.mapOf(SystemPromptInput.SOUL, "SOUL"))
-                .context(SystemPromptInput.mapOf(SystemPromptInput.CONTEXT, "PAGE-B"))
-                .variable(SystemPromptInput.mapOf(SystemPromptInput.BEFORE_AGENT_START, "VOL-B"))
-                .build();
-        String reused = cache.getOrBuild(builder, second, "r1").getContent();
-        assertThat(reused).isEqualTo(cached);
-        assertThat(reused).doesNotContain("PAGE-B");
-        cache.invalidate("r2");
-        assertThat(cache.peek().getContent()).isEqualTo(cached);
-        cache.invalidate("r1");
-        assertThat(cache.peek()).isNull();
-    }
-
-    @Test
     void before_agent_start_extends_into_matching_maps() {
         SystemPromptInput in = SystemPromptInput.builder()
                 .stable(SystemPromptInput.mapOf(SystemPromptInput.SOUL, "SOUL"))

@@ -35,10 +35,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * 生产 SessionStore：本地 SQLite 文件库。
+ * 本地 SQLite SessionStore（<b>非</b>生产默认；AD-S8）。
  *
- * <p>默认路径 {@code {user.dir}/.lippi-pi/state.db}；行为对齐 {@link InMemorySessionStore}。
+ * <p>仅显式 {@code lims.pi.session.sqlite-path} / 单测 opt-in。
+ * {@link #resolveSqlitePath} 在空白配置时仍解析到 {@code {user.dir}/.lippi-pi/state.db}，
+ * 但自动装配<b>不得</b>在空路径下调用本类。行为对齐 {@link InMemorySessionStore}。
  * Schema v1：主键仅为 {@code sessionId}。旧库（含 {@code tenant_id} 或 {@code user_version < 1}）拒绝打开。
+ * 生产目标 MySQL → Story 2.7。
  */
 public final class SqliteSessionStore implements SessionStore, AutoCloseable {
 

@@ -9,7 +9,7 @@ import java.util.*;
 /**
  * {@link PromptBuilder} 默认实现：委托 {@link SystemPromptInput#format()} + sanitize。
  *
- * <p>SPI 贡献（{@link StableContribution} 等）先写入对应 map 再 format。
+ * <p>唯一 system 组装器；注入键仅 AD-S10 allowlist（无 contribution SPI）。
  * Context 硬上限与 history 压缩由 {@link ContextCompressor} 负责。
  */
 public final class DefaultPromptBuilder implements PromptBuilder {
@@ -28,43 +28,15 @@ public final class DefaultPromptBuilder implements PromptBuilder {
     public static final String DEFAULT_SKILL_POLICY = DEFAULT_SOUL;
 
     private final int defaultStableMaxChars;
-    private final StableContribution stableContribution;
-    private final ContextContribution contextContribution;
-    private final VolatileContribution volatileContribution;
 
     public DefaultPromptBuilder() {
-        this(DEFAULT_STABLE_MAX_CHARS, StableContribution.NOOP, ContextContribution.NOOP,
-                VolatileContribution.NOOP);
+        this(DEFAULT_STABLE_MAX_CHARS);
     }
 
     public DefaultPromptBuilder(int defaultStableMaxChars) {
-        this(defaultStableMaxChars, StableContribution.NOOP, ContextContribution.NOOP,
-                VolatileContribution.NOOP);
-    }
-
-    public DefaultPromptBuilder(int defaultStableMaxChars,
-                                StableContribution stableContribution,
-                                ContextContribution contextContribution) {
-        this(defaultStableMaxChars, stableContribution, contextContribution,
-                VolatileContribution.NOOP);
-    }
-
-    public DefaultPromptBuilder(int defaultStableMaxChars,
-                                StableContribution stableContribution,
-                                ContextContribution contextContribution,
-                                VolatileContribution volatileContribution) {
         this.defaultStableMaxChars = defaultStableMaxChars > 0
                 ? defaultStableMaxChars
                 : DEFAULT_STABLE_MAX_CHARS;
-        this.stableContribution = stableContribution != null
-                ? stableContribution
-                : StableContribution.NOOP;
-        this.contextContribution = contextContribution != null
-                ? contextContribution
-                : ContextContribution.NOOP;
-        this.volatileContribution = volatileContribution != null
-                ? volatileContribution
-                : VolatileContribution.NOOP;
     }
 
     /**
@@ -126,26 +98,6 @@ public final class DefaultPromptBuilder implements PromptBuilder {
         SystemPromptInput.Builder b = in.toBuilder();
         if (in.getStableMaxChars() <= 0) {
             b.stableMaxChars(defaultStableMaxChars);
-        }
-        if (stableContribution != StableContribution.NOOP
-                || contextContribution != ContextContribution.NOOP
-                || volatileContribution != VolatileContribution.NOOP) {
-            Map<String, String> stable = new LinkedHashMap<String, String>(in.getStable());
-            Map<String, String> context = new LinkedHashMap<String, String>(in.getContext());
-            Map<String, String> variable = new LinkedHashMap<String, String>(in.getVariable());
-            if (stableContribution != StableContribution.NOOP) {
-                SystemPromptInput.put(stable, SystemPromptInput.CONTRIBUTION,
-                        stableContribution.contribute(in));
-            }
-            if (contextContribution != ContextContribution.NOOP) {
-                SystemPromptInput.put(context, SystemPromptInput.CONTRIBUTION,
-                        contextContribution.contribute(in));
-            }
-            if (volatileContribution != VolatileContribution.NOOP) {
-                SystemPromptInput.put(variable, SystemPromptInput.CONTRIBUTION,
-                        volatileContribution.contribute(in));
-            }
-            b.stable(stable).context(context).variable(variable);
         }
         return b.build();
     }

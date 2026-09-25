@@ -89,19 +89,20 @@ class DefaultPromptBuilderTest {
     }
 
     @Test
-    void contributions_append_into_tiers() {
-        DefaultPromptBuilder builder = new DefaultPromptBuilder(
-                8000,
-                base -> "FROM-STABLE-SPI",
-                base -> "FROM-CONTEXT-SPI",
-                base -> "FROM-VOLATILE-SPI");
+    void allowlist_ignores_unknown_keys_including_old_contribution() {
+        DefaultPromptBuilder builder = new DefaultPromptBuilder();
+        java.util.Map<String, String> raw = new java.util.LinkedHashMap<String, String>();
+        raw.put(SystemPromptInput.SOUL, "P");
+        raw.put("contribution", "FROM-OLD-SPI");
+        raw.put("not_a_key", "LEAK");
         String system = builder.system(SystemPromptInput.builder()
-                .stable(SystemPromptInput.mapOf(SystemPromptInput.SOUL, "P"))
+                .stable(raw)
                 .build()).getContent();
-        assertThat(system)
-                .contains("FROM-STABLE-SPI")
-                .contains("FROM-CONTEXT-SPI")
-                .contains("FROM-VOLATILE-SPI");
+        assertThat(system).contains("P");
+        assertThat(system).doesNotContain("FROM-OLD-SPI");
+        assertThat(system).doesNotContain("LEAK");
+        assertThat(SystemPromptInput.builder().stable(raw).build().getStable())
+                .containsOnlyKeys(SystemPromptInput.SOUL);
     }
 
     @Test

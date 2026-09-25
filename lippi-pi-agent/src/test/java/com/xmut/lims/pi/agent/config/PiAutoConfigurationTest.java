@@ -10,6 +10,7 @@ import com.xmut.lims.pi.ai.model.ModelCatalog;
 import com.xmut.lims.pi.ai.model.ModelProvider;
 import com.xmut.lims.pi.agent.session.AgentSession;
 import com.xmut.lims.pi.agent.session.DefaultAgentSession;
+import com.xmut.lims.pi.agent.session.InMemorySessionStore;
 import com.xmut.lims.pi.agent.session.PromptRequest;
 import com.xmut.lims.pi.agent.session.SessionStore;
 import com.xmut.lims.pi.agent.session.SqliteSessionStore;
@@ -30,9 +31,13 @@ class PiAutoConfigurationTest {
     Path tempDir;
 
     private ApplicationContextRunner contextRunner() {
-        Path db = tempDir.resolve("pi-session-test.db");
         return new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class));
+    }
+
+    private ApplicationContextRunner contextRunnerWithSqlite() {
+        Path db = tempDir.resolve("pi-session-test.db");
+        return contextRunner()
                 .withPropertyValues("lims.pi.session.sqlite-path=" + db.toAbsolutePath());
     }
 
@@ -43,7 +48,7 @@ class PiAutoConfigurationTest {
             assertThat(context.getBean(AgentSession.class)).isInstanceOf(DefaultAgentSession.class);
             assertThat(context).doesNotHaveBean(Agent.class);
             assertThat(context).hasSingleBean(SessionStore.class);
-            assertThat(context.getBean(SessionStore.class)).isInstanceOf(SqliteSessionStore.class);
+            assertThat(context.getBean(SessionStore.class)).isInstanceOf(InMemorySessionStore.class);
             assertThat(context).hasSingleBean(Checkpointer.class);
             assertThat(context.getBean(Checkpointer.class)).isInstanceOf(InMemoryCheckpointer.class);
             assertThat(context).hasSingleBean(ResumeIdempotencyStore.class);
@@ -76,10 +81,40 @@ class PiAutoConfigurationTest {
             assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.resource.PiResourceLoader.class);
             assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.extension.ExtensionRunner.class);
             assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.extension.ToolPolicyExtension.class);
+            assertThat(context.getBean(com.xmut.lims.pi.agent.extension.ToolPolicyExtension.class)
+                    .isWriteApprovalEnabled()).isFalse();
             assertThat(context.getBean(com.xmut.lims.pi.agent.resource.PiResourceLoader.class)
                     .findPrompt("ping")).isPresent();
             assertThat(context.getBean(AgentSession.class))
                     .isSameAs(context.getBean(AgentSession.class));
+        });
+    }
+
+    @Test
+    void write_approval_enabled_property_wires_tool_policy() {
+        contextRunner()
+                .withPropertyValues("lims.pi.tool.write-approval.enabled=true")
+                .run(context -> assertThat(
+                        context.getBean(com.xmut.lims.pi.agent.extension.ToolPolicyExtension.class)
+                                .isWriteApprovalEnabled()).isTrue());
+    }
+
+    @Test
+    void default_session_store_is_in_memory_without_creating_cwd_sqlite() {
+        Path cwdDb = java.nio.file.Paths.get(System.getProperty("user.dir"), ".lippi-pi", "state.db");
+        boolean existedBefore = java.nio.file.Files.exists(cwdDb);
+        contextRunner().run(context -> {
+            assertThat(context.getBean(SessionStore.class)).isInstanceOf(InMemorySessionStore.class);
+            if (!existedBefore) {
+                assertThat(cwdDb).doesNotExist();
+            }
+        });
+    }
+
+    @Test
+    void explicit_sqlite_path_registers_sqlite_session_store() {
+        contextRunnerWithSqlite().run(context -> {
+            assertThat(context.getBean(SessionStore.class)).isInstanceOf(SqliteSessionStore.class);
         });
     }
 

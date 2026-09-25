@@ -13,19 +13,22 @@ import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import redis.clients.jedis.JedisPool;
 
 /**
- * 有 {@link JedisPool} 时注册 Redis Checkpointer / resume 幂等（{@code @Primary}）。
+ * 显式开启 Redis Checkpointer 时注册 Redis 实现（{@code @Primary}）。
  *
- * <p>无池时本配置不生效，留给 {@link AgentConfiguration} 的 InMemory 回落。
- * CLI 不引入 Jedis，因此仍走内存。
+ * <p>条件：{@code lims.pi.checkpoint.redis.enabled=true} <b>且</b> 存在 {@link JedisPool}。
+ * 仅有 {@code JedisPool} 不得抢默认（AD-S2/S9）。未开启时留给 {@link AgentConfiguration}
+ * 的 InMemory 回落。Adam 生产目标为 MySQL CP（Story 2.8）。
  */
 @AutoConfiguration
 @ConditionalOnClass(JedisPool.class)
 @ConditionalOnBean(JedisPool.class)
+@ConditionalOnProperty(prefix = "lims.pi.checkpoint.redis", name = "enabled", havingValue = "true")
 @AutoConfigureBefore(PiAutoConfiguration.class)
 public class PiCheckpointAutoConfiguration {
 

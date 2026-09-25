@@ -28,6 +28,7 @@ import com.xmut.lims.pi.agent.resource.DefaultPiResourceLoader;
 import com.xmut.lims.pi.agent.resource.PiResourceLoader;
 import com.xmut.lims.pi.agent.session.AgentSession;
 import com.xmut.lims.pi.agent.session.DefaultAgentSession;
+import com.xmut.lims.pi.agent.session.InMemorySessionStore;
 import com.xmut.lims.pi.agent.session.SessionStore;
 import com.xmut.lims.pi.agent.session.SqliteSessionStore;
 import com.xmut.lims.pi.agent.skill.ClasspathSkillBootstrap;
@@ -48,6 +49,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,13 +62,14 @@ import java.util.Optional;
  * <p>组装 PromptBuilder + ModelProvider + ToolConfig [LIMS] + ContextCompressor +
  * SkillConfig + 默认 Tool-loop 图与 {@link DefaultAgent}。
  *
- * <p>Checkpoint：无 {@code JedisPool} 时回落 {@link InMemoryCheckpointer}；有池时
- * {@link PiCheckpointAutoConfiguration} 以 {@code @Primary} 注册 Redis 实现。
+ * <p>Checkpoint：默认 {@link InMemoryCheckpointer}；Redis 仅当
+ * {@code lims.pi.checkpoint.redis.enabled=true} 且存在 {@code JedisPool} 时由
+ * {@link PiCheckpointAutoConfiguration} 以 {@code @Primary} 注册（AD-S2/S9）。
  *
- * <p>Session：默认 {@link SqliteSessionStore}（{@code lims.pi.session.sqlite-path}，
- * 缺省 {@code {user.dir}/.lippi-pi/state.db}）。{@code InMemorySessionStore} 仅单测 /
- * 显式 {@code @Bean} 覆盖。不做 Redis/MySQL Session；≠ Checkpoint。
- * Memory 层暂未接入。
+ * <p>Session：MissingBean 时默认 {@link InMemorySessionStore}（进程内过渡，非生产真相）；
+ * 仅当显式配置 {@code lims.pi.session.sqlite-path} 时注册 {@link SqliteSessionStore}。
+ * <b>禁止</b>静默落到 {@code {cwd}/.lippi-pi/state.db}（AD-S8）。生产目标 MySQL → Story 2.7。
+ * ≠ Checkpoint。Memory 层暂未接入。
  *
  * <p>ContextCompressor：默认 {@link DefaultContextCompressor}；{@code pi.compression.enabled=false}
  * 时注册 {@link ContextCompressor#NOOP}。
@@ -75,9 +78,10 @@ import java.util.Optional;
  * （含 {@code certificate.ocr}）；然后 {@code sealBootstrap}；
  * {@code pi.skills.allow-runtime-mutation=false}。
  *
- * <p>ConversationLoop：仅被 {@link AgentSession} 内部委托；禁止业务直接注入作门面。
+ * <p>{@link Agent}（Runtime）：仅被 {@link AgentSession} 内部委托；禁止业务直接注入作门面。
  *
  * <p>ToolConfig：启动扫 {@code classpath*:tools/*.tool.json}。
+ * WRITE 审批默认关（{@code lims.pi.tool.write-approval.enabled=false}）。
  */
 @Configuration
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -191,17 +195,20 @@ public class AgentConfiguration {
     }
 
     /**
-     * 生产默认 SessionStore = SQLite 文件库（Story 51-17）。
+     * MissingBean → {@link InMemorySessionStore}（过渡默认，非生产真相）。
      *
-     * <p>{@code lims.pi.session.sqlite-path} 空则 {@code {user.dir}/.lippi-pi/state.db}。
-     * 单测请 {@code new InMemorySessionStore()} 或测试 {@code @Bean}/{@code @Primary} 覆盖。
-     * <b>不做</b> Redis / MySQL Session。
+     * <p>仅当 {@code lims.pi.session.sqlite-path} 非空时显式 opt-in {@link SqliteSessionStore}。
+     * 空路径<b>不得</b>静默创建 {@code {cwd}/.lippi-pi/state.db}（AD-S8）。
+     * 生产 MySQL SessionStore → Story 2.7（ebus-infrastructure {@code @Primary}）。
      */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(SessionStore.class)
     public SessionStore sessionStore(
             @Value("${lims.pi.session.sqlite-path:}") String sqlitePath) {
-        return new SqliteSessionStore(SqliteSessionStore.resolveSqlitePath(sqlitePath));
+        if (StringUtils.hasText(sqlitePath)) {
+            return new SqliteSessionStore(SqliteSessionStore.resolveSqlitePath(sqlitePath));
+        }
+        return new InMemorySessionStore();
     }
 
     /**
@@ -223,10 +230,14 @@ public class AgentConfiguration {
 
     /**
      * [LIMS] 必装工具策略闸门。作为 {@link PiExtension} 进 Runner 列表。
+     *
+     * <p>WRITE 审批默认关（AD-S2）；{@code lims.pi.tool.write-approval.enabled=true} 可开。
      */
     @Bean
-    public ToolPolicyExtension toolPolicyExtension(ToolConfig toolConfig) {
-        return new ToolPolicyExtension(toolConfig);
+    public ToolPolicyExtension toolPolicyExtension(
+            ToolConfig toolConfig,
+            @Value("${lims.pi.tool.write-approval.enabled:false}") boolean writeApprovalEnabled) {
+        return new ToolPolicyExtension(toolConfig, writeApprovalEnabled);
     }
 
     /**

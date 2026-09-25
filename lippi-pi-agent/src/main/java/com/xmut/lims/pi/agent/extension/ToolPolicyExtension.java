@@ -15,8 +15,11 @@ import com.xmut.lims.pi.agent.tool.ToolConfig;
 import java.util.function.Consumer;
 
 /**
- * [LIMS] Required tool-policy gate: FORBIDDEN/deny → {@code block};
- * unapproved WRITE → {@code needs_hitl}; otherwise allow.
+ * [LIMS] 必装工具策略闸门：FORBIDDEN/deny → {@code block}；
+ * 未批准 WRITE → {@code needs_hitl}（仅当 WRITE 审批开启）；否则 allow。
+ *
+ * <p>Adam 默认关闭 WRITE 审批（AD-S2）：无显式开启时 WRITE 与 READ 同策略面直接执行，
+ * 仍拦截 FORBIDDEN。挂起 / resume / Checkpointer 端口保留供 {@code ask_human}（2.9）。
  *
  * <p>Not a GraphNode. Registers {@code BEFORE_TOOL_CALL} / {@code AFTER_TOOL_CALL}
  * on the Session bus. ToolNode evaluates per call (open-source order); HITL
@@ -32,11 +35,27 @@ public final class ToolPolicyExtension implements PiExtension {
     public static final String ROUTE_AGENT = "agent";
 
     private final ToolConfig config;
+    private final boolean writeApprovalEnabled;
     private Consumer<ToolAuditEvent> audit = event -> {
     };
 
+    /**
+     * WRITE 审批默认关（AD-S2）。
+     */
     public ToolPolicyExtension(ToolConfig config) {
+        this(config, false);
+    }
+
+    /**
+     * @param writeApprovalEnabled {@code true} 时未批准 WRITE 挂起；{@code false} 时 WRITE 直接执行
+     */
+    public ToolPolicyExtension(ToolConfig config, boolean writeApprovalEnabled) {
         this.config = config;
+        this.writeApprovalEnabled = writeApprovalEnabled;
+    }
+
+    public boolean isWriteApprovalEnabled() {
+        return writeApprovalEnabled;
     }
 
     @Override
@@ -87,7 +106,7 @@ public final class ToolPolicyExtension implements PiExtension {
             return BeforeToolCallResult.block("Tool forbidden by ToolConfig: " + call.getToolName());
         }
 
-        if (level == ToolLevel.WRITE) {
+        if (level == ToolLevel.WRITE && writeApprovalEnabled) {
             if (decision == ToolDecision.DENY) {
                 String reason = resolveDenyReason(humanInput);
                 emit(ToolAuditEvent.of(ToolAuditEvent.Kind.DENY, call.getToolName(), call.getId(), null, reason));

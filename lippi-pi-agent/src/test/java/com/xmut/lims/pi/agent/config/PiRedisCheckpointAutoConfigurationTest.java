@@ -29,11 +29,28 @@ class PiRedisCheckpointAutoConfigurationTest {
                 });
     }
 
+    /** 有 JedisPool 但未开 redis.enabled → 不得抢 Primary（AD-S2/S9）。 */
     @Test
-    void withJedisPool_registersRedisStores() {
+    void withJedisPool_withoutRedisEnabled_keepsInMemoryPrimary() {
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(PiCheckpointAutoConfiguration.class))
                 .withUserConfiguration(JedisPoolPresentConfig.class, AgentConfiguration.class)
+                .run(context -> {
+                    assertThat(context.getBean(Checkpointer.class))
+                            .isInstanceOf(InMemoryCheckpointer.class);
+                    assertThat(context).doesNotHaveBean(RedisCheckpointer.class);
+                    assertThat(context.getBean(ResumeIdempotencyStore.class))
+                            .isInstanceOf(com.xmut.lims.pi.agent.graph.checkpoint.InMemoryResumeIdempotencyStore.class);
+                    assertThat(context).doesNotHaveBean(RedisResumeIdempotencyStore.class);
+                });
+    }
+
+    @Test
+    void withJedisPool_andRedisEnabled_registersRedisStores() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(PiCheckpointAutoConfiguration.class))
+                .withUserConfiguration(JedisPoolPresentConfig.class, AgentConfiguration.class)
+                .withPropertyValues("lims.pi.checkpoint.redis.enabled=true")
                 .run(context -> {
                     assertThat(context.getBean(Checkpointer.class))
                             .isInstanceOf(RedisCheckpointer.class);
@@ -42,12 +59,13 @@ class PiRedisCheckpointAutoConfigurationTest {
                 });
     }
 
-    /** Agent 先注册 InMemory 时，@Primary Redis 仍为 getBean / 注入首选。 */
+    /** Agent 先注册 InMemory 时，显式 enabled 后 @Primary Redis 仍为 getBean / 注入首选。 */
     @Test
-    void withJedisPool_agentConfigFirst_primaryRedisWins() {
+    void withJedisPool_andRedisEnabled_agentConfigFirst_primaryRedisWins() {
         new ApplicationContextRunner()
                 .withUserConfiguration(JedisPoolPresentConfig.class, AgentConfiguration.class)
                 .withConfiguration(AutoConfigurations.of(PiCheckpointAutoConfiguration.class))
+                .withPropertyValues("lims.pi.checkpoint.redis.enabled=true")
                 .run(context -> {
                     assertThat(context.getBean(Checkpointer.class))
                             .isInstanceOf(RedisCheckpointer.class);

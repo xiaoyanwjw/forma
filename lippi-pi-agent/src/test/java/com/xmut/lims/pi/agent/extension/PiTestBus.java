@@ -21,7 +21,7 @@ public final class PiTestBus {
 
     public static PiEventBus withPolicy(ToolConfig config, Consumer<ToolAuditEvent> audit) {
         PiEventBus bus = new DefaultPiEventBus();
-        ToolPolicyExtension policy = new ToolPolicyExtension(config);
+        ToolPolicyExtension policy = new ToolPolicyExtension(config, true);
         if (audit != null) {
             policy.bind(audit);
         }

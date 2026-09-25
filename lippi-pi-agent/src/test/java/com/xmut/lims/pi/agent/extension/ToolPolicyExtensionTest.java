@@ -56,8 +56,9 @@ class ToolPolicyExtensionTest {
         assertThat(result.getReason()).containsIgnoringCase("forbidden");
     }
 
+    /** Adam 默认：WRITE 审批关 → 未批准 WRITE 直接 allow（与 READ 同面）。 */
     @Test
-    void unapproved_write_needs_hitl_read_allows() {
+    void write_approval_disabled_by_default_allows_write_without_hitl() {
         DefaultToolConfig config = new DefaultToolConfig(java.util.Arrays.asList(
                 new ToolRegistration("save",
                         ToolSchema.builder().name("save").build(),
@@ -66,6 +67,26 @@ class ToolPolicyExtensionTest {
                         ToolSchema.builder().name("lookup").build(),
                         ToolLevel.READ, null)));
         ToolPolicyExtension ext = new ToolPolicyExtension(config);
+
+        assertThat(ext.isWriteApprovalEnabled()).isFalse();
+        assertThat(ext.evaluate(
+                new ToolCallEntry("w1", "save", JsonNodeFactory.instance.objectNode()),
+                null, null).isAllow()).isTrue();
+        assertThat(ext.evaluate(
+                new ToolCallEntry("r1", "lookup", JsonNodeFactory.instance.objectNode()),
+                null, null).isAllow()).isTrue();
+    }
+
+    @Test
+    void unapproved_write_needs_hitl_when_approval_enabled() {
+        DefaultToolConfig config = new DefaultToolConfig(java.util.Arrays.asList(
+                new ToolRegistration("save",
+                        ToolSchema.builder().name("save").build(),
+                        ToolLevel.WRITE, null),
+                new ToolRegistration("lookup",
+                        ToolSchema.builder().name("lookup").build(),
+                        ToolLevel.READ, null)));
+        ToolPolicyExtension ext = new ToolPolicyExtension(config, true);
 
         assertThat(ext.evaluate(
                 new ToolCallEntry("w1", "save", JsonNodeFactory.instance.objectNode()),
@@ -76,12 +97,12 @@ class ToolPolicyExtensionTest {
     }
 
     @Test
-    void approve_allows_write() {
+    void approve_allows_write_when_approval_enabled() {
         DefaultToolConfig config = new DefaultToolConfig(Collections.singletonList(
                 new ToolRegistration("save",
                         ToolSchema.builder().name("save").build(),
                         ToolLevel.WRITE, null)));
-        ToolPolicyExtension ext = new ToolPolicyExtension(config);
+        ToolPolicyExtension ext = new ToolPolicyExtension(config, true);
 
         BeforeToolCallResult result = ext.evaluate(
                 new ToolCallEntry("w1", "save", JsonNodeFactory.instance.objectNode()),
@@ -90,12 +111,12 @@ class ToolPolicyExtensionTest {
     }
 
     @Test
-    void deny_blocks_with_reason() {
+    void deny_blocks_with_reason_when_approval_enabled() {
         DefaultToolConfig config = new DefaultToolConfig(Collections.singletonList(
                 new ToolRegistration("save",
                         ToolSchema.builder().name("save").build(),
                         ToolLevel.WRITE, null)));
-        ToolPolicyExtension ext = new ToolPolicyExtension(config);
+        ToolPolicyExtension ext = new ToolPolicyExtension(config, true);
 
         BeforeToolCallResult result = ext.evaluate(
                 new ToolCallEntry("w1", "save", JsonNodeFactory.instance.objectNode()),
@@ -111,7 +132,7 @@ class ToolPolicyExtensionTest {
                         ToolSchema.builder().name("save").build(),
                         ToolLevel.WRITE, null)));
         PiEventBus bus = new DefaultPiEventBus();
-        new ToolPolicyExtension(config).register(bus);
+        new ToolPolicyExtension(config, true).register(bus);
 
         BeforeToolCallResult result = bus.emit(
                 PiEvent.of(PiEventType.BEFORE_TOOL_CALL, BeforeToolCallPayload.of(

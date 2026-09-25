@@ -7,7 +7,7 @@ LIMS **Pi Agent** Maven 模块：应用层新 AI 助手用例的**唯一**编排
 | Maven artifact | 包根 | 职责 |
 | --- | --- | --- |
 | `lippi-ai-lims-pi-ai` | `com.xmut.lims.pi.ai.*` | Message / ModelProvider / ToolCall 协议类型 |
-| **`lippi-ai-lims-pi-agent`**（本模块） | `com.xmut.lims.pi.agent.*` | AgentSession、Loop、StateGraph、Tool/Skill/Event |
+| **`lippi-ai-lims-pi-agent`**（本模块） | `com.xmut.lims.pi.agent.*` | AgentSession、Agent、StateGraph、Tool/Skill/Event |
 | `lippi-ai-lims-pi-cli` | `com.xmut.lims.pi.cli.*` | 开发者 REPL；只依赖 agent |
 
 依赖方向：`cli → agent → ai`（`ai` 禁止依赖 `agent`）。业务方依赖 **`lippi-ai-lims-pi-agent`** 即可（传递引入 `pi-ai`）。
@@ -25,17 +25,17 @@ CALLERS（OCR / Gateway / 工作台 / CLI）
      ↓  AgentSession.subscribe / prompt / compact / resume / cancel
 PRODUCT   AgentSession + SessionStore（≠ Checkpoint）+ PiEventBus
      ↓  command? → 展开 /prompt|/skill → before_agent_start
-RUNTIME   ConversationLoop → StateGraph（agent ⇄ tools）；Node 只 Emitter.emit
+RUNTIME   DefaultAgent → StateGraph（agent ⇄ tools）；Node 只 Emitter.emit
           ※ tools 内：tool_execution_start → before_tool_call → execute → after_tool_call → tool_execution_end
-          ※ WRITE HITL：before_tool_call 挂起，resume 重跑同一节点
+          ※ WRITE 审批默认关；显式开启时 before_tool_call 可挂起，resume 重跑同一节点
           ※ 返回前 emit(agent_end)（旁路；51-11 指标仍后续）
 ```
 
 | 层 | 做什么 | 不做什么 |
 | --- | --- | --- |
 | AgentSession | subscribe / prompt / resume / cancel；订 Session；持有 PiEventBus | 拼 Prompt、选模型、直连 HTTP |
-| Loop + PromptBuilder | 三段 system、模型/工具编排 | 对外门面 |
-| SessionStore | 会话投影 / append transcript（默认 **SqliteSessionStore** → `{cwd}/.lippi-pi/state.db`；InMemory 仅单测） | 与 `pi:checkpoint:` 混存；Redis/MySQL Session |
+| Agent + PromptBuilder | 三段 system、模型/工具编排 | 对外门面 |
+| SessionStore | 会话投影 / append transcript（过渡默认 **InMemorySessionStore**；Sqlite 仅显式 `sqlite-path`；生产目标 MySQL → 2.7） | 静默落 `{cwd}/.lippi-pi/state.db`；与 `pi:checkpoint:` 混存 |
 | StateGraph [Lippi] | 可取消超步 / HITL interrupt | 认知决策 |
 
 ### 命名速查
@@ -68,9 +68,9 @@ com.xmut.lims.pi.agent.session.AgentSession
 | `resume(ResumeRequest)` | HITL / Graph checkpoint 恢复（同样经 bus 发事件） | **[LIMS]** |
 
 Spring：`@Autowired AgentSession`（`@ConditionalOnMissingBean(AgentSession.class)`）。  
-**禁止**：业务注入 `ConversationLoop` / `pi.agent.Agent` 作门面。
+**禁止**：业务注入 `DefaultAgent` / `pi.agent.Agent` 作门面。
 
-Loop 入参是已绑定的 **`TurnInput`**（完整 chat 轴 `messages`）；直测用 `TurnInput.withUser("hi")`。
+Agent 入参是已绑定的 **`TurnInput`**（完整 chat 轴 `messages`）；直测用 `TurnInput.withUser("hi")`。
 
 ## 控制流（Story 51-2 / 51-3 / 51-3b / 51-4 / 51-12 / 51-13 / 51-14 / 51-16）
 
@@ -83,39 +83,39 @@ SessionStore.getOrCreate
 → SessionStore.load hydrate（省略 sessionId = 新会话，无旧历史）
 → merge：history + 本轮 user（完整 chat 轴）
 → bus emit BEFORE_AGENT_START（增量 → SystemPromptInput 三段 map）
-→ ConversationLoop.run(TurnInput, Emitter)   ← 已绑定；Loop 不再二次追加 user
+→ DefaultAgent.run(TurnInput, Emitter)   ← 已绑定；不再二次追加 user
 → bus emit AGENT_END
 → status==OK 才 appendMessages（相对进图快照的后缀差集；禁止整表 save 当增量）
 ```
 
 `SessionTranscript`：merge / append delta / 本轮 user 解析（纯函数，无 I/O）。
-`resume`：**不**跑 command / 斜杠展开 / hydrate / `before_agent_start`；仍直接 `loop.resume`；返回前可发 `agent_end`（本切片 OK 后可不落 Session）。
+`resume`：**不**跑 command / 斜杠展开 / hydrate / `before_agent_start`；仍直接 `agent.resume`；返回前可发 `agent_end`（本切片 OK 后可不落 Session）。
 
-`ConversationLoop.run` → **[Lippi]** `CompiledGraph.invoke`：
+`DefaultAgent.run` → **[Lippi]** `CompiledGraph.invoke`：
 
 ```text
 START → agent ⇄ tools → agent → END
-              ↑ 未批准 WRITE 时本节点挂起，resume 重跑
+              ↑ 仅 WRITE 审批显式开启且未批准时本节点挂起，resume 重跑
 ```
 
 - **Memory**：暂未接入（原 51-7 脚手架已收掉；有业务记忆需求再加）
 - `agent`：读 `MESSAGES` + `SYSTEM_PROMPT` → `request=sanitize([system]+messages)` → `ModelProvider.complete`
 - `tools`：对齐开源 pi，**逐 call** 经 bus：`tool_execution_start` → `before_tool_call` → execute → `after_tool_call` → `tool_execution_end`
-  - **before_tool_call**：配置期 `bus.on`（含必装的 `ToolPolicyExtension`）；FORBIDDEN/deny 失败结果直接写入 `MESSAGES`；未批准 WRITE → 本节点申请挂起（`__interrupt__`），resume 后**重跑 `tools`** 消费 `TOOL_APPROVAL`
+  - **before_tool_call**：配置期 `bus.on`（含必装的 `ToolPolicyExtension`）；FORBIDDEN/deny 失败结果直接写入 `MESSAGES`；Adam 默认 WRITE 审批关（`lims.pi.tool.write-approval.enabled=false`）；开启后未批准 WRITE → 本节点申请挂起（`__interrupt__`），resume 后**重跑 `tools`** 消费 `TOOL_APPROVAL`
   - **execute**：只执行策略已放行的调用；成功/失败结果立刻写入 `MESSAGES`
   - **after_tool_call**：每条 Tool 结果（含失败）可归约改写
   - `TOOL_RESULTS` 仅作短暂暂存，执行后清空（不再回灌 AgentTurn）
 - 安全阀：`IterationBudget` → maxSupersteps / overallTimeout（**分段**：resume 从 now 重算，HITL 等待不占执行预算）
 - Checkpoint：**[Lippi HITL]** Graph Checkpoint（≠ Memory/SessionStore；≠ 上游文件 CheckpointManager；`Agent.resume` ≠ Session `/resume`）
-  - **生产默认**：本模块 `redis.RedisCheckpointer`（前缀 `pi:checkpoint:{runId}:…`，无 tenant 段，含 `deleteByRun`）。有 Spring `JedisPool` 时 `PiRedisCheckpointAutoConfiguration` 以 `@Primary` 注册
+  - **本模块过渡默认**：`InMemoryCheckpointer`。Redis 仅当 `lims.pi.checkpoint.redis.enabled=true` **且** 有 `JedisPool` 时由 `PiCheckpointAutoConfiguration` `@Primary` 注册（有池 alone 不得抢默认）
+  - **Adam 生产目标**：MySQL `pi_graph_checkpoint`（Story 2.8）；≠ Session 表
   - **TTL**：`lims.pi.checkpoint.ttl-seconds`（默认 7200=2h，应对 HITL 等待窗口）；过期后 resume → 明确失败（无 CP）
-  - **内存回落**：无 `JedisPool` 时 `@ConditionalOnMissingBean` 装配 `InMemoryCheckpointer`（CLI / 单测）；**跨 Pod 不可用**
   - 仅 interrupt 落盘；终态 SUCCESS/FAILED/CANCELLED → `deleteByRun`；**SUSPENDED 保留**
-  - resume 幂等：非空 `ResumeRequest.confirmRequestId` → `SET NX EX`（`pi:resume-idem:…`）；生产 HITL 客户端**应传**；空则非幂等（仍受 `activeRuns` 互斥）
-  - 幂等冲突语义：同 `(runId, confirmRequestId)` 若占位已 `completed` → 短路返回缓存摘要（handler 零调用）；若仍 `in_progress` → `FAILED`（`resume already in progress…`），客户端应短暂退避后重试或换新 confirmId；再次 `SUSPENDED` 会 `abandon` 释放占位
+  - resume 幂等：非空 `ResumeRequest.confirmRequestId` → `SET NX EX`（`pi:resume-idem:…`）；空则非幂等（仍受 `activeRuns` 互斥）
+  - 幂等冲突：同 `(runId, confirmRequestId)` 若已 `completed` → 短路返回缓存摘要；若仍 `in_progress` → `FAILED`（客户端应退避或换新 confirmId）
   - 键仅 `runId`（+ 可选 `confirmRequestId`）；**已移除** `tenantId` / `userId`
 
-**批次语义：** 同一超步任一 WRITE 未批准 → **整批挂起**（同批 READ 亦不先执行）。
+**批次语义：** WRITE 审批开启时，同一超步任一 WRITE 未批准 → **整批挂起**（同批 READ 亦不先执行）。审批默认关时 WRITE 与 READ 同策略面直接执行。
 
 **禁止**：第二套 Planner while；禁止 `chat`+`chatWithTools` 双方法；禁止节点内私自再拼一份 system。
 
@@ -146,7 +146,7 @@ START → agent ⇄ tools → agent → END
 
 启动扫 `classpath*:prompts/*.md`；`reload()` 始终可重扫，不走配置。
 
-**本故事不做：** SkillRouter / `lims.nav`（51-10）；token/费用指标（51-11）。Session hydrate 见 **51-16**；跨进程 / 默认 cwd SQLite → **51-17**（不做 Redis/MySQL Session）。
+**本故事不做：** SkillRouter / `lims.nav`（51-10）；token/费用指标（51-11）。Session hydrate 见 **51-16**；Sqlite opt-in 见 **51-17**（生产目标 MySQL Session → Story 2.7）。
 
 ## L2 PromptBuilder（Hermes naming）✅
 
@@ -157,16 +157,18 @@ START → agent ⇄ tools → agent → END
 | 段 | 内容 | `SystemPromptInput` map 键 |
 | ---- | ---- | ------------------- |
 | **stable** | soul · skills · tools · **core** | `soul` · `skills` · `tools` · **`core`** |
-| **context** | AGENTS.md · HERMES.md · **pageContext** | `agents` · `hermes` · **`page_context`** |
+| **context** | AGENTS.md · HERMES.md · page/context | `agents` · `hermes` · **`context`** |
 | **variable** | recall(MEMORY.md) · USER.md · **before_agent_start** | `memory` · `user` · **`before_agent_start`** |
 
-`SystemPromptInput.format()` = join 三个 map（跳过空白）；**入图前**由 `DefaultConversationLoop.input` 写成 `SYSTEM_PROMPT`。图内 `AgentTurnNode` 只读这一条。
+`SystemPromptInput.format()` = join 三个 map（跳过空白）；**入图前**由 `DefaultAgent.input` 写成 `SYSTEM_PROMPT`。图内 `AgentTurnNode` 只读这一条。
 
-`BeforeAgentStartResult{stable, context, variable}` 按段 `extend` 进对应 map（键 `before_agent_start`），**不**和 `page_context` 混成一坨。
+`ContextOverwrite{stable, context, variable}` 按段 `extend` 进对应 map（键 `before_agent_start`），**不**和 page/`context` 混成一坨。
 
 > **命名纠正（FR23）：** Core → **Stable**。`memory` **仅** Recall → variable。勿把 Core 折叠进 `memory`。
 
 Stable 拼接序：map 插入序（soul 缺省时补 `DEFAULT_SOUL`）→ 整段 truncate。
+
+注入键 **仅 AD-S10 allowlist**（上表 10 键）；`put` / Builder 对非法键（含旧 `contribution`）忽略。**已删除** Contribution SPI。
 
 ### Chat 轴
 
@@ -178,12 +180,11 @@ Stable 拼接序：map 插入序（soul 缺省时补 `DEFAULT_SOUL`）→ 整段
 | 类型 | 说明 |
 | ---- | ---- |
 | `PromptBuilder` | `stable` / `system` / 消息 `format` / `sanitize` |
-| `SystemPromptInput` | 三个有序 map + `format()` / `extend(BeforeAgentStartResult)` |
+| `SystemPromptInput` | 三个有序 map + allowlist + `format()` / `extend(ContextOverwrite)` |
 | `SystemPromptStable` | 三段袋（`variable` ≈ upstream `volatile`） |
 | `SYSTEM_PROMPT` | 入图前 format 好的 system 全文；节点只读此键 |
-| `StableContribution` / `ContextContribution` / `VolatileContribution` | 注入点（默认 NOOP；主路径以 Input 为准） |
 
-**Loop 入图：**
+**Agent 入图：**
 
 ```text
 MESSAGES       = conversationHistory（剥离 system；与本轮 user 去重）+ 本轮 user
@@ -261,7 +262,7 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 | `SkillValidationException` | 缺字段、非法值、重复 id+version、生产运行时突变拒绝 |
 | `SkillConfigProperties` | `pi.skills.allow-runtime-mutation`（**默认 false**） |
 | `TurnBinder` / `TurnBindings` | **极薄投影**：`ToolConfig` + `SkillConfig` + `ActiveSkill` → Stable + API |
-| `SkillGraphTopology` | `TOOL_LOOP` \| `SIMPLE_AGENT_END`（Manifest 声明偏好；Loop **不**按此换图） |
+| `SkillGraphTopology` | `TOOL_LOOP` \| `SIMPLE_AGENT_END`（Manifest 声明偏好；Agent **不**按此换图） |
 
 **与 Tool 对称命名：**
 
@@ -306,7 +307,7 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 | -- | ---- |
 | Skill | `skills/certificate-ocr.skill.json` + `certificate-ocr.md`（**规则 SSOT**） |
 | 加载 | Stable 目录摘要；Skill 全文经 `read_skill`；user 薄指令来自 `ai-prompts/certificate-ocr/v1.txt` |
-| 图 | Loop **唯一** Tool-loop；whitelist=`["read_skill"]`；`SIMPLE_AGENT_END` 仅为 Manifest 声明偏好 |
+| 图 | Agent **唯一** Tool-loop；whitelist=`["read_skill"]`；`SIMPLE_AGENT_END` 仅为 Manifest 声明偏好 |
 | Message | user = 短指令（含先 read_skill）+ `image_url`（VL）；字段细则在 Skill md |
 | useCase | `AgentTurnNode` ← `StateKeys.MODEL_USE_CASE` ← ActiveSkill；缺省 `pi.default` |
 | 生产 Provider | infrastructure `AiCapabilityPiModelProvider` 桥接 agent MultimodalChat |
@@ -362,9 +363,9 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 `com.xmut.lims.pi`
 
 - `session.AgentSession` / `DefaultAgentSession` / `PromptRequest` / `TurnResult` / `Session` / `SessionStore`
-- `event.PiEventBus` / `PiEvent` / `PiEventType` / `Emitter`（Session 持有 bus；Loop/Node 只 `emit`）
+- `event.PiEventBus` / `PiEvent` / `PiEventType` / `Emitter`（Session 持有 bus；Agent/Node 只 `emit`）
 - `agent.Agent` / `DefaultAgent`（Runtime 内部；**非**业务 Bean）
-- `loop.ConversationLoop` [Lippi] / `PromptBuilder` / `DefaultToolLoopGraph`
+- `agent.PromptBuilder` / `DefaultToolLoopGraph`
 - `graph.*` [Lippi]：`StateGraph` / `GraphExecutor` / `ToolNode` / …
 - `extension.*`：`PiExtensionRegistrar` / `ExtensionRunner`（启动期 `register(bus)`）/ `PiExtension` / `ToolPolicyExtension`（必装闸门）
 - `resource.*`：`PiResourceLoader` / `DefaultPiResourceLoader` / `PromptTemplate`（**不要**叫 Spring `ResourceLoader`）
@@ -375,22 +376,23 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 
 ## 自动装配
 
-- `PiRedisCheckpointAutoConfiguration`（有 `JedisPool` 时 `@Primary` Redis Checkpointer）→ `PiAutoConfiguration` → `AgentConfiguration`
+- `PiCheckpointAutoConfiguration`（仅 `lims.pi.checkpoint.redis.enabled=true` + `JedisPool` 时 `@Primary` Redis）→ `PiAutoConfiguration` → `AgentConfiguration`
 - `META-INF/spring.factories`（Boot 2.7）
-- 默认 Bean：`Checkpointer`（无 `JedisPool` → 内存；有池 → 本模块 `RedisCheckpointer`）、`ResumeIdempotencyStore`、`SessionStore`（**SqliteSessionStore**；配置 `lims.pi.session.sqlite-path`，缺省 `{cwd}/.lippi-pi/state.db`）、`ModelCatalog`、`ModelProvider`、`PromptBuilder`、`CompressionConfig`、`ContextCompressor`、`ToolConfig`、`SkillConfig`、`PiResourceLoader`、`ToolPolicyExtension`、`ExtensionRunner`（`PiExtensionRegistrar`）、**`AgentSession`**（持有 `PiEventBus`）
-- **不**注册公共 `Agent` / `ConversationLoop` Bean（Loop 仅 Session 内部委托）
+- 默认 Bean：`Checkpointer`（InMemory；Redis 需显式 enabled）、`ResumeIdempotencyStore`、`SessionStore`（**InMemorySessionStore**；显式 `lims.pi.session.sqlite-path` → Sqlite）、`ModelCatalog`、`ModelProvider`、`PromptBuilder`、`CompressionConfig`、`ContextCompressor`、`ToolConfig`、`SkillConfig`、`PiResourceLoader`、`ToolPolicyExtension`（WRITE 审批默认关）、`ExtensionRunner`（`PiExtensionRegistrar`）、**`AgentSession`**（持有 `PiEventBus`）
+- **不**注册公共 `Agent` Bean（仅 Session 内部委托）
 
-### Session 运维注意（Story 51-17）
+### Session 运维注意（Story 51-17 / AD-S8）
 
 | 项 | 说明 |
 | --- | --- |
-| 默认库 | `{user.dir}/.lippi-pi/state.db`（按工作目录隔离；换 cwd = 另一套历史） |
+| 过渡默认 | `InMemorySessionStore`（MissingBean；进程内；**非**生产真相） |
+| 生产目标 | MySQL `pi_session` / `pi_session_entry`（Story 2.7；ebus-infrastructure `@Primary`） |
+| Sqlite | 仅显式 `lims.pi.session.sqlite-path` / 单测；**禁止**空路径静默创建 `{cwd}/.lippi-pi/state.db` |
 | 主键 | Schema v1：`UNIQUE(session_id)`；**已移除** `tenant_id` / `user_id` |
 | 旧库 | 含 `tenant_id` 或 `user_version < 1` → **拒绝打开**；请删除该 `state.db` 后重试（不迁移） |
-| 配置覆盖 | `lims.pi.session.sqlite-path`（绝对路径或相对 cwd） |
-| InMemory | **仅单测** / 显式 `@Bean` 覆盖；生产默认 SQLite |
-| 多 Pod | **默认不共享**本地 SQLite（除非挂载同一路径）；Epic-52 多实例另议 |
-| 禁止 | 业务 MySQL/Flyway 迁 transcript；Redis Session；把 `state.db` 提交进 git |
+| WRITE 审批 | 默认关；`lims.pi.tool.write-approval.enabled=true` 可开 |
+| Redis CP | 默认关；`lims.pi.checkpoint.redis.enabled=true` 才可 Primary |
+| 禁止 | 把 `state.db` 提交进 git；Session 与 Checkpoint 混表 |
 
 ## 模块边界
 
@@ -411,6 +413,6 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 | **51-14** | M3 | ResourceLoader + prompts/ + ExtensionRunner ✅ |
 | **51-15** | CLI | 独立模块 `lippi-ai-lims-pi-cli` 开发者 REPL（无 `-p`；真模型 fail-fast）✅ |
 | **51-16** | M4 | SessionStore hydrate：`getOrCreate`/`load`/`appendMessages`；prompt 前强制 load；InMemory 同语义 ✅ |
-| **51-17** | M4 | SqliteSessionStore（默认 `{cwd}/.lippi-pi/state.db`；跨进程续聊；无 MySQL/Redis Session）✅ |
+| **51-17** | M4 | SqliteSessionStore（显式 path opt-in；**非**生产默认；生产目标 MySQL → 2.7）✅ |
 | 51-10 | L2 | lims.nav + SkillRouter（仍后续） |
 | 51-11 | L3 | 使用指标（挂 `agent_end`；仍后续） |

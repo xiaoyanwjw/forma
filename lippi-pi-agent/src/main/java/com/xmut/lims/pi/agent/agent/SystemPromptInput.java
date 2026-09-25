@@ -3,15 +3,20 @@ package com.xmut.lims.pi.agent.agent;
 import com.xmut.lims.pi.agent.extension.ContextOverwrite;
 import org.springframework.util.StringUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 可缓存 system prompt 原料：只有 Stable / Context / Variable 三个有序 map。
  *
  * <p>{@link #format()} 输出一条 system 全文。{@link ContextOverwrite} 按段
  * {@link #extend(ContextOverwrite) 追加} 到对应 map（键 {@link #BEFORE_AGENT_START}）。
+ *
+ * <p>注入键仅 AD-S10 allowlist；{@link #put} / Builder 对非法键忽略（不扩 SPI）。
  */
 public final class SystemPromptInput {
 
@@ -25,7 +30,10 @@ public final class SystemPromptInput {
     public static final String MEMORY = "memory";
     public static final String USER = "user";
     public static final String BEFORE_AGENT_START = "before_agent_start";
-    public static final String CONTRIBUTION = "contribution";
+
+    /** AD-S10 冻结 allowlist；本阶段禁止新增键。 */
+    public static final Set<String> ALLOWED_KEYS = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
+            SOUL, SKILLS, TOOLS, CORE, AGENTS, HERMES, CONTEXT, MEMORY, USER, BEFORE_AGENT_START)));
 
     public static final int DEFAULT_STABLE_MAX_CHARS = 8_000;
     public static final String TRUNCATION_MARKER = "...[truncated]";
@@ -52,7 +60,7 @@ public final class SystemPromptInput {
     }
 
     /**
-     * 有序 map；键值成对传入，空白 value 跳过。
+     * 有序 map；键值成对传入，空白 value 跳过；allowlist 外键忽略。
      *
      * @throws IllegalArgumentException 参数个数为奇数
      */
@@ -159,8 +167,14 @@ public final class SystemPromptInput {
         return text.substring(0, maxChars - TRUNCATION_MARKER.length()) + TRUNCATION_MARKER;
     }
 
+    /**
+     * 写入 map；空白 value 删除键；allowlist 外键忽略（AD-S10）。
+     */
     static void put(Map<String, String> map, String key, String value) {
         if (!StringUtils.hasText(key) || map == null) {
+            return;
+        }
+        if (!ALLOWED_KEYS.contains(key)) {
             return;
         }
         if (!StringUtils.hasText(value)) {
@@ -251,6 +265,9 @@ public final class SystemPromptInput {
 
         private static void joinPut(Map<String, String> map, String key, String value) {
             if (!StringUtils.hasText(value)) {
+                return;
+            }
+            if (!ALLOWED_KEYS.contains(key)) {
                 return;
             }
             String existing = map.get(key);
