@@ -3,6 +3,7 @@ import { clearToken, setToken } from '@/api/http'
 import router from '@/router'
 import CreditPlan from '@/views/business/credit/CreditPlan.vue'
 import LandingPage from '@/views/marketing/LandingPage.vue'
+import AgentDryRun from '@/views/agent/AgentDryRun.vue'
 
 describe('router landing', () => {
   afterEach(() => {
@@ -54,5 +55,16 @@ describe('router credits', () => {
     const loader = resolved.matched[0]?.components?.default
     const mod = await (loader as () => Promise<{ default: unknown }>)()
     expect(mod.default).toBe(CreditPlan)
+  })
+})
+
+describe('router agent dry-run', () => {
+  it('resolve name agent-dry-run points to AgentDryRun', async () => {
+    const resolved = router.resolve({ name: 'agent-dry-run' })
+    expect(resolved.path).toBe('/agent/dry-run')
+    const loader = resolved.matched[0]?.components?.default
+    expect(typeof loader).toBe('function')
+    const mod = await (loader as () => Promise<{ default: unknown }>)()
+    expect(mod.default).toBe(AgentDryRun)
   })
 })

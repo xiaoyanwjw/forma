@@ -55,3 +55,15 @@
 - source_spec: `sdd/implementation-artifacts/spec-1-6-adam-落地页-品牌-清单感.md`
   summary: 窄视口「堆叠可见」测只断言 DOM 存在，未观测布局几何。
   evidence: verification-gap 演示隐藏 `.sheet` 仍可通过查询；本仓 FE 无视觉/e2e，英雄+清单存在已由主渲染测覆盖。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-1-generationrun-与-sse-事件骨架.md`
+  summary: SSE 超时或客户端断开时，若 AgentSession.prompt 仍阻塞，可能延迟/遗漏 release，需 cancel+补偿释放。
+  evidence: review maybe-false；SseEmitter 有 timeout，但 Pi prompt 挂死时 onTimeout 与 release 编排未钉死；应用 AgentSession.cancel。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-1-generationrun-与-sse-事件骨架.md`
+  summary: Pi TOOL_EXECUTION_UPDATE 未映射到 AD-4（无对等细粒度事件名）。
+  evidence: AD-4 闭合七名无 mid-tool 进度；本故事骨架只映射 start/end。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-1-generationrun-与-sse-事件骨架.md`
+  summary: `startEmptyRun` 便利方法自调用可能绕过 prepareEmptyRun 的事务代理（Controller 主路径无此问题）。
+  evidence: 生产入口为 prepareEmptyRun+streamEmptyRun；startEmptyRun 主要用于单测。

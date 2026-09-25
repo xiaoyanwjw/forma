@@ -42,3 +42,18 @@ CREATE TABLE IF NOT EXISTS ebus_credit_tier_change (
     to_tier          VARCHAR(16)  NOT NULL,
     created_at       TIMESTAMP    NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS ebus_generation_run (
+    id           VARCHAR(36)  NOT NULL PRIMARY KEY,
+    user_id      VARCHAR(36)  NOT NULL,
+    hold_id      VARCHAR(36)  NOT NULL,
+    session_id   VARCHAR(36)  NOT NULL,
+    artifact_ref VARCHAR(36)  NULL,
+    status       VARCHAR(16)  NOT NULL,
+    created_at   TIMESTAMP    NOT NULL,
+    updated_at   TIMESTAMP    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_user ON ebus_generation_run (user_id);
+CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_hold ON ebus_generation_run (hold_id);
+CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_session ON ebus_generation_run (session_id);

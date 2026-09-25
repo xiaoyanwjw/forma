@@ -28,6 +28,11 @@ const router = createRouter({
       name: 'credits',
       component: () => import('@/views/business/credit/CreditPlan.vue'),
     },
+    {
+      path: '/agent/dry-run',
+      name: 'agent-dry-run',
+      component: () => import('@/views/agent/AgentDryRun.vue'),
+    },
   ],
 })
 
