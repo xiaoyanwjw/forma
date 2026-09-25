@@ -16,6 +16,7 @@
 - Story 2.6: Pi 运行时默认装配与噪音清理（重构先行）
 - Story 2.7: MySQL SessionStore（pi_session / pi_session_entry）
 - Story 2.8: MySQL 图 Checkpoint 与 resume 续跑端口
+- Story 2.8b: MySQL ResumeIdempotencyStore
 - Story 2.9: ask_human 澄清与选项 UI（含取消）
 
 ## Requirements & Constraints
@@ -38,6 +39,7 @@
 - **Pi slim（先重构再功能）：** 本阶段不拆 StateGraph（保留 agent⇄tools）；WRITE 审批默认关；Skill/斜杠不动；Prompt 三槽 + `SystemPromptInput` allowlist，禁止新增 contribution SPI；生产禁止静默 Sqlite（MissingBean → 失败启动或显式 InMemory）。
 - **Session：** 生产 `@Primary` MysqlSessionStore；表 `pi_session` / `pi_session_entry`（DDL 仅 APP-META/bootstrap）；1 行 = 1 Message；compact 仅 `compact_anchor_seq`；`append` 同 `(sessionId, runId)` 整批幂等；`listRecent` 不在适配器内隐式按 user 过滤。
 - **Checkpoint：** 表 `pi_graph_checkpoint`，与 Session 分表；HITL 挂起落盘；`resume` 注入 tool result 续跑；终态 SUCCESS/FAILED/CANCELLED 删 CP，SUSPENDED 保留；Redis CP 非默认；禁止用新 `prompt` 冒充续跑（无 CP 崩溃降级除外）。
+- **Resume 幂等：** 表 `pi_resume_idempotency`（Story 2.8b）；`(runId, confirmRequestId)` 占位；Adam 默认 MySQL；与 CP/Session 分表。
 - **ask_human：** ≠ WRITE 审批；SSE `human_input_required` payload 含 runId/sessionId/toolCallId/question/options；同一 hold 可跨越多次 ask/resume。
 - **ID 与适配器：** 业务主键 UUID 字符串；适配器在 ebus-infrastructure；pi-agent 不依赖 MyBatis。
 
@@ -49,6 +51,6 @@
 
 ## Cross-Story Dependencies
 
-- **增量顺序（重构先行）：** 2.6 → 2.7 → 2.8 → 2.9；2.9 依赖 2.8 的挂起/resume 管道，并复用 2.1–2.4 选品路径。
+- **增量顺序（重构先行）：** 2.6 → 2.7 → 2.8 → 2.8b → 2.9；2.9 依赖 2.8 的挂起/resume 管道（建议先做 2.8b 多 Pod 幂等），并复用 2.1–2.4 选品路径。
 - **功能链：** 2.1（Run/SSE）+ 2.2（模板）+ 2.3（壳）→ 2.4（生成并结算）；2.5 挂在 Run 结束写成本，与 2.4/后续 Listing 共用。
 - **跨史诗：** 依赖 Epic 1 的 JWT、CreditLedger 预占/结算、套餐展示；为 Epic 3 Listing 与 Epic 4 重试/历史提供同一 Run/SSE/Session 约定（本史诗不交付 Listing/重试/60 天历史查询）。

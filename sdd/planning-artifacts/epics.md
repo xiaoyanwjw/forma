@@ -98,7 +98,7 @@ FR14: Epic 2 - 用户作答 resume / 取消释放预占
 ### Epic 2: 对话生成选品清单（含澄清）
 用户在 Agent 里选模板、点「选品清单」，流式看到约 8–12 条带理由候选；信息不足时以选项澄清并 `resume` 续跑；成功扣 1 分；失败不扣。落地 GenerationRun+SSE（含 `human_input_required`）、MySQL Session/图 Checkpoint、Pi AgentSession、品类模板、Agent 壳与右侧预览。
 **FRs covered:** FR7, FR8, FR13, FR14
-**Also:** NFR2 → Story 2.5；增量顺序 **先重构再功能**：2.6 噪音清理 → 2.7 Session MySQL → 2.8 图 CP/resume → 2.9 ask_human
+**Also:** NFR2 → Story 2.5；增量顺序 **先重构再功能**：2.6 噪音清理 → 2.7 Session MySQL → 2.8 图 CP/resume → **2.8b resume 幂等 MySQL** → 2.9 ask_human
 
 ### Epic 3: 生成并带走 Listing 套装
 用户从候选或自填商品生成主图+详情文案；下载图/复制文案去上架；成功扣 1 分。落地 ListingArtifact、MediaStore/OSS 与导出。
@@ -337,6 +337,20 @@ So that 不用从头重说需求。
 **And** CP 与 `pi_session*` 分表；Redis CP 非默认（AD-S2/S9）
 **And** 本故事打通挂起/恢复管道，供后续 `ask_human`（2.9）使用
 
+### Story 2.8b: MySQL ResumeIdempotencyStore
+
+As a 运维/多实例部署的店主后台,
+I want 同一次 resume 确认（`confirmRequestId`）跨 Pod 也只执行一次,
+So that 用户连点或重试不会双跑工具副作用。
+
+**Acceptance Criteria:**
+
+**Given** 图 Checkpoint 已 MySQL（Story 2.8）；`ResumeIdempotencyStore` 端口与 InMemory/Redis 语义已存在
+**When** 装配 `@Primary` `MysqlResumeIdempotencyStore`（表名建议 `pi_resume_idempotency`，DDL 进 APP-META bootstrap；与 `pi_graph_checkpoint` / `pi_session*` 分表）
+**Then** `claim` / `complete` / `abandon` / `deleteByRun` 行为对齐 InMemory/Redis 金样；TTL 对齐 `lims.pi.resume-idem.ttl-seconds`（默认 86400，配置前缀暂不改名）
+**And** Adam 默认 MySQL 幂等；Redis 幂等仅随显式 Redis CP 开启时抢 Primary（与 2.8 Checkpointer 门闩一致）
+**And** **不**实现 ask_human UI（→ 2.9）；**不**批量重命名 `lims.pi.*` 配置前缀（另故事）
+
 ### Story 2.9: ask_human 澄清与选项 UI（含取消）
 
 As a 一人店主,
@@ -345,7 +359,7 @@ So that 清单更贴我的需求，且只在最终成功时扣分。
 
 **Acceptance Criteria:**
 
-**Given** Checkpoint/resume 可用（2.8）；选品路径可启动（2.1–2.4）；重构约束已落地（2.6）
+**Given** Checkpoint/resume 可用（2.8）；建议 resume 幂等已 MySQL（2.8b）；选品路径可启动（2.1–2.4）；重构约束已落地（2.6）
 **When** 模型调用 `ask_human`（`question` + `options[]`，可选 `allowFreeText`）
 **Then** ToolNode HITL 挂起；SSE 发出 `human_input_required`（含 runId/sessionId/toolCallId/question/options）；**≠** WRITE 审批（AD-S12）
 **And** 前端会话区展示问题与可点选项（UX-DR9）；提交后 `resume` 写入 tool result 并续流，直至清单或再次询问

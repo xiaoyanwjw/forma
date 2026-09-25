@@ -98,3 +98,16 @@ CREATE TABLE IF NOT EXISTS pi_graph_checkpoint (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pi_graph_checkpoint_expires ON pi_graph_checkpoint (expires_at);
+
+CREATE TABLE IF NOT EXISTS pi_resume_idempotency (
+    run_id              VARCHAR(64)  NOT NULL,
+    confirm_request_id  VARCHAR(128) NOT NULL,
+    phase               VARCHAR(32)  NOT NULL,
+    result_summary      CLOB         NULL,
+    updated_at          TIMESTAMP    NOT NULL,
+    expires_at          TIMESTAMP    NOT NULL,
+    PRIMARY KEY (run_id, confirm_request_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pi_resume_idempotency_expires ON pi_resume_idempotency (expires_at);
+CREATE INDEX IF NOT EXISTS idx_pi_resume_idempotency_run ON pi_resume_idempotency (run_id);

@@ -1,7 +1,6 @@
 package com.xmut.lims.pi.agent.config;
 
 import com.xmut.lims.pi.agent.graph.checkpoint.CheckpointCodec;
-import com.xmut.lims.pi.agent.graph.checkpoint.ResumeIdempotencyStore;
 import com.xmut.lims.pi.agent.graph.checkpoint.redis.JedisPiRedisCommands;
 import com.xmut.lims.pi.agent.graph.checkpoint.redis.PiRedisCommands;
 import com.xmut.lims.pi.agent.graph.checkpoint.redis.RedisCheckpointer;
@@ -45,7 +44,7 @@ public class PiCheckpointAutoConfiguration {
 
     @Bean
     @Primary
-    public ResumeIdempotencyStore piRedisResumeIdempotencyStore(
+    public RedisResumeIdempotencyStore piRedisResumeIdempotencyStore(
             PiRedisCommands redis,
             @Value("${lims.pi.resume-idem.ttl-seconds:86400}") int idemTtlSeconds) {
         return new RedisResumeIdempotencyStore(redis, idemTtlSeconds);

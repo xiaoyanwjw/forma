@@ -6,8 +6,11 @@ import com.xmut.lims.pi.agent.ConversationResult;
 import com.xmut.lims.pi.agent.ResumeRequest;
 import com.xmut.lims.pi.agent.graph.GraphNode;
 import com.xmut.lims.pi.agent.graph.StateKeys;
+import com.xmut.lims.pi.agent.graph.checkpoint.Checkpoint;
+import com.xmut.lims.pi.agent.graph.checkpoint.Checkpointer;
 import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryCheckpointer;
 import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryResumeIdempotencyStore;
+import com.xmut.lims.pi.agent.graph.checkpoint.ResumeIdempotencyStore;
 import com.xmut.lims.pi.agent.graph.checkpoint.SharedJsonCheckpointStore;
 import com.xmut.lims.pi.agent.extension.PiTestBus;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
@@ -21,7 +24,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -274,6 +279,64 @@ class CheckpointPersistenceHitlTest {
         assertThat(msgs).noneMatch(m ->
                 "tool".equalsIgnoreCase(m.getRole())
                         && "should-not-inject".equals(m.getContent()));
+    }
+
+    /** finishClaim(null)：resume 抛错 → abandon；同 confirmId 可再 claim。 */
+    @Test
+    void resume_runtimeException_abandonsConfirm_allowsReclaim() {
+        DefaultToolConfig policy = writeConfig(new AtomicInteger());
+        InMemoryCheckpointer inner = new InMemoryCheckpointer();
+        AtomicInteger boomOnLoad = new AtomicInteger(0);
+        Checkpointer store = new Checkpointer() {
+            @Override
+            public void save(Checkpoint checkpoint) {
+                inner.save(checkpoint);
+            }
+
+            @Override
+            public Optional<Checkpoint> loadLatest(String runId) {
+                if (boomOnLoad.get() > 0) {
+                    throw new IllegalStateException("cp-load-boom");
+                }
+                return inner.loadLatest(runId);
+            }
+
+            @Override
+            public Optional<Checkpoint> load(String runId, String checkpointId) {
+                return inner.load(runId, checkpointId);
+            }
+
+            @Override
+            public List<Checkpoint> listByRun(String runId) {
+                return inner.listByRun(runId);
+            }
+
+            @Override
+            public void deleteByRun(String runId) {
+                inner.deleteByRun(runId);
+            }
+        };
+        InMemoryResumeIdempotencyStore idem = new InMemoryResumeIdempotencyStore();
+        DefaultAgent loop = new DefaultAgent(
+                DefaultToolLoopGraph.create(visitingAgent("save"), policy),
+                store, idem, new IterationBudget(25), policy, null);
+        com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
+
+        assertThat(loop.run(TurnInput.builder()
+                .runId("ex-run")
+                .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("save")))
+                .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
+
+        boomOnLoad.incrementAndGet();
+        ConversationResult failed = loop.resume(ResumeRequest.builder()
+                .runId("ex-run")
+                .decision(ToolDecision.APPROVE)
+                .confirmRequestId("confirm-ex")
+                .build(), bus);
+        assertThat(failed.getStatus()).isEqualTo(ConversationResult.Status.FAILED);
+        assertThat(failed.getFinalResponse()).contains("cp-load-boom");
+        assertThat(idem.claim("ex-run", "confirm-ex").getStatus())
+                .isEqualTo(ResumeIdempotencyStore.ClaimStatus.CLAIMED);
     }
 
     /** 矩阵「再挂起」：resume 后又 needsHitl → CP 保留；同 confirmId 经 abandon 可再 claim。 */

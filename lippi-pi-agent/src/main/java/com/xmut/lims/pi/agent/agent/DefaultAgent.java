@@ -271,17 +271,13 @@ public final class DefaultAgent implements Agent {
             if (toolResultMode && decision != null) {
                 ConversationResult failed = ConversationResult.failed(runId,
                         "resume tool-result and WRITE decision are mutually exclusive");
-                if (claimed) {
-                    resumeIdempotencyStore.complete(runId, confirmId, failed);
-                }
+                finishClaim(claimed, runId, confirmId, failed);
                 return failed;
             }
             if (!toolResultMode && decision == null) {
                 ConversationResult failed = ConversationResult.failed(runId,
                         "resume requires toolCallId+result or decision (APPROVE|DENY)/approved");
-                if (claimed) {
-                    resumeIdempotencyStore.complete(runId, confirmId, failed);
-                }
+                finishClaim(claimed, runId, confirmId, failed);
                 return failed;
             }
 
@@ -291,9 +287,7 @@ public final class DefaultAgent implements Agent {
                     input = prepareToolResult(request, runId);
                 } catch (IllegalArgumentException ex) {
                     ConversationResult failed = ConversationResult.failed(runId, ex.getMessage());
-                    if (claimed) {
-                        resumeIdempotencyStore.complete(runId, confirmId, failed);
-                    }
+                    finishClaim(claimed, runId, confirmId, failed);
                     return failed;
                 }
             } else {
@@ -317,27 +311,34 @@ public final class DefaultAgent implements Agent {
             GraphOutcome outcome = compiled.resume(input, runnableConfig);
             ConversationResult result = mapOutcome(runId, outcome);
 
-            if (claimed) {
-                if (result.getStatus() == ConversationResult.Status.SUSPENDED) {
-                    // 再次挂起：释放占位，避免卡死后续同 confirmId 重试
-                    resumeIdempotencyStore.abandon(runId, confirmId);
-                } else {
-                    resumeIdempotencyStore.complete(runId, confirmId, result);
-                }
-            }
+            // 再次挂起：abandon 释放占位；其余终态（含 fail-closed）→ complete
+            finishClaim(claimed, runId, confirmId, result);
             return result;
         } catch (RuntimeException ex) {
-            if (claimed) {
-                try {
-                    resumeIdempotencyStore.abandon(runId, confirmId);
-                } catch (RuntimeException abandonEx) {
-                    log.warn("resume abandon after failure failed runId={}: {}", runId, abandonEx.toString());
-                }
+            try {
+                finishClaim(claimed, runId, confirmId, null);
+            } catch (RuntimeException abandonEx) {
+                log.warn("resume abandon after failure failed runId={}: {}", runId, abandonEx.toString());
             }
             log.error("resume failed runId={}: {}", runId, ex.toString());
             return ConversationResult.failed(runId, ex.getMessage());
         } finally {
             activeRuns.remove(runId, handle);
+        }
+    }
+
+    /**
+     * 收敛 claim 后的 complete/abandon 样板。
+     * 功能描述：未 claim 则 no-op；SUSPENDED 或异常（result==null）→ abandon；其余终态 → complete。
+     */
+    private void finishClaim(boolean claimed, String runId, String confirmId, ConversationResult result) {
+        if (!claimed) {
+            return;
+        }
+        if (result == null || result.getStatus() == ConversationResult.Status.SUSPENDED) {
+            resumeIdempotencyStore.abandon(runId, confirmId);
+        } else {
+            resumeIdempotencyStore.complete(runId, confirmId, result);
         }
     }
 

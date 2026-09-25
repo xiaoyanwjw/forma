@@ -1,0 +1,64 @@
+package com.xmut.ebus.infrastructure.persistence.mybatis.po;
+
+import java.time.Instant;
+
+/**
+ * pi_resume_idempotency 表 PO。
+ */
+public class PiResumeIdempotencyPO {
+
+    private String runId;
+    private String confirmRequestId;
+    private String phase;
+    private String resultSummary;
+    private Instant updatedAt;
+    private Instant expiresAt;
+
+    public String getRunId() {
+        return runId;
+    }
+
+    public void setRunId(String runId) {
+        this.runId = runId;
+    }
+
+    public String getConfirmRequestId() {
+        return confirmRequestId;
+    }
+
+    public void setConfirmRequestId(String confirmRequestId) {
+        this.confirmRequestId = confirmRequestId;
+    }
+
+    public String getPhase() {
+        return phase;
+    }
+
+    public void setPhase(String phase) {
+        this.phase = phase;
+    }
+
+    public String getResultSummary() {
+        return resultSummary;
+    }
+
+    public void setResultSummary(String resultSummary) {
+        this.resultSummary = resultSummary;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Instant expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+}

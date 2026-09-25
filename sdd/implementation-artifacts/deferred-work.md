@@ -95,3 +95,11 @@
 - source_spec: `sdd/implementation-artifacts/spec-2-8-mysql-图-checkpoint-与-resume-续跑端口.md`
   summary: 多 Pod 下 prepareToolResult 与 GraphExecutor.resume 之间 CP 可能被他实例改写（竞态未证明）。
   evidence: 同 JVM 有 activeRuns；跨实例无版本校验；若属实需 CP 版本/乐观锁，超出本故事最小补丁。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-8b-mysql-resume-idempotency.md`
+  summary: 过期 pi_resume_idempotency 行无后台扫表清扫，仅 claim 冲突时条件删除。
+  evidence: 规格要求读路径视同缺失；与 2.8 CP 同策略，定时 purge 属运维后续。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-8b-mysql-resume-idempotency.md`
+  summary: TTL 过期后同 confirmRequestId 可再次 CLAIMED 并可能重跑工具副作用，客户端说明不足。
+  evidence: 设计如此（过期视同无键）；HITL 客户端应换新 confirmId 或知晓窗口；改文档超出最小补丁。
