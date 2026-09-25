@@ -163,6 +163,173 @@ class CheckpointPersistenceHitlTest {
         assertThat(handlerCalls.get()).isZero();
     }
 
+    @Test
+    void toolResultResume_injectsResult_handlerNeverRuns() {
+        AtomicInteger handlerCalls = new AtomicInteger();
+        DefaultToolConfig policy = writeConfig(handlerCalls);
+        InMemoryCheckpointer store = new InMemoryCheckpointer();
+        DefaultAgent loop = new DefaultAgent(
+                DefaultToolLoopGraph.create(stateAwareAgent("save"), policy),
+                store,
+                new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
+
+        com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
+        assertThat(loop.run(TurnInput.builder()
+                .runId("tool-result-run")
+                .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("save")))
+                .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
+        assertThat(handlerCalls.get()).isZero();
+
+        ConversationResult resumed = loop.resume(ResumeRequest.builder()
+                .runId("tool-result-run")
+                .toolCallId("c1")
+                .humanInput("user-chose-option-a")
+                .confirmRequestId("tr-1")
+                .build(), bus);
+
+        assertThat(resumed.getStatus()).isEqualTo(ConversationResult.Status.OK);
+        assertThat(handlerCalls.get()).isZero();
+        assertThat(resumed.getMessages()).anyMatch(m ->
+                "tool".equalsIgnoreCase(m.getRole())
+                        && "c1".equals(m.getToolCallId())
+                        && "user-chose-option-a".equals(m.getContent()));
+        assertThat(store.listByRun("tool-result-run")).isEmpty();
+    }
+
+    @Test
+    void resume_missingBothModes_failsClosed() {
+        DefaultToolConfig policy = writeConfig(new AtomicInteger());
+        InMemoryCheckpointer store = new InMemoryCheckpointer();
+        DefaultAgent loop = new DefaultAgent(
+                DefaultToolLoopGraph.create(visitingAgent("save"), policy),
+                store,
+                new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
+        com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
+        assertThat(loop.run(TurnInput.builder()
+                .runId("fail-closed")
+                .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("save")))
+                .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
+
+        ConversationResult failed = loop.resume(ResumeRequest.builder()
+                .runId("fail-closed")
+                .build(), bus);
+        assertThat(failed.getStatus()).isEqualTo(ConversationResult.Status.FAILED);
+        assertThat(failed.getFinalResponse()).contains("toolCallId");
+    }
+
+    @Test
+    void resume_toolCallIdAndDecision_mutuallyExclusive_failsClosed() {
+        DefaultToolConfig policy = writeConfig(new AtomicInteger());
+        InMemoryCheckpointer store = new InMemoryCheckpointer();
+        DefaultAgent loop = new DefaultAgent(
+                DefaultToolLoopGraph.create(visitingAgent("save"), policy),
+                store,
+                new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
+        com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
+        assertThat(loop.run(TurnInput.builder()
+                .runId("mutex-run")
+                .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("save")))
+                .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
+
+        ConversationResult failed = loop.resume(ResumeRequest.builder()
+                .runId("mutex-run")
+                .toolCallId("c1")
+                .humanInput("answer")
+                .decision(ToolDecision.APPROVE)
+                .build(), bus);
+        assertThat(failed.getStatus()).isEqualTo(ConversationResult.Status.FAILED);
+        assertThat(failed.getFinalResponse()).containsIgnoringCase("mutually exclusive");
+        assertThat(store.loadLatest("mutex-run")).isPresent();
+    }
+
+    @Test
+    void resume_unknownToolCallId_failsClosed_noInject() {
+        AtomicInteger handlerCalls = new AtomicInteger();
+        DefaultToolConfig policy = writeConfig(handlerCalls);
+        InMemoryCheckpointer store = new InMemoryCheckpointer();
+        DefaultAgent loop = new DefaultAgent(
+                DefaultToolLoopGraph.create(stateAwareAgent("save"), policy),
+                store,
+                new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
+        com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
+        assertThat(loop.run(TurnInput.builder()
+                .runId("unknown-id-run")
+                .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("save")))
+                .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
+
+        ConversationResult failed = loop.resume(ResumeRequest.builder()
+                .runId("unknown-id-run")
+                .toolCallId("not-pending")
+                .humanInput("should-not-inject")
+                .build(), bus);
+        assertThat(failed.getStatus()).isEqualTo(ConversationResult.Status.FAILED);
+        assertThat(failed.getFinalResponse()).contains("toolCallId");
+        assertThat(failed.getFinalResponse()).containsIgnoringCase("unknown");
+        assertThat(handlerCalls.get()).isZero();
+        assertThat(store.loadLatest("unknown-id-run")).isPresent();
+        @SuppressWarnings("unchecked")
+        java.util.List<com.xmut.lims.pi.ai.message.Message> msgs =
+                (java.util.List<com.xmut.lims.pi.ai.message.Message>) store.loadLatest("unknown-id-run")
+                        .get().getState().get(StateKeys.MESSAGES);
+        assertThat(msgs).noneMatch(m ->
+                "tool".equalsIgnoreCase(m.getRole())
+                        && "should-not-inject".equals(m.getContent()));
+    }
+
+    /** 矩阵「再挂起」：resume 后又 needsHitl → CP 保留；同 confirmId 经 abandon 可再 claim。 */
+    @Test
+    void resume_againSuspends_keepsCheckpoint_andAbandonsConfirm() {
+        AtomicInteger handlerCalls = new AtomicInteger();
+        DefaultToolConfig policy = writeConfig(handlerCalls);
+        InMemoryCheckpointer store = new InMemoryCheckpointer();
+        InMemoryResumeIdempotencyStore idem = new InMemoryResumeIdempotencyStore();
+
+        AtomicInteger visits = new AtomicInteger();
+        GraphNode agent = (state, ctx) -> {
+            int visit = visits.incrementAndGet();
+            Map<String, Object> updates = new HashMap<>();
+            if (visit == 1) {
+                updates.put(StateKeys.TOOL_CALLS, Collections.singletonList(
+                        new ToolCallEntry("c1", "save", JsonNodeFactory.instance.objectNode())));
+            } else if (visit == 2) {
+                updates.put(StateKeys.TOOL_CALLS, Collections.singletonList(
+                        new ToolCallEntry("c2", "save", JsonNodeFactory.instance.objectNode())));
+            } else {
+                updates.put(StateKeys.TOOL_CALLS, Collections.emptyList());
+                updates.put(StateKeys.LLM_RESPONSE, "done");
+            }
+            return updates;
+        };
+
+        DefaultAgent loop = new DefaultAgent(
+                DefaultToolLoopGraph.create(agent, policy),
+                store, idem, new IterationBudget(25), policy, null);
+        com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
+
+        assertThat(loop.run(TurnInput.builder()
+                .runId("re-suspend")
+                .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("save")))
+                .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
+
+        ConversationResult mid = loop.resume(ResumeRequest.builder()
+                .runId("re-suspend")
+                .decision(ToolDecision.APPROVE)
+                .confirmRequestId("confirm-re")
+                .build(), bus);
+        assertThat(mid.getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
+        assertThat(store.loadLatest("re-suspend")).isPresent();
+        assertThat(handlerCalls.get()).isEqualTo(1);
+
+        ConversationResult done = loop.resume(ResumeRequest.builder()
+                .runId("re-suspend")
+                .decision(ToolDecision.APPROVE)
+                .confirmRequestId("confirm-re")
+                .build(), bus);
+        assertThat(done.getStatus()).isEqualTo(ConversationResult.Status.OK);
+        assertThat(handlerCalls.get()).isEqualTo(2);
+        assertThat(store.listByRun("re-suspend")).isEmpty();
+    }
+
     private static DefaultToolConfig writeConfig(AtomicInteger handlerCalls) {
         ToolHandler handler = (call, ctx) -> {
             handlerCalls.incrementAndGet();

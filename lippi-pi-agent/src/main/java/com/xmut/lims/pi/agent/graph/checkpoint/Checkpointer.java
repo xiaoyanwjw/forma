@@ -6,7 +6,7 @@ import java.util.Optional;
 /**
  * 图 Checkpoint 存储端口。
  * 功能描述：保存/加载某 run 的图挂起快照。
- * 关键设计：键仅为 runId；≠ SessionStore；Adam 生产目标为 MySQL（Story 2.8）。
+ * 关键设计：键仅为 runId；≠ SessionStore；Adam 生产默认 MySQL（MysqlCheckpointer）；本模块 MissingBean → InMemory。
  */
 public interface Checkpointer {
 

@@ -15,6 +15,8 @@ import com.xmut.lims.pi.agent.graph.checkpoint.Checkpoint;
 import com.xmut.lims.pi.agent.graph.checkpoint.Checkpointer;
 import com.xmut.lims.pi.agent.graph.checkpoint.ResumeIdempotencyStore;
 import com.xmut.lims.pi.ai.message.Message;
+import com.xmut.lims.pi.ai.tool.ToolCallEntry;
+import com.xmut.lims.pi.ai.tool.ToolResult;
 import com.xmut.lims.pi.agent.skill.ActiveSkill;
 import com.xmut.lims.pi.agent.skill.SkillConfig;
 import com.xmut.lims.pi.agent.skill.SkillSelector;
@@ -34,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Agent 默认实现。
  * 功能描述：运行模块内默认 Tool-loop 图（START → agent ⇄ tools → END）。
- * 关键设计：不按 Skill 换图；WRITE HITL 为图级挂起；resume 幂等靠 confirmRequestId。
+ * 关键设计：不按 Skill 换图；resume 支持 WRITE 批准与 tool-result 注入双路径；幂等靠 confirmRequestId。
  */
 public final class DefaultAgent implements Agent {
 
@@ -237,7 +239,7 @@ public final class DefaultAgent implements Agent {
         }
 
         CancelHandle handle = new CancelHandle();
-        String runId = request.getRunId();
+        String runId = request.getRunId().trim();
         String confirmId = request.getConfirmRequestId();
 
         boolean claimed = false;
@@ -264,15 +266,38 @@ public final class DefaultAgent implements Agent {
                 }
             }
 
-            // WRITE HITL fail-closed：缺 APPROVE/DENY 禁止再挂起
+            boolean toolResultMode = StringUtils.hasText(request.getToolCallId());
             ToolDecision decision = resolveDecision(request);
-            if (decision == null) {
+            if (toolResultMode && decision != null) {
                 ConversationResult failed = ConversationResult.failed(runId,
-                        "resume requires decision (APPROVE|DENY) or approved boolean");
+                        "resume tool-result and WRITE decision are mutually exclusive");
                 if (claimed) {
                     resumeIdempotencyStore.complete(runId, confirmId, failed);
                 }
                 return failed;
+            }
+            if (!toolResultMode && decision == null) {
+                ConversationResult failed = ConversationResult.failed(runId,
+                        "resume requires toolCallId+result or decision (APPROVE|DENY)/approved");
+                if (claimed) {
+                    resumeIdempotencyStore.complete(runId, confirmId, failed);
+                }
+                return failed;
+            }
+
+            final Map<String, Object> input;
+            if (toolResultMode) {
+                try {
+                    input = prepareToolResult(request, runId);
+                } catch (IllegalArgumentException ex) {
+                    ConversationResult failed = ConversationResult.failed(runId, ex.getMessage());
+                    if (claimed) {
+                        resumeIdempotencyStore.complete(runId, confirmId, failed);
+                    }
+                    return failed;
+                }
+            } else {
+                input = prepareWrite(request, decision, runId);
             }
 
             CompiledGraph compiled = stateGraph.compile(CompileConfig.builder()
@@ -280,8 +305,6 @@ public final class DefaultAgent implements Agent {
                     .maxSupersteps(budget.maxTotal())
                     .overallTimeout(mapOverallTimeout(budget))
                     .build());
-
-            final Map<String, Object> input = prepare(request, decision, runId);
 
             RunnableConfig runnableConfig = RunnableConfig.builder()
                     .runId(runId)
@@ -331,7 +354,8 @@ public final class DefaultAgent implements Agent {
         return request.getApproved() ? ToolDecision.APPROVE : ToolDecision.DENY;
     }
 
-    private Map<String, Object> prepare(ResumeRequest request, ToolDecision decision, String runId) {
+    /** WRITE 批准路径：写入 TOOL_APPROVAL，可选把 humanInput 追加为 user 消息。 */
+    private Map<String, Object> prepareWrite(ResumeRequest request, ToolDecision decision, String runId) {
         Map<String, Object> input = new HashMap<>();
         input.put(StateKeys.TOOL_APPROVAL, decision);
         if (StringUtils.hasText(request.getHumanInput())) {
@@ -347,6 +371,69 @@ public final class DefaultAgent implements Agent {
             }
         }
         return input;
+    }
+
+    /**
+     * tool-result 路径：合成 ToolResult 进 transcript，从挂起 TOOL_CALLS 摘掉该 call，不再执行 handler。
+     *
+     * @throws IllegalArgumentException 未知 toolCallId（文案含 toolCallId/unknown）；调用方勿 resume 图
+     */
+    private Map<String, Object> prepareToolResult(ResumeRequest request, String runId) {
+        Map<String, Object> input = new HashMap<>();
+        String toolCallId = request.getToolCallId().trim();
+        String output = request.getHumanInput() != null ? request.getHumanInput() : "";
+
+        Checkpoint latest = checkpointer.loadLatest(runId).orElse(null);
+        if (latest == null || latest.getState() == null) {
+            // GraphExecutor 会以「No checkpoint」失败；此处仍组装最小 input 保持路径一致
+            input.put(StateKeys.TOOL_CALLS, Collections.emptyList());
+            return input;
+        }
+
+        GraphState state = latest.getState();
+        ToolCallEntry matched = findToolCall(state.get(StateKeys.TOOL_CALLS), toolCallId);
+        if (matched == null) {
+            throw new IllegalArgumentException("unknown toolCallId: " + toolCallId);
+        }
+        ToolResult injected = ToolResult.ok(toolCallId, matched.getToolName(), output);
+        input.put(StateKeys.MESSAGES,
+                Message.withToolResults(state.get(StateKeys.MESSAGES),
+                        Collections.singletonList(injected)));
+        input.put(StateKeys.TOOL_CALLS, removeToolCall(state.get(StateKeys.TOOL_CALLS), toolCallId));
+        return input;
+    }
+
+    private static ToolCallEntry findToolCall(Object rawCalls, String toolCallId) {
+        if (!(rawCalls instanceof List)) {
+            return null;
+        }
+        for (Object item : (List<?>) rawCalls) {
+            if (item instanceof ToolCallEntry) {
+                ToolCallEntry call = (ToolCallEntry) item;
+                if (toolCallId.equals(call.getId())) {
+                    return call;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static List<ToolCallEntry> removeToolCall(Object rawCalls, String toolCallId) {
+        if (!(rawCalls instanceof List)) {
+            return Collections.emptyList();
+        }
+        List<ToolCallEntry> remaining = new ArrayList<>();
+        for (Object item : (List<?>) rawCalls) {
+            if (!(item instanceof ToolCallEntry)) {
+                continue;
+            }
+            ToolCallEntry call = (ToolCallEntry) item;
+            if (toolCallId.equals(call.getId())) {
+                continue;
+            }
+            remaining.add(call);
+        }
+        return remaining;
     }
 
     static Duration mapOverallTimeout(IterationBudget budget) {

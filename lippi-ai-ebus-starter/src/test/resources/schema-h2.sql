@@ -88,3 +88,13 @@ CREATE TABLE IF NOT EXISTS pi_session_entry (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pi_session_entry_run ON pi_session_entry (session_id, run_id);
+
+CREATE TABLE IF NOT EXISTS pi_graph_checkpoint (
+    run_id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+    checkpoint_id   VARCHAR(64)  NULL,
+    graph_state     CLOB         NOT NULL,
+    updated_at      TIMESTAMP    NOT NULL,
+    expires_at      TIMESTAMP    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_pi_graph_checkpoint_expires ON pi_graph_checkpoint (expires_at);

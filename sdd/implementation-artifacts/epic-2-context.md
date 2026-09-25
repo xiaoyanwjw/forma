@@ -24,9 +24,10 @@
 - **模板：** 全部已上线品类模板对免费/Pro/Plus 均可用，不按套餐解锁；未上线不对用户可见。
 - **澄清（HITL）：** 信息不足时 `ask_human`（问题 + 结构化选项，可允许自由文本）挂起生成；用户作答后同一计费 run 继续，直至产出或再次询问；取消挂起则释放预占、不扣分。
 - **计费：** 积分不足不能开始；失败且无可用成果释放预占；禁止因 SSE 流结束或 `human_input_required` 结算；挂起期间保持预占。
-- **成本（NFR2）：** 每次 GenerationRun 须留下可汇总的模型用量/估算成本（选品与后续 Listing 共用约定）；不替代账本，用户端不必展示。
-- **失败体验：** 额度不足/服务繁忙等用人话说明。
+- **成本：** 每次 GenerationRun 须留下可汇总的模型用量/估算成本（选品与后续 Listing 共用约定）；不替代账本，用户端不必展示。
+- **失败体验：** 额度不足/服务繁忙/输入不完整等人话说明。
 - **客户端边界：** 浏览器不持有模型密钥、不直连大模型、不改积分。
+- **近端不做：** Listing 导出、重试/质量反馈、60 天历史查询（后续 Epic）；不拆 StateGraph；不删 Skill/斜杠；LIMS WRITE 审批不作为默认路径。
 
 ## Technical Decisions
 
@@ -38,7 +39,7 @@
 - **Session：** 生产 `@Primary` MysqlSessionStore；表 `pi_session` / `pi_session_entry`（DDL 仅 APP-META/bootstrap）；1 行 = 1 Message；compact 仅 `compact_anchor_seq`；`append` 同 `(sessionId, runId)` 整批幂等；`listRecent` 不在适配器内隐式按 user 过滤。
 - **Checkpoint：** 表 `pi_graph_checkpoint`，与 Session 分表；HITL 挂起落盘；`resume` 注入 tool result 续跑；终态 SUCCESS/FAILED/CANCELLED 删 CP，SUSPENDED 保留；Redis CP 非默认；禁止用新 `prompt` 冒充续跑（无 CP 崩溃降级除外）。
 - **ask_human：** ≠ WRITE 审批；SSE `human_input_required` payload 含 runId/sessionId/toolCallId/question/options；同一 hold 可跨越多次 ask/resume。
-- **ID：** 业务主键 UUID 字符串。适配器在 ebus-infrastructure；pi-agent 不依赖 MyBatis。
+- **ID 与适配器：** 业务主键 UUID 字符串；适配器在 ebus-infrastructure；pi-agent 不依赖 MyBatis。
 
 ## UX & Interaction Patterns
 

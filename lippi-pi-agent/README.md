@@ -107,9 +107,10 @@ START → agent ⇄ tools → agent → END
   - `TOOL_RESULTS` 仅作短暂暂存，执行后清空（不再回灌 AgentTurn）
 - 安全阀：`IterationBudget` → maxSupersteps / overallTimeout（**分段**：resume 从 now 重算，HITL 等待不占执行预算）
 - Checkpoint：**[Lippi HITL]** Graph Checkpoint（≠ Memory/SessionStore；≠ 上游文件 CheckpointManager；`Agent.resume` ≠ Session `/resume`）
-  - **本模块过渡默认**：`InMemoryCheckpointer`。Redis 仅当 `lims.pi.checkpoint.redis.enabled=true` **且** 有 `JedisPool` 时由 `PiCheckpointAutoConfiguration` `@Primary` 注册（有池 alone 不得抢默认）
-  - **Adam 生产目标**：MySQL `pi_graph_checkpoint`（Story 2.8）；≠ Session 表
+  - **本模块过渡默认**：`InMemoryCheckpointer`（MissingBean）。Redis 仅当 `lims.pi.checkpoint.redis.enabled=true` **且** 有 `JedisPool` 时由 `PiCheckpointAutoConfiguration` `@Primary` 注册（有池 alone 不得抢默认）
+  - **Adam 生产默认**：ebus-infrastructure `MysqlCheckpointer` `@Primary`（表 `pi_graph_checkpoint`；≠ Session 表）；Redis 显式开启时 Mysql Bean 不注册
   - **TTL**：`lims.pi.checkpoint.ttl-seconds`（默认 7200=2h，应对 HITL 等待窗口）；过期后 resume → 明确失败（无 CP）
+  - **resume 双模式**：`toolCallId`+结果正文（注入 tool result，不跑 handler）与 WRITE `decision`/`approved` 互斥；都缺 fail-closed
   - 仅 interrupt 落盘；终态 SUCCESS/FAILED/CANCELLED → `deleteByRun`；**SUSPENDED 保留**
   - resume 幂等：非空 `ResumeRequest.confirmRequestId` → `SET NX EX`（`pi:resume-idem:…`）；空则非幂等（仍受 `activeRuns` 互斥）
   - 幂等冲突：同 `(runId, confirmRequestId)` 若已 `completed` → 短路返回缓存摘要；若仍 `in_progress` → `FAILED`（客户端应退避或换新 confirmId）
@@ -378,7 +379,7 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 
 - `PiCheckpointAutoConfiguration`（仅 `lims.pi.checkpoint.redis.enabled=true` + `JedisPool` 时 `@Primary` Redis）→ `PiAutoConfiguration` → `AgentConfiguration`
 - `META-INF/spring.factories`（Boot 2.7）
-- 默认 Bean：`Checkpointer`（InMemory；Redis 需显式 enabled）、`ResumeIdempotencyStore`、`SessionStore`（MissingBean → **InMemorySessionStore**；Adam 装配时由 ebus-infrastructure **`MysqlSessionStore` `@Primary`** 覆盖；显式 `lims.pi.session.sqlite-path` → Sqlite）、`ModelCatalog`、`ModelProvider`、`PromptBuilder`、`CompressionConfig`、`ContextCompressor`、`ToolConfig`、`SkillConfig`、`PiResourceLoader`、`ToolPolicyExtension`（WRITE 审批默认关）、`ExtensionRunner`（`PiExtensionRegistrar`）、**`AgentSession`**（持有 `PiEventBus`）
+- 默认 Bean：`Checkpointer`（MissingBean → InMemory；Adam 由 ebus-infrastructure **`MysqlCheckpointer` `@Primary`** 覆盖；Redis 需显式 `lims.pi.checkpoint.redis.enabled=true`）、`ResumeIdempotencyStore`、`SessionStore`（MissingBean → **InMemorySessionStore**；Adam 装配时由 ebus-infrastructure **`MysqlSessionStore` `@Primary`** 覆盖；显式 `lims.pi.session.sqlite-path` → Sqlite）、`ModelCatalog`、`ModelProvider`、`PromptBuilder`、`CompressionConfig`、`ContextCompressor`、`ToolConfig`、`SkillConfig`、`PiResourceLoader`、`ToolPolicyExtension`（WRITE 审批默认关）、`ExtensionRunner`（`PiExtensionRegistrar`）、**`AgentSession`**（持有 `PiEventBus`）
 - **不**注册公共 `Agent` Bean（仅 Session 内部委托）
 
 ### Session 运维注意（Story 51-17 / AD-S8）
@@ -391,7 +392,8 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 | 主键 | Sqlite Schema v1：`UNIQUE(session_id)`，无 `tenant_id`/`user_id`；Adam MySQL：`user_id` 可空列（Meta 尚无 userId，暂写 NULL） |
 | 旧库 | 含 `tenant_id` 或 `user_version < 1` → **拒绝打开**；请删除该 `state.db` 后重试（不迁移） |
 | WRITE 审批 | 默认关；`lims.pi.tool.write-approval.enabled=true` 可开 |
-| Redis CP | 默认关；`lims.pi.checkpoint.redis.enabled=true` 才可 Primary |
+| Redis CP | 默认关；`lims.pi.checkpoint.redis.enabled=true` 才可 Primary（此时 MysqlCheckpointer 不注册） |
+| Adam 生产 CP | ebus-infrastructure `MysqlCheckpointer` `@Primary`（表 `pi_graph_checkpoint`；Story 2.8） |
 | 禁止 | 把 `state.db` 提交进 git；Session 与 Checkpoint 混表 |
 
 ## 模块边界

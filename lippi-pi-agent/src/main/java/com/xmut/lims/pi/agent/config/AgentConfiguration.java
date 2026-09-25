@@ -59,7 +59,8 @@ import java.util.Optional;
 /**
  * Pi Runtime Spring 装配配置。
  * 功能描述：对外暴露 AgentSession，并组装图、模型、Skill、Tool、Session 等默认 Bean。
- * 关键设计：Session MissingBean 回落 InMemory；Sqlite 仅显式路径；Checkpoint 默认 InMemory。
+ * 关键设计：Session MissingBean 回落 InMemory；Sqlite 仅显式路径；
+ * Checkpoint MissingBean 回落 InMemory（Adam 由 ebus-infrastructure MysqlCheckpointer @Primary 覆盖）。
  */
 @Configuration
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -181,8 +182,7 @@ public class AgentConfiguration {
      */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(SessionStore.class)
-    public SessionStore sessionStore(
-            @Value("${lims.pi.session.sqlite-path:}") String sqlitePath) {
+    public SessionStore sessionStore(@Value("${lims.pi.session.sqlite-path:}") String sqlitePath) {
         if (StringUtils.hasText(sqlitePath)) {
             return new SqliteSessionStore(SqliteSessionStore.resolveSqlitePath(sqlitePath));
         }

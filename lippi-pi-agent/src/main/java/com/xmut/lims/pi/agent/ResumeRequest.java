@@ -9,6 +9,14 @@ import lombok.Value;
  * Agent.resume 入参。
  * 功能描述：用于图级 HITL / checkpoint 恢复。
  * 关键设计：≠ 上游 Session 的 /resume 斜杠命令。
+ *
+ * <p>双模式互斥（{@link DefaultAgent#resume}）：
+ * <ul>
+ *   <li><b>tool-result</b>：非空 {@link #toolCallId} + 结果正文（{@link #humanInput}）—
+ *       写入 transcript 并摘掉挂起 call，不再执行该 handler</li>
+ *   <li><b>WRITE</b>：{@link #decision} / {@link #approved} — 既有批准路径</li>
+ * </ul>
+ * 二者都缺 → fail-closed FAILED；同时出现 → fail-closed FAILED。
  */
 @Value
 @Builder(toBuilder = true)
@@ -17,8 +25,16 @@ public class ResumeRequest {
     /** 进行中 / 挂起的 run 标识。 */
     String runId;
 
-    /** 人工输入（HITL）；拒绝原因等说明，可进 {@code HUMAN_INPUT}。 */
+    /**
+     * 人工输入：WRITE 路径作说明/拒绝原因；tool-result 路径作对应 {@link #toolCallId} 的结果正文。
+     */
     String humanInput;
+
+    /**
+     * tool-result 续跑：挂起 {@code TOOL_CALLS} 中待回答的 call id（ask_human 等）。
+     * 非空时走 tool-result 路径，与 {@link #decision}/{@link #approved} 互斥。
+     */
+    String toolCallId;
 
     /** 会话 ID（可选；对齐 TurnInput）。 */
     String sessionId;
@@ -30,8 +46,7 @@ public class ResumeRequest {
      * WRITE HITL 决策：{@link ToolDecision#APPROVE} / {@link ToolDecision#DENY}。
      *
      * <p>也可用 {@link #approved} 布尔简写；二者同时出现时以 {@code decision} 为准。
-     * <p>{@link DefaultAgent#resume} 要求二者至少其一
-     * （fail-closed：缺决策直接 FAILED，禁止再次挂起）。
+     * <p>与 {@link #toolCallId} 互斥；二者都缺则 {@link DefaultAgent#resume} fail-closed FAILED。
      */
     ToolDecision decision;
 

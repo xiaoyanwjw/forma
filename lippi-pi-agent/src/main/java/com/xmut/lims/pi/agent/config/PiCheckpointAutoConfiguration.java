@@ -1,7 +1,6 @@
 package com.xmut.lims.pi.agent.config;
 
 import com.xmut.lims.pi.agent.graph.checkpoint.CheckpointCodec;
-import com.xmut.lims.pi.agent.graph.checkpoint.Checkpointer;
 import com.xmut.lims.pi.agent.graph.checkpoint.ResumeIdempotencyStore;
 import com.xmut.lims.pi.agent.graph.checkpoint.redis.JedisPiRedisCommands;
 import com.xmut.lims.pi.agent.graph.checkpoint.redis.PiRedisCommands;
@@ -38,7 +37,7 @@ public class PiCheckpointAutoConfiguration {
 
     @Bean
     @Primary
-    public Checkpointer piRedisCheckpointer(
+    public RedisCheckpointer piRedisCheckpointer(
             PiRedisCommands redis,
             @Value("${lims.pi.checkpoint.ttl-seconds:7200}") int checkpointTtlSeconds) {
         return new RedisCheckpointer(redis, new CheckpointCodec(), checkpointTtlSeconds);

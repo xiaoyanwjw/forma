@@ -87,3 +87,11 @@
 - source_spec: `sdd/implementation-artifacts/spec-2-7-mysql-sessionstore-pi_session-pi_session_entry.md`
   summary: compose/bootstrap 文档未提示已初始化 volume 需手工跑 `005`。
   evidence: Implementation Notes 已写；改运维文档超出最小补丁。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-8-mysql-图-checkpoint-与-resume-续跑端口.md`
+  summary: 过期 pi_graph_checkpoint 行只在读路径视同缺失，不做物理删除/定时清扫。
+  evidence: 规格 Always 仅要求过期视同无 CP；Redis TTL 会驱逐，MySQL 需后续运维或 purge-on-read。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-8-mysql-图-checkpoint-与-resume-续跑端口.md`
+  summary: 多 Pod 下 prepareToolResult 与 GraphExecutor.resume 之间 CP 可能被他实例改写（竞态未证明）。
+  evidence: 同 JVM 有 activeRuns；跨实例无版本校验；若属实需 CP 版本/乐观锁，超出本故事最小补丁。
