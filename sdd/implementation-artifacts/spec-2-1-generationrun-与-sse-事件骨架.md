@@ -99,6 +99,7 @@ context:
 - 空跑：`reserveOne` → Run → AgentSession → AD-4 映射 → `release` + `run_failed`；从不 `settle`；不发 `artifact_ready`/`run_settled`。
 - 前端：`/agent/dry-run` + `/me` 入口；`fetch`+ReadableStream 解析事件。
 - 验证：`AgentApplicationServiceTest` / `PiEventToAd4MapperTest` / `AgentEmptyRunIntegrationTest` 全绿；FE lint + agent/router 测绿。全量 `-am test` 仍可能被无关的 `lippi-pi-agent` WIP 拖红。
+- 评审补丁：release 失败不再谎称已释放；SSE sink 中断仍 release+`run_failed`；试跑 AbortController；H2 索引；executor `@PreDestroy`；补 session 复用 / payload / 合成 delta 测。
 
 ## Spec Change Log
 
