@@ -1,9 +1,11 @@
 ---
-stepsCompleted: ["step-01-extract-requirements", "step-02-design-epics", "step-03-create-stories", "step-04-final-validation"]
-status: ready-for-development
+stepsCompleted: ["step-01-extract-requirements", "step-02-design-epics", "step-03-create-stories"]
+status: amending-validation-pending
+amendment: incremental-2026-09-25-pi-agent-slim
 inputDocuments:
   - sdd/planning-artifacts/prds/prd-lippi-ai-ebusiness-2026-09-23/prd.md
   - sdd/planning-artifacts/architecture/architecture-lippi-ai-ebusiness-2026-09-24/ARCHITECTURE-SPINE.md
+  - sdd/planning-artifacts/architecture/architecture-pi-agent-slim-2026-09-25/ARCHITECTURE-SPINE.md
   - sdd/planning-artifacts/ux-designs/ux-lippi-ai-ebusiness-2026-09-24/DESIGN.md
   - sdd/planning-artifacts/ux-designs/ux-lippi-ai-ebusiness-2026-09-24/EXPERIENCE.md
 ---
@@ -30,6 +32,8 @@ FR9: 用户基于候选或自填信息生成 Listing 套装（主图 + 详情文
 FR10: 用户可将 Listing 套装下载图片或复制文案以便上架。
 FR11: 用户可对不满意结果重试（再扣分）或提交简短「质量差」反馈。
 FR12: 用户可查看本人近 60 天内的选品清单与 Listing 套装。
+FR13: 选品（及同类）信息不足时，系统可通过 `ask_human` 向用户展示问题与结构化选项（可允许自由补充）；用户作答前生成可挂起，作答后同一计费 run 继续直至产出或再次询问。
+FR14: 用户在 Agent 界面看到 `human_input_required` 后，可点选选项或提交自由文本以恢复挂起的生成；取消挂起 run 时释放预占且不扣分。
 
 ### NonFunctional Requirements
 
@@ -38,20 +42,22 @@ NFR2: 须能统计单次选品/单次 Listing 的模型成本，支撑定价覆�
 NFR3: 失败时给人话原因（额度不足/服务繁忙/输入不完整等）。
 NFR4: 避免明显违禁宣传；协议声明 AI 生成须人工复核后再上架。
 NFR5: v1 轻量防刷——登录 + 异常频率限制。
+NFR6: Agent 会话 transcript 生产落 MySQL（跨实例一致）；图挂起态可跨请求恢复（MySQL graph checkpoint）；不与积分账本/Checkpoint 混表。
 
 ### Additional Requirements
 
 - 绿色场脚手架：扁平多模块 Maven（`lippi-ai-ebus-*`）+ `lippi-ai-ebus-web`；Pi 拷贝模块名为 `lippi-pi-ai` / `lippi-pi-agent`；包根 `com.xmut.ebus`（AD-3/AD-11/AD-13）。
 - 部署：`APP-META/docker-config` + `bootstrap`；compose 至少 starter + MySQL；本地可 OSS/模型桩（AD-10）。
-- 计费生成走 SSE；闭合事件名；浏览器 fetch+ReadableStream+JWT，不用 EventSource（AD-4）。
-- 仅 CreditLedger 可变积分；预占→可用成果落库后结算；禁止 SSE 结束即扣分（AD-5/AD-7）。
-- 领域所有权表强制分家：Identity / CreditLedger / AgentRuntime / CatalogTemplate / PicklistArtifact / ListingArtifact / MediaStore / Feedback / HistoryQuery（AD-6）。
+- 计费生成走 SSE；闭合事件名含 `human_input_required`；浏览器 fetch+ReadableStream+JWT，不用 EventSource（AD-4）。
+- 仅 CreditLedger 可变积分；预占→可用成果落库后结算；禁止 SSE 结束或 `human_input_required` 即扣分；HITL 等待保持预占（AD-5/AD-7/AD-S12）。
+- 领域所有权表强制分家（AD-6）。
 - GenerationRun 关联 hold+session+artifact；重试=新 Run+新预占；历史成功记录不覆盖（AD-7）。
 - 认证：用户名/邮箱+密码 + JWT；频率限制在 interfaces（AD-8）。
 - 图片仅阿里云 OSS；Listing 存 `mediaObjectId`；支付网关 v1 不做，改档手工（AD-9）。
 - 业务 ID：UUID 字符串（AD-12）。
-- NFR2 由 Story 2.5 覆盖（GenerationRun 成本计量）；NFR4 由 Story 1.7 覆盖（协议/人工复核声明）。
-- 近端非目标：询盘/客服/物流/收款自动化、出海平台、人工陪跑主交付、GMV 承诺、小程序、三平台分风格 Listing、微信/支付宝支付。
+- **Pi slim（architecture-pi-agent-slim）：** 本阶段不拆 StateGraph（AD-S1）；WRITE 审批默认关、`ask_human`+resume 开（AD-S2/S12/S13）；Session=`pi_session`/`pi_session_entry` MySQL、1 行 1 Message、Message 投影端口冻结、禁静默 Sqlite（AD-S3/S6/S7/S8/S11）；图 CP=`pi_graph_checkpoint`（AD-S13）；三槽 Prompt allowlist（AD-S4/S10）；Skill/斜杠本阶段不动（AD-S5）。
+- NFR2 → Story 2.5；NFR4 → Story 1.7。
+- 近端非目标：询盘/客服/物流/收款自动化、出海、人工陪跑主交付、GMV 承诺、小程序、三平台分风格 Listing、微信/支付宝、LIMS WRITE 审批默认路径。
 
 ### UX Design Requirements
 
@@ -63,6 +69,7 @@ UX-DR5: 套餐展示用价目表行，不用三张孪生套餐卡。
 UX-DR6: IA——落地页进入 Agent；中间会话区为主入口；输入框上方快捷栏（选品清单 / 生成上架素材）。
 UX-DR7: 右侧预览面板展示生成后的清单或 Listing；左侧提供会话历史 + 套餐入口。
 UX-DR8: Agent 壳与预览行为对齐 `mockups/app.html`（点快捷栏即可看到预览）；品牌展示名 Adam。
+UX-DR9: `human_input_required` 时在会话区展示问题与可点选项（价目/清单气质，非三列孪生卡）；支持可选自由文本；提交后恢复流式生成，可取消挂起。
 
 ### FR Coverage Map
 
@@ -78,6 +85,8 @@ FR9: Epic 3 - Listing 套装生成（主图+文案/展示）
 FR10: Epic 3 - 下载图片 / 复制文案
 FR11: Epic 4 - 重试与质量差反馈
 FR12: Epic 4 - 近 60 天生成历史
+FR13: Epic 2 - ask_human 澄清挂起
+FR14: Epic 2 - 用户作答 resume / 取消释放预占
 
 ## Epic List
 
@@ -86,10 +95,10 @@ FR12: Epic 4 - 近 60 天生成历史
 **FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6
 **Also:** NFR4 → Story 1.7
 
-### Epic 2: 对话生成选品清单
-用户在 Agent 里选模板、点「选品清单」，流式看到约 8–12 条带理由候选；成功扣 1 分；失败不扣。落地 GenerationRun+SSE、Pi AgentSession、品类模板，以及 Agent 壳与右侧预览。
-**FRs covered:** FR7, FR8
-**Also:** NFR2 → Story 2.5
+### Epic 2: 对话生成选品清单（含澄清）
+用户在 Agent 里选模板、点「选品清单」，流式看到约 8–12 条带理由候选；信息不足时以选项澄清并 `resume` 续跑；成功扣 1 分；失败不扣。落地 GenerationRun+SSE（含 `human_input_required`）、MySQL Session/图 Checkpoint、Pi AgentSession、品类模板、Agent 壳与右侧预览。
+**FRs covered:** FR7, FR8, FR13, FR14
+**Also:** NFR2 → Story 2.5；增量顺序 **先重构再功能**：2.6 噪音清理 → 2.7 Session MySQL → 2.8 图 CP/resume → 2.9 ask_human
 
 ### Epic 3: 生成并带走 Listing 套装
 用户从候选或自填商品生成主图+详情文案；下载图/复制文案去上架；成功扣 1 分。落地 ListingArtifact、MediaStore/OSS 与导出。
@@ -204,9 +213,9 @@ So that 我清楚责任边界，产品也满足基础合规（NFR4）。
 **And** 文案避免引导明显违禁宣传；用户须确认已知悉（勾选或等效明示）方可注册或首次生成
 **And** 不引入完整法务 CMS；近端静态文案即可
 
-## Epic 2: 对话生成选品清单
+## Epic 2: 对话生成选品清单（含澄清）
 
-用户在 Agent 里选模板、点「选品清单」，流式看到约 8–12 条带理由候选；成功扣 1 分；失败不扣。落地 GenerationRun+SSE、Pi AgentSession、品类模板，以及 Agent 壳与右侧预览。
+用户在 Agent 里选模板、点「选品清单」，流式看到约 8–12 条带理由候选；信息不足时以选项澄清并 `resume` 续跑；成功扣 1 分；失败不扣。落地 GenerationRun+SSE（含 `human_input_required`）、MySQL Session/图 Checkpoint、Pi AgentSession、品类模板、Agent 壳与右侧预览。
 
 ### Story 2.1: GenerationRun 与 SSE 事件骨架
 
@@ -219,7 +228,7 @@ So that 我能看见进度，且扣分与成果可追溯。
 **Given** 用户已登录且具备 JWT
 **When** 启动一次计费生成回合（可先用桩/空跑）
 **Then** 创建新的 `GenerationRun`，关联 holdId、sessionId、artifact 引用位（AD-7）
-**And** SSE 仅使用闭合事件名：`run_started` | `message_delta` | `tool_started` | `tool_finished` | `artifact_ready` | `run_failed` | `run_settled`（AD-4）
+**And** SSE 仅使用闭合事件名：`run_started` | `message_delta` | `tool_started` | `tool_finished` | `human_input_required` | `artifact_ready` | `run_failed` | `run_settled`（AD-4）
 **And** 客户端契约为 fetch + ReadableStream + Authorization；不要求原生 EventSource
 **And** 禁止仅因流结束而结算积分
 
@@ -282,6 +291,66 @@ So that 定价前能量化单次成本并覆盖毛利（NFR2）。
 **And** 提供只读查询或导出能力（API 或管理脚本），可按类型汇总单次平均成本
 **And** 成本统计不替代 CreditLedger；前端用户不必看见内部成本
 **And** 模型桩模式下仍写入可识别的计量占位，端口形状与真模型一致
+
+### Story 2.6: Pi 运行时默认装配与噪音清理（重构先行）
+
+As a 开发者（为 Adam 交付可维护的 Pi 运行时）,
+I want `lippi-pi-agent` 的默认装配与 Prompt 注入对齐 slim spine，并去掉误导性生产默认,
+So that 后续 MySQL Session / HITL 故事不踩 Sqlite/Redis/扩 SPI 的坑，且不在本阶段拆 Graph。
+
+**Acceptance Criteria:**
+
+**Given** 现有 `lippi-pi-agent` 自动配置与文档仍可能暗示 Sqlite 生产默认
+**When** 审查并调整 Adam/ebus starter 与 `lippi-pi-agent` 自动配置（本故事**不**引入 MysqlSessionStore / MysqlCheckpointer 实现，那些在 2.7–2.8）
+**Then** 明确生产路径**禁止**静默 Sqlite；MissingBean 时失败启动或显式 InMemory；WRITE 审批扩展默认不启用（AD-S2/S8 策略面）
+**And** **不**将执行核改为 while-loop / 删除 StateGraph（AD-S1）；**不**删除 Skill 平台或斜杠命令（AD-S5）
+**And** Prompt 保持三槽；注入键 **仅** `SystemPromptInput` allowlist，禁止新增 contribution/maps SPI；节点/application 不另拼 system（AD-S4/S10）
+**And** 清理过时文档与 javadoc（如「Session 不做 MySQL / 生产默认 Sqlite」）；死代码与重复门面可删，以 `lippi-pi-agent` 相关测试绿为界
+
+### Story 2.7: MySQL SessionStore（pi_session / pi_session_entry）
+
+As a 一人店主,
+I want 我的 Agent 对话记录可靠保存在服务端（MySQL）,
+So that 换设备或重启后仍能续聊，且多实例一致。
+
+**Acceptance Criteria:**
+
+**Given** Story 2.6 已完成装配策略与文档清理；APP-META bootstrap 将含 `pi_session` / `pi_session_entry` DDL（本故事可提交 SQL）
+**When** ebus-infrastructure 以 `@Primary` 装配 `MysqlSessionStore` 实现 `SessionStore`
+**Then** `getOrCreate` / `append` / `load` / `setCompactAnchor` 行为符合现有 Message 投影端口（AD-S8）；**1 行 = 1 Message**（AD-S6）
+**And** compact 仅用 `compact_anchor_seq`（AD-S7）；`append` 同 `(sessionId, runId)` 整批幂等（AD-S11）
+**And** Adam 运行 profile 注册 MySQL SessionStore 为生产默认；禁静默落盘 Sqlite（AD-S8）
+**And** `listRecent` 不在适配器内隐式按 user 过滤；user 绑定由 application 显式处理（AD-S11）
+
+### Story 2.8: MySQL 图 Checkpoint 与 resume 续跑端口
+
+As a 一人店主,
+I want 生成在等待我补充信息时能安全挂起，并在我回答后从同一 run 继续,
+So that 不用从头重说需求。
+
+**Acceptance Criteria:**
+
+**Given** Session 已可持久（Story 2.7）；图仍为 agent⇄tools（AD-S1）；2.6 策略已关 WRITE 默认审批
+**When** 装配 `@Primary` `MysqlCheckpointer`（表 `pi_graph_checkpoint`，DDL 进 APP-META bootstrap）
+**Then** 工具 HITL 挂起时落盘 run 图状态；`AgentSession.resume` 可注入 tool result 并重跑 `tools`→继续 loop（AD-S13）
+**And** 终态 SUCCESS/FAILED/CANCELLED 删除该 run CP；SUSPENDED 保留；建议 `confirmRequestId` 幂等
+**And** CP 与 `pi_session*` 分表；Redis CP 非默认（AD-S2/S9）
+**And** 本故事打通挂起/恢复管道，供后续 `ask_human`（2.9）使用
+
+### Story 2.9: ask_human 澄清与选项 UI（含取消）
+
+As a 一人店主,
+I want 选品信息不够时系统给出可选问题，我点选或补充后再继续生成,
+So that 清单更贴我的需求，且只在最终成功时扣分。
+
+**Acceptance Criteria:**
+
+**Given** Checkpoint/resume 可用（2.8）；选品路径可启动（2.1–2.4）；重构约束已落地（2.6）
+**When** 模型调用 `ask_human`（`question` + `options[]`，可选 `allowFreeText`）
+**Then** ToolNode HITL 挂起；SSE 发出 `human_input_required`（含 runId/sessionId/toolCallId/question/options）；**≠** WRITE 审批（AD-S12）
+**And** 前端会话区展示问题与可点选项（UX-DR9）；提交后 `resume` 写入 tool result 并续流，直至清单或再次询问
+**And** 挂起期间保持积分预占；成功落库后才结算；用户**取消**挂起 run → 释放预占、不扣分（FR13/FR14）
+**And** 禁止用新 `prompt` 冒充续跑（无 CP 崩溃降级除外，AD-S9）
 
 ## Epic 3: 生成并带走 Listing 套装
 

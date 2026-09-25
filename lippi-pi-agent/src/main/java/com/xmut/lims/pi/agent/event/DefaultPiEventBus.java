@@ -1,6 +1,6 @@
 package com.xmut.lims.pi.agent.event;
 
-import com.xmut.lims.pi.agent.extension.BeforeAgentStartResult;
+import com.xmut.lims.pi.agent.extension.ContextOverwrite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
@@ -115,11 +115,11 @@ public final class DefaultPiEventBus implements PiEventBus {
 
     /**
      * Merge each handler's stable / context / variable increments (append-only),
-     * matching {@link BeforeAgentStartResult} semantics. Not last-write-wins.
+     * matching {@link ContextOverwrite} semantics. Not last-write-wins.
      */
-    private BeforeAgentStartResult beforeAgentStart(PiEvent event, List<Function<PiEvent, Object>> handlers) {
+    private ContextOverwrite beforeAgentStart(PiEvent event, List<Function<PiEvent, Object>> handlers) {
         if (CollectionUtils.isEmpty(handlers)) {
-            return BeforeAgentStartResult.empty();
+            return ContextOverwrite.empty();
         }
 
         String stable = null;
@@ -132,15 +132,15 @@ public final class DefaultPiEventBus implements PiEventBus {
             } catch (Exception e) {
                 log.warn("on handler failed for {}: {}", event.getType(), e.toString());
             }
-            if (!(raw instanceof BeforeAgentStartResult)) {
+            if (!(raw instanceof ContextOverwrite)) {
                 continue;
             }
-            BeforeAgentStartResult piece = (BeforeAgentStartResult) raw;
+            ContextOverwrite piece = (ContextOverwrite) raw;
             stable = join(stable, piece.getStable());
             context = join(context, piece.getContext());
             variable = join(variable, piece.getVariable());
         }
-        return BeforeAgentStartResult.of(stable, context, variable);
+        return ContextOverwrite.of(stable, context, variable);
     }
 
     private Object firstNonNull(PiEvent event, List<Function<PiEvent, Object>> handlers) {

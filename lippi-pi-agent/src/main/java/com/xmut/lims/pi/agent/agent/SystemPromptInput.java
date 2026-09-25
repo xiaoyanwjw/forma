@@ -1,6 +1,6 @@
 package com.xmut.lims.pi.agent.agent;
 
-import com.xmut.lims.pi.agent.extension.BeforeAgentStartResult;
+import com.xmut.lims.pi.agent.extension.ContextOverwrite;
 import org.springframework.util.StringUtils;
 
 import java.util.Collections;
@@ -10,8 +10,8 @@ import java.util.Map;
 /**
  * 可缓存 system prompt 原料：只有 Stable / Context / Variable 三个有序 map。
  *
- * <p>{@link #format()} 输出一条 system 全文。{@link BeforeAgentStartResult} 按段
- * {@link #extend(BeforeAgentStartResult) 追加} 到对应 map（键 {@link #BEFORE_AGENT_START}）。
+ * <p>{@link #format()} 输出一条 system 全文。{@link ContextOverwrite} 按段
+ * {@link #extend(ContextOverwrite) 追加} 到对应 map（键 {@link #BEFORE_AGENT_START}）。
  */
 public final class SystemPromptInput {
 
@@ -97,7 +97,7 @@ public final class SystemPromptInput {
     /**
      * 把钩子三段增量追加进对应 map；空白忽略。
      */
-    public SystemPromptInput extend(BeforeAgentStartResult extra) {
+    public SystemPromptInput extend(ContextOverwrite extra) {
         return toBuilder().extend(extra).build();
     }
 
@@ -225,7 +225,7 @@ public final class SystemPromptInput {
             return this;
         }
 
-        public Builder extend(BeforeAgentStartResult extra) {
+        public Builder extend(ContextOverwrite extra) {
             if (extra == null) {
                 return this;
             }

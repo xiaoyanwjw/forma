@@ -3,6 +3,7 @@ package com.xmut.lims.pi.agent.session;
 import com.xmut.lims.pi.ai.message.Message;
 import lombok.Builder;
 import lombok.Value;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
@@ -87,7 +88,7 @@ public class Session {
         if (StringUtils.hasText(expandedText)) {
             return Collections.singletonList(Message.user(expandedText));
         }
-        if (request.getMessages() != null && !request.getMessages().isEmpty()) {
+        if (!CollectionUtils.isEmpty(request.getMessages())) {
             return extractUsers(rewriteUserHistory(
                     request.getMessages(), expandedText, request.getText()));
         }
@@ -139,12 +140,13 @@ public class Session {
     public static List<Message> rewriteUserHistory(List<Message> messages,
                                                    String expandedText,
                                                    String originalText) {
-        if (messages == null || messages.isEmpty()) {
+        if (CollectionUtils.isEmpty(messages)) {
             return Collections.emptyList();
         }
         if (!StringUtils.hasText(expandedText) || Objects.equals(expandedText, originalText)) {
             return messages;
         }
+
         List<Message> out = new ArrayList<>(messages.size());
         boolean replaced = false;
         for (Message m : messages) {

@@ -1,5 +1,6 @@
 package com.xmut.lims.pi.agent.event;
 
+import com.xmut.lims.pi.agent.extension.ContextOverwrite;
 import com.xmut.lims.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.Test;
 
@@ -117,12 +118,12 @@ class DefaultPiEventBusTest {
     void before_agent_start_merges_three_segments_not_last_wins() {
         PiEventBus bus = new DefaultPiEventBus();
         bus.register(PiEventType.BEFORE_AGENT_START, e ->
-                com.xmut.lims.pi.agent.extension.BeforeAgentStartResult.of("S1", "C1", "V1"));
+                ContextOverwrite.of("S1", "C1", "V1"));
         bus.register(PiEventType.BEFORE_AGENT_START, e ->
-                com.xmut.lims.pi.agent.extension.BeforeAgentStartResult.of("S2", null, "V2"));
-        com.xmut.lims.pi.agent.extension.BeforeAgentStartResult r = bus.emit(
+                ContextOverwrite.of("S2", null, "V2"));
+        ContextOverwrite r = bus.emit(
                 PiEvent.of(PiEventType.BEFORE_AGENT_START),
-                com.xmut.lims.pi.agent.extension.BeforeAgentStartResult.class);
+                ContextOverwrite.class);
         assertThat(r.getStable()).isEqualTo("S1\n\nS2");
         assertThat(r.getContext()).isEqualTo("C1");
         assertThat(r.getVariable()).isEqualTo("V1\n\nV2");

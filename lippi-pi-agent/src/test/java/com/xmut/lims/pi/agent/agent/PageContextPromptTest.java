@@ -1,6 +1,6 @@
 package com.xmut.lims.pi.agent.agent;
 
-import com.xmut.lims.pi.agent.extension.BeforeAgentStartResult;
+import com.xmut.lims.pi.agent.extension.ContextOverwrite;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,7 +63,7 @@ class PageContextPromptTest {
                 .stable(SystemPromptInput.mapOf(SystemPromptInput.SOUL, "SOUL"))
                 .context(SystemPromptInput.mapOf(SystemPromptInput.CONTEXT, "PAGE"))
                 .variable(SystemPromptInput.mapOf(SystemPromptInput.MEMORY, "MEM"))
-                .extend(BeforeAgentStartResult.of("STAB-EXTRA", "CTX-EXTRA", "VAR-EXTRA"))
+                .extend(ContextOverwrite.of("STAB-EXTRA", "CTX-EXTRA", "VAR-EXTRA"))
                 .build();
         SystemPromptStable parts = in.parts();
         assertThat(parts.getStable()).contains("SOUL").contains("STAB-EXTRA");

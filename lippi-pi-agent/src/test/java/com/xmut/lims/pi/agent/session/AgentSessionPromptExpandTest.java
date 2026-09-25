@@ -3,7 +3,7 @@ package com.xmut.lims.pi.agent.session;
 import com.xmut.lims.pi.agent.TurnInput;
 import com.xmut.lims.pi.agent.ConversationResult;
 import com.xmut.lims.pi.agent.ResumeRequest;
-import com.xmut.lims.pi.agent.extension.BeforeAgentStartResult;
+import com.xmut.lims.pi.agent.extension.ContextOverwrite;
 import com.xmut.lims.pi.agent.extension.ExtensionRunner;
 import com.xmut.lims.pi.agent.extension.PiExtension;
 import com.xmut.lims.pi.agent.extension.SlashCommand;
@@ -256,7 +256,7 @@ class AgentSessionPromptExpandTest {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenReturn(ConversationResult.ok("r1", "ok", Collections.emptyList()));
         PiExtension ext = bus -> bus.register(com.xmut.lims.pi.agent.event.PiEventType.BEFORE_AGENT_START, e ->
-                BeforeAgentStartResult.variable("VOL-FROM-EXT"));
+                ContextOverwrite.variable("VOL-FROM-EXT"));
         DefaultAgentSession session = sessionWith(runner(ext), testLoader());
 
         session.prompt(PromptRequest.builder()
@@ -266,7 +266,7 @@ class AgentSessionPromptExpandTest {
 
         ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
         verify(conversationLoop).run(cap.capture(), any());
-        assertThat(cap.getValue().getBeforeAgentStart().getVariable()).isEqualTo("VOL-FROM-EXT");
+        assertThat(cap.getValue().getContextOverwrite().getVariable()).isEqualTo("VOL-FROM-EXT");
         assertThat(cap.getValue().getContext()).isEqualTo("PAGE");
     }
 

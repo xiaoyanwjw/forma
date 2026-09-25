@@ -25,7 +25,7 @@
 
 ## Technical Decisions
 
-- 计费生成走 SSE；浏览器 **fetch + ReadableStream + JWT**，不用原生 EventSource。闭合事件名仅：`run_started` | `message_delta` | `tool_started` | `tool_finished` | `artifact_ready` | `run_failed` | `run_settled`。
+- 计费生成走 SSE；浏览器 **fetch + ReadableStream + JWT**，不用原生 EventSource。闭合事件名仅：`run_started` | `message_delta` | `tool_started` | `tool_finished` | `human_input_required` | `artifact_ready` | `run_failed` | `run_settled`。
 - `GenerationRun` 关联 holdId + sessionId + artifact 引用；每次计费 = 新 Run + 新预占；可复用同一 `AgentSession`，不得复用旧 hold。
 - 结算顺序：可用成果持久化 → application 调 CreditLedger 结算 → 再发 `artifact_ready` / `run_settled`；**禁止**仅因流结束扣分。
 - 领域分家：AgentRuntime（会话/Run/SSE/`AgentSession`）、CatalogTemplate（模板唯一写者，稳定 UUID `templateId`）、PicklistArtifact（清单与理由）；CreditLedger 仍是唯一写余额者；Agent 工具与前端不得直改积分。

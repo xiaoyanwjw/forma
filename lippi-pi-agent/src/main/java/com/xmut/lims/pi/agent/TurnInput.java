@@ -1,6 +1,6 @@
 package com.xmut.lims.pi.agent;
 
-import com.xmut.lims.pi.agent.extension.BeforeAgentStartResult;
+import com.xmut.lims.pi.agent.extension.ContextOverwrite;
 import com.xmut.lims.pi.ai.message.Message;
 import lombok.Builder;
 import lombok.Value;
@@ -42,7 +42,7 @@ public class TurnInput {
     String context;
 
     /** {@code before_agent_start} 三段增量。 */
-    BeforeAgentStartResult beforeAgentStart;
+    ContextOverwrite contextOverwrite;
 
     TurnInput(String runId,
               List<Message> messages,
@@ -52,7 +52,7 @@ public class TurnInput {
               String skillId,
               String domain,
               String context,
-              BeforeAgentStartResult beforeAgentStart) {
+              ContextOverwrite contextOverwrite) {
         this.runId = runId;
         this.messages = messages == null
                 ? Collections.emptyList()
@@ -63,7 +63,7 @@ public class TurnInput {
         this.skillId = skillId;
         this.domain = domain;
         this.context = context;
-        this.beforeAgentStart = beforeAgentStart;
+        this.contextOverwrite = contextOverwrite;
     }
 
     /**

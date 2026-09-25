@@ -7,7 +7,7 @@ paradigm: SPA + API 模块化单体（流式 Agent）
 scope: Adam 近端：网页自助选品清单 + Listing 生成（积分制）；不含小程序与支付网关
 status: final
 created: 2026-09-24
-updated: 2026-09-24
+updated: 2026-09-25
 binds: [FR-1..FR-12, NFR-1..NFR-5, UJ-1..UJ-3]
 sources:
   - sdd/planning-artifacts/prds/prd-lippi-ai-ebusiness-2026-09-23/prd.md
@@ -74,7 +74,7 @@ flowchart LR
 
 - **Binds:** UJ-1, UJ-2, FR-7, FR-9, AgentRuntime
 - **Prevents:** 同步长请求超时 vs 轮询任务两套客户端协议并存
-- **Rule:** 选品清单 / Listing 套装的生成回合经 SSE 流式下发。浏览器用 **fetch + ReadableStream**（带 `Authorization`），不用原生 `EventSource`。闭合事件类型名（payload 细表可后钉）：`run_started` | `message_delta` | `tool_started` | `tool_finished` | `artifact_ready` | `run_failed` | `run_settled`。禁止另造同义事件名。
+- **Rule:** 选品清单 / Listing 套装的生成回合经 SSE 流式下发。浏览器用 **fetch + ReadableStream**（带 `Authorization`），不用原生 `EventSource`。闭合事件类型名（payload 细表可后钉）：`run_started` | `message_delta` | `tool_started` | `tool_finished` | `human_input_required` | `artifact_ready` | `run_failed` | `run_settled`。禁止另造同义事件名。`human_input_required` 用于 `ask_human` 挂起（见 feature spine `architecture-pi-agent-slim-2026-09-25` AD-S12）；等待期间不结算积分。
 
 ### AD-5 — 积分唯一写入者与预占结算 [ADOPTED]
 

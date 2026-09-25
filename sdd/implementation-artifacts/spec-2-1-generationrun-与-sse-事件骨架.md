@@ -28,7 +28,7 @@ context:
 ## Boundaries & Constraints
 
 **Always:**
-- SSE 事件名仅：`run_started` | `message_delta` | `tool_started` | `tool_finished` | `artifact_ready` | `run_failed` | `run_settled`（AD-4）；失败用 `run_failed`，不静默断流
+- SSE 事件名仅：`run_started` | `message_delta` | `tool_started` | `tool_finished` | `human_input_required` | `artifact_ready` | `run_failed` | `run_settled`（AD-4）；失败用 `run_failed`，不静默断流
 - 浏览器：`fetch` + `ReadableStream` + `Authorization: Bearer`；禁止原生 `EventSource`
 - 每次启动 = 新 `GenerationRun` + 新预占；可复用同一聊天 sessionId，不得复用旧 hold（AD-7）
 - 结算仅在可用成果持久化之后由 application 调 `CreditApplicationService.settle`；本故事空跑只 `reserveOne` + 结束时 `release`，禁止 `settle`

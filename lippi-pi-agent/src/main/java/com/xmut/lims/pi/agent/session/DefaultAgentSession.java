@@ -8,7 +8,7 @@ import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventBus;
 import com.xmut.lims.pi.agent.event.PiEventType;
 import com.xmut.lims.pi.agent.extension.BeforeAgentStartEvent;
-import com.xmut.lims.pi.agent.extension.BeforeAgentStartResult;
+import com.xmut.lims.pi.agent.extension.ContextOverwrite;
 import com.xmut.lims.pi.agent.extension.ExtensionRunner;
 import com.xmut.lims.pi.agent.agent.Agent;
 import com.xmut.lims.pi.ai.message.Message;
@@ -18,10 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -98,15 +95,15 @@ public final class DefaultAgentSession implements AgentSession {
         List<Message> merged = Session.merge(existing, user);
 
         // 5.[回调]触发 before_agent_start
-        BeforeAgentStartResult extra;
+        ContextOverwrite overwrite;
         try {
-            extra = beforeAgentStart(runId, expanded.text, context);
+            overwrite = beforeAgentStart(runId, expanded.text, context);
         } catch (RuntimeException ex) {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "before_agent_start failed")));
         }
 
         // 6.构造 TurnInput
-        TurnInput input = toTurnInput(request, sessionId, runId, expanded.skillId, context, extra, merged);
+        TurnInput input = toTurnInput(request, sessionId, runId, expanded.skillId, context, overwrite, merged);
         // 7.[回调]触发 agent_start
         onAgentStart(sessionId);
 
@@ -141,15 +138,15 @@ public final class DefaultAgentSession implements AgentSession {
         }
     }
 
-    private BeforeAgentStartResult beforeAgentStart(String runId, String text, String context) {
+    private ContextOverwrite beforeAgentStart(String runId, String text, String context) {
         try {
             final PiEvent piEvent = PiEvent.of(PiEventType.BEFORE_AGENT_START, new BeforeAgentStartEvent(runId, text, context));
-            BeforeAgentStartResult result = eventBus.emit(piEvent, BeforeAgentStartResult.class);
+            ContextOverwrite result = eventBus.emit(piEvent, ContextOverwrite.class);
 
-            return result != null ? result : BeforeAgentStartResult.empty();
+            return result != null ? result : ContextOverwrite.empty();
         } catch (RuntimeException e) {
             log.warn("before_agent_start failed for runId={} text={} context={}: {}", runId, text, context, e.toString());
-            return BeforeAgentStartResult.empty();
+            return ContextOverwrite.empty();
         }
     }
 
@@ -241,22 +238,22 @@ public final class DefaultAgentSession implements AgentSession {
                                  String runId,
                                  String skillId,
                                  String context,
-                                 BeforeAgentStartResult extra,
+                                 ContextOverwrite overwrite,
                                  List<Message> histories) {
         List<Message> history = histories != null
                 ? new ArrayList<>(histories)
                 : new ArrayList<>();
-        TurnInput.TurnInputBuilder b = TurnInput.builder()
-                .runId(runId)
+
+        return TurnInput.builder()
                 .messages(history)
-                .sessionId(sessionId)
                 .context(context)
-                .beforeAgentStart(extra)
-                .skillId(skillId);
-        if (request != null) {
-            b.traceId(request.getTraceId()).domain(request.getDomain());
-        }
-        return b.build();
+                .contextOverwrite(overwrite)
+                .skillId(skillId)
+                .sessionId(sessionId)
+                .runId(runId)
+                .traceId(request.getTraceId())
+                .domain(request.getDomain())
+                .build();
     }
 
     private ExpandedTurn expand(PromptRequest request) {

@@ -136,13 +136,14 @@ public final class DefaultAgent implements Agent {
         }
     }
 
-    public Map<String, Object> prepare(TurnInput turn,
+    public Map<String, Object> prepare(TurnInput turnInput,
                                        ToolConfig toolConfig,
                                        SkillConfig skillConfig) {
-        Objects.requireNonNull(turn, "turn");
+        Objects.requireNonNull(turnInput, "turn");
+
         Map<String, Object> input = new HashMap<>();
         List<Message> history = new ArrayList<>();
-        for (Message m : turn.getMessages()) {
+        for (Message m : turnInput.getMessages()) {
             if (m == null) {
                 continue;
             }
@@ -152,11 +153,11 @@ public final class DefaultAgent implements Agent {
             history.add(m);
         }
         input.put(StateKeys.MESSAGES, history);
-        if (StringUtils.hasText(turn.getSessionId())) {
-            input.put(StateKeys.SESSION_ID, turn.getSessionId().trim());
+        if (StringUtils.hasText(turnInput.getSessionId())) {
+            input.put(StateKeys.SESSION_ID, turnInput.getSessionId().trim());
         }
 
-        ActiveSkill active = SkillSelector.select(turn, skillConfig);
+        ActiveSkill active = SkillSelector.select(turnInput, skillConfig);
         TurnBindings bindings = TurnBinder.bind(toolConfig, skillConfig, active);
         bindings.applyTo(input);
 
@@ -165,8 +166,8 @@ public final class DefaultAgent implements Agent {
                         SystemPromptInput.SKILLS, textOrNull(bindings.getSkillsText()),
                         SystemPromptInput.TOOLS, textOrNull(bindings.getToolsText())))
                 .context(SystemPromptInput.mapOf(
-                        SystemPromptInput.CONTEXT, textOrNull(turn.getContext())))
-                .extend(turn.getBeforeAgentStart())
+                        SystemPromptInput.CONTEXT, textOrNull(turnInput.getContext())))
+                .extend(turnInput.getContextOverwrite())
                 .build();
 
         input.put(StateKeys.SYSTEM_PROMPT, in.format());
