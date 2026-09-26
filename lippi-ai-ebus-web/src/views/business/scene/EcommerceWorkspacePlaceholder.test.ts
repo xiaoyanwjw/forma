@@ -377,6 +377,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(computer?.textContent).toContain("Adam's Computer")
       expect(computer?.textContent).toMatch(/选品清单/)
       expect(computer?.querySelector('article.comp-card')).toBeTruthy()
+      expect(computer?.querySelectorAll('.comp-card').length).toBe(1)
       expect(computer?.querySelector('.cv-note')?.textContent).toMatch(/非实时/)
       expect(computer?.querySelectorAll('.pick-disclaimer').length).toBe(0)
       expect(computer?.querySelectorAll('.pick-list li').length).toBe(8)
@@ -483,6 +484,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.textContent).toMatch(/主图方案预览/)
     expect(mounted.root.textContent).toMatch(/详情标题/)
     expect(mounted.root.textContent).toMatch(DEMO_LISTING.title)
+    expect(body?.querySelectorAll('.comp-card').length).toBe(1)
+    expect(body?.querySelector('.section-body.mute')?.textContent).toContain(DEMO_LISTING.body)
   })
 
   it('new task clears thread and Computer but stays on session shell', async () => {

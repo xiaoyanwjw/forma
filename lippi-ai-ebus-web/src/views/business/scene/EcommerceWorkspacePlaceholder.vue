@@ -356,9 +356,7 @@ onMounted(async () => {
             </button>
           </div>
           <div class="computer-body">
-            <div v-if="activeComputerDoc" class="comp-card">
-              <ComputerRenderer :document="activeComputerDoc" />
-            </div>
+            <ComputerRenderer v-if="activeComputerDoc" :document="activeComputerDoc" />
             <!-- FallbackPicklistCard：无 view 时用旧字段，禁止 FE project() -->
             <div v-else-if="computerKind === 'picks'" class="comp-card">
               <div class="comp-card-head">

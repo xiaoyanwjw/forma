@@ -88,7 +88,12 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
 
         <div v-else-if="block.type === 'section'" class="listing-copy">
           <h4>{{ block.heading }}</h4>
-          <p class="section-body">{{ block.body }}</p>
+          <p
+            class="section-body"
+            :class="{ mute: block.tone === 'mute' }"
+          >
+            {{ block.body }}
+          </p>
         </div>
       </template>
     </div>
@@ -233,6 +238,13 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--ink);
+  line-height: 1.45;
+}
+
+.listing-copy .section-body.mute {
+  font-size: 0.82rem;
+  font-weight: normal;
+  color: var(--mute);
   line-height: 1.55;
 }
 </style>

@@ -37,7 +37,7 @@ export const DEMO_LISTING_VIEW: ComputerDocument = {
   blocks: [
     { type: 'media', role: 'hero', placeholder: '主图方案预览', alt: '主图方案' },
     { type: 'section', heading: '详情标题', body: DEMO_LISTING.title },
-    { type: 'section', heading: '详情正文', body: DEMO_LISTING.body },
+    { type: 'section', heading: '详情正文', body: DEMO_LISTING.body, tone: 'mute' },
   ],
 }
 

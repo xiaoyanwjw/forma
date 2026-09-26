@@ -33,6 +33,7 @@ export interface ComputerSectionBlock {
   type: 'section'
   heading: string
   body: string
+  tone?: ComputerNoteTone
 }
 
 export type ComputerBlock =
@@ -140,7 +141,15 @@ function parseBlock(raw: unknown): ComputerBlock | null {
       warnSkipBlock('malformed', 'section')
       return null
     }
-    return { type: 'section', heading: raw.heading, body: raw.body }
+    const section: ComputerSectionBlock = {
+      type: 'section',
+      heading: raw.heading,
+      body: raw.body,
+    }
+    if (raw.tone === 'mute' || raw.tone === 'default') {
+      section.tone = raw.tone
+    }
+    return section
   }
   warnSkipBlock('unknown', raw.type)
   return null

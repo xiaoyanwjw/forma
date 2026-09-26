@@ -16,6 +16,7 @@ const doc: ComputerDocument = {
     },
     { type: 'media', role: 'hero', placeholder: '主图方案预览' },
     { type: 'section', heading: '详情标题', body: '标题文案' },
+    { type: 'section', heading: '详情正文', body: '正文文案', tone: 'mute' },
   ],
 }
 
@@ -38,6 +39,9 @@ describe('ComputerRenderer', () => {
     expect(host.textContent).toMatch(/主图方案预览/)
     expect(host.textContent).toMatch(/详情标题/)
     expect(host.textContent).toMatch(/标题文案/)
+    expect(host.textContent).toMatch(/正文文案/)
+    expect(host.querySelector('.section-body:not(.mute)')).toBeTruthy()
+    expect(host.querySelector('.section-body.mute')?.textContent).toMatch(/正文文案/)
     expect(host.textContent).not.toMatch(/nope/)
     expect(warn).toHaveBeenCalled()
     app.unmount()
@@ -58,7 +62,11 @@ describe('parseComputerDocument', () => {
     expect(parsed).not.toBeNull()
     expect(parsed?.version).toBe(1)
     expect(parsed?.title).toBe('选品清单')
-    expect(parsed?.blocks.map((b) => b.type)).toEqual(['note', 'list', 'media', 'section'])
+    expect(parsed?.blocks.map((b) => b.type)).toEqual(['note', 'list', 'media', 'section', 'section'])
+    const bodySection = parsed?.blocks.find(
+      (b) => b.type === 'section' && b.heading === '详情正文',
+    )
+    expect(bodySection && bodySection.type === 'section' && bodySection.tone).toBe('mute')
     expect(warn).toHaveBeenCalledWith('[parseComputerDocument] skip unknown block type:', 'nope')
     warn.mockRestore()
   })
