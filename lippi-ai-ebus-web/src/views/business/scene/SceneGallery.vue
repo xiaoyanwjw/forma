@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
 import SceneCard from '@/components/business/scene/SceneCard.vue'
@@ -11,12 +11,16 @@ import type { Scene } from '@/types/business/scene'
 
 /** Live card target — reserved for 2.5 empty-state workbench */
 const ECOMMERCE_WORKSPACE = { name: 'scene-ecommerce' } as const
+const TOAST_MS = 4500
 
 const router = useRouter()
 const scenes = ref<Scene[]>([])
 const loading = ref(true)
 const error = ref('')
 const needsLogin = ref(false)
+const toastText = ref('')
+const toastVisible = ref(false)
+let toastTimer: ReturnType<typeof setTimeout> | undefined
 
 const sortedScenes = computed(() =>
   [...scenes.value].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -27,6 +31,32 @@ function workspaceTarget(scene: Scene) {
     return ECOMMERCE_WORKSPACE
   }
   return undefined
+}
+
+function clearToastTimer() {
+  if (toastTimer !== undefined) {
+    clearTimeout(toastTimer)
+    toastTimer = undefined
+  }
+}
+
+function scheduleToastHide() {
+  clearToastTimer()
+  toastTimer = setTimeout(() => {
+    toastVisible.value = false
+    toastTimer = undefined
+  }, TOAST_MS)
+}
+
+async function showComingSoonToast(scene: Scene) {
+  const next = `「${scene.displayName}」马上就来。你也可以先从电商开店开始。`
+  clearToastTimer()
+  // Toggle off first so aria-live re-announces on successive gray-card clicks
+  toastVisible.value = false
+  toastText.value = next
+  await nextTick()
+  toastVisible.value = true
+  scheduleToastHide()
 }
 
 onMounted(async () => {
@@ -46,6 +76,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onBeforeUnmount(() => {
+  clearToastTimer()
 })
 
 function goLogin() {
@@ -82,6 +116,7 @@ function goLogin() {
           :key="scene.bizId"
           :scene="scene"
           :to="workspaceTarget(scene)"
+          @coming-soon="showComingSoonToast"
         >
           <template #icon>
             <SceneIcon :scene-code="scene.sceneCode" />
@@ -91,6 +126,22 @@ function goLogin() {
 
       <p v-else class="status">暂时没有可展示的场景。</p>
     </main>
+
+    <div
+      class="toast"
+      :class="{ show: toastVisible }"
+      role="status"
+      aria-live="polite"
+      :aria-hidden="toastVisible ? 'false' : 'true'"
+    >
+      <span>{{ toastText }}</span>
+      <RouterLink
+        :to="ECOMMERCE_WORKSPACE"
+        :tabindex="toastVisible ? 0 : -1"
+      >
+        先去电商开店
+      </RouterLink>
+    </div>
   </div>
 </template>
 
@@ -172,5 +223,38 @@ function goLogin() {
 
 .btn-primary:hover {
   background: var(--accent-hover);
+}
+
+.toast {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  transform: translateY(120%);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(420px, calc(100% - 48px));
+  font-size: 0.875rem;
+  z-index: 60;
+  transition: transform 0.22s ease;
+  pointer-events: none;
+}
+
+.toast.show {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.toast a {
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: var(--ink);
 }
 </style>

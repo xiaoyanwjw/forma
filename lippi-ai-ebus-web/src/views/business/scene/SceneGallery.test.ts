@@ -98,6 +98,7 @@ describe('SceneGallery', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     unmount?.()
     unmount = undefined
   })
@@ -166,12 +167,113 @@ describe('SceneGallery', () => {
     await flushUi()
     expect(mounted.router.currentRoute.value.name).toBe('scenes')
 
+    const toast = mounted.root.querySelector('.toast.show')
+    expect(toast).toBeTruthy()
+    expect(toast?.getAttribute('role')).toBe('status')
+    expect(toast?.getAttribute('aria-live')).toBe('polite')
+    expect(toast?.getAttribute('aria-hidden')).toBe('false')
+    expect(toast?.textContent).toMatch(/「短视频带货」马上就来/)
+    expect(toast?.textContent).toMatch(/先去电商开店/)
+    const toastLink = toast?.querySelector('a')
+    expect(toastLink?.getAttribute('href')).toBe('/scenes/ecommerce')
+    expect(toastLink?.getAttribute('tabindex')).toBe('0')
+
     const sceneNav = Array.from(mounted.root.querySelectorAll('a.nav-link')).find(
       (a) => a.textContent?.trim() === '场景',
     )
     expect(sceneNav?.classList.contains('on')).toBe(true)
     expect(sceneNav?.getAttribute('aria-current')).toBe('page')
     expect(mounted.root.querySelector('[aria-label="账户"]')).toBeTruthy()
+  })
+
+  it('coming-soon toast link navigates to ecommerce without prior nav from gray card', async () => {
+    setToken('jwt')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (String(url).includes('/api/v1/scenes')) {
+          return Promise.resolve(okScenes(FOUR_SCENES))
+        }
+        return Promise.resolve(
+          okScenes({
+            tier: 'FREE',
+            available: 14,
+            balance: 20,
+            reserved: 0,
+            nextResetAt: '2026-10-24T10:00:00Z',
+            periodAnchorAt: '2026-09-24T10:00:00Z',
+          }),
+        )
+      }),
+    )
+
+    const mounted = await mountGallery()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const soon = mounted.root.querySelector('.scene-card.soon') as HTMLButtonElement
+    soon.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    await flushUi()
+    expect(mounted.router.currentRoute.value.name).toBe('scenes')
+
+    const toastLink = mounted.root.querySelector('.toast.show a') as HTMLAnchorElement
+    toastLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    await flushUi()
+    expect(mounted.router.currentRoute.value.name).toBe('scene-ecommerce')
+  })
+
+  it('coming-soon toast updates on another gray card and auto-dismisses', async () => {
+    setToken('jwt')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (String(url).includes('/api/v1/scenes')) {
+          return Promise.resolve(okScenes(FOUR_SCENES))
+        }
+        return Promise.resolve(
+          okScenes({
+            tier: 'FREE',
+            available: 14,
+            balance: 20,
+            reserved: 0,
+            nextResetAt: '2026-10-24T10:00:00Z',
+            periodAnchorAt: '2026-09-24T10:00:00Z',
+          }),
+        )
+      }),
+    )
+
+    const mounted = await mountGallery()
+    unmount = mounted.unmount
+    await flushUi()
+
+    vi.useFakeTimers()
+    try {
+      const soonCards = mounted.root.querySelectorAll('.scene-card.soon')
+      ;(soonCards[0] as HTMLButtonElement).dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }),
+      )
+      await nextTick()
+      await nextTick()
+      expect(mounted.root.querySelector('.toast.show')?.textContent).toMatch(/「短视频带货」马上就来/)
+
+      ;(soonCards[1] as HTMLButtonElement).dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }),
+      )
+      await nextTick()
+      await nextTick()
+      const toast = mounted.root.querySelector('.toast.show')
+      expect(toast?.textContent).toMatch(/「小红书种草」马上就来/)
+      expect(toast?.getAttribute('aria-hidden')).toBe('false')
+
+      await vi.advanceTimersByTimeAsync(4500)
+      await nextTick()
+      expect(mounted.root.querySelector('.toast.show')).toBeNull()
+      expect(mounted.root.querySelector('.toast')?.getAttribute('aria-hidden')).toBe('true')
+      expect(mounted.root.querySelector('.toast a')?.getAttribute('tabindex')).toBe('-1')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('live card navigates to reserved ecommerce workspace', async () => {

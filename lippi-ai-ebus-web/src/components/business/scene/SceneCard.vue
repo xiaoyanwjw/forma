@@ -8,7 +8,15 @@ const props = defineProps<{
   to?: { name: string } | string
 }>()
 
+const emit = defineEmits<{
+  comingSoon: [scene: Scene]
+}>()
+
 const isLive = computed(() => props.scene.status === 'AVAILABLE')
+
+function onComingSoonClick() {
+  emit('comingSoon', props.scene)
+}
 </script>
 
 <template>
@@ -51,6 +59,7 @@ const isLive = computed(() => props.scene.status === 'AVAILABLE')
     role="listitem"
     aria-disabled="true"
     :aria-label="`${scene.displayName}，即将推出`"
+    @click="onComingSoonClick"
   >
     <div class="scene-card-top">
       <span class="scene-icon" aria-hidden="true">
@@ -101,7 +110,7 @@ a.scene-card.live:hover {
 .scene-card.soon {
   opacity: 0.58;
   filter: grayscale(0.25);
-  cursor: not-allowed;
+  cursor: pointer;
 }
 
 .scene-card-top {
