@@ -18,7 +18,6 @@ const PICKS_TEMPLATE = '请帮我生成【品类】类选品清单，客单价�
 const LISTING_TEMPLATE =
   '请为商品「【商品名称】」生成上架素材，优先适配【淘宝/拼多多/闲鱼】。'
 
-type ShellMode = 'empty' | 'session'
 type ComputerKind = 'picks' | 'listing' | null
 
 interface DemoMessage {
@@ -27,8 +26,6 @@ interface DemoMessage {
   text: string
 }
 
-const mode = ref<ShellMode>('empty')
-const prompt = ref('')
 const sessionPrompt = ref('')
 /** Optional Catalog bizId when list is available; null if unresolved */
 const sceneBizId = ref<string | null>(null)
@@ -39,7 +36,6 @@ const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
 
 const computerOpen = computed(() => computerKind.value != null)
-const homeSendEnabled = computed(() => prompt.value.trim().length > 0)
 const sessionSendEnabled = computed(() => sessionPrompt.value.trim().length > 0)
 
 let msgSeq = 0
@@ -50,35 +46,6 @@ function nextMsgId() {
 
 function agentDemoReply(): string {
   return '这是会话态演示：右侧 Computer 需用下方预览按钮打开，不调用生成接口。真生成与结算将在后续故事接入。'
-}
-
-function enterSession(userText: string) {
-  const text = userText.trim()
-  if (!text) return
-
-  mode.value = 'session'
-  messages.value = [
-    { id: nextMsgId(), role: 'user', text },
-    { id: nextMsgId(), role: 'agent', text: agentDemoReply() },
-  ]
-  sessionTitle.value = text.length > 18 ? `${text.slice(0, 18)}…` : text
-  prompt.value = ''
-  sessionPrompt.value = ''
-  computerKind.value = null
-}
-
-function fillPicksEmpty() {
-  prompt.value = PICKS_TEMPLATE
-  enterSession(PICKS_TEMPLATE)
-}
-
-function fillListingEmpty() {
-  prompt.value = LISTING_TEMPLATE
-  enterSession(LISTING_TEMPLATE)
-}
-
-function sendFromEmpty() {
-  enterSession(prompt.value)
 }
 
 function fillPicksSession() {
@@ -124,10 +91,8 @@ function closeComputer() {
 }
 
 function newTask() {
-  mode.value = 'empty'
   messages.value = []
   computerKind.value = null
-  prompt.value = ''
   sessionPrompt.value = ''
   sessionTitle.value = DEMO_SESSION_TITLE
 }
@@ -157,66 +122,9 @@ onMounted(async () => {
     :data-scene-code="SCENE_CODE"
     :data-scene-biz-id="sceneBizId ?? undefined"
   >
-    <AppHeader :scene-breadcrumb="SCENE_BREADCRUMB" />
+    <AppHeader :scene-breadcrumb="SCENE_BREADCRUMB" :hide-secondary-nav="true" />
 
-    <div v-if="mode === 'empty'" class="home">
-      <main class="home-main">
-        <h1>我能为你做什么？</h1>
-        <div class="quick-row" role="group" aria-label="快捷任务">
-          <button type="button" class="pill" @click="fillPicksEmpty">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <path d="M9 11l3 3L22 4" />
-              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-            </svg>
-            选品清单
-          </button>
-          <button type="button" class="pill" @click="fillListingEmpty">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M3 9h18M9 21V9" />
-            </svg>
-            生成上架素材
-          </button>
-        </div>
-        <div class="prompt-box">
-          <textarea
-            v-model="prompt"
-            class="prompt-editor"
-            rows="3"
-            placeholder="分配一个任务或提问任何问题"
-            aria-label="提问"
-          />
-          <div class="prompt-toolbar">
-            <button
-              type="button"
-              class="icon-btn"
-              aria-label="附件"
-              aria-describedby="demo-soon-hint"
-              disabled
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              class="send-btn"
-              :class="{ active: homeSendEnabled }"
-              aria-label="发送"
-              :disabled="!homeSendEnabled"
-              @click="sendFromEmpty"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-                <path d="M12 19V5M5 12l7-7 7 7" />
-              </svg>
-            </button>
-          </div>
-          <p id="demo-soon-hint" class="sr-only">{{ DEMO_SOON }}</p>
-        </div>
-      </main>
-    </div>
-
-    <div v-else class="session" data-testid="session-shell">
+    <div class="session" data-testid="session-shell">
       <aside class="sidebar" aria-label="会话侧栏">
         <button type="button" class="side-new" @click="newTask">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -369,32 +277,6 @@ onMounted(async () => {
 <style scoped>
 .shell {
   min-height: 100vh;
-}
-
-.home {
-  min-height: calc(100vh - var(--header-h));
-  display: flex;
-  flex-direction: column;
-}
-
-.home-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px 80px;
-  width: min(720px, 100%);
-  margin: 0 auto;
-}
-
-.home-main h1 {
-  margin: 0 0 28px;
-  font-size: clamp(1.75rem, 3.5vw, 2.35rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  text-align: center;
-  color: var(--ink);
 }
 
 .quick-row {

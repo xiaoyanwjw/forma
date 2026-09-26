@@ -110,15 +110,16 @@ function generationApiHits(fetchMock: ReturnType<typeof vi.spyOn>) {
   })
 }
 
-describe('EcommerceWorkspacePlaceholder empty state', () => {
+describe('EcommerceWorkspacePlaceholder default session shell', () => {
   let unmount: (() => void) | undefined
+  let fetchMock: ReturnType<typeof mockCatalogAndCredits>
 
   beforeEach(() => {
     clearToken()
     vi.restoreAllMocks()
     document.body.innerHTML = ''
     setToken('jwt-demo')
-    mockCatalogAndCredits()
+    fetchMock = mockCatalogAndCredits()
   })
 
   afterEach(() => {
@@ -127,42 +128,46 @@ describe('EcommerceWorkspacePlaceholder empty state', () => {
     clearToken()
   })
 
-  it('shows empty-state copy, capsules, ask shell, and scene breadcrumb', async () => {
+  it('mounts session shell with empty thread, breadcrumb, no home, no secondary nav', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
 
-    expect(mounted.root.querySelector('h1')?.textContent).toBe('我能为你做什么？')
-    const pills = [...mounted.root.querySelectorAll('.home .pill')].map((el) =>
-      el.textContent?.trim(),
-    )
-    expect(pills).toEqual(['选品清单', '生成上架素材'])
-    expect(mounted.root.querySelector('.home textarea')?.getAttribute('placeholder')).toBe(
-      '分配一个任务或提问任何问题',
-    )
+    expect(mounted.root.querySelector('.home')).toBeNull()
+    expect(mounted.root.querySelector('h1')).toBeNull()
+    expect(mounted.root.querySelector('.session')).toBeTruthy()
+    expect(mounted.root.querySelector('.sidebar')).toBeTruthy()
+    expect(mounted.root.querySelector('.side-new')?.textContent).toContain('新任务')
+    expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
+    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
 
     const crumb = mounted.root.querySelector('.scene-switch')
-    expect(crumb?.getAttribute('aria-label')).toBe('面包屑')
-    expect(crumb?.textContent?.replace(/\s+/g, ' ').trim()).toContain('场景')
+    expect(crumb?.textContent).toContain('场景')
     expect(crumb?.textContent).toContain('电商开店')
-    const sceneLink = crumb?.querySelector('a')
-    expect(sceneLink?.getAttribute('href')).toBe('/scenes')
-
     expect(mounted.root.querySelector('.shell')?.getAttribute('data-scene-code')).toBe('ecommerce')
+
+    expect(mounted.root.querySelector('[data-nav="history"]')).toBeNull()
+    expect(
+      Array.from(mounted.root.querySelectorAll('a')).some((a) => a.textContent?.includes('套餐')),
+    ).toBe(false)
+
+    expect(generationApiHits(fetchMock)).toHaveLength(0)
   })
 
-  it('keeps attach disabled; send enabled only with prompt text', async () => {
+  it('keeps attach disabled; session send enabled only with prompt text', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     const send = mounted.root.querySelector(
-      '.home button[aria-label="发送"]',
+      '.session button[aria-label="发送"]',
     ) as HTMLButtonElement
     const attach = mounted.root.querySelector(
-      '.home button[aria-label="附件"]',
+      '.session button[aria-label="附件"]',
     ) as HTMLButtonElement
     expect(attach.disabled).toBe(true)
     expect(send.disabled).toBe(true)
 
-    const area = mounted.root.querySelector('.home textarea') as HTMLTextAreaElement
+    const area = mounted.root.querySelector(
+      'textarea[aria-label="继续提问"]',
+    ) as HTMLTextAreaElement
     setTextareaValue(area, '帮我做家居选品')
     await flushUi()
     expect(send.disabled).toBe(false)
@@ -177,7 +182,7 @@ describe('EcommerceWorkspacePlaceholder empty state', () => {
     )
   })
 
-  it('still shows empty state with sceneCode when catalog fails', async () => {
+  it('still shows session shell with sceneCode when catalog fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input)
       if (url.includes('/api/v1/scenes')) {
@@ -204,7 +209,8 @@ describe('EcommerceWorkspacePlaceholder empty state', () => {
     unmount = mounted.unmount
     await flushUi()
 
-    expect(mounted.root.querySelector('h1')?.textContent).toBe('我能为你做什么？')
+    expect(mounted.root.querySelector('.session')).toBeTruthy()
+    expect(mounted.root.querySelector('.home')).toBeNull()
     expect(mounted.root.querySelector('.shell')?.getAttribute('data-scene-code')).toBe('ecommerce')
     expect(mounted.root.querySelector('.shell')?.getAttribute('data-scene-biz-id')).toBeNull()
   })
@@ -229,78 +235,52 @@ describe('EcommerceWorkspacePlaceholder session shell (3.3)', () => {
   })
 
   async function enterViaSend(root: HTMLElement, text = '帮我做家居选品') {
-    const area = root.querySelector('.home textarea') as HTMLTextAreaElement
+    const area = root.querySelector(
+      'textarea[aria-label="继续提问"]',
+    ) as HTMLTextAreaElement
     setTextareaValue(area, text)
     await flushUi()
-    const send = root.querySelector('.home button[aria-label="发送"]') as HTMLButtonElement
+    const send = root.querySelector(
+      '.session button[aria-label="发送"]',
+    ) as HTMLButtonElement
     expect(send.disabled).toBe(false)
     send.click()
     await flushUi()
   }
 
-  it('enters session from send: sidebar + chat demo messages, Computer hidden, breadcrumb unchanged', async () => {
-    const mounted = await mountWorkspace()
-    unmount = mounted.unmount
-    const callsBefore = fetchMock.mock.calls.length
-
-    await enterViaSend(mounted.root)
-
-    expect(mounted.root.querySelector('.home')).toBeNull()
-    expect(mounted.root.querySelector('.session')).toBeTruthy()
-    expect(mounted.root.querySelector('.sidebar')).toBeTruthy()
-    expect(mounted.root.querySelector('.side-new')?.textContent).toContain('新任务')
-    expect(mounted.root.querySelectorAll('.side-item').length).toBe(1)
-    expect(mounted.root.querySelector('.side-item')?.textContent).toBeTruthy()
-
-    const thread = mounted.root.querySelector('.chat-scroll')
-    expect(thread?.textContent).toContain('帮我做家居选品')
-    expect(thread?.querySelector('.msg.user')).toBeTruthy()
-    expect(thread?.querySelector('.msg.agent')).toBeTruthy()
-
-    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
-
-    const crumb = mounted.root.querySelector('.scene-switch')
-    expect(crumb?.textContent).toContain('场景')
-    expect(crumb?.textContent).toContain('电商开店')
-    expect(mounted.root.querySelector('.shell')?.getAttribute('data-scene-code')).toBe('ecommerce')
-
-    expect(fetchMock.mock.calls.length).toBe(callsBefore)
-    expect(generationApiHits(fetchMock)).toHaveLength(0)
-  })
-
-  it('enters session from picks capsule without generation API', async () => {
+  it('session picks capsule fills prompt without sending or generation API', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     const callsBefore = fetchMock.mock.calls.length
     const pathBefore = mounted.router.currentRoute.value.fullPath
 
-    const picks = mounted.root.querySelectorAll<HTMLButtonElement>('.home .pill')[0]
+    const picks = mounted.root.querySelectorAll<HTMLButtonElement>('.chat-input-wrap .pill')[0]
     picks!.click()
     await flushUi()
 
-    expect(mounted.root.querySelector('.session')).toBeTruthy()
-    expect(mounted.root.querySelector('.home')).toBeNull()
-    expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/选品|清单/)
+    const area = mounted.root.querySelector(
+      'textarea[aria-label="继续提问"]',
+    ) as HTMLTextAreaElement
+    expect(area.value).toMatch(/选品清单/)
+    expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(mounted.router.currentRoute.value.fullPath).toBe(pathBefore)
     expect(fetchMock.mock.calls.length).toBe(callsBefore)
     expect(generationApiHits(fetchMock)).toHaveLength(0)
   })
 
-  it('enters session from listing capsule without generation API', async () => {
+  it('session listing capsule fills prompt without sending or generation API', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    const callsBefore = fetchMock.mock.calls.length
-    const pathBefore = mounted.router.currentRoute.value.fullPath
 
-    const listing = mounted.root.querySelectorAll<HTMLButtonElement>('.home .pill')[1]
+    const listing = mounted.root.querySelectorAll<HTMLButtonElement>('.chat-input-wrap .pill')[1]
     listing!.click()
     await flushUi()
 
-    expect(mounted.root.querySelector('.session')).toBeTruthy()
-    expect(mounted.root.querySelector('.home')).toBeNull()
-    expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/上架|素材/)
-    expect(mounted.router.currentRoute.value.fullPath).toBe(pathBefore)
-    expect(fetchMock.mock.calls.length).toBe(callsBefore)
+    const area = mounted.root.querySelector(
+      'textarea[aria-label="继续提问"]',
+    ) as HTMLTextAreaElement
+    expect(area.value).toMatch(/上架素材/)
+    expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(generationApiHits(fetchMock)).toHaveLength(0)
   })
 
@@ -379,7 +359,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.3)', () => {
     expect(generationApiHits(fetchMock)).toHaveLength(0)
   })
 
-  it('new task returns to empty state, clears thread, closes Computer', async () => {
+  it('new task clears thread and Computer but stays on session shell', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     await enterViaSend(mounted.root)
@@ -391,11 +371,11 @@ describe('EcommerceWorkspacePlaceholder session shell (3.3)', () => {
     ;(mounted.root.querySelector('.side-new') as HTMLButtonElement).click()
     await flushUi()
 
-    expect(mounted.root.querySelector('.home')).toBeTruthy()
-    expect(mounted.root.querySelector('.session')).toBeNull()
-    expect(mounted.root.querySelector('h1')?.textContent).toBe('我能为你做什么？')
-    expect(mounted.root.querySelector('.chat-scroll')).toBeNull()
-    expect(mounted.root.querySelector('.workspace.split')).toBeNull()
+    expect(mounted.root.querySelector('.session')).toBeTruthy()
+    expect(mounted.root.querySelector('.home')).toBeNull()
+    expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
+    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
+    expect(mounted.root.querySelector('[data-demo="open-picks"]')).toBeNull()
   })
 
   it('sidebar CSS hides at ≤860px breakpoint (narrow readable chat)', () => {

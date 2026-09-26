@@ -10,10 +10,13 @@ const props = withDefaults(
     sceneBreadcrumb?: string
     /** Highlight current nav item */
     activeNav?: 'scenes' | 'history' | 'credits'
+    /** When true, hide 历史 / 套餐 from primary nav (workbench) */
+    hideSecondaryNav?: boolean
   }>(),
   {
     sceneBreadcrumb: undefined,
     activeNav: undefined,
+    hideSecondaryNav: false,
   },
 )
 
@@ -96,6 +99,7 @@ onUnmounted(stopAuth)
         </RouterLink>
 
         <span
+          v-if="!props.hideSecondaryNav"
           class="nav-link nav-link--static"
           :class="{ on: props.activeNav === 'history' }"
           :aria-current="props.activeNav === 'history' ? 'page' : undefined"
@@ -106,6 +110,7 @@ onUnmounted(stopAuth)
         </span>
 
         <RouterLink
+          v-if="!props.hideSecondaryNav"
           class="nav-link"
           :class="{ on: props.activeNav === 'credits' }"
           :aria-current="props.activeNav === 'credits' ? 'page' : undefined"
