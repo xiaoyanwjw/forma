@@ -437,8 +437,18 @@ public class AgentApplicationService {
 
             final PersistPicklistCommand persistCommand;
             try {
-                persistCommand = picklistArtifactParser.parse(
+                PersistPicklistCommand parsed = picklistArtifactParser.parse(
                         result.getFinalResponse(), context.getUserId(), context.getRunId());
+                persistCommand = PersistPicklistCommand.builder()
+                        .userId(parsed.getUserId())
+                        .username(parsed.getUsername())
+                        .runId(parsed.getRunId())
+                        .sceneCode(context.getSceneCode())
+                        .templateId(parsed.getTemplateId())
+                        .disclaimer(parsed.getDisclaimer())
+                        .assumptions(parsed.getAssumptions())
+                        .items(parsed.getItems())
+                        .build();
             } catch (BusinessException ex) {
                 holdClosed = finishFailed(context, sink,
                         StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PicklistArtifactParser.MSG_UNUSABLE);

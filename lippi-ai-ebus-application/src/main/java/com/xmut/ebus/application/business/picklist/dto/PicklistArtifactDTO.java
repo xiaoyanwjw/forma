@@ -1,7 +1,5 @@
 package com.xmut.ebus.application.business.picklist.dto;
 
-import com.xmut.ebus.domain.business.picklist.model.PicklistItem;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -84,18 +82,6 @@ public final class PicklistArtifactDTO {
             this.competition = competition;
             this.margin = margin;
             this.risk = risk;
-        }
-
-        public static PicklistItemDTO from(PicklistItem item) {
-            return new PicklistItemDTO(
-                    item.getTitle(),
-                    item.getPriceBand(),
-                    item.getReason(),
-                    item.getDifferentiation(),
-                    item.getDemand(),
-                    item.getCompetition(),
-                    item.getMargin(),
-                    item.getRisk());
         }
 
         public String getTitle() {

@@ -41,8 +41,7 @@ class AgentPicklistRunIntegrationTest {
     @BeforeEach
     void clean() {
         authRateLimitInterceptor.reset();
-        jdbcTemplate.update("DELETE FROM ebus_picklist_item");
-        jdbcTemplate.update("DELETE FROM ebus_picklist");
+        jdbcTemplate.update("DELETE FROM ebus_artifact");
         jdbcTemplate.update("DELETE FROM ebus_generation_run");
         jdbcTemplate.update("DELETE FROM ebus_credit_tier_change");
         jdbcTemplate.update("DELETE FROM ebus_credit_hold");

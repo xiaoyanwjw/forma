@@ -1,5 +1,7 @@
 package com.xmut.ebus.application.business.picklist.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xmut.ebus.application.business.picklist.command.PersistPicklistCommand;
 import com.xmut.ebus.application.business.picklist.command.PersistPicklistItemCommand;
 import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
@@ -9,10 +11,10 @@ import com.xmut.ebus.common.logging.LoggerUtils;
 import com.xmut.ebus.common.logging.NameValue;
 import com.xmut.ebus.common.util.ObjectUtils;
 import com.xmut.ebus.common.util.StringUtils;
+import com.xmut.ebus.domain.business.artifact.model.Artifact;
+import com.xmut.ebus.domain.business.artifact.model.ArtifactType;
+import com.xmut.ebus.domain.business.artifact.repository.ArtifactRepository;
 import com.xmut.ebus.domain.business.picklist.constant.PicklistDefaults;
-import com.xmut.ebus.domain.business.picklist.model.Picklist;
-import com.xmut.ebus.domain.business.picklist.model.PicklistItem;
-import com.xmut.ebus.domain.business.picklist.repository.PicklistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,11 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * 选品成果写用例：校验可用成果后落库（不计费；结算由 Agent 编排）。
+ * 选品成果写用例：校验可用成果后写入 ArtifactStore（不计费；结算由 Agent 编排）。
  */
 @Slf4j
 @Service
@@ -34,7 +38,8 @@ public class PicklistApplicationService {
 
     public static final String MSG_UNUSABLE = "选品成果不合格，请重试";
 
-    private final PicklistRepository picklistRepository;
+    private final ArtifactRepository artifactRepository;
+    private final ObjectMapper objectMapper;
     private final Clock clock;
 
     /**
@@ -45,6 +50,7 @@ public class PicklistApplicationService {
         ObjectUtils.requireNonNull(command, "选品命令不能为空");
         String userId = StringUtils.requireHasText(command.getUserId(), "用户 ID 不能为空");
         String runId = StringUtils.requireHasText(command.getRunId(), "Run ID 不能为空");
+        String sceneCode = StringUtils.requireHasText(command.getSceneCode(), "场景不能为空");
         String disclaimer = requireMaxLen(
                 StringUtils.requireHasText(command.getDisclaimer(), MSG_UNUSABLE),
                 PicklistDefaults.MAX_DISCLAIMER);
@@ -65,54 +71,65 @@ public class PicklistApplicationService {
         }
 
         Instant now = Instant.now(clock);
-        String picklistId = UUID.randomUUID().toString();
-        List<PicklistItem> items = new ArrayList<PicklistItem>(rawItems.size());
-        for (int i = 0; i < rawItems.size(); i++) {
-            PersistPicklistItemCommand raw = rawItems.get(i);
+        String artifactId = UUID.randomUUID().toString();
+        List<PicklistArtifactDTO.PicklistItemDTO> dtoItems =
+                new ArrayList<PicklistArtifactDTO.PicklistItemDTO>(rawItems.size());
+        List<Map<String, Object>> itemMaps = new ArrayList<Map<String, Object>>(rawItems.size());
+        for (PersistPicklistItemCommand raw : rawItems) {
             ObjectUtils.requireNonNull(raw, MSG_UNUSABLE);
-            items.add(PicklistItem.of(
-                    UUID.randomUUID().toString(),
-                    picklistId,
-                    i,
-                    requireMaxLen(requireItemField(raw.getTitle()), PicklistDefaults.MAX_TITLE),
-                    requireMaxLen(requireItemField(raw.getPriceBand()), PicklistDefaults.MAX_PRICE_BAND),
-                    requireMaxLen(requireItemField(raw.getReason()), PicklistDefaults.MAX_REASON),
-                    requireMaxLen(requireItemField(raw.getDifferentiation()), PicklistDefaults.MAX_DIM),
-                    requireMaxLen(requireItemField(raw.getDemand()), PicklistDefaults.MAX_DIM),
-                    requireMaxLen(requireItemField(raw.getCompetition()), PicklistDefaults.MAX_DIM),
-                    requireMaxLen(requireItemField(raw.getMargin()), PicklistDefaults.MAX_DIM),
-                    requireMaxLen(requireItemField(raw.getRisk()), PicklistDefaults.MAX_DIM),
-                    now));
+            String title = requireMaxLen(requireItemField(raw.getTitle()), PicklistDefaults.MAX_TITLE);
+            String priceBand = requireMaxLen(requireItemField(raw.getPriceBand()), PicklistDefaults.MAX_PRICE_BAND);
+            String reason = requireMaxLen(requireItemField(raw.getReason()), PicklistDefaults.MAX_REASON);
+            String differentiation = requireMaxLen(requireItemField(raw.getDifferentiation()), PicklistDefaults.MAX_DIM);
+            String demand = requireMaxLen(requireItemField(raw.getDemand()), PicklistDefaults.MAX_DIM);
+            String competition = requireMaxLen(requireItemField(raw.getCompetition()), PicklistDefaults.MAX_DIM);
+            String margin = requireMaxLen(requireItemField(raw.getMargin()), PicklistDefaults.MAX_DIM);
+            String risk = requireMaxLen(requireItemField(raw.getRisk()), PicklistDefaults.MAX_DIM);
+            dtoItems.add(new PicklistArtifactDTO.PicklistItemDTO(
+                    title, priceBand, reason, differentiation, demand, competition, margin, risk));
+            Map<String, Object> itemMap = new LinkedHashMap<String, Object>();
+            itemMap.put("title", title);
+            itemMap.put("priceBand", priceBand);
+            itemMap.put("reason", reason);
+            itemMap.put("differentiation", differentiation);
+            itemMap.put("demand", demand);
+            itemMap.put("competition", competition);
+            itemMap.put("margin", margin);
+            itemMap.put("risk", risk);
+            itemMaps.add(itemMap);
         }
 
-        Picklist picklist = Picklist.create(
-                picklistId,
-                userId,
-                runId,
-                templateId,
-                disclaimer,
-                assumptions,
-                items,
-                now);
-        picklistRepository.save(picklist);
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("disclaimer", disclaimer);
+        if (assumptions != null) {
+            payload.put("assumptions", assumptions);
+        }
+        payload.put("items", itemMaps);
+
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException ex) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
+        }
+
+        Artifact artifact = Artifact.create(
+                artifactId, userId, runId, ArtifactType.PICKLIST, sceneCode,
+                templateId, "选品清单", json, now);
+        artifactRepository.save(artifact);
 
         LoggerUtils.success(log, PicklistApplicationService.class, "persistUsable",
                 NameValue.create("userId", userId),
                 NameValue.create("runId", runId),
-                NameValue.create("picklistId", picklistId),
-                NameValue.create("itemCount", items.size()));
+                NameValue.create("picklistId", artifactId),
+                NameValue.create("itemCount", dtoItems.size()));
 
-        List<PicklistArtifactDTO.PicklistItemDTO> dtoItems =
-                new ArrayList<PicklistArtifactDTO.PicklistItemDTO>(items.size());
-        for (PicklistItem item : items) {
-            dtoItems.add(PicklistArtifactDTO.PicklistItemDTO.from(item));
-        }
         return new PicklistArtifactDTO(
-                picklistId,
+                artifactId,
                 runId,
                 templateId,
-                picklist.getDisclaimer(),
-                picklist.getAssumptions(),
+                disclaimer,
+                assumptions,
                 dtoItems);
     }
 

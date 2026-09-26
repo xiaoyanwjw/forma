@@ -16,6 +16,7 @@ import java.util.List;
 public class PersistPicklistCommand extends BaseCommand {
 
     private final String runId;
+    private final String sceneCode;
     private final String templateId;
     private final String disclaimer;
     private final String assumptions;

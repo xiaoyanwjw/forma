@@ -608,7 +608,7 @@ class AgentApplicationServiceTest {
                 .build();
         when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-ok")).thenReturn(persistCmd);
         PicklistArtifactDTO artifact = sampleArtifact("pl-1", "run-pl-ok");
-        when(picklistApplicationService.persistUsable(persistCmd)).thenReturn(artifact);
+        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class))).thenReturn(artifact);
         when(generationRunRepository.findById("run-pl-ok")).thenReturn(Optional.of(
                 GenerationRun.start("run-pl-ok", USER_ID, HOLD_ID, "session-pl-ok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -645,6 +645,9 @@ class AgentApplicationServiceTest {
         verify(agentSession).prompt(promptCaptor.capture());
         assertEquals(SceneCapabilityPackLoader.SKILL_PICKLIST, promptCaptor.getValue().getSkillId());
         assertEquals("帮我选品", promptCaptor.getValue().getText());
+        ArgumentCaptor<PersistPicklistCommand> persistCaptor = ArgumentCaptor.forClass(PersistPicklistCommand.class);
+        verify(picklistApplicationService).persistUsable(persistCaptor.capture());
+        assertEquals(ECOM_SCENE_CODE, persistCaptor.getValue().getSceneCode());
     }
 
     @Test
@@ -664,7 +667,8 @@ class AgentApplicationServiceTest {
                 .items(Collections.emptyList())
                 .build();
         when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-settle")).thenReturn(persistCmd);
-        when(picklistApplicationService.persistUsable(persistCmd)).thenReturn(sampleArtifact("pl-s", "run-pl-settle"));
+        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
+                .thenReturn(sampleArtifact("pl-s", "run-pl-settle"));
         org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
                 .when(creditApplicationService).settle(USER_ID, HOLD_ID);
         when(generationRunRepository.findById("run-pl-settle")).thenReturn(Optional.of(
@@ -703,7 +707,8 @@ class AgentApplicationServiceTest {
                 .items(Collections.emptyList())
                 .build();
         when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-emit")).thenReturn(persistCmd);
-        when(picklistApplicationService.persistUsable(persistCmd)).thenReturn(sampleArtifact("pl-e", "run-pl-emit"));
+        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
+                .thenReturn(sampleArtifact("pl-e", "run-pl-emit"));
         when(generationRunRepository.findById("run-pl-emit")).thenReturn(Optional.of(
                 GenerationRun.start("run-pl-emit", USER_ID, HOLD_ID, "session-pl-emit",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
