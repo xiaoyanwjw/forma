@@ -24,9 +24,8 @@ import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
-import com.xmut.lims.pi.agent.tool.ToolLevel;
-import com.xmut.lims.pi.agent.tool.ToolRegistration;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
+import com.xmut.lims.pi.agent.tool.Tool;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -140,10 +139,9 @@ class MysqlCheckpointerIntegrationTest {
             handlerCalls.incrementAndGet();
             return ToolResult.ok(call.getId(), call.getToolName(), "should-not-run");
         };
-        DefaultToolConfig policy = new DefaultToolConfig(Collections.singletonList(
-                new ToolRegistration("save",
+        InMemoryToolCatalog policy = new InMemoryToolCatalog(Collections.singletonList(
+                new Tool("save",
                         ToolSchema.builder().name("save").build(),
-                        ToolLevel.WRITE,
                         handler)));
 
         GraphNode agent = (state, ctx) -> {

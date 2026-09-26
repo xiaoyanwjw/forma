@@ -2,7 +2,7 @@ package com.xmut.lims.pi.agent.agent;
 
 import com.xmut.lims.pi.agent.graph.StateKeys;
 import com.xmut.lims.pi.ai.model.ToolSchema;
-import com.xmut.lims.pi.agent.skill.SkillManifest;
+import com.xmut.lims.pi.agent.skill.Skill;
 import lombok.Builder;
 import lombok.Value;
 import org.springframework.util.StringUtils;
@@ -29,7 +29,7 @@ public class TurnBindings {
     /**
      * → {@link StateKeys#AVAILABLE_SKILLS}；null = 不写；empty = 本轮无 skill。
      */
-    List<SkillManifest> availableSkills;
+    List<Skill> availableSkills;
 
     /**
      * → {@link StateKeys#AVAILABLE_TOOLS}；null = 不写；empty = 显式无 tools。
@@ -41,6 +41,11 @@ public class TurnBindings {
 
     /** → {@link StateKeys#MODEL_USE_CASE}（ActiveSkill.modelUseCase；可空） */
     String modelUseCase;
+
+    /**
+     * → {@link StateKeys#ACTIVE_TOOLS}；null = 不写（不按名限制）。
+     */
+    List<String> activeTools;
 
     /**
      * 写入入图 state（chat 轴键由 Loop 另写）。
@@ -57,6 +62,9 @@ public class TurnBindings {
         }
         applyList(state, StateKeys.AVAILABLE_SKILLS, availableSkills);
         applyList(state, StateKeys.AVAILABLE_TOOLS, availableTools);
+        if (activeTools != null) {
+            state.put(StateKeys.ACTIVE_TOOLS, Collections.unmodifiableList(new ArrayList<>(activeTools)));
+        }
     }
 
     private static void applyList(Map<String, Object> state, String key, List<?> list) {

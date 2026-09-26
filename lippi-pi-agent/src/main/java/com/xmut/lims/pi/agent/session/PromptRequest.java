@@ -31,7 +31,7 @@ public class PromptRequest {
 
     String traceId;
 
-    /** 显式 Skill id（EXPLICIT）；OCR={@code certificate.ocr}。 */
+    /** 显式 Skill id（EXPLICIT），例如 ecommerce-picklist。 */
     String skillId;
 
     /** 无 skillId 时回退域键。 */

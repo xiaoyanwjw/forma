@@ -3,9 +3,9 @@ package com.xmut.lims.pi.agent.agent;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import com.xmut.lims.pi.agent.skill.ActiveSkill;
 import com.xmut.lims.pi.agent.skill.SkillCatalogPrompt;
-import com.xmut.lims.pi.agent.skill.SkillConfig;
-import com.xmut.lims.pi.agent.skill.SkillManifest;
-import com.xmut.lims.pi.agent.tool.ToolConfig;
+import com.xmut.lims.pi.agent.skill.SkillCatalog;
+import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -16,7 +16,7 @@ import java.util.Objects;
 
 /**
  * 本轮入图投影器。
- * 功能描述：把 ToolConfig + SkillConfig + ActiveSkill 投影为 TurnBindings。
+ * 功能描述：把 ToolCatalog + SkillCatalog + ActiveSkill 投影为 TurnBindings。
  */
 public final class TurnBinder {
 
@@ -28,20 +28,20 @@ public final class TurnBinder {
      * 纯投影。{@code toolConfig}/{@code activeSkill} 必填；
      * {@code skillConfig} 可为 null（无 Skill 目录，与 {@link DefaultAgent} 一致）。
      */
-    public static TurnBindings bind(ToolConfig toolConfig,
-                                    SkillConfig skillConfig,
+    public static TurnBindings bind(ToolCatalog toolConfig,
+                                    SkillCatalog skillConfig,
                                     ActiveSkill activeSkill) {
         Objects.requireNonNull(toolConfig, "toolConfig");
         Objects.requireNonNull(activeSkill, "activeSkill");
 
-        List<String> whitelist = activeSkill.toolWhitelist();
+        List<String> whitelist = activeSkill.allowedTools();
         List<ToolSchema> availableTools = toolConfig.schemasForModel(whitelist);
         String toolsText = toolConfig.textForModel(whitelist);
 
-        final List<SkillManifest> availableSkills = manifestForConfig(skillConfig, activeSkill);
+        final List<Skill> availableSkills = manifestForConfig(skillConfig, activeSkill);
         final String skillText = SkillCatalogPrompt.build(availableSkills, activeSkill.getId());
         if (activeSkill.isPresent() && !StringUtils.hasText(skillText)) {
-            SkillManifest m = activeSkill.getManifest();
+            Skill m = activeSkill.getSkill();
             log.debug("TurnBinder: active skill id={} produced empty catalog text (promptRef={})",
                     activeSkill.getId(), m != null ? m.getPromptRef() : null);
         }
@@ -53,10 +53,11 @@ public final class TurnBinder {
                 .skillsText(skillText)
                 .activeSkillId(activeSkill.getId())
                 .modelUseCase(activeSkill.modelUseCase())
+                .activeTools(whitelist)
                 .build();
     }
 
-    static List<SkillManifest> manifestForConfig(SkillConfig skillConfig, ActiveSkill skill) {
+    static List<Skill> manifestForConfig(SkillCatalog skillConfig, ActiveSkill skill) {
         if (skill != null && skill.isPresent()) {
             return skill.asList();
         }
@@ -64,12 +65,12 @@ public final class TurnBinder {
             return Collections.emptyList();
         }
 
-        List<SkillManifest> manifests = skillConfig.manifests();
+        List<Skill> manifests = skillConfig.all();
         return manifests != null ? manifests : Collections.emptyList();
     }
 
-    /** 无 SkillConfig 时仅投影 Active（测试便捷）。 */
-    public static TurnBindings bind(ToolConfig toolConfig, ActiveSkill activeSkill) {
+    /** 无 SkillCatalog 时仅投影 Active（测试便捷）。 */
+    public static TurnBindings bind(ToolCatalog toolConfig, ActiveSkill activeSkill) {
         return bind(toolConfig, null, activeSkill);
     }
 }

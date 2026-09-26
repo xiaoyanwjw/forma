@@ -7,52 +7,49 @@ import java.util.Objects;
 
 /**
  * 工具运行时绑定。
- * 功能描述：组合 ToolManifest（声明）与 ToolHandler（执行）。
+ * 功能描述：组合 ToolDefinition（声明）与 ToolHandler（执行）。
  */
 public final class ToolBinding {
 
-    private final ToolManifest manifest;
+    private final ToolDefinition definition;
     private final ToolHandler handler;
 
-    public ToolBinding(ToolManifest manifest, ToolHandler handler) {
-        this.manifest = Objects.requireNonNull(manifest, "manifest");
+    public ToolBinding(ToolDefinition definition, ToolHandler handler) {
+        this.definition = Objects.requireNonNull(definition, "definition");
         this.handler = handler;
     }
 
-    public static ToolBinding of(ToolManifest manifest, ToolHandler handler) {
-        return new ToolBinding(manifest, handler);
+    public static ToolBinding of(ToolDefinition definition, ToolHandler handler) {
+        return new ToolBinding(definition, handler);
     }
 
     /**
-     * 便捷构造（测试 / 旧调用方）：等价于最小 Manifest + handler。
+     * 便捷构造（测试 / 旧调用方）：等价于最小 Definition + handler。
      */
-    public static ToolBinding of(String id, ToolLevel level, ToolHandler handler) {
-        return of(ToolManifest.builder().id(id).level(level).build(), handler);
+    public static ToolBinding of(String id, ToolHandler handler) {
+        return of(ToolDefinition.builder().id(id).build(), handler);
     }
 
-    public static ToolBinding of(String id, ToolSchema schema, ToolLevel level, ToolHandler handler) {
-        return of(ToolManifest.builder().id(id).schema(schema).level(level).build(), handler);
+    public static ToolBinding of(String id, ToolSchema schema, ToolHandler handler) {
+        return of(ToolDefinition.builder().id(id).schema(schema).build(), handler);
     }
 
     /**
-     * 仅贡献 Handler：占位 Manifest 会被 classpath JSON 同 id 覆盖。
-     *
-     * <p>生产路径由 {@link ToolHandlerAutoBinder} 按 JSON {@code handlerClass} 生成。
+     * 仅贡献 Handler：占位 Definition 会被同 id 的完整定义覆盖。
      */
     public static ToolBinding handlerOnly(String id, ToolHandler handler) {
         if (id == null || id.trim().isEmpty()) {
             throw new IllegalArgumentException("tool id required");
         }
         Objects.requireNonNull(handler, "handler");
-        ToolManifest stub = ToolManifest.builder()
+        ToolDefinition stub = ToolDefinition.builder()
                 .id(id.trim())
-                .level(ToolLevel.READ)
                 .build();
         return of(stub, handler);
     }
 
-    public ToolManifest getManifest() {
-        return manifest;
+    public ToolDefinition getDefinition() {
+        return definition;
     }
 
     public ToolHandler getHandler() {
@@ -60,10 +57,6 @@ public final class ToolBinding {
     }
 
     public String getId() {
-        return manifest.getId();
-    }
-
-    public ToolLevel getLevel() {
-        return manifest.getLevel();
+        return definition.getId();
     }
 }

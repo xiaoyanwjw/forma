@@ -16,9 +16,8 @@ import com.xmut.lims.pi.agent.extension.PiTestBus;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.agent.graph.node.ToolHandler;
 import com.xmut.lims.pi.ai.tool.ToolResult;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolDecision;
-import com.xmut.lims.pi.agent.tool.ToolLevel;
 import com.xmut.lims.pi.agent.tool.ToolTestSupport;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +39,7 @@ class CheckpointPersistenceHitlTest {
     @Test
     void crossInstance_podASuspend_podBResumeApprove_handlerOnce() {
         AtomicInteger handlerCalls = new AtomicInteger();
-        DefaultToolConfig policy = writeConfig(handlerCalls);
+        InMemoryToolCatalog policy = writeConfig(handlerCalls);
         SharedJsonCheckpointStore storeA = new SharedJsonCheckpointStore();
         SharedJsonCheckpointStore storeB = storeA.newPeer();
         InMemoryResumeIdempotencyStore idem = new InMemoryResumeIdempotencyStore();
@@ -74,7 +73,7 @@ class CheckpointPersistenceHitlTest {
     @Test
     void doubleApprove_sameConfirmRequestId_handlerStillOnce() {
         AtomicInteger handlerCalls = new AtomicInteger();
-        DefaultToolConfig policy = writeConfig(handlerCalls);
+        InMemoryToolCatalog policy = writeConfig(handlerCalls);
         SharedJsonCheckpointStore store = new SharedJsonCheckpointStore();
         InMemoryResumeIdempotencyStore idem = new InMemoryResumeIdempotencyStore();
 
@@ -104,7 +103,7 @@ class CheckpointPersistenceHitlTest {
 
     @Test
     void suspended_keepsCheckpoint_terminal_deletes() {
-        DefaultToolConfig policy = writeConfig(new AtomicInteger());
+        InMemoryToolCatalog policy = writeConfig(new AtomicInteger());
         InMemoryCheckpointer store = new InMemoryCheckpointer();
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(visitingAgent("save"), policy),
@@ -129,7 +128,7 @@ class CheckpointPersistenceHitlTest {
     void doubleDeny_sameConfirmRequestId_idempotent() {
         AtomicInteger handlerCalls = new AtomicInteger();
         AtomicInteger agentVisits = new AtomicInteger();
-        DefaultToolConfig policy = writeConfig(handlerCalls);
+        InMemoryToolCatalog policy = writeConfig(handlerCalls);
 
         GraphNode agent = (state, ctx) -> {
             int visit = agentVisits.incrementAndGet();
@@ -171,7 +170,7 @@ class CheckpointPersistenceHitlTest {
     @Test
     void toolResultResume_injectsResult_handlerNeverRuns() {
         AtomicInteger handlerCalls = new AtomicInteger();
-        DefaultToolConfig policy = writeConfig(handlerCalls);
+        InMemoryToolCatalog policy = writeConfig(handlerCalls);
         InMemoryCheckpointer store = new InMemoryCheckpointer();
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(stateAwareAgent("save"), policy),
@@ -203,7 +202,7 @@ class CheckpointPersistenceHitlTest {
 
     @Test
     void resume_missingBothModes_failsClosed() {
-        DefaultToolConfig policy = writeConfig(new AtomicInteger());
+        InMemoryToolCatalog policy = writeConfig(new AtomicInteger());
         InMemoryCheckpointer store = new InMemoryCheckpointer();
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(visitingAgent("save"), policy),
@@ -224,7 +223,7 @@ class CheckpointPersistenceHitlTest {
 
     @Test
     void resume_toolCallIdAndDecision_mutuallyExclusive_failsClosed() {
-        DefaultToolConfig policy = writeConfig(new AtomicInteger());
+        InMemoryToolCatalog policy = writeConfig(new AtomicInteger());
         InMemoryCheckpointer store = new InMemoryCheckpointer();
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(visitingAgent("save"), policy),
@@ -250,7 +249,7 @@ class CheckpointPersistenceHitlTest {
     @Test
     void resume_unknownToolCallId_failsClosed_noInject() {
         AtomicInteger handlerCalls = new AtomicInteger();
-        DefaultToolConfig policy = writeConfig(handlerCalls);
+        InMemoryToolCatalog policy = writeConfig(handlerCalls);
         InMemoryCheckpointer store = new InMemoryCheckpointer();
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(stateAwareAgent("save"), policy),
@@ -284,7 +283,7 @@ class CheckpointPersistenceHitlTest {
     /** complete(null)：resume 抛错 → store.abandon；同 confirmId 可再 claim。 */
     @Test
     void resume_runtimeException_abandonsConfirm_allowsReclaim() {
-        DefaultToolConfig policy = writeConfig(new AtomicInteger());
+        InMemoryToolCatalog policy = writeConfig(new AtomicInteger());
         InMemoryCheckpointer inner = new InMemoryCheckpointer();
         AtomicInteger boomOnLoad = new AtomicInteger(0);
         Checkpointer store = new Checkpointer() {
@@ -343,7 +342,7 @@ class CheckpointPersistenceHitlTest {
     @Test
     void resume_againSuspends_keepsCheckpoint_andAbandonsConfirm() {
         AtomicInteger handlerCalls = new AtomicInteger();
-        DefaultToolConfig policy = writeConfig(handlerCalls);
+        InMemoryToolCatalog policy = writeConfig(handlerCalls);
         InMemoryCheckpointer store = new InMemoryCheckpointer();
         InMemoryResumeIdempotencyStore idem = new InMemoryResumeIdempotencyStore();
 
@@ -393,13 +392,13 @@ class CheckpointPersistenceHitlTest {
         assertThat(store.listByRun("re-suspend")).isEmpty();
     }
 
-    private static DefaultToolConfig writeConfig(AtomicInteger handlerCalls) {
+    private static InMemoryToolCatalog writeConfig(AtomicInteger handlerCalls) {
         ToolHandler handler = (call, ctx) -> {
             handlerCalls.incrementAndGet();
             return ToolResult.ok(call.getId(), call.getToolName(), "written");
         };
-        return new DefaultToolConfig(Collections.singletonList(
-                ToolTestSupport.registration("save", ToolLevel.WRITE, handler)));
+        return new InMemoryToolCatalog(Collections.singletonList(
+                ToolTestSupport.tool("save", handler)));
     }
 
     private static GraphNode stateAwareAgent(String toolName) {

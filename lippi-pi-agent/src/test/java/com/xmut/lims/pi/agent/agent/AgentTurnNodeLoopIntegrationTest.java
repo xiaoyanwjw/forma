@@ -10,7 +10,7 @@ import com.xmut.lims.pi.agent.graph.node.ToolHandler;
 import com.xmut.lims.pi.ai.tool.ToolResult;
 import com.xmut.lims.pi.ai.model.ModelProvider;
 import com.xmut.lims.pi.ai.model.ModelResponse;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolTestSupport;
 import org.junit.jupiter.api.Test;
 
@@ -35,8 +35,8 @@ class AgentTurnNodeLoopIntegrationTest {
                 .toolCalls(Collections.emptyList())
                 .build();
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.build(fake, new DefaultPromptBuilder(), DefaultToolConfig.empty(), ContextCompressor.NOOP),
-                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), DefaultToolConfig.empty(), null);
+                DefaultToolLoopGraph.build(fake, new DefaultPromptBuilder(), InMemoryToolCatalog.empty(), ContextCompressor.NOOP),
+                new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), InMemoryToolCatalog.empty(), null);
 
         ConversationResult result = loop.run(TurnInput.withUser("q")
                 .build());
@@ -66,7 +66,7 @@ class AgentTurnNodeLoopIntegrationTest {
 
         Map<String, ToolHandler> handlers = new HashMap<>();
         handlers.put("echo", (call, ctx) -> ToolResult.ok(call.getId(), "echo", "ok"));
-        DefaultToolConfig policy = ToolTestSupport.readConfig(handlers);
+        InMemoryToolCatalog policy = ToolTestSupport.readConfig(handlers);
 
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(new AgentTurnNode(fake, new DefaultPromptBuilder(), ContextCompressor.NOOP), policy),

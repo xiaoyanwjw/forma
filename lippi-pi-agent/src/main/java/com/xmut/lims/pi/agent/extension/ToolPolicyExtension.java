@@ -9,16 +9,16 @@ import com.xmut.lims.pi.agent.event.PiEventType;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.agent.tool.ToolAuditEvent;
 import com.xmut.lims.pi.agent.tool.ToolDecision;
-import com.xmut.lims.pi.agent.tool.ToolLevel;
-import com.xmut.lims.pi.agent.tool.ToolConfig;
+import com.xmut.lims.pi.agent.tool.ToolCatalog;
 
+import java.util.Collection;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
  * 必装工具策略闸门扩展。
- * 功能描述：在工具执行前按等级与审批策略决定 allow / block / needs_hitl。
- * 关键设计：不是 GraphNode；Adam 默认关闭 WRITE 审批，仍拦截 FORBIDDEN。
+ * 功能描述：未注册或未在本轮 active 集中的工具调用一律拒绝。
+ * 关键设计：不读 ToolLevel；WRITE 点名审批不在本故事启用（flag 可保留，默认关）。
  */
 public final class ToolPolicyExtension implements PiExtension {
 
@@ -29,7 +29,7 @@ public final class ToolPolicyExtension implements PiExtension {
     /** No remaining calls / already handled. */
     public static final String ROUTE_AGENT = "agent";
 
-    private final ToolConfig config;
+    private final ToolCatalog config;
     private final boolean writeApprovalEnabled;
     private Consumer<ToolAuditEvent> audit = event -> {
     };
@@ -37,14 +37,14 @@ public final class ToolPolicyExtension implements PiExtension {
     /**
      * WRITE 审批默认关（AD-S2）。
      */
-    public ToolPolicyExtension(ToolConfig config) {
+    public ToolPolicyExtension(ToolCatalog config) {
         this(config, false);
     }
 
     /**
-     * @param writeApprovalEnabled {@code true} 时未批准 WRITE 挂起；{@code false} 时 WRITE 直接执行
+     * @param writeApprovalEnabled {@code true} 时已注册且已激活的工具仍走 HITL（不按 level 区分）
      */
-    public ToolPolicyExtension(ToolConfig config, boolean writeApprovalEnabled) {
+    public ToolPolicyExtension(ToolCatalog config, boolean writeApprovalEnabled) {
         this.config = Objects.requireNonNull(config, "config");
         this.writeApprovalEnabled = writeApprovalEnabled;
     }
@@ -73,7 +73,8 @@ public final class ToolPolicyExtension implements PiExtension {
             return BeforeToolCallResult.block("Invalid BEFORE_TOOL_CALL payload");
         }
 
-        return evaluate(payload.getCall(), payload.getToolApproval(), payload.getHumanInput());
+        return evaluate(payload.getCall(), payload.getToolApproval(), payload.getHumanInput(),
+                payload.getActiveTools());
     }
 
     Object onAfterToolCall(PiEvent event) {
@@ -86,36 +87,60 @@ public final class ToolPolicyExtension implements PiExtension {
      * Single-call gate used by {@code bus.on(BEFORE_TOOL_CALL)} and unit tests.
      */
     public BeforeToolCallResult evaluate(ToolCallEntry call, Object approvalRaw, Object humanInput) {
+        return evaluate(call, approvalRaw, humanInput, null);
+    }
+
+    public BeforeToolCallResult evaluate(ToolCallEntry call,
+                                         Object approvalRaw,
+                                         Object humanInput,
+                                         Collection<String> activeTools) {
         if (call == null) {
             return BeforeToolCallResult.block("Invalid tool call entry: null");
         }
 
-        ToolLevel level = config.levelOf(call.getToolName());
-        ToolDecision decision = parseDecision(approvalRaw);
-
-        if (level == null || level == ToolLevel.FORBIDDEN) {
+        String name = call.getToolName();
+        if (!config.isRegistered(name)) {
             emit(ToolAuditEvent.of(ToolAuditEvent.Kind.FORBIDDEN,
-                    call.getToolName(), call.getId(), null,
-                    level == null ? "null-level" : "fail-closed"));
-            return BeforeToolCallResult.block("Tool forbidden by ToolConfig: " + call.getToolName());
+                    name, call.getId(), null, "not-registered"));
+            return BeforeToolCallResult.block("Tool not registered: " + name);
         }
 
-        if (level == ToolLevel.WRITE && writeApprovalEnabled) {
+        if (activeTools != null && !containsName(activeTools, name)) {
+            emit(ToolAuditEvent.of(ToolAuditEvent.Kind.FORBIDDEN,
+                    name, call.getId(), null, "not-active"));
+            return BeforeToolCallResult.block("Tool not in active set: " + name);
+        }
+
+        ToolDecision decision = parseDecision(approvalRaw);
+        if (writeApprovalEnabled) {
             if (decision == ToolDecision.DENY) {
                 String reason = resolveDenyReason(humanInput);
-                emit(ToolAuditEvent.of(ToolAuditEvent.Kind.DENY, call.getToolName(), call.getId(), null, reason));
+                emit(ToolAuditEvent.of(ToolAuditEvent.Kind.DENY, name, call.getId(), null, reason));
                 return BeforeToolCallResult.block(
                         "Tool write denied" + (reason != null ? ": " + reason : ""));
             }
             if (decision == ToolDecision.APPROVE) {
-                emit(ToolAuditEvent.of(ToolAuditEvent.Kind.APPROVE, call.getToolName(), call.getId(), null, null));
+                emit(ToolAuditEvent.of(ToolAuditEvent.Kind.APPROVE, name, call.getId(), null, null));
                 return BeforeToolCallResult.allow();
             }
-            emit(ToolAuditEvent.of(ToolAuditEvent.Kind.SUSPEND, call.getToolName(), call.getId(), null, "awaiting approval"));
+            emit(ToolAuditEvent.of(ToolAuditEvent.Kind.SUSPEND, name, call.getId(), null, "awaiting approval"));
             return BeforeToolCallResult.needsHitl("awaiting approval");
         }
 
         return BeforeToolCallResult.allow();
+    }
+
+    private static boolean containsName(Collection<String> activeTools, String name) {
+        if (name == null) {
+            return false;
+        }
+        String trimmed = name.trim();
+        for (String item : activeTools) {
+            if (item != null && trimmed.equals(item.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void emit(ToolAuditEvent event) {

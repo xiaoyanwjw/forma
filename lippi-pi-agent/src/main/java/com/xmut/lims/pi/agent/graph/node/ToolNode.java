@@ -109,6 +109,18 @@ public final class ToolNode implements GraphNode {
         return updates;
     }
 
+    @SuppressWarnings("unchecked")
+    private static Collection<String> activeToolsOf(GraphState state) {
+        if (state == null) {
+            return null;
+        }
+        Object raw = state.get(StateKeys.ACTIVE_TOOLS);
+        if (raw instanceof Collection) {
+            return (Collection<String>) raw;
+        }
+        return null;
+    }
+
     private String turnIdOf(GraphState state) {
         Object raw = state.get(StateKeys.CURRENT_TURN_ID);
         if (raw instanceof String) {
@@ -143,7 +155,8 @@ public final class ToolNode implements GraphNode {
                         BeforeToolCallPayload.of(
                                 call,
                                 state.get(StateKeys.TOOL_APPROVAL),
-                                state.get(StateKeys.HUMAN_INPUT))),
+                                state.get(StateKeys.HUMAN_INPUT),
+                                activeToolsOf(state))),
                 BeforeToolCallResult.class);
         return fromBus != null ? fromBus : BeforeToolCallResult.allow();
     }

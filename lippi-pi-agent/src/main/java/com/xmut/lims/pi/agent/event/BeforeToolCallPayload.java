@@ -3,6 +3,8 @@ package com.xmut.lims.pi.agent.event;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import lombok.Value;
 
+import java.util.Collection;
+
 /**
  * BEFORE_TOOL_CALL 载荷。
  * 功能描述：携带当前 tool call 及执行上下文。
@@ -13,9 +15,18 @@ public class BeforeToolCallPayload {
     ToolCallEntry call;
     Object toolApproval;
     Object humanInput;
+    /** 本轮 active 工具名；null = 不按名裁剪（只拦未注册）。 */
+    Collection<String> activeTools;
 
     public static BeforeToolCallPayload of(ToolCallEntry call, Object toolApproval, Object humanInput) {
-        return new BeforeToolCallPayload(call, toolApproval, humanInput);
+        return of(call, toolApproval, humanInput, null);
+    }
+
+    public static BeforeToolCallPayload of(ToolCallEntry call,
+                                           Object toolApproval,
+                                           Object humanInput,
+                                           Collection<String> activeTools) {
+        return new BeforeToolCallPayload(call, toolApproval, humanInput, activeTools);
     }
 
     public static ToolCallEntry callOf(PiEvent event) {

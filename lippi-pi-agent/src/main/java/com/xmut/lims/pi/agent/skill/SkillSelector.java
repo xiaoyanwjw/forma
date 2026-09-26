@@ -16,14 +16,14 @@ public final class SkillSelector {
 
     private SkillSelector() {}
 
-    public static ActiveSkill select(TurnInput turn, SkillConfig skillConfig) {
+    public static ActiveSkill select(TurnInput turn, SkillCatalog skillConfig) {
         String skillId = skillIdOf(turn);
         if (!StringUtils.hasText(skillId)) {
             return ActiveSkill.NONE;
         }
         if (skillConfig == null) {
             throw new IllegalArgumentException("unknown skillId: " + skillId
-                    + " (SkillConfig unavailable)");
+                    + " (SkillCatalog unavailable)");
         }
         return skillConfig.resolve(skillId)
                 .map(ActiveSkill::of)

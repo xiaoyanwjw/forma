@@ -1,24 +1,22 @@
 package com.xmut.ebus;
 
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
-import com.xmut.ebus.application.config.EbusSkillConfiguration;
-import com.xmut.lims.pi.agent.skill.SkillConfig;
-import com.xmut.lims.pi.agent.skill.SkillConfigProperties;
+import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
+import com.xmut.lims.pi.agent.skill.SkillCatalog;
+import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.lims.pi.agent.skill.Skills;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 验证 starter 资源包可被 SkillConfig 二次扫描注册（AD-16）。
+ * 验证 starter 官方 SKILL.md 可被 Skills 注册，并由薄 Loader 按 sceneCode 选型。
  */
 class SceneCapabilityPackBootstrapTest {
 
     @Test
-    void starterEcommerceSkillsRegisterIntoSkillConfig() {
-        SkillConfig skills = new EbusSkillConfiguration().skillConfig(
-                new PathMatchingResourcePatternResolver(),
-                SkillConfigProperties.defaults());
+    void starterEcommerceSkillsRegisterIntoSkillCatalog() {
+        SkillCatalog skills = loadStarterSkills();
 
         assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_PICKLIST).isPresent());
         assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_SKULIST).isPresent());
@@ -26,9 +24,15 @@ class SceneCapabilityPackBootstrapTest {
 
     @Test
     void starterEcommercePackLoadsViaLoader() {
-        SceneCapabilityPackLoader loader =
-                new SceneCapabilityPackLoader(new PathMatchingResourcePatternResolver());
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(loadStarterSkills());
         assertTrue(loader.load("ecommerce").hasSkill(SceneCapabilityPackLoader.SKILL_PICKLIST));
         assertTrue(loader.load("ecommerce").hasSkill(SceneCapabilityPackLoader.SKILL_SKULIST));
+    }
+
+    private static SkillCatalog loadStarterSkills() {
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
+        Skills.loadFromClasspath(skills);
+        skills.sealBootstrap();
+        return skills;
     }
 }

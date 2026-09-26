@@ -60,22 +60,21 @@ class PiAutoConfigurationTest {
             assertThat(context).doesNotHaveBean("memoryManager");
             assertThat(context).hasSingleBean(ContextCompressor.class);
             assertThat(context).hasSingleBean(CompressionConfig.class);
-            assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.skill.SkillConfig.class);
-            assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.skill.SkillConfigProperties.class);
-            assertThat(context.getBean(com.xmut.lims.pi.agent.skill.SkillConfigProperties.class)
+            assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class);
+            assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.skill.SkillCatalogProperties.class);
+            assertThat(context.getBean(com.xmut.lims.pi.agent.skill.SkillCatalogProperties.class)
                     .isAllowRuntimeMutation()).isFalse();
-            assertThat(context.getBean(com.xmut.lims.pi.agent.skill.SkillConfig.class)
-                    .resolve("certificate.ocr")).isPresent();
-            assertThat(context.getBean(com.xmut.lims.pi.agent.skill.SkillConfig.class)
-                    .resolve("certificate.ocr").get().getModelUseCase())
-                    .isEqualTo("certificate-ocr");
-            assertThat(context.getBean(com.xmut.lims.pi.agent.tool.ToolConfig.class)
-                    .resolve("sample.echo")).isPresent();
-            assertThat(context.getBean(com.xmut.lims.pi.agent.tool.ToolConfig.class)
+            assertThat(context.getBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class)
+                    .resolve("ecommerce-picklist")).isPresent();
+            assertThat(context.getBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class)
+                    .listByScene("ecommerce"))
+                    .extracting(com.xmut.lims.pi.agent.skill.Skill::getId)
+                    .contains("ecommerce-picklist", "ecommerce-skulist");
+            assertThat(context.getBean(com.xmut.lims.pi.agent.tool.ToolCatalog.class)
                     .resolve("read_skill")).isPresent();
-            assertThat(context.getBean(com.xmut.lims.pi.agent.tool.ToolConfig.class)
+            assertThat(context.getBean(com.xmut.lims.pi.agent.tool.ToolCatalog.class)
                     .handlerOf("read_skill")).isPresent();
-            assertThat(context.getBean(com.xmut.lims.pi.agent.tool.ToolConfig.class)
+            assertThat(context.getBean(com.xmut.lims.pi.agent.tool.ToolCatalog.class)
                     .handlerOf("read_skill").get())
                     .isInstanceOf(ReadSkill.class);
             assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.resource.PiResourceLoader.class);
@@ -119,19 +118,17 @@ class PiAutoConfigurationTest {
     }
 
     @Test
-    void builtin_certificate_ocr_skill_sealed_after_boot() {
+    void builtin_scene_skills_sealed_after_boot() {
         contextRunner().run(context -> {
-            com.xmut.lims.pi.agent.skill.SkillConfig skills =
-                    context.getBean(com.xmut.lims.pi.agent.skill.SkillConfig.class);
-            assertThat(skills.resolve("certificate.ocr")).isPresent();
+            com.xmut.lims.pi.agent.skill.SkillCatalog skills =
+                    context.getBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class);
+            assertThat(skills.resolve("ecommerce-picklist")).isPresent();
             assertThatThrownBy(() -> skills.registerBootstrap(
-                    com.xmut.lims.pi.agent.skill.SkillManifest.builder()
+                    com.xmut.lims.pi.agent.skill.Skill.builder()
                             .id("late")
-                            .version("1.0.0")
-                            .skillsPrompt("p")
-                            .toolWhitelist(java.util.Collections.emptyList())
-                            .maxToolLevel(com.xmut.lims.pi.agent.tool.ToolLevel.READ)
-                            .graphTopology(com.xmut.lims.pi.agent.skill.SkillGraphTopology.TOOL_LOOP)
+                            .description("p")
+                            .promptRef("classpath:skills/late.md")
+                            .allowedTools(java.util.Collections.emptyList())
                             .build()))
                     .isInstanceOf(com.xmut.lims.pi.agent.skill.SkillValidationException.class)
                     .hasMessageContaining("bootstrap window closed");

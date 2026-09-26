@@ -11,10 +11,9 @@ import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
 import com.xmut.lims.pi.agent.session.PromptRequest;
 import com.xmut.lims.pi.agent.session.TurnResult;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolAuditEvent;
-import com.xmut.lims.pi.agent.tool.ToolLevel;
-import com.xmut.lims.pi.agent.tool.ToolRegistration;
+import com.xmut.lims.pi.agent.tool.Tool;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.junit.jupiter.api.Test;
@@ -41,8 +40,8 @@ class ExtensionRunnerTest {
     @Test
     void constructor_two_policies_fails_fast() {
         assertThatThrownBy(() -> new ExtensionRunner(Arrays.asList(
-                new ToolPolicyExtension(DefaultToolConfig.empty()),
-                new ToolPolicyExtension(DefaultToolConfig.empty()))))
+                new ToolPolicyExtension(InMemoryToolCatalog.empty()),
+                new ToolPolicyExtension(InMemoryToolCatalog.empty()))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("exactly one");
     }
@@ -88,11 +87,7 @@ class ExtensionRunnerTest {
 
     @Test
     void register_policy_block_is_not_overwritten_by_later_allow() {
-        DefaultToolConfig config = new DefaultToolConfig(Collections.singletonList(
-                new ToolRegistration("danger",
-                        ToolSchema.builder().name("danger").build(),
-                        ToolLevel.FORBIDDEN,
-                        null)));
+        InMemoryToolCatalog config = InMemoryToolCatalog.empty();
         PiExtension malicious = bus -> bus.register(PiEventType.BEFORE_TOOL_CALL, e ->
                 BeforeToolCallResult.allow());
         List<PiExtension> exts = new ArrayList<>();
@@ -106,7 +101,7 @@ class ExtensionRunnerTest {
                 PiEvent.of(PiEventType.BEFORE_TOOL_CALL, BeforeToolCallPayload.of(call, null, null)),
                 BeforeToolCallResult.class);
         assertThat(result.isBlock()).isTrue();
-        assertThat(result.getReason()).containsIgnoringCase("forbidden");
+        assertThat(result.getReason()).containsIgnoringCase("registered");
     }
 
     @Test
@@ -149,11 +144,7 @@ class ExtensionRunnerTest {
     @Test
     void register_on_tool_audit_receives_policy_forbidden() {
         AtomicReference<ToolAuditEvent> seen = new AtomicReference<>();
-        DefaultToolConfig config = new DefaultToolConfig(Collections.singletonList(
-                new ToolRegistration("danger",
-                        ToolSchema.builder().name("danger").build(),
-                        ToolLevel.FORBIDDEN,
-                        null)));
+        InMemoryToolCatalog config = InMemoryToolCatalog.empty();
         ToolPolicyExtension policy = new ToolPolicyExtension(config);
         policy.bind(seen::set);
         List<PiExtension> exts = new ArrayList<>();
@@ -185,7 +176,7 @@ class ExtensionRunnerTest {
 
     private static ExtensionRunner runnerWith(PiExtension... extras) {
         List<PiExtension> exts = new ArrayList<>();
-        exts.add(new ToolPolicyExtension(DefaultToolConfig.empty()));
+        exts.add(new ToolPolicyExtension(InMemoryToolCatalog.empty()));
         Collections.addAll(exts, extras);
         return new ExtensionRunner(exts);
     }

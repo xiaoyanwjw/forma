@@ -74,7 +74,7 @@ class DefaultAgentSessionTest {
 
         TurnResult result = session.prompt(PromptRequest.builder()
                 .traceId("tr-1")
-                .skillId("certificate.ocr")
+                .skillId("ecommerce-picklist")
                 .messages(Collections.singletonList(user))
                 .build());
 
@@ -85,7 +85,7 @@ class DefaultAgentSessionTest {
         verify(conversationLoop).run(cap.capture(), any());
         TurnInput mapped = cap.getValue();
         assertThat(mapped.getTraceId()).isEqualTo("tr-1");
-        assertThat(mapped.getSkillId()).isEqualTo("certificate.ocr");
+        assertThat(mapped.getSkillId()).isEqualTo("ecommerce-picklist");
         assertThat(mapped.getSessionId()).isEqualTo(result.getSessionId());
         assertThat(mapped.getMessages()).hasSize(1);
         assertThat(mapped.getMessages().get(0).hasImagePart()).isTrue();

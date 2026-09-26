@@ -26,7 +26,7 @@ public final class ToolHandlerAutoBinder {
     /**
      * @return 仅含声明了 {@code handlerClass} 的 Binding（handlerOnly 占位 Manifest）
      */
-    public static List<ToolBinding> bindFromManifests(List<ToolManifest> manifests,
+    public static List<ToolBinding> bindFromManifests(List<ToolDefinition> manifests,
                                                       BeanFactory beanFactory) {
         if (manifests == null || manifests.isEmpty() || beanFactory == null) {
             return Collections.emptyList();
@@ -40,7 +40,7 @@ public final class ToolHandlerAutoBinder {
                 : null;
 
         List<ToolBinding> out = new ArrayList<>();
-        for (ToolManifest m : manifests) {
+        for (ToolDefinition m : manifests) {
             if (m == null || !StringUtils.hasText(m.getHandlerClass())) {
                 continue;
             }

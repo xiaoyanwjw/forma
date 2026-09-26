@@ -22,9 +22,7 @@ import com.xmut.lims.pi.agent.event.PiEventType;
 import com.xmut.lims.pi.agent.session.AgentSession;
 import com.xmut.lims.pi.agent.session.PromptRequest;
 import com.xmut.lims.pi.agent.session.TurnResult;
-import com.xmut.lims.pi.agent.skill.SkillGraphTopology;
-import com.xmut.lims.pi.agent.skill.SkillManifest;
-import com.xmut.lims.pi.agent.tool.ToolLevel;
+import com.xmut.lims.pi.agent.skill.Skill;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -352,7 +351,10 @@ class AgentApplicationServiceTest {
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
-        assertEquals(SceneCapabilityPackLoader.DEFAULT_EMPTY_RUN_SKILL_ID, promptCaptor.getValue().getSkillId());
+        assertEquals("ecommerce-picklist", SceneCapabilityPackLoader.DEFAULT_EMPTY_RUN_SKILL_ID);
+        assertEquals("ecommerce-picklist", promptCaptor.getValue().getSkillId());
+        verify(agentSession).prompt(argThat(req ->
+                "ecommerce-picklist".equals(req.getSkillId())));
 
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
@@ -502,7 +504,7 @@ class AgentApplicationServiceTest {
         when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(
                 new SceneCapabilityPack(ECOM_SCENE_CODE, Collections.singletonList(
                         skill(SceneCapabilityPackLoader.SKILL_SKULIST,
-                                "classpath:scenes/ecommerce/ecommerce.skulist.md"))));
+                                "classpath:scenes/ecommerce/ecommerce-skulist/SKILL.md"))));
         when(generationRunRepository.findById("run-default-miss")).thenReturn(Optional.of(
                 GenerationRun.start("run-default-miss", USER_ID, HOLD_ID, "session-default-miss",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -553,20 +555,18 @@ class AgentApplicationServiceTest {
 
     private static SceneCapabilityPack ecommercePack() {
         return new SceneCapabilityPack(ECOM_SCENE_CODE, Arrays.asList(
-                skill(SceneCapabilityPackLoader.SKILL_PICKLIST, "classpath:scenes/ecommerce/ecommerce.picklist.md"),
-                skill(SceneCapabilityPackLoader.SKILL_SKULIST, "classpath:scenes/ecommerce/ecommerce.skulist.md")));
+                skill(SceneCapabilityPackLoader.SKILL_PICKLIST,
+                        "classpath:scenes/ecommerce/ecommerce-picklist/SKILL.md"),
+                skill(SceneCapabilityPackLoader.SKILL_SKULIST,
+                        "classpath:scenes/ecommerce/ecommerce-skulist/SKILL.md")));
     }
 
-    private static SkillManifest skill(String id, String promptRef) {
-        return SkillManifest.builder()
+    private static Skill skill(String id, String promptRef) {
+        return Skill.builder()
                 .id(id)
-                .version("1.0.0")
-                .displayName(id)
                 .description(id)
                 .promptRef(promptRef)
-                .toolWhitelist(Collections.singletonList("read_skill"))
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
+                .allowedTools(Collections.singletonList("read_skill"))
                 .build();
     }
 

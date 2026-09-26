@@ -62,10 +62,10 @@ public final class StateKeys {
     public static final String TOOL_GUIDANCE = TOOLS;
 
     /**
-     * {@code List<SkillManifest>} — 本轮可用 Skill 资产（与 {@link #AVAILABLE_TOOLS} 对称）。
+     * {@code List<Skill>} — 本轮可用 Skill 资产（与 {@link #AVAILABLE_TOOLS} 对称）。
      *
-     * <p>EXPLICIT resolve 成功 → 单元素（当前 Active）；无 Active 且已注入 SkillConfig
-     * → {@code skillConfig.manifests()} 全量目录（供 51-10 Router）；无 SkillConfig → 不写。
+     * <p>EXPLICIT resolve 成功 → 单元素（当前 Active）；无 Active 且已注入 SkillCatalog
+     * → {@code skillConfig.all()} 全量目录（供 51-10 Router）；无 SkillCatalog → 不写。
      */
     public static final String AVAILABLE_SKILLS = "available_skills";
 
@@ -153,10 +153,17 @@ public final class StateKeys {
     /**
      * {@code List<ToolSchema>} — 本轮可供模型选择的工具 schema。
      *
-     * <p>由 Loop / ToolConfig 写入 state；{@code AgentTurnNode} 读入 {@code ModelRequest.tools}。
+     * <p>由 Loop / ToolCatalog 写入 state；{@code AgentTurnNode} 读入 {@code ModelRequest.tools}。
      * 缺省或空 → 不带 tools。
      */
     public static final String AVAILABLE_TOOLS = "available_tools";
+
+    /**
+     * {@code Collection<String>} — 本轮已激活的工具名（来自 skill {@code allowedTools}）。
+     *
+     * <p>null / 未写 = 不按名限制（只拦未注册）；empty = 拒绝全部 tool_call。
+     */
+    public static final String ACTIVE_TOOLS = "active_tools";
 
     /**
      * {@code String} — 当前 agent turn id（一次 LLM hop）。

@@ -18,7 +18,7 @@ class OpenAiCompatibleResponseParserTest {
                 + "\"model\":\"qwen-flash\","
                 + "\"choices\":[{\"finish_reason\":\"tool_calls\",\"message\":{"
                 + "\"content\":\"\","
-                + "\"tool_calls\":[{\"id\":\"call_1\",\"function\":{\"name\":\"read_skill\",\"arguments\":\"{\\\"skill_id\\\":\\\"certificate.ocr\\\"}\"}}]"
+                + "\"tool_calls\":[{\"id\":\"call_1\",\"function\":{\"name\":\"read_skill\",\"arguments\":\"{\\\"skill_id\\\":\\\"ecommerce-picklist\\\"}\"}}]"
                 + "}}],"
                 + "\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":4,\"total_tokens\":14}"
                 + "}";
@@ -28,7 +28,7 @@ class OpenAiCompatibleResponseParserTest {
         assertThat(r.getTotalTokens()).isEqualTo(14);
         assertThat(r.getToolCalls()).hasSize(1);
         assertThat(r.getToolCalls().get(0).getToolName()).isEqualTo("read_skill");
-        assertThat(r.getToolCalls().get(0).getArguments().path("skill_id").asText()).isEqualTo("certificate.ocr");
+        assertThat(r.getToolCalls().get(0).getArguments().path("skill_id").asText()).isEqualTo("ecommerce-picklist");
     }
 
     @Test

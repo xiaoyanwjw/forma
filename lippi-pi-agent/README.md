@@ -95,13 +95,13 @@ SessionStore.getOrCreate
 
 ```text
 START → agent ⇄ tools → agent → END
-              ↑ 仅 WRITE 审批显式开启且未批准时本节点挂起，resume 重跑
+              ↑ 审批开关开启且未批准时本节点挂起，resume 重跑
 ```
 
 - **Memory**：暂未接入（原 51-7 脚手架已收掉；有业务记忆需求再加）
 - `agent`：读 `MESSAGES` + `SYSTEM_PROMPT` → `request=sanitize([system]+messages)` → `ModelProvider.complete`
 - `tools`：对齐开源 pi，**逐 call** 经 bus：`tool_execution_start` → `before_tool_call` → execute → `after_tool_call` → `tool_execution_end`
-  - **before_tool_call**：配置期 `bus.on`（含必装的 `ToolPolicyExtension`）；FORBIDDEN/deny 失败结果直接写入 `MESSAGES`；Adam 默认 WRITE 审批关（`lims.pi.tool.write-approval.enabled=false`）；开启后未批准 WRITE → 本节点申请挂起（`__interrupt__`），resume 后**重跑 `tools`** 消费 `TOOL_APPROVAL`
+  - **before_tool_call**：配置期 `bus.on`（含必装的 `ToolPolicyExtension`）；未登记/未 active/deny → 失败结果写入 `MESSAGES`；默认审批关（`lims.pi.tool.write-approval.enabled=false`）；开启后未批准 → 挂起（`__interrupt__`），resume 后**重跑 `tools`** 消费 `TOOL_APPROVAL`
   - **execute**：只执行策略已放行的调用；成功/失败结果立刻写入 `MESSAGES`
   - **after_tool_call**：每条 Tool 结果（含失败）可归约改写
   - `TOOL_RESULTS` 仅作短暂暂存，执行后清空（不再回灌 AgentTurn）
@@ -119,7 +119,7 @@ START → agent ⇄ tools → agent → END
   - TTL：`lims.pi.resume-idem.ttl-seconds`（默认 86400）；过期视同无键
   - 键仅 `runId`（+ 可选 `confirmRequestId`）；**已移除** `tenantId` / `userId`
 
-**批次语义：** WRITE 审批开启时，同一超步任一 WRITE 未批准 → **整批挂起**（同批 READ 亦不先执行）。审批默认关时 WRITE 与 READ 同策略面直接执行。
+**批次语义：** 审批开启时，同一超步任一未批准调用 → **整批挂起**。默认关时，已登记且 active 的工具直接执行。
 
 **禁止**：第二套 Planner while；禁止 `chat`+`chatWithTools` 双方法；禁止节点内私自再拼一份 system。
 
@@ -129,7 +129,7 @@ START → agent ⇄ tools → agent → END
 
 | 类型 | 说明 |
 | ---- | ---- |
-| `PiResourceLoader` / `DefaultPiResourceLoader` | 冻结 Agent Context；委托既有 Skill/Tool bootstrap；扫 `classpath*:prompts/*.md` |
+| `PiResourceLoader` / `DefaultPiResourceLoader` | 冻结 Agent Context；skills 启动经 `Skills.loadFromClasspath` 入 `SkillCatalog`，正文经 `loadSkillBody`；扫 `classpath*:prompts/*.md` |
 | `PromptTemplate` | `name` / `description` / `body`（frontmatter 只读 description，无 YAML 依赖） |
 | `AgentResourceSnapshot` | skills 目录、prompt 表、extension 名 |
 | `PiEventBus` | Session 持有的生命周期总线：`observe` 只读、`on` 同步归约、`emit` 唯一出口 |
@@ -251,73 +251,26 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 
 **≠ Graph Checkpoint ≠ SessionStore。** 字符估 token 非精确 tokenizer。
 
-## L3 SkillConfig（Story 51-9）✅
+## L3 SkillCatalog（Story 51-9 / 3-2b）✅
 
-版本化 Skill 资产平台（FR22 / FR24）。包：`com.xmut.lims.pi.agent.skill`。
+官方 [Pi Agent Skills](https://pi.dev/docs/latest/skills) 形态：目录 + `SKILL.md` frontmatter。包：`com.xmut.lims.pi.agent.skill`。
 
 | 类型 | 说明 |
 | ---- | ---- |
-| `SkillManifest` | 不可变值对象：id / version / prompt / toolWhitelist / maxToolLevel / graphTopology |
-| `SkillConfig` / `InMemorySkillConfig` | register / get / resolve / **manifests** / unregister / replace / **sealBootstrap** |
-| `ClasspathSkillBootstrap` | 启动扫 `classpath*:skills/*.skill.json` → `registerBootstrap`（**默认开启**；内置含 `certificate.ocr`） |
-| `ClasspathToolBootstrap` | 启动扫 `classpath*:tools/*.tool.json` → Manifest |
-| `handlerClass`（JSON） | 可选 FQCN；`ToolHandlerAutoBinder` 自动 createBean 并按 id 绑定 |
-| `SkillSelector` / `ActiveSkill` | 本轮 EXPLICIT 选择（`skillId` > `domain`） |
-| `SkillValidationException` | 缺字段、非法值、重复 id+version、生产运行时突变拒绝 |
-| `SkillConfigProperties` | `pi.skills.allow-runtime-mutation`（**默认 false**） |
-| `TurnBinder` / `TurnBindings` | **极薄投影**：`ToolConfig` + `SkillConfig` + `ActiveSkill` → Stable + API |
-| `SkillGraphTopology` | `TOOL_LOOP` \| `SIMPLE_AGENT_END`（Manifest 声明偏好；Agent **不**按此换图） |
+| `Skill` | 薄值对象：id / name / description / `allowedTools` / `sceneCode` / body 引用 |
+| `Skills.parse` / `Skills.loadFromClasspath` | 扫 `classpath*:scenes/*/*/SKILL.md` → `registerBootstrap` → **`sealBootstrap()`** |
+| `SkillCatalog` / `InMemorySkillCatalog` | register / resolve / **all** / seal；默认禁止运行时突变 |
+| `PiResourceLoader.loadSkillBody` | 按 skillId 读 `SKILL.md` 正文（`read_skill` 工具背后） |
+| `SkillSelector` / `ActiveSkill` | EXPLICIT `skillId`（Adam 场景包经 `SceneCapabilityPackLoader` 选型） |
+| `TurnBinder` / `TurnBindings` | `ToolCatalog` + `ActiveSkill` → Stable 摘要 + **按名启用** tools API |
 
-**与 Tool 对称命名：**
+**加载路径：**
 
-| Skill | Tool |
-| ----- | ---- |
-| `SkillConfig` | `ToolConfig` |
-| `SkillManifest` | `ToolManifest`（`text` → Stable；`schema` → API） |
-| `ClasspathSkillBootstrap` | `ClasspathToolBootstrap`（Manifest only；Handler 代码合并） |
-| `get` / `resolve` / `manifests` | `get` / `resolve` / `manifests` |
-| `skillsText` → `SKILLS` | `toolsText` → `TOOLS` |
-| `availableSkills` | `availableTools` |
+1. **Skill：** `Skills.loadFromClasspath` 扫 `classpath*:scenes/*/*/SKILL.md`（starter/application）→ seal  
+2. **Tool：** Spring `AgentConfiguration` 代码注册（默认 `read_skill`）；`allowed-tools` 裁剪本轮 `ACTIVE_TOOLS`  
+3. **Select / Bind：** `SkillSelector` → `TurnBinder`；正文按需 `read_skill`  
 
-**API 要点：**
-
-- `resolve(id)`：取该 id **最近一次成功入册**更新的「当前」指针（非 semver 比较）
-- `get(id, version)`：精确版本
-- 同 `id`+`version` 默认 **拒绝覆盖**；显式 `replace` 仅 mutation=true
-- 启动装载：`ClasspathSkillBootstrap` → `registerBootstrap` → **`sealBootstrap()`**（关闭启动窗；之后 bootstrap 拒绝）
-- Tool：扫 `*.tool.json`；有 `handlerClass` → 自动装配 Handler；无则声明型（仅 schema）
-
-**加载路径（Scanner + 极薄 bind）：**
-
-1. **Boot Skill：** 扫 `classpath*:skills/*.skill.json`（含 `certificate.ocr`）→ SkillConfig → seal  
-2. **Boot Tool：** 扫 `classpath*:tools/*.tool.json` → Manifest；`handlerClass` 自动绑 Handler  
-3. **Select：** `SkillSelector.select` → `ActiveSkill`（EXPLICIT `skillId`；AUTO 属 51-10）  
-4. **Bind：** `TurnBinder.bind(toolConfig, skillConfig, activeSkill)`  
-
-投影规则：
-
-- `skillsText`：目录摘要（id/displayName/description）+「用 `read_skill` 拉正文」指引；**不是** Skill 全文
-- `availableSkills`：有 Active → 当前 skill；无 Active → `skillConfig.manifests()` 目录（同时进 `skillsText`）
-- `toolsText` / `availableTools`：Active 时按 `whitelist` **同步裁剪**（如 `certificate.ocr` → `["read_skill"]`）
-- Skill 正文：`promptRef`（优先）或内联 `skillsPrompt`，经工具 `read_skill` 返回（OCR 正确性不依赖此路径）
-
-**生产禁自改（≠ 上游）：** 上游 Hermes 允许 agent 改 `~/.hermes/skills/`；本仓库 **FR24 更严**——默认禁止运行时 register/replace/unregister，bootstrap 窗在 Bean 装配后封印，**禁止**「模型 Tool 写 Skill 文件并热更新生产 Registry」。`read_skill` 只读，且限制为当前 ActiveSkill。测试可 `allow-runtime-mutation=true` 或在 seal 前 bootstrap。
-
-**内置 Skill：** `certificate.ocr`、`test-standard-schema`（`promptRef` → md 为**唯一规则源**，`toolWhitelist=["read_skill"]`）；**不**由 application 声明 SkillManifest。业务入口传 `skillId` + 薄 user（application `v1.txt` 仅短指令 + 本轮数据），要求先 `read_skill`。`lims.nav` / **SkillRouter** 属 **51-10**。
-
-## 垂直切片：证书 OCR（Story 51-5）✅
-
-| 项 | 说明 |
-| -- | ---- |
-| Skill | `skills/certificate-ocr.skill.json` + `certificate-ocr.md`（**规则 SSOT**） |
-| 加载 | Stable 目录摘要；Skill 全文经 `read_skill`；user 薄指令来自 `ai-prompts/certificate-ocr/v1.txt` |
-| 图 | Agent **唯一** Tool-loop；whitelist=`["read_skill"]`；`SIMPLE_AGENT_END` 仅为 Manifest 声明偏好 |
-| Message | user = 短指令（含先 read_skill）+ `image_url`（VL）；字段细则在 Skill md |
-| useCase | `AgentTurnNode` ← `StateKeys.MODEL_USE_CASE` ← ActiveSkill；缺省 `pi.default` |
-| 生产 Provider | infrastructure `AiCapabilityPiModelProvider` 桥接 agent MultimodalChat |
-| 业务入口 | application `CertificateOcrAgent` 组消息 + `skillId` + 解析 DTO |
-
-**≠** agent `ToolRegistry` / Capability；**≠** ContextCompressor / Checkpoint / HITL 职责变更。
+Adam 电商示例：`ecommerce-picklist` / `ecommerce-skulist`（连字符 id）。Stable 只放目录摘要，不是 Skill 全文。`lims.nav` / **SkillRouter** 仍属 **51-10**。
 
 ## L3 Memory（Story 51-7）⏸ 暂缓
 
@@ -326,34 +279,31 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 
 有业务需求时再恢复：Session 预加载 → 编进 `SYSTEM_PROMPT`；前缀须 `pi:memory:`（绝不用 `pi:checkpoint:`）。
 
-## L2 ToolConfig [LIMS] + WRITE HITL（Story 51-4）✅
+## L2 ToolCatalog [LIMS] + optional HITL（Story 51-4 / 3-2b）✅
 
-对齐上游 [Security / approval](https://hermes-agent.nousresearch.com/docs/user-guide/security) 的「执行前闸门」语义，但分级与 HITL 为 **[LIMS] 扩展**（上游仅有危险 shell 命令 approval，**不是** Hermes native 原语）。
+对齐上游 [Security / approval](https://hermes-agent.nousresearch.com/docs/user-guide/security) 的「执行前闸门」语义；Adam 默认路径为 **登记 + 按名激活**，HITL 为 **[LIMS] 可选扩展**（默认关）。
 
 | 类型 | 说明 |
 | ---- | ---- |
-| `ToolLevel` | `READ \| SUGGEST \| WRITE \| FORBIDDEN` |
-| `ToolManifest` | 工具资产说明书（与 SkillManifest 对称）：`text` → Stable；schema → API |
-| `ToolBinding` | Manifest + Handler（或 `handlerOnly` 占位，由 JSON 覆盖 Manifest） |
-| `handlerClass` | JSON 字段；生产推荐靠它自动装配，无需 Config `@Bean` Handler |
-| `ToolConfig` / `DefaultToolConfig` | Manifest 目录 + 分级闸门；**缺省 fail-closed**（未知 → FORBIDDEN） |
-| `ToolRegistration` | 兼容包装 = Binding（新代码优先 Manifest + Binding） |
-| `ToolContext` | `runId` / `traceId` / `activeSkillId`（hermes 自有；≠ agent ToolContext；**已移除** tenant/user） |
-| `ToolAuditEvent` | 闸门 / 执行审计事件；经 `PiExtension.onToolAudit` 旁路分发 |
+| `ToolDefinition` | 工具说明书（与 Skill 对称）：`text` → Stable；schema → API |
+| `ToolBinding` / `Tool` | Definition + Handler；Spring 默认在 `AgentConfiguration.toolConfig` 代码注册 |
+| `ToolCatalog` / `InMemoryToolCatalog` | 已登记工具目录；**未登记或未在本轮 active 集 → 拒绝**（fail-closed） |
+| `ToolPolicyExtension` | 必装闸门；**不读** READ/WRITE level |
+| `ToolContext` | `runId` / `traceId` / `activeSkillId`（**已移除** tenant/user） |
+| `ToolAuditEvent` | 闸门 / 执行审计；经 `PiExtension.onToolAudit` 旁路 |
 | `ToolDecision` | `APPROVE \| DENY` → `ResumeRequest.decision` / `approved` |
 
-**WRITE HITL 流程：**
+**可选 WRITE 审批（`lims.pi.tool.write-approval.enabled`，默认 `false`）：**
 
-1. 模型产出含 WRITE 的 `TOOL_CALLS` → `tools` 内 `beforeToolCall` → `SUSPENDED`（checkpoint 保留；**不**调 handler）
-2. `AgentSession.resume(ResumeRequest)` **[LIMS] HITL**（≠ 上游 Session `/resume`；绑 Graph Checkpoint [Lippi]）
+1. 开启后，已注册且 **active** 的工具调用在 `beforeToolCall` 未带批准 → **整批挂起**（checkpoint 保留；**不**调 handler）
+2. `AgentSession.resume(ResumeRequest)` **[LIMS] HITL**（≠ Session `/resume`；Graph Checkpoint [Lippi]）
 
-   - **必须**携带 `decision`（APPROVE|DENY）或 `approved` 布尔；缺决策 → **FAILED**（fail-closed，禁止再挂起）
-   - `decision=APPROVE` → 重跑 `tools`：闸门放行 → 执行一次 → 继续超步
-   - `decision=DENY` → 写拒绝 `ToolResult`（可带 `humanInput` 原因）→ 回 agent（模型可见拒绝）
+   - **必须**携带 `decision`（APPROVE|DENY）或 `approved`；缺决策 → **FAILED**（fail-closed）
+   - `APPROVE` → 重跑 `tools` 执行；`DENY` → 拒绝 `ToolResult`（可带 `humanInput`）→ 回 agent
 
-批次语义：同一超步任一 WRITE 未批准 → **整批挂起**（同批 READ 亦不先执行）。
+批次语义：同一超步任一调用未批准 → **整批挂起**（同批其它调用亦不先执行）。后续可演进为 **按工具名点名审批**（当前为全局开关，不按 tool 分级）。
 
-生产默认：扫内置 Skills（`certificate.ocr`）；Tool 扫 JSON + merge 代码 Binding（无则空 Config，可 chat）。入图：`SkillSelector` → `TurnBinder(tool, skill, active)`；`AVAILABLE_TOOLS`/`TOOLS` ← whitelist 同步裁剪；无 Active 时 `AVAILABLE_SKILLS` ← `skillConfig.manifests()` 目录。
+生产默认：场景 `SKILL.md` bootstrap；Tool 代码注册 + `TurnBinder` 用 Active 的 `allowed-tools` 填 `ACTIVE_TOOLS` / API schemas。
 
 ## 定位
 
@@ -375,14 +325,14 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 - `resource.*`：`PiResourceLoader` / `DefaultPiResourceLoader` / `PromptTemplate`（**不要**叫 Spring `ResourceLoader`）
 - `message.Message`
 - `model.ModelProvider` [Lippi] / Catalog / Decorator / Stub
-- `tool.ToolConfig` [LIMS] / `ToolManifest` / `ToolBinding` / `ToolLevel`
-- `skill.SkillConfig` / `ClasspathSkillBootstrap` / `SkillSelector`；`loop.TurnBinder`（Story 51-9）
+- `tool.ToolCatalog` [LIMS] / `ToolDefinition` / `ToolBinding` / `ToolPolicyExtension`
+- `skill.SkillCatalog` / `Skills.loadFromClasspath` / `SkillSelector`；`loop.TurnBinder`（Story 51-9 / 3-2b）
 
 ## 自动装配
 
 - `PiCheckpointAutoConfiguration`（仅 `lims.pi.checkpoint.redis.enabled=true` + `JedisPool` 时 `@Primary` Redis）→ `PiAutoConfiguration` → `AgentConfiguration`
 - `META-INF/spring.factories`（Boot 2.7）
-- 默认 Bean：`Checkpointer`（MissingBean → InMemory；Adam 由 ebus-infrastructure **`MysqlCheckpointer` `@Primary`** 覆盖；Redis 需显式 `lims.pi.checkpoint.redis.enabled=true`）、`ResumeIdempotencyStore`（MissingBean → InMemory；Adam 由 ebus-infrastructure **`MysqlResumeIdempotencyStore` `@Primary`** 覆盖；Redis 显式开时 Mysql 不注册）、`SessionStore`（MissingBean → **InMemorySessionStore**；Adam 装配时由 ebus-infrastructure **`MysqlSessionStore` `@Primary`** 覆盖；显式 `lims.pi.session.sqlite-path` → Sqlite）、`ModelCatalog`、`ModelProvider`、`PromptBuilder`、`CompressionConfig`、`ContextCompressor`、`ToolConfig`、`SkillConfig`、`PiResourceLoader`、`ToolPolicyExtension`（WRITE 审批默认关）、`ExtensionRunner`（`PiExtensionRegistrar`）、**`AgentSession`**（持有 `PiEventBus`）
+- 默认 Bean：`Checkpointer`（MissingBean → InMemory；Adam 由 ebus-infrastructure **`MysqlCheckpointer` `@Primary`** 覆盖；Redis 需显式 `lims.pi.checkpoint.redis.enabled=true`）、`ResumeIdempotencyStore`（MissingBean → InMemory；Adam 由 ebus-infrastructure **`MysqlResumeIdempotencyStore` `@Primary`** 覆盖；Redis 显式开时 Mysql 不注册）、`SessionStore`（MissingBean → **InMemorySessionStore**；Adam 装配时由 ebus-infrastructure **`MysqlSessionStore` `@Primary`** 覆盖；显式 `lims.pi.session.sqlite-path` → Sqlite）、`ModelCatalog`、`ModelProvider`、`PromptBuilder`、`CompressionConfig`、`ContextCompressor`、`ToolCatalog`、`SkillCatalog`、`PiResourceLoader`、`ToolPolicyExtension`（WRITE 审批默认关）、`ExtensionRunner`（`PiExtensionRegistrar`）、**`AgentSession`**（持有 `PiEventBus`）
 - **不**注册公共 `Agent` Bean（仅 Session 内部委托）
 
 ### Session 运维注意（Story 51-17 / AD-S8）

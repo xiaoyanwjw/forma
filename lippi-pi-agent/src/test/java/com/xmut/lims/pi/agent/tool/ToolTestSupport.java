@@ -8,45 +8,42 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 测试辅助：把 handler map 注册为指定级别。
+ * 测试辅助：按名注册 handler。
  */
 public final class ToolTestSupport {
 
     private ToolTestSupport() {}
 
-    public static DefaultToolConfig config(Map<String, ToolHandler> handlers, ToolLevel level) {
-        List<ToolRegistration> regs = new ArrayList<>();
+    public static InMemoryToolCatalog config(Map<String, ToolHandler> handlers) {
+        List<Tool> tools = new ArrayList<>();
         if (handlers != null) {
             for (Map.Entry<String, ToolHandler> e : handlers.entrySet()) {
-                regs.add(registration(e.getKey(), level, e.getValue()));
+                tools.add(tool(e.getKey(), e.getValue()));
             }
         }
-        return new DefaultToolConfig(regs);
+        return new InMemoryToolCatalog(tools);
     }
 
-    public static DefaultToolConfig readConfig(Map<String, ToolHandler> handlers) {
-        return config(handlers, ToolLevel.READ);
+    public static InMemoryToolCatalog readConfig(Map<String, ToolHandler> handlers) {
+        return config(handlers);
     }
 
-    public static ToolRegistration registration(String name, ToolLevel level, ToolHandler handler) {
-        return new ToolRegistration(
-                ToolManifest.builder()
+    public static Tool tool(String name, ToolHandler handler) {
+        return new Tool(
+                ToolDefinition.builder()
                         .id(name)
                         .schema(ToolSchema.builder().name(name).build())
-                        .level(level)
                         .build(),
                 handler);
     }
 
-    public static ToolRegistration registration(String name,
-                                                ToolLevel level,
-                                                String text,
-                                                ToolHandler handler) {
-        return new ToolRegistration(
-                ToolManifest.builder()
+    public static Tool tool(String name,
+                            String text,
+                            ToolHandler handler) {
+        return new Tool(
+                ToolDefinition.builder()
                         .id(name)
                         .schema(ToolSchema.builder().name(name).build())
-                        .level(level)
                         .text(text)
                         .build(),
                 handler);

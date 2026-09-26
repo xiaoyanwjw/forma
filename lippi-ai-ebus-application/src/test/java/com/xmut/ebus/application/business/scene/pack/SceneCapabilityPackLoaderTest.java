@@ -1,66 +1,84 @@
 package com.xmut.ebus.application.business.scene.pack;
 
 import com.xmut.ebus.common.exception.BusinessException;
-import com.xmut.lims.pi.agent.skill.SkillManifest;
+import com.xmut.lims.pi.agent.skill.SkillCatalog;
+import com.xmut.lims.pi.agent.skill.Skill;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-import org.springframework.core.io.support.ResourcePatternResolver;
 
-import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SceneCapabilityPackLoaderTest {
 
-    private final SceneCapabilityPackLoader loader =
-            new SceneCapabilityPackLoader(new PathMatchingResourcePatternResolver());
-
     @Test
-    void loadEcommercePackContainsPicklistAndSkulist() {
+    void loadEcommerceRequiresBothSkillsFromSkillCatalog() {
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("ecommerce")).thenReturn(Arrays.asList(picklist(), skulist()));
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+
         SceneCapabilityPack pack = loader.load("ecommerce");
 
-        assertEquals("ecommerce", pack.getSceneCode());
-        assertTrue(pack.hasSkill(SceneCapabilityPackLoader.SKILL_PICKLIST));
-        assertTrue(pack.hasSkill(SceneCapabilityPackLoader.SKILL_SKULIST));
-
-        SkillManifest picklist = pack.findSkill(SceneCapabilityPackLoader.SKILL_PICKLIST).get();
-        assertEquals("1.0.0", picklist.getVersion());
-        assertTrue(picklist.getPromptRef().contains("ecommerce.picklist.md"));
-
-        SkillManifest skulist = pack.findSkill(SceneCapabilityPackLoader.SKILL_SKULIST).get();
-        assertEquals("1.0.0", skulist.getVersion());
-        assertTrue(skulist.getPromptRef().contains("ecommerce.skulist.md"));
+        assertThat(pack.getSceneCode()).isEqualTo("ecommerce");
+        assertThat(pack.hasSkill("ecommerce-picklist")).isTrue();
+        assertThat(pack.hasSkill("ecommerce-skulist")).isTrue();
+        assertThat(pack.findSkill("ecommerce-picklist").get().getPromptRef())
+                .contains("ecommerce-picklist/SKILL.md");
+        assertThat(pack.findSkill("ecommerce-skulist").get().getPromptRef())
+                .contains("ecommerce-skulist/SKILL.md");
     }
 
     @Test
-    void loadEcommercePackWithOnlyOneSkillFailsWithHumanMessage() {
-        ResourcePatternResolver stub = new PathMatchingResourcePatternResolver() {
-            @Override
-            public Resource[] getResources(String locationPattern) throws IOException {
-                return new Resource[] {
-                        new ClassPathResource("scenes/ecommerce/ecommerce.picklist.skill.json")
-                };
-            }
-        };
-        SceneCapabilityPackLoader oneSkillLoader = new SceneCapabilityPackLoader(stub);
+    void loadFailsWhenPicklistMissing() {
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("ecommerce")).thenReturn(Collections.singletonList(skulist()));
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> oneSkillLoader.load("ecommerce"));
-        assertEquals(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE, ex.getMessage());
+        assertThatThrownBy(() -> loader.load("ecommerce"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
     }
 
     @Test
     void loadUnknownSceneCodeFailsWithHumanMessage() {
-        BusinessException ex = assertThrows(BusinessException.class, () -> loader.load("no_such_scene"));
-        assertEquals(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE, ex.getMessage());
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("no_such_scene")).thenReturn(Collections.emptyList());
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+
+        assertThatThrownBy(() -> loader.load("no_such_scene"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
     }
 
     @Test
     void loadBlankSceneCodeFailsWithHumanMessage() {
-        BusinessException ex = assertThrows(BusinessException.class, () -> loader.load("  "));
-        assertEquals(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE, ex.getMessage());
+        SkillCatalog skills = mock(SkillCatalog.class);
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+
+        assertThatThrownBy(() -> loader.load("  "))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
+    }
+
+    private static Skill picklist() {
+        return skill("ecommerce-picklist", "classpath:scenes/ecommerce/ecommerce-picklist/SKILL.md");
+    }
+
+    private static Skill skulist() {
+        return skill("ecommerce-skulist", "classpath:scenes/ecommerce/ecommerce-skulist/SKILL.md");
+    }
+
+    private static Skill skill(String id, String promptRef) {
+        return Skill.builder()
+                .id(id)
+                .description(id)
+                .promptRef(promptRef)
+                .allowedTools(Collections.singletonList("read_skill"))
+                .sceneCode("ecommerce")
+                .build();
     }
 }
