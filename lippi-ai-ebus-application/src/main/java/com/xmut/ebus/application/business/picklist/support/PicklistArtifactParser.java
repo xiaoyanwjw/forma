@@ -23,6 +23,9 @@ public class PicklistArtifactParser {
 
     public static final String MSG_UNUSABLE = "选品成果不合格，请重试";
 
+    /** Title prefix for priority trial items; shared with {@link PicklistViewProjector}. */
+    public static final String PRIORITY_MARK = "【优先试】";
+
     private static final Pattern FENCED_JSON = Pattern.compile(
             "```(?:json)?\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
