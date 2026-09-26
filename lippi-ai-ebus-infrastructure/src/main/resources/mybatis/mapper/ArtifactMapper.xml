@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.ebus.infrastructure.persistence.mybatis.mapper.ArtifactMapper">
+
+    <resultMap id="ArtifactResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.ArtifactPO">
+        <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="runId" column="run_id"/>
+        <result property="artifactType" column="artifact_type"/>
+        <result property="sceneCode" column="scene_code"/>
+        <result property="templateId" column="template_id"/>
+        <result property="title" column="title"/>
+        <result property="payloadJson" column="payload_json"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO ebus_artifact
+            (biz_id, user_id, run_id, artifact_type, scene_code, template_id, title, payload_json, created_at, updated_at)
+        VALUES
+            (#{bizId}, #{userId}, #{runId}, #{artifactType}, #{sceneCode}, #{templateId}, #{title}, #{payloadJson}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="selectByBizId" resultMap="ArtifactResultMap">
+        SELECT id, biz_id, user_id, run_id, artifact_type, scene_code, template_id, title, payload_json, created_at, updated_at
+        FROM ebus_artifact
+        WHERE biz_id = #{bizId}
+    </select>
+
+    <select id="selectByRunId" resultMap="ArtifactResultMap">
+        SELECT id, biz_id, user_id, run_id, artifact_type, scene_code, template_id, title, payload_json, created_at, updated_at
+        FROM ebus_artifact
+        WHERE run_id = #{runId}
+    </select>
+</mapper>
