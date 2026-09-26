@@ -5,6 +5,10 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      redirect: { name: 'scenes' },
+    },
+    {
+      path: '/welcome',
       name: 'landing',
       component: () => import('@/views/marketing/LandingPage.vue'),
     },

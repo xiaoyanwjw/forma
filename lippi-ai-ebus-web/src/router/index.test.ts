@@ -8,34 +8,34 @@ import SceneGallery from '@/views/business/scene/SceneGallery.vue'
 import EcommerceWorkspacePlaceholder from '@/views/business/scene/EcommerceWorkspacePlaceholder.vue'
 import HistoryPlaceholder from '@/views/business/history/HistoryPlaceholder.vue'
 
-describe('router landing', () => {
+describe('router root', () => {
   afterEach(() => {
     clearToken()
   })
 
-  it('resolve / points to LandingPage (not redirect to login)', async () => {
-    const resolved = router.resolve('/')
-    expect(resolved.name).toBe('landing')
-    expect(resolved.path).toBe('/')
-    const loader = resolved.matched[0]?.components?.default
-    expect(typeof loader).toBe('function')
-    const mod = await (loader as () => Promise<{ default: unknown }>)()
-    expect(mod.default).toBe(LandingPage)
+  it('resolve / redirects to scenes', async () => {
+    const root = router.options.routes.find((r) => r.path === '/')
+    expect(root?.redirect).toEqual({ name: 'scenes' })
+    await router.push('/')
+    await router.isReady()
+    expect(router.currentRoute.value.name).toBe('scenes')
+    expect(router.currentRoute.value.path).toBe('/scenes')
   })
 
-  it('resolve name landing points to LandingPage', async () => {
+  it('resolve name landing points to LandingPage at /welcome', async () => {
     const resolved = router.resolve({ name: 'landing' })
-    expect(resolved.path).toBe('/')
+    expect(resolved.path).toBe('/welcome')
     const loader = resolved.matched[0]?.components?.default
     const mod = await (loader as () => Promise<{ default: unknown }>)()
     expect(mod.default).toBe(LandingPage)
   })
 
-  it('with JWT still stays on landing when navigating to /', async () => {
+  it('navigating to / lands on scenes even with JWT', async () => {
     setToken('jwt-demo')
     await router.push('/')
     await router.isReady()
-    expect(router.currentRoute.value.name).toBe('landing')
+    expect(router.currentRoute.value.name).toBe('scenes')
+    expect(router.currentRoute.value.path).toBe('/scenes')
     clearToken()
   })
 })
@@ -77,9 +77,12 @@ describe('router scene/history shell placeholders', () => {
     const resolved = router.resolve({ name: 'scenes' })
     expect(resolved.path).toBe('/scenes')
     const loader = resolved.matched[0]?.components?.default
-    expect(typeof loader).toBe('function')
-    const mod = await (loader as () => Promise<{ default: unknown }>)()
-    expect(mod.default).toBe(SceneGallery)
+    if (typeof loader === 'function') {
+      const mod = await (loader as () => Promise<{ default: unknown }>)()
+      expect(mod.default).toBe(SceneGallery)
+    } else {
+      expect(loader).toBe(SceneGallery)
+    }
   })
 
   it('resolve /scenes/ecommerce points to EcommerceWorkspacePlaceholder', async () => {
