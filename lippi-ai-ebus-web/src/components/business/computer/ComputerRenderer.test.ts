@@ -48,6 +48,38 @@ describe('ComputerRenderer', () => {
     host.remove()
     warn.mockRestore()
   })
+
+  it('renders dim tags as pills and price line emphasis', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: {
+        version: 1,
+        title: '选品清单',
+        blocks: [
+          {
+            type: 'list',
+            ordered: true,
+            items: [
+              {
+                badge: '优先试',
+                title: '硅胶垫',
+                lines: ['价格带：19-39', '痛点：x'],
+                tags: ['需求 高'],
+              },
+            ],
+          },
+        ],
+      },
+    })
+    app.mount(host)
+    await nextTick()
+    const root = host
+    expect(root.querySelector('.dims span.dim-pill')).toBeTruthy()
+    expect(root.querySelector('.r.price')?.textContent).toMatch(/价格带/)
+    app.unmount()
+    host.remove()
+  })
 })
 
 describe('parseComputerDocument', () => {

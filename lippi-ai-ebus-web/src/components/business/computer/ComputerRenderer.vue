@@ -64,11 +64,16 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
                 <span v-if="item.badge" class="priority-tag">{{ item.badge }}</span>
                 {{ item.title }}
               </div>
-              <div v-for="(line, lineIndex) in item.lines || []" :key="lineIndex" class="r">
+              <div
+                v-for="(line, lineIndex) in item.lines || []"
+                :key="lineIndex"
+                class="r"
+                :class="{ price: line.startsWith('价格带') }"
+              >
                 {{ line }}
               </div>
               <div v-if="item.tags?.length" class="dims">
-                <span v-for="(tag, tagIndex) in item.tags" :key="tagIndex">{{ tag }}</span>
+                <span v-for="(tag, tagIndex) in item.tags" :key="tagIndex" class="dim-pill">{{ tag }}</span>
               </div>
             </div>
           </li>
@@ -177,6 +182,11 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
   margin-top: 2px;
 }
 
+.pick-list .r.price {
+  color: var(--ink);
+  font-weight: 500;
+}
+
 .priority-tag {
   display: inline-block;
   margin-right: 6px;
@@ -197,6 +207,13 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
   font-size: 0.72rem;
   color: var(--mute);
   line-height: 1.4;
+}
+
+.dim-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: var(--chip, var(--line-2));
 }
 
 .cv-media {
