@@ -134,13 +134,7 @@ function goLogin() {
       aria-live="polite"
       :aria-hidden="toastVisible ? 'false' : 'true'"
     >
-      <span>{{ toastText }}</span>
-      <RouterLink
-        :to="ECOMMERCE_WORKSPACE"
-        :tabindex="toastVisible ? 0 : -1"
-      >
-        先去电商开店
-      </RouterLink>
+      {{ toastText }}
     </div>
   </div>
 </template>
@@ -247,14 +241,5 @@ function goLogin() {
 
 .toast.show {
   transform: translateY(0);
-  pointer-events: auto;
-}
-
-.toast a {
-  font-weight: 600;
-  white-space: nowrap;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  color: var(--ink);
 }
 </style>
