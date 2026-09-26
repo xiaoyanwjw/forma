@@ -1,11 +1,10 @@
 package com.xmut.lims.pi.agent.resource;
 
-import com.xmut.lims.pi.agent.skill.InMemorySkillConfig;
-import com.xmut.lims.pi.agent.skill.SkillConfigProperties;
-import com.xmut.lims.pi.agent.skill.SkillGraphTopology;
-import com.xmut.lims.pi.agent.skill.SkillManifest;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
-import com.xmut.lims.pi.agent.tool.ToolLevel;
+import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
+import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.lims.pi.agent.skill.Skills;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
@@ -67,78 +66,33 @@ class DefaultPiResourceLoaderTest {
 
     @Test
     void expand_skill_colon_loads_body_and_sets_skill_id() {
-        InMemorySkillConfig skills = new InMemorySkillConfig(SkillConfigProperties.defaults());
-        skills.registerBootstrap(SkillManifest.builder()
-                .id("certificate.ocr")
-                .version("1.0.0")
-                .skillsPrompt("inline-ocr-policy")
-                .promptRef("classpath:skills/certificate-ocr.md")
-                .toolWhitelist(java.util.Collections.singletonList("read_skill"))
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
+        skills.registerBootstrap(Skill.builder()
+                .id("ecommerce-picklist")
+                .description("inline-should-not-win")
+                .promptRef("classpath:scenes/ecommerce/ecommerce-picklist/SKILL.md")
+                .allowedTools(java.util.Collections.singletonList("read_skill"))
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
-        SlashExpansion expanded = loader.expandSlash("/skill:certificate.ocr");
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(
+                new PathMatchingResourcePatternResolver(), skills, InMemoryToolCatalog.empty(),
+                java.util.Collections.emptyList());
+        SlashExpansion expanded = loader.expandSlash("/skill:ecommerce-picklist");
         assertThat(expanded.isExpanded()).isTrue();
-        assertThat(expanded.getSkillId()).isEqualTo("certificate.ocr");
-        assertThat(expanded.getText()).contains("资质证书 OCR");
-        assertThat(expanded.getText()).doesNotContain("inline-ocr-policy");
-    }
-
-    @Test
-    void expand_skill_test_standard_schema_loads_body_and_sets_skill_id() {
-        InMemorySkillConfig skills = new InMemorySkillConfig(SkillConfigProperties.defaults());
-        skills.registerBootstrap(SkillManifest.builder()
-                .id("test-standard-schema")
-                .version("1.0.0")
-                .promptRef("classpath:skills/test-standard-schema.md")
-                .toolWhitelist(java.util.Collections.singletonList("read_skill"))
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
-                .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
-        SlashExpansion expanded = loader.expandSlash("/skill:test-standard-schema");
-        assertThat(expanded.isExpanded()).isTrue();
-        assertThat(expanded.getSkillId()).isEqualTo("test-standard-schema");
-        assertThat(expanded.getText()).contains("ParamSchemeRoot");
-        assertThat(expanded.getText()).contains("lims_testing_runs");
-        assertThat(expanded.getText()).contains("noQcBindings");
-    }
-
-    @Test
-    void expand_skill_walk_in_paper_import_loads_body_and_sets_skill_id() {
-        InMemorySkillConfig skills = new InMemorySkillConfig(SkillConfigProperties.defaults());
-        skills.registerBootstrap(SkillManifest.builder()
-                .id("walk-in-import")
-                .version("1.0.0")
-                .promptRef("classpath:skills/walk-in-import.md")
-                .toolWhitelist(java.util.Collections.singletonList("read_skill"))
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
-                .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
-        SlashExpansion expanded = loader.expandSlash("/skill:walk-in-import");
-        assertThat(expanded.isExpanded()).isTrue();
-        assertThat(expanded.getSkillId()).isEqualTo("walk-in-import");
-        assertThat(expanded.getText()).contains("rows");
-        assertThat(expanded.getText()).contains("categoryNo");
-        assertThat(expanded.getText()).contains("itemCode");
-        assertThat(expanded.getText()).contains("standardCode");
+        assertThat(expanded.getSkillId()).isEqualTo("ecommerce-picklist");
+        assertThat(expanded.getText()).contains("非实时平台数据");
+        assertThat(expanded.getText()).doesNotContain("inline-should-not-win");
     }
 
     @Test
     void expand_skill_does_not_fallback_when_prompt_ref_missing() {
-        InMemorySkillConfig skills = new InMemorySkillConfig(SkillConfigProperties.defaults());
-        skills.registerBootstrap(SkillManifest.builder()
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
+        skills.registerBootstrap(Skill.builder()
                 .id("broken.skill")
-                .version("1.0.0")
-                .skillsPrompt("INLINE-MUST-NOT-WIN")
+                .description("INLINE-MUST-NOT-WIN")
                 .promptRef("classpath:skills/does-not-exist.md")
-                .toolWhitelist(java.util.Collections.emptyList())
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.TOOL_LOOP)
+                .allowedTools(java.util.Collections.emptyList())
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, InMemoryToolCatalog.empty(), java.util.Collections.emptyList());
         SlashExpansion expanded = loader.expandSlash("/skill:broken.skill");
         assertThat(expanded.isExpanded()).isFalse();
         assertThat(expanded.getText()).isEqualTo("/skill:broken.skill");
@@ -146,17 +100,31 @@ class DefaultPiResourceLoaderTest {
     }
 
     @Test
+    void snapshotIncludesSceneSkillsFromSkillMd() {
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(new SkillCatalogProperties(false));
+        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        Skills.loadFromClasspath(skills, resolver, "classpath*:scenes/*/*/SKILL.md");
+        skills.sealBootstrap();
+        assertThat(skills.resolve("ecommerce-picklist")).isPresent();
+        assertThat(skills.listByScene("ecommerce"))
+                .extracting(Skill::getId)
+                .contains("ecommerce-picklist", "ecommerce-skulist");
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(
+                resolver, skills, InMemoryToolCatalog.empty(), java.util.Collections.emptyList());
+        assertThat(loader.snapshot().getSkillIds())
+                .contains("ecommerce-picklist", "ecommerce-skulist");
+    }
+
+    @Test
     void snapshot_delegates_skill_and_tool_ids_without_second_registry() {
-        InMemorySkillConfig skills = new InMemorySkillConfig(SkillConfigProperties.defaults());
-        skills.registerBootstrap(SkillManifest.builder()
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
+        skills.registerBootstrap(Skill.builder()
                 .id("demo.skill")
-                .version("1.0.0")
-                .skillsPrompt("p")
-                .toolWhitelist(java.util.Collections.emptyList())
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.TOOL_LOOP)
+                .description("p")
+                .promptRef("classpath:skills/demo.md")
+                .allowedTools(java.util.Collections.emptyList())
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, InMemoryToolCatalog.empty(), java.util.Collections.emptyList());
         AgentResourceSnapshot snap = loader.snapshot();
         assertThat(snap.getSkillIds()).contains("demo.skill");
         assertThat(snap.getExtensionNames()).isEmpty();

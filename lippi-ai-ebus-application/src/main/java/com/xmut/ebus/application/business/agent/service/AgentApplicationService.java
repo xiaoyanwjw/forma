@@ -1,11 +1,18 @@
 package com.xmut.ebus.application.business.agent.service;
 
 import com.xmut.ebus.application.business.agent.command.StartEmptyRunCommand;
+import com.xmut.ebus.application.business.agent.command.StartPicklistRunCommand;
 import com.xmut.ebus.application.business.agent.dto.EmptyRunContext;
+import com.xmut.ebus.application.business.agent.dto.PicklistRunContext;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.agent.sse.PiEventToAd4Mapper;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
+import com.xmut.ebus.application.business.picklist.command.PersistPicklistCommand;
+import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
+import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
+import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
+import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -32,7 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -44,7 +53,8 @@ import java.util.function.Consumer;
  * <p>
  * 空跑只 {@code reserveOne} + 结束 {@code release}；禁止 {@code settle}；
  * 不发 {@code artifact_ready}/{@code run_settled}。
- * 计费空跑必须绑定 AVAILABLE 场景（AD-15）。
+ * 计费选品：可用成果落库后 {@code settle}，再发 {@code artifact_ready}/{@code run_settled}。
+ * 计费生成必须绑定 AVAILABLE 场景（AD-15）。
  */
 @Slf4j
 @Service
@@ -56,11 +66,16 @@ public class AgentApplicationService {
     static final String SSE_SEND_FAILED_RELEASED = "SSE 下发失败，预占已释放";
     static final String SSE_SEND_FAILED_RELEASE_FAILED = "SSE 下发失败且预占释放失败";
 
+    static final String PICKLIST_RELEASE_FAILED = "选品结束但预占释放失败";
+    static final String PICKLIST_MODEL_FAILED = "选品生成失败，请稍后重试";
+    static final String PICKLIST_SETTLE_FAILED = "选品成果已生成但结算失败，请联系支持";
+
     static final String MSG_SCENE_REQUIRED = "请先选择场景";
     static final String MSG_SCENE_NOT_FOUND = "场景不存在";
     static final String MSG_SCENE_NOT_OPEN = "该场景尚未开放";
     static final String MSG_SCENE_MISMATCH = "场景编号与场景码不一致";
     static final String MSG_SESSION_SCENE_MISMATCH = "当前会话已绑定其他场景";
+    static final String MSG_PROMPT_REQUIRED = "请先描述选品需求";
 
     private final CreditApplicationService creditService;
     private final GenerationRunRepository generationRunRepository;
@@ -68,6 +83,9 @@ public class AgentApplicationService {
     private final SceneRepository sceneRepository;
     private final SceneCapabilityPackLoader sceneCapabilityPackLoader;
     private final AgentSession agentSession;
+    private final PicklistArtifactParser picklistArtifactParser;
+    private final PicklistApplicationService picklistApplicationService;
+    private final PicklistViewProjector picklistViewProjector;
     private final Clock clock;
 
     /**
@@ -76,6 +94,15 @@ public class AgentApplicationService {
     public EmptyRunContext startEmptyRun(StartEmptyRunCommand command, Consumer<Ad4SseEvent> sink) {
         EmptyRunContext context = prepareEmptyRun(command);
         streamEmptyRun(context, sink);
+        return context;
+    }
+
+    /**
+     * 一站式计费选品（便于单测）。
+     */
+    public PicklistRunContext startPicklistRun(StartPicklistRunCommand command, Consumer<Ad4SseEvent> sink) {
+        PicklistRunContext context = preparePicklistRun(command);
+        streamPicklistRun(context, sink);
         return context;
     }
 
@@ -93,7 +120,7 @@ public class AgentApplicationService {
                 : UUID.randomUUID().toString();
         bindSessionScene(sessionId, scene);
 
-        String holdId = reverseOne(userId);
+        String holdId = reserveOne(userId);
         Instant now = Instant.now(clock);
         String runId = UUID.randomUUID().toString();
         GenerationRun run = GenerationRun.start(
@@ -108,6 +135,38 @@ public class AgentApplicationService {
                 NameValue.create("sceneId", scene.getId()),
                 NameValue.create("sceneCode", scene.getSceneCode()));
         return new EmptyRunContext(runId, userId, holdId, sessionId, scene.getSceneCode());
+    }
+
+    /**
+     * 计费选品：场景绑定 + 预占 + GenerationRun（与空跑同模式，额外校验用户文案）。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PicklistRunContext preparePicklistRun(StartPicklistRunCommand command) {
+        ObjectUtils.requireNonNull(command, "选品命令不能为空");
+        String userId = StringUtils.requireHasText(command.getUserId(), "用户 ID 不能为空");
+        String promptText = StringUtils.requireHasText(command.getText(), MSG_PROMPT_REQUIRED);
+
+        Scene scene = resolveAvailableScene(command.getSceneId(), command.getSceneCode());
+        String sessionId = StringUtils.hasText(command.getSessionId())
+                ? command.getSessionId().trim()
+                : UUID.randomUUID().toString();
+        bindSessionScene(sessionId, scene);
+
+        String holdId = reserveOne(userId);
+        Instant now = Instant.now(clock);
+        String runId = UUID.randomUUID().toString();
+        GenerationRun run = GenerationRun.start(
+                runId, userId, holdId, sessionId, scene.getId(), scene.getSceneCode(), now);
+        generationRunRepository.save(run);
+
+        LoggerUtils.success(log, AgentApplicationService.class, "preparePicklistRun",
+                NameValue.create("userId", userId),
+                NameValue.create("runId", runId),
+                NameValue.create("holdId", holdId),
+                NameValue.create("sessionId", sessionId),
+                NameValue.create("sceneId", scene.getId()),
+                NameValue.create("sceneCode", scene.getSceneCode()));
+        return new PicklistRunContext(runId, userId, holdId, sessionId, scene.getSceneCode(), promptText.trim());
     }
 
     /**
@@ -166,12 +225,11 @@ public class AgentApplicationService {
         try {
             piSessionSceneRepository.ensureBound(sessionId, scene.getId(), scene.getSceneCode());
         } catch (IllegalStateException ex) {
-            // 并发写入他景：仓储写前复核失败 → 同一人话
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SESSION_SCENE_MISMATCH);
         }
     }
 
-    private String reverseOne(String userId) {
+    private String reserveOne(String userId) {
         return creditService.reserveOne(userId);
     }
 
@@ -188,13 +246,14 @@ public class AgentApplicationService {
         AutoCloseable subscription = null;
         boolean released = false;
         try {
-            emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context)));
+            emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context.getRunId(),
+                    context.getSessionId(), context.getHoldId())));
 
             final SceneCapabilityPack pack;
             try {
                 pack = sceneCapabilityPackLoader.load(context.getSceneCode());
             } catch (BusinessException ex) {
-                boolean releaseOk = release(context);
+                boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
                 released = releaseOk;
                 markRunFailed(context.getRunId());
                 String reason = releaseOk
@@ -202,16 +261,16 @@ public class AgentApplicationService {
                         ? ex.getMessage()
                         : SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE)
                         : RELEASE_FAILED_REASON;
-                emitRunFailed(sink, reason);
+                emitRunFailed(sink, reason, true);
                 return;
             }
             if (!pack.hasSkill(SceneCapabilityPackLoader.DEFAULT_EMPTY_RUN_SKILL_ID)) {
-                boolean releaseOk = release(context);
+                boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
                 released = releaseOk;
                 markRunFailed(context.getRunId());
                 emitRunFailed(sink, releaseOk
                         ? SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE
-                        : RELEASE_FAILED_REASON);
+                        : RELEASE_FAILED_REASON, true);
                 return;
             }
 
@@ -250,9 +309,9 @@ public class AgentApplicationService {
                     .build());
 
             if (aborted.get()) {
-                boolean releaseOk = release(context);
+                boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
                 markRunFailed(context.getRunId());
-                emitRunFailed(sink, releaseOk ? SSE_SEND_FAILED_RELEASED : SSE_SEND_FAILED_RELEASE_FAILED);
+                emitRunFailed(sink, releaseOk ? SSE_SEND_FAILED_RELEASED : SSE_SEND_FAILED_RELEASE_FAILED, true);
                 return;
             }
 
@@ -264,26 +323,26 @@ public class AgentApplicationService {
                 emit(sink, Ad4SseEvent.of(Ad4EventName.message_delta, delta));
             }
 
-            boolean releaseOk = release(context);
+            boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
             released = releaseOk;
             markRunFailed(context.getRunId());
-            emitRunFailed(sink, releaseOk ? EMPTY_RUN_FAIL_REASON : RELEASE_FAILED_REASON);
+            emitRunFailed(sink, releaseOk ? EMPTY_RUN_FAIL_REASON : RELEASE_FAILED_REASON, true);
         } catch (RuntimeException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "streamEmptyRun",
                     ex.getMessage() != null ? ex.getMessage() : "stream failed",
                     NameValue.create("runId", context.getRunId()));
             if (!released) {
-                boolean releaseOk = release(context);
+                boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
                 released = releaseOk;
                 markRunFailed(context.getRunId());
                 if (releaseOk) {
-                    emitRunFailed(sink, StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "生成失败");
+                    emitRunFailed(sink, StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "生成失败", true);
                 } else {
-                    emitRunFailed(sink, RELEASE_FAILED_REASON);
+                    emitRunFailed(sink, RELEASE_FAILED_REASON, true);
                 }
             } else {
                 markRunFailed(context.getRunId());
-                emitRunFailed(sink, StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "生成失败");
+                emitRunFailed(sink, StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "生成失败", true);
             }
         } finally {
             closeQuietly(subscription);
@@ -291,27 +350,207 @@ public class AgentApplicationService {
     }
 
     /**
+     * 计费选品流：预占已完成 → prompt(skill) → 解析落库 → settle → {@code artifact_ready}/{@code run_settled}。
+     * 失败/不合格：release + {@code run_failed}；绝不因 SSE 结束单独 settle。
+     */
+    public void streamPicklistRun(PicklistRunContext context, Consumer<Ad4SseEvent> sink) {
+        ObjectUtils.requireNonNull(context, "选品上下文不能为空");
+        ObjectUtils.requireNonNull(sink, "SSE sink 不能为空");
+
+        AtomicBoolean hasMessageDelta = new AtomicBoolean(false);
+        AtomicBoolean aborted = new AtomicBoolean(false);
+        AutoCloseable subscription = null;
+        boolean holdClosed = false;
+        boolean settledOk = false;
+        try {
+            emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context.getRunId(),
+                    context.getSessionId(), context.getHoldId())));
+
+            final SceneCapabilityPack pack;
+            try {
+                pack = sceneCapabilityPackLoader.load(context.getSceneCode());
+            } catch (BusinessException ex) {
+                holdClosed = finishFailed(context, sink, StringUtils.hasText(ex.getMessage())
+                        ? ex.getMessage()
+                        : SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
+                return;
+            }
+            if (!pack.hasSkill(SceneCapabilityPackLoader.SKILL_PICKLIST)) {
+                holdClosed = finishFailed(context, sink, SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
+                return;
+            }
+
+            final Consumer<PiEvent> listener = new Consumer<PiEvent>() {
+                @Override
+                public void accept(PiEvent event) {
+                    if (aborted.get()) {
+                        return;
+                    }
+                    PiEventToAd4Mapper.mapEvent(event).ifPresent(mapped -> {
+                        if (aborted.get()) {
+                            return;
+                        }
+                        try {
+                            if (Ad4EventName.message_delta.equals(mapped.getName())) {
+                                hasMessageDelta.set(true);
+                            }
+                            emit(sink, mapped);
+                        } catch (RuntimeException ex) {
+                            aborted.set(true);
+                            LoggerUtils.error(log, AgentApplicationService.class, "streamPicklistRun",
+                                    ex.getMessage() != null ? ex.getMessage() : "SSE send failed",
+                                    NameValue.create("runId", context.getRunId()));
+                        }
+                    });
+                }
+            };
+
+            subscription = agentSession.subscribe(listener);
+
+            TurnResult result = agentSession.prompt(PromptRequest.builder()
+                    .runId(context.getRunId())
+                    .sessionId(context.getSessionId())
+                    .text(context.getPromptText())
+                    .skillId(SceneCapabilityPackLoader.SKILL_PICKLIST)
+                    .build());
+
+            logModelUsagePlaceholder(context, result);
+
+            if (aborted.get()) {
+                holdClosed = finishFailed(context, sink, SSE_SEND_FAILED_RELEASED);
+                return;
+            }
+
+            if (result == null || result.getStatus() != TurnResult.Status.OK) {
+                String reason = result != null && StringUtils.hasText(result.getFinalResponse())
+                        ? result.getFinalResponse()
+                        : PICKLIST_MODEL_FAILED;
+                holdClosed = finishFailed(context, sink, reason);
+                return;
+            }
+
+            if (!hasMessageDelta.get() && StringUtils.hasText(result.getFinalResponse())) {
+                Map<String, Object> delta = new LinkedHashMap<String, Object>();
+                delta.put("text", result.getFinalResponse());
+                emit(sink, Ad4SseEvent.of(Ad4EventName.message_delta, delta));
+            }
+
+            final PersistPicklistCommand persistCommand;
+            try {
+                persistCommand = picklistArtifactParser.parse(
+                        result.getFinalResponse(), context.getUserId(), context.getRunId());
+            } catch (BusinessException ex) {
+                holdClosed = finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PicklistArtifactParser.MSG_UNUSABLE);
+                return;
+            }
+
+            PicklistArtifactDTO artifact = picklistApplicationService.persistUsable(persistCommand);
+
+            try {
+                creditService.settle(context.getUserId(), context.getHoldId());
+            } catch (BusinessException ex) {
+                LoggerUtils.error(log, AgentApplicationService.class, "streamPicklistRun",
+                        ex.getMessage() != null ? ex.getMessage() : "settle failed",
+                        NameValue.create("runId", context.getRunId()),
+                        NameValue.create("holdId", context.getHoldId()));
+                markRunFailed(context.getRunId());
+                emitRunFailed(sink, PICKLIST_SETTLE_FAILED, false);
+                holdClosed = true;
+                return;
+            }
+
+            markRunSettled(context.getRunId(), artifact.getPicklistId());
+            settledOk = true;
+            holdClosed = true;
+
+            try {
+                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, toArtifactReady(artifact)));
+                emit(sink, Ad4SseEvent.of(Ad4EventName.run_settled, toRunSettled(context, artifact.getPicklistId())));
+            } catch (RuntimeException emitEx) {
+                LoggerUtils.error(log, AgentApplicationService.class, "streamPicklistRun",
+                        emitEx.getMessage() != null ? emitEx.getMessage() : "SSE emit after settle failed",
+                        NameValue.create("runId", context.getRunId()),
+                        NameValue.create("picklistId", artifact.getPicklistId()));
+            }
+
+            LoggerUtils.success(log, AgentApplicationService.class, "streamPicklistRun",
+                    NameValue.create("userId", context.getUserId()),
+                    NameValue.create("runId", context.getRunId()),
+                    NameValue.create("picklistId", artifact.getPicklistId()),
+                    NameValue.create("itemCount", artifact.getItems().size()));
+        } catch (RuntimeException ex) {
+            LoggerUtils.error(log, AgentApplicationService.class, "streamPicklistRun",
+                    ex.getMessage() != null ? ex.getMessage() : "stream failed",
+                    NameValue.create("runId", context.getRunId()));
+            if (settledOk) {
+                // 已 settle：禁止 markRunFailed 把 SETTLED 翻成 FAILED；仅记日志
+                return;
+            }
+            if (!holdClosed) {
+                holdClosed = finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PICKLIST_MODEL_FAILED);
+            } else {
+                markRunFailed(context.getRunId());
+                emitRunFailed(sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PICKLIST_MODEL_FAILED, false);
+            }
+        } finally {
+            closeQuietly(subscription);
+        }
+    }
+
+    /**
+     * NFR2：单次 Run 用量/成本可观测（近端占位字段；真实 token 待 TurnResult 贯通后替换）。
+     */
+    private void logModelUsagePlaceholder(PicklistRunContext context, TurnResult result) {
+        Integer responseChars = result != null && result.getFinalResponse() != null
+                ? Integer.valueOf(result.getFinalResponse().length())
+                : null;
+        String status = result != null && result.getStatus() != null
+                ? result.getStatus().name()
+                : "UNKNOWN";
+        LoggerUtils.success(log, AgentApplicationService.class, "modelUsage",
+                NameValue.create("runId", context.getRunId()),
+                NameValue.create("sessionId", context.getSessionId()),
+                NameValue.create("skillId", SceneCapabilityPackLoader.SKILL_PICKLIST),
+                NameValue.create("turnStatus", status),
+                NameValue.create("promptTokens", null),
+                NameValue.create("completionTokens", null),
+                NameValue.create("totalTokens", null),
+                NameValue.create("estimatedCost", null),
+                NameValue.create("responseChars", responseChars));
+    }
+
+    private boolean finishFailed(PicklistRunContext context, Consumer<Ad4SseEvent> sink, String reason) {
+        boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
+        markRunFailed(context.getRunId());
+        emitRunFailed(sink, releaseOk ? reason : PICKLIST_RELEASE_FAILED, false);
+        return true;
+    }
+
+    /**
      * @return true 仅当 release 成功
      */
-    private boolean release(EmptyRunContext context) {
+    private boolean releaseHold(String userId, String holdId, String runId) {
         try {
-            creditService.release(context.getUserId(), context.getHoldId());
+            creditService.release(userId, holdId);
             LoggerUtils.success(log, AgentApplicationService.class, "release",
-                    NameValue.create("userId", context.getUserId()),
-                    NameValue.create("holdId", context.getHoldId()),
-                    NameValue.create("runId", context.getRunId()));
+                    NameValue.create("userId", userId),
+                    NameValue.create("holdId", holdId),
+                    NameValue.create("runId", runId));
             return true;
         } catch (BusinessException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "release",
                     ex.getMessage() != null ? ex.getMessage() : "释放预占失败",
-                    NameValue.create("userId", context.getUserId()),
-                    NameValue.create("holdId", context.getHoldId()));
+                    NameValue.create("userId", userId),
+                    NameValue.create("holdId", holdId));
             return false;
         } catch (RuntimeException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "release",
                     ex.getMessage() != null ? ex.getMessage() : "释放预占异常",
-                    NameValue.create("userId", context.getUserId()),
-                    NameValue.create("holdId", context.getHoldId()));
+                    NameValue.create("userId", userId),
+                    NameValue.create("holdId", holdId));
             return false;
         }
     }
@@ -325,18 +564,67 @@ public class AgentApplicationService {
         generationRunRepository.update(run);
     }
 
-    private static Map<String, Object> toRunStarted(EmptyRunContext context) {
+    private void markRunSettled(String runId, String artifactRef) {
+        GenerationRun run = generationRunRepository.findById(runId).orElse(null);
+        if (run == null) {
+            return;
+        }
+        run.markSettled(artifactRef, Instant.now(clock));
+        generationRunRepository.update(run);
+    }
+
+    private static Map<String, Object> toRunStarted(String runId, String sessionId, String holdId) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
-        data.put("runId", context.getRunId());
-        data.put("sessionId", context.getSessionId());
-        data.put("holdId", context.getHoldId());
+        data.put("runId", runId);
+        data.put("sessionId", sessionId);
+        data.put("holdId", holdId);
         return data;
     }
 
-    private static Map<String, Object> toRunFailed(String reason) {
+    private static Map<String, Object> toRunFailed(String reason, boolean emptyRun) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("reason", reason);
-        data.put("emptyRun", true);
+        if (emptyRun) {
+            data.put("emptyRun", true);
+        }
+        return data;
+    }
+
+    private Map<String, Object> toArtifactReady(PicklistArtifactDTO artifact) {
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("artifactType", "picklist");
+        data.put("artifactRef", artifact.getPicklistId());
+        data.put("picklistId", artifact.getPicklistId());
+        data.put("runId", artifact.getRunId());
+        data.put("templateId", artifact.getTemplateId());
+        data.put("disclaimer", artifact.getDisclaimer());
+        if (StringUtils.hasText(artifact.getAssumptions())) {
+            data.put("assumptions", artifact.getAssumptions());
+        }
+        List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
+        for (PicklistArtifactDTO.PicklistItemDTO item : artifact.getItems()) {
+            Map<String, Object> row = new LinkedHashMap<String, Object>();
+            row.put("title", item.getTitle());
+            row.put("priceBand", item.getPriceBand());
+            row.put("reason", item.getReason());
+            row.put("differentiation", item.getDifferentiation());
+            row.put("demand", item.getDemand());
+            row.put("competition", item.getCompetition());
+            row.put("margin", item.getMargin());
+            row.put("risk", item.getRisk());
+            items.add(row);
+        }
+        data.put("items", items);
+        data.put("view", picklistViewProjector.project(artifact));
+        return data;
+    }
+
+    private static Map<String, Object> toRunSettled(PicklistRunContext context, String artifactRef) {
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("runId", context.getRunId());
+        data.put("holdId", context.getHoldId());
+        data.put("artifactRef", artifactRef);
+        data.put("amount", 1);
         return data;
     }
 
@@ -344,9 +632,9 @@ public class AgentApplicationService {
         sink.accept(event);
     }
 
-    private static void emitRunFailed(Consumer<Ad4SseEvent> sink, String reason) {
+    private static void emitRunFailed(Consumer<Ad4SseEvent> sink, String reason, boolean emptyRun) {
         try {
-            emit(sink, Ad4SseEvent.of(Ad4EventName.run_failed, toRunFailed(reason)));
+            emit(sink, Ad4SseEvent.of(Ad4EventName.run_failed, toRunFailed(reason, emptyRun)));
         } catch (RuntimeException ignored) {
             // 第二次抛错不应抹掉失败收尾尝试
         }

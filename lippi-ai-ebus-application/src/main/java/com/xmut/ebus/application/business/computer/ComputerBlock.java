@@ -1,0 +1,35 @@
+package com.xmut.ebus.application.business.computer;
+
+import com.xmut.ebus.common.util.StringUtils;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Computer view block; serialized as plain maps for SSE / JSON.
+ */
+public final class ComputerBlock {
+
+    private ComputerBlock() {
+    }
+
+    public static Map<String, Object> note(String text, String tone) {
+        Map<String, Object> block = new LinkedHashMap<String, Object>();
+        block.put("type", "note");
+        block.put("text", text);
+        if (StringUtils.hasText(tone)) {
+            block.put("tone", tone);
+        }
+        return block;
+    }
+
+    public static Map<String, Object> list(boolean ordered, List<Map<String, Object>> items) {
+        Map<String, Object> block = new LinkedHashMap<String, Object>();
+        block.put("type", "list");
+        block.put("ordered", Boolean.valueOf(ordered));
+        block.put("items", items == null ? new ArrayList<Map<String, Object>>() : items);
+        return block;
+    }
+}

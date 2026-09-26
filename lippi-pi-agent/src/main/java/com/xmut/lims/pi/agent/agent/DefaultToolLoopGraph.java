@@ -9,8 +9,8 @@ import com.xmut.lims.pi.agent.graph.node.ToolHandler;
 import com.xmut.lims.pi.agent.graph.node.ToolNode;
 import com.xmut.lims.pi.ai.model.ModelProvider;
 import com.xmut.lims.pi.ai.model.ToolSchema;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
-import com.xmut.lims.pi.agent.tool.ToolConfig;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
+import com.xmut.lims.pi.agent.tool.ToolCatalog;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -33,7 +33,7 @@ public final class DefaultToolLoopGraph {
     /** 生产装配；四参均必填。 */
     public static StateGraph build(ModelProvider modelProvider,
                                    PromptBuilder promptBuilder,
-                                   ToolConfig toolConfig,
+                                   ToolCatalog toolConfig,
                                    ContextCompressor compressor) {
         return create(
                 new AgentTurnNode(modelProvider, promptBuilder, compressor),
@@ -41,7 +41,7 @@ public final class DefaultToolLoopGraph {
     }
 
     /** 自定义 agent 节点（HITL / 拓扑测）；两参均必填。 */
-    public static StateGraph create(GraphNode agentNode, ToolConfig toolConfig) {
+    public static StateGraph create(GraphNode agentNode, ToolCatalog toolConfig) {
         Objects.requireNonNull(agentNode, "agentNode");
         Objects.requireNonNull(toolConfig, "toolConfig");
 
@@ -70,9 +70,9 @@ public final class DefaultToolLoopGraph {
         };
     }
 
-    static Map<String, ToolHandler> handlers(ToolConfig config) {
-        if (config instanceof DefaultToolConfig) {
-            return ((DefaultToolConfig) config).handlers();
+    static Map<String, ToolHandler> handlers(ToolCatalog config) {
+        if (config instanceof InMemoryToolCatalog) {
+            return ((InMemoryToolCatalog) config).handlers();
         }
         Map<String, ToolHandler> handlers = new LinkedHashMap<>();
         for (ToolSchema schema : config.schemasForModel()) {

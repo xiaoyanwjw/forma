@@ -213,6 +213,36 @@ describe('AppHeader', () => {
     expect(mounted.root.textContent).not.toMatch(/示意|近端|空壳/)
   })
 
+  it('reloads credits when ebus:credits-changed is dispatched', async () => {
+    setToken('jwt')
+    let available = 14
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        okCredits({
+          tier: 'FREE',
+          available,
+          balance: 20,
+          reserved: 0,
+          nextResetAt: '2026-10-24T10:00:00Z',
+          periodAnchorAt: '2026-09-24T10:00:00Z',
+        }),
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const mounted = await mountHeader()
+    unmount = mounted.unmount
+    await flushUi()
+    expect(mounted.root.querySelector('.credits-chip')?.textContent).toMatch(/14/)
+
+    available = 13
+    window.dispatchEvent(new CustomEvent('ebus:credits-changed'))
+    await flushUi()
+    await flushUi()
+
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2)
+    expect(mounted.root.querySelector('.credits-chip')?.textContent).toMatch(/13/)
+  })
+
   it('null credits data shows 积分暂不可用', async () => {
     setToken('jwt')
     vi.stubGlobal(
@@ -309,5 +339,39 @@ describe('AppHeader', () => {
     ) as HTMLElement | undefined
     plans!.focus()
     expect(document.activeElement).toBe(plans)
+  })
+
+  it('hideSecondaryNav hides history and plans but keeps breadcrumb and upgrade', async () => {
+    setToken('jwt')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          okCredits({
+            tier: 'FREE',
+            available: 14,
+            balance: 20,
+            reserved: 0,
+            nextResetAt: '2026-10-24T10:00:00Z',
+            periodAnchorAt: '2026-09-24T10:00:00Z',
+          }),
+        ),
+      ),
+    )
+    const mounted = await mountHeader({
+      sceneBreadcrumb: '电商开店',
+      hideSecondaryNav: true,
+    })
+    unmount = mounted.unmount
+    await flushUi()
+
+    expect(mounted.root.querySelector('[aria-label="面包屑"]')?.textContent).toMatch(/电商开店/)
+    expect(mounted.root.querySelector('[data-nav="history"]')).toBeNull()
+    expect(
+      Array.from(mounted.root.querySelectorAll('a.nav-link')).some((a) =>
+        a.textContent?.includes('套餐'),
+      ),
+    ).toBe(false)
+    expect(mounted.root.textContent).toMatch(/升级/)
   })
 })

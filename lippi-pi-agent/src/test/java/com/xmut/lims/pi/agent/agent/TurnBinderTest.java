@@ -3,14 +3,12 @@ package com.xmut.lims.pi.agent.agent;
 import com.xmut.lims.pi.agent.graph.StateKeys;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import com.xmut.lims.pi.agent.skill.ActiveSkill;
-import com.xmut.lims.pi.agent.skill.InMemorySkillConfig;
-import com.xmut.lims.pi.agent.skill.SkillConfigProperties;
-import com.xmut.lims.pi.agent.skill.SkillGraphTopology;
-import com.xmut.lims.pi.agent.skill.SkillManifest;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
+import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
+import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolBinding;
-import com.xmut.lims.pi.agent.tool.ToolLevel;
-import com.xmut.lims.pi.agent.tool.ToolManifest;
+import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -25,7 +23,7 @@ public class TurnBinderTest {
 
     @Test
     void none_skill_without_config_projects_tools_only() {
-        DefaultToolConfig tools = DefaultToolConfig.ofBindings(Arrays.asList(
+        InMemoryToolCatalog tools = InMemoryToolCatalog.ofBindings(Arrays.asList(
                 binding("t1", "guidance-1"),
                 binding("t2", "guidance-2")));
 
@@ -44,8 +42,8 @@ public class TurnBinderTest {
 
     @Test
     void none_skill_with_config_injects_skill_catalog() {
-        DefaultToolConfig tools = DefaultToolConfig.empty();
-        InMemorySkillConfig skills = new InMemorySkillConfig(SkillConfigProperties.allowMutation());
+        InMemoryToolCatalog tools = InMemoryToolCatalog.empty();
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
         skills.register(skill("a", "A"));
         skills.register(skill("b", "B"));
 
@@ -57,16 +55,16 @@ public class TurnBinderTest {
         assertThat(bindings.getSkillsText()).contains("read_skill");
         assertThat(state).doesNotContainKey(StateKeys.ACTIVE_SKILL_ID);
         @SuppressWarnings("unchecked")
-        List<SkillManifest> available = (List<SkillManifest>) state.get(StateKeys.AVAILABLE_SKILLS);
-        assertThat(available).extracting(SkillManifest::getId).containsExactly("a", "b");
+        List<Skill> available = (List<Skill>) state.get(StateKeys.AVAILABLE_SKILLS);
+        assertThat(available).extracting(Skill::getId).containsExactly("a", "b");
     }
 
     @Test
     void active_skill_empty_whitelist_hides_tools() {
-        DefaultToolConfig tools = DefaultToolConfig.ofBindings(Collections.singletonList(
+        InMemoryToolCatalog tools = InMemoryToolCatalog.ofBindings(Collections.singletonList(
                 binding("t1", "g")));
-        ActiveSkill skill = ActiveSkill.of(skill("s", "skill-body").toBuilder()
-                .toolWhitelist(Collections.emptyList())
+        ActiveSkill skill = ActiveSkill.of(skill("s", "skill-desc").toBuilder()
+                .allowedTools(Collections.emptyList())
                 .build());
 
         Map<String, Object> state = new HashMap<>();
@@ -76,7 +74,7 @@ public class TurnBinderTest {
         assertThat(bindings.getSkillsText())
                 .contains("s")
                 .contains("read_skill")
-                .doesNotContain("skill-body");
+                .doesNotContain("FULL-SKILL-BODY");
         assertThat(state.get(StateKeys.ACTIVE_SKILL_ID)).isEqualTo("s");
         assertThat(state).doesNotContainKey(StateKeys.AVAILABLE_TOOLS);
         assertThat(bindings.getToolsText()).isNull();
@@ -84,13 +82,13 @@ public class TurnBinderTest {
 
     @Test
     void active_skill_narrows_available_skills_to_current() {
-        InMemorySkillConfig skills = new InMemorySkillConfig(SkillConfigProperties.allowMutation());
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
         skills.register(skill("a", "A"));
         skills.register(skill("b", "B"));
         ActiveSkill active = ActiveSkill.of(skills.resolve("b").orElseThrow(AssertionError::new));
 
         Map<String, Object> state = new HashMap<>();
-        TurnBindings bindings = TurnBinder.bind(DefaultToolConfig.empty(), skills, active);
+        TurnBindings bindings = TurnBinder.bind(InMemoryToolCatalog.empty(), skills, active);
         bindings.applyTo(state);
 
         assertThat(bindings.getSkillsText())
@@ -98,22 +96,20 @@ public class TurnBinderTest {
                 .contains("Active skill: b")
                 .doesNotContain("\n- a");
         @SuppressWarnings("unchecked")
-        List<SkillManifest> available = (List<SkillManifest>) state.get(StateKeys.AVAILABLE_SKILLS);
-        assertThat(available).extracting(SkillManifest::getId).containsExactly("b");
+        List<Skill> available = (List<Skill>) state.get(StateKeys.AVAILABLE_SKILLS);
+        assertThat(available).extracting(Skill::getId).containsExactly("b");
     }
 
     @Test
     void whitelist_intersects_schemas() {
-        DefaultToolConfig tools = DefaultToolConfig.ofBindings(Arrays.asList(
+        InMemoryToolCatalog tools = InMemoryToolCatalog.ofBindings(Arrays.asList(
                 binding("keep", "k"),
                 binding("drop", "d")));
-        ActiveSkill skill = ActiveSkill.of(SkillManifest.builder()
+        ActiveSkill skill = ActiveSkill.of(Skill.builder()
                 .id("s")
-                .version("1.0.0")
-                .skillsPrompt("p")
-                .toolWhitelist(Collections.singletonList("keep"))
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.TOOL_LOOP)
+                .description("p")
+                .promptRef("classpath:skills/s.md")
+                .allowedTools(Collections.singletonList("keep"))
                 .build());
 
         Map<String, Object> state = new HashMap<>();
@@ -128,16 +124,14 @@ public class TurnBinderTest {
 
     @Test
     void whitelist_clips_tools_text_to_intersection() {
-        DefaultToolConfig tools = DefaultToolConfig.ofBindings(Arrays.asList(
+        InMemoryToolCatalog tools = InMemoryToolCatalog.ofBindings(Arrays.asList(
                 binding("keep", "keep-text"),
                 binding("drop", "drop-text")));
-        ActiveSkill skill = ActiveSkill.of(SkillManifest.builder()
+        ActiveSkill skill = ActiveSkill.of(Skill.builder()
                 .id("s")
-                .version("1.0.0")
-                .skillsPrompt("p")
-                .toolWhitelist(Collections.singletonList("keep"))
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.TOOL_LOOP)
+                .description("p")
+                .promptRef("classpath:skills/s.md")
+                .allowedTools(Collections.singletonList("keep"))
                 .build());
 
         Map<String, Object> state = new HashMap<>();
@@ -148,22 +142,19 @@ public class TurnBinderTest {
         assertThat(bindings.getToolsText()).doesNotContain("drop");
     }
 
-    private static SkillManifest skill(String id, String prompt) {
-        return SkillManifest.builder()
+    private static Skill skill(String id, String prompt) {
+        return Skill.builder()
                 .id(id)
-                .version("1.0.0")
-                .skillsPrompt(prompt)
-                .toolWhitelist(Collections.emptyList())
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.TOOL_LOOP)
+                .description(prompt)
+                .promptRef("classpath:skills/" + id + ".md")
+                .allowedTools(Collections.emptyList())
                 .build();
     }
 
     private static ToolBinding binding(String id, String text) {
-        ToolManifest m = ToolManifest.builder()
+        ToolDefinition m = ToolDefinition.builder()
                 .id(id)
                 .text(text)
-                .level(ToolLevel.READ)
                 .schema(ToolSchema.builder().name(id).description(id).build())
                 .build();
         return ToolBinding.of(m, null);

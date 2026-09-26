@@ -10,20 +10,16 @@ public class SkillSelectorTest {
 
     @Test
     void skillId_preferred_over_domain() {
-        InMemorySkillConfig config = new InMemorySkillConfig(SkillConfigProperties.allowMutation());
-        config.register(SkillManifest.builder()
+        InMemorySkillCatalog config = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
+        config.register(Skill.builder()
                 .id("a")
-                .version("1.0.0")
-                .skillsPrompt("pa")
-                .maxToolLevel(com.xmut.lims.pi.agent.tool.ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.TOOL_LOOP)
+                .description("pa")
+                .promptRef("classpath:skills/a.md")
                 .build());
-        config.register(SkillManifest.builder()
+        config.register(Skill.builder()
                 .id("b")
-                .version("1.0.0")
-                .skillsPrompt("pb")
-                .maxToolLevel(com.xmut.lims.pi.agent.tool.ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.TOOL_LOOP)
+                .description("pb")
+                .promptRef("classpath:skills/b.md")
                 .build());
 
         TurnInput req = TurnInput.builder()
@@ -40,7 +36,7 @@ public class SkillSelectorTest {
 
     @Test
     void missing_skill_throws() {
-        InMemorySkillConfig config = new InMemorySkillConfig(SkillConfigProperties.defaults());
+        InMemorySkillCatalog config = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
         TurnInput req = TurnInput.builder()
                 .skillId("nope")
                 .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("hi")))

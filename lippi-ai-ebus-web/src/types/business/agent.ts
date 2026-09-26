@@ -1,3 +1,5 @@
+import type { ComputerDocument } from '@/types/business/computerView'
+
 /** AD-4 闭合 SSE 事件名（禁止同义别名） */
 export const AD4_EVENT_NAMES = [
   'run_started',
@@ -22,6 +24,37 @@ export interface StreamEmptyRunOptions {
   sceneCode?: string
   sessionId?: string
   signal?: AbortSignal
+}
+
+/** 计费选品请求 */
+export interface StreamPicklistRunOptions {
+  text: string
+  sceneId?: string
+  sceneCode?: string
+  sessionId?: string
+  signal?: AbortSignal
+}
+
+/** artifact_ready 选品成果（Computer 展示） */
+export interface PicklistArtifactItem {
+  title: string
+  priceBand: string
+  reason: string
+  differentiation: string
+  demand: string
+  competition: string
+  margin: string
+  risk: string
+}
+
+export interface PicklistArtifactPayload {
+  picklistId: string
+  runId: string
+  templateId: string
+  disclaimer: string
+  assumptions?: string
+  items: PicklistArtifactItem[]
+  view?: ComputerDocument
 }
 
 export function isAd4EventName(value: string): value is Ad4EventName {

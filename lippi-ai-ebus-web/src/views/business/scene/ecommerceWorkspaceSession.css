@@ -1,0 +1,368 @@
+/* Session shell — aligned to UX mock manus-chat.css breakpoints (UX-DR5 / UX-DR10) */
+
+.session {
+  display: grid;
+  height: calc(100vh - var(--header-h));
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  background: var(--surface);
+}
+
+@media (max-width: 860px) {
+  .session {
+    grid-template-columns: 1fr;
+  }
+
+  .session .sidebar {
+    display: none;
+  }
+
+  .chat-toolbar {
+    display: flex;
+  }
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+  background: var(--canvas);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 10px;
+}
+
+.side-new {
+  width: 100%;
+  margin-bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.side-new:hover {
+  background: var(--line-2);
+}
+
+.side-section {
+  font-size: 0.7rem;
+  color: var(--mute-2);
+  padding: 8px 10px 6px;
+  font-weight: 550;
+}
+
+.side-item {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  cursor: default;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.side-item.on {
+  background: #ececec;
+}
+
+.side-item .sub {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--mute);
+  margin-top: 2px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.workspace.split {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 675px);
+}
+
+@media (max-width: 1100px) {
+  .workspace.split {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 42vh;
+  }
+}
+
+.chat-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.chat-toolbar {
+  display: none;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 16px 0;
+  flex-shrink: 0;
+}
+
+.chat-new-task {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.chat-new-task:hover {
+  background: var(--line-2);
+}
+
+.chat-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 28px 28px 12px;
+}
+
+.msg {
+  max-width: 640px;
+  margin: 0 auto 20px;
+}
+
+.msg .role {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+.msg.user .role {
+  color: var(--mute);
+}
+
+.msg .body {
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+
+.msg .body p {
+  margin: 0 0 8px;
+}
+
+.msg .body p:last-child {
+  margin-bottom: 0;
+}
+
+.msg .body .meta {
+  color: var(--mute);
+  font-size: 0.85rem;
+  margin-top: 6px;
+}
+
+.demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.demo-actions .pill {
+  margin: 0;
+}
+
+.chat-input-wrap {
+  padding: 12px 20px 18px;
+  background: linear-gradient(180deg, transparent, var(--surface) 28%);
+}
+
+.chat-input-wrap .prompt-box {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.chat-input-wrap .quick-row {
+  max-width: 720px;
+  margin: 0 auto 10px;
+  justify-content: flex-start;
+}
+
+.computer {
+  display: none;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--canvas);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.workspace.split .computer {
+  display: flex;
+}
+
+.computer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.computer-bar .title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.computer-bar .dots {
+  display: flex;
+  gap: 5px;
+}
+
+.computer-bar .dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d4d4d4;
+  display: block;
+}
+
+.computer-bar .dots i:nth-child(1) {
+  background: #f87171;
+}
+
+.computer-bar .dots i:nth-child(2) {
+  background: #fbbf24;
+}
+
+.computer-bar .dots i:nth-child(3) {
+  background: #4ade80;
+}
+
+.computer-body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.comp-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.comp-card-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.comp-card-head .status {
+  font-weight: 500;
+  color: var(--mute);
+  font-size: 0.75rem;
+}
+
+.comp-card-body {
+  padding: 14px;
+}
+
+.pick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pick-list li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-2);
+  align-items: start;
+}
+
+.pick-list li:last-child {
+  border-bottom: 0;
+}
+
+.pick-list .n {
+  font-size: 0.75rem;
+  color: var(--mute);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+
+.pick-list .t {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.pick-list .r {
+  font-size: 0.8rem;
+  color: var(--mute);
+  margin-top: 2px;
+}
+
+.listing-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.listing-hero {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 78%, rgba(0, 0, 0, 0.07), transparent),
+    linear-gradient(180deg, #f8f8f8, #ececec);
+  display: grid;
+  place-items: center;
+  color: var(--mute);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.listing-copy h4 {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--mute);
+  letter-spacing: 0.02em;
+}
+
+.listing-copy .title-text {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.listing-copy .body-text {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--mute);
+  line-height: 1.55;
+}

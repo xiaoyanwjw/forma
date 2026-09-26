@@ -1,9 +1,9 @@
 package com.xmut.lims.pi.agent.resource;
 
-import com.xmut.lims.pi.agent.skill.SkillConfig;
-import com.xmut.lims.pi.agent.skill.SkillManifest;
-import com.xmut.lims.pi.agent.tool.ToolConfig;
-import com.xmut.lims.pi.agent.tool.ToolManifest;
+import com.xmut.lims.pi.agent.skill.SkillCatalog;
+import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.lims.pi.agent.tool.ToolCatalog;
+import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -25,6 +25,7 @@ import java.util.Optional;
 /**
  * PiResourceLoader 默认实现。
  * 功能描述：启动扫描 prompts，并委托既有 Skill/Tool 配置。
+ * 关键设计：{@link #reload()} 只重扫 prompts；Skill 由启动 {@code Skills} 装载并 seal，不热更。
  */
 public final class DefaultPiResourceLoader implements PiResourceLoader {
 
@@ -33,8 +34,8 @@ public final class DefaultPiResourceLoader implements PiResourceLoader {
     private static final Logger log = LoggerFactory.getLogger(DefaultPiResourceLoader.class);
 
     private final ResourcePatternResolver resolver;
-    private final SkillConfig skillConfig;
-    private final ToolConfig toolConfig;
+    private final SkillCatalog skillConfig;
+    private final ToolCatalog toolConfig;
     private final List<String> extensionNames;
 
     private volatile Map<String, PromptTemplate> prompts;
@@ -44,8 +45,8 @@ public final class DefaultPiResourceLoader implements PiResourceLoader {
     }
 
     public DefaultPiResourceLoader(ResourcePatternResolver resolver,
-                                   SkillConfig skillConfig,
-                                   ToolConfig toolConfig,
+                                   SkillCatalog skillConfig,
+                                   ToolCatalog toolConfig,
                                    List<String> extensionNames) {
         this.resolver = Objects.requireNonNull(resolver, "resolver");
         this.skillConfig = skillConfig;
@@ -117,17 +118,14 @@ public final class DefaultPiResourceLoader implements PiResourceLoader {
         if (skillConfig == null) {
             return Optional.empty();
         }
-        Optional<SkillManifest> resolved = skillConfig.resolve(skillId);
+        Optional<Skill> resolved = skillConfig.resolve(skillId);
         if (!resolved.isPresent()) {
             return Optional.empty();
         }
-        SkillManifest manifest = resolved.get();
-        // 与 ReadSkillHandler 一致：写了 promptRef 则失败不回落，避免读错文件却假装成功。
-        if (StringUtils.hasText(manifest.getPromptRef())) {
-            return loadPromptRef(manifest.getPromptRef().trim(), skillId);
-        }
-        if (StringUtils.hasText(manifest.getSkillsPrompt())) {
-            return Optional.of(manifest.getSkillsPrompt().trim());
+        Skill skill = resolved.get();
+        // 与 ReadSkill 一致：写了 promptRef 则失败不回落，避免读错文件却假装成功。
+        if (StringUtils.hasText(skill.getPromptRef())) {
+            return loadPromptRef(skill.getPromptRef().trim(), skillId);
         }
         return Optional.empty();
     }
@@ -164,11 +162,11 @@ public final class DefaultPiResourceLoader implements PiResourceLoader {
     }
 
     private List<String> skillIds() {
-        if (skillConfig == null || skillConfig.manifests() == null) {
+        if (skillConfig == null || skillConfig.all() == null) {
             return Collections.emptyList();
         }
         List<String> ids = new ArrayList<>();
-        for (SkillManifest m : skillConfig.manifests()) {
+        for (Skill m : skillConfig.all()) {
             if (m != null && StringUtils.hasText(m.getId())) {
                 ids.add(m.getId());
             }
@@ -177,11 +175,11 @@ public final class DefaultPiResourceLoader implements PiResourceLoader {
     }
 
     private List<String> toolIds() {
-        if (toolConfig == null || toolConfig.manifests() == null) {
+        if (toolConfig == null || toolConfig.all() == null) {
             return Collections.emptyList();
         }
         List<String> ids = new ArrayList<>();
-        for (ToolManifest m : toolConfig.manifests()) {
+        for (ToolDefinition m : toolConfig.all()) {
             if (m != null && StringUtils.hasText(m.getId())) {
                 ids.add(m.getId());
             }

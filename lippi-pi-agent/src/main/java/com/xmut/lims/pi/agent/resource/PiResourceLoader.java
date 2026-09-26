@@ -12,6 +12,7 @@ public interface PiResourceLoader {
 
     /**
      * 重扫 {@code classpath*:prompts/*.md}。
+     * Skill 仅启动装载（seal 后不可热更）。
      */
     void reload();
 

@@ -18,11 +18,11 @@ import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
 import com.xmut.lims.pi.agent.skill.ActiveSkill;
-import com.xmut.lims.pi.agent.skill.SkillConfig;
+import com.xmut.lims.pi.agent.skill.SkillCatalog;
 import com.xmut.lims.pi.agent.skill.SkillSelector;
 import com.xmut.lims.pi.agent.event.Emitter;
 import com.xmut.lims.pi.agent.tool.ToolDecision;
-import com.xmut.lims.pi.agent.tool.ToolConfig;
+import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -49,8 +49,8 @@ public final class DefaultAgent implements Agent {
     private final Checkpointer checkpointer;
     private final ResumeIdempotencyStore resumeIdempotencyStore;
     private final IterationBudget budget;
-    private final ToolConfig toolConfig;
-    private final SkillConfig skillConfig;
+    private final ToolCatalog toolConfig;
+    private final SkillCatalog skillConfig;
     private final ConcurrentHashMap<String, CancelHandle> activeRuns = new ConcurrentHashMap<>();
 
     /**
@@ -60,8 +60,8 @@ public final class DefaultAgent implements Agent {
                         Checkpointer checkpointer,
                         ResumeIdempotencyStore resumeIdempotencyStore,
                         IterationBudget budget,
-                        ToolConfig toolConfig,
-                        SkillConfig skillConfig) {
+                        ToolCatalog toolConfig,
+                        SkillCatalog skillConfig) {
         this.stateGraph = Objects.requireNonNull(stateGraph, "stateGraph");
         this.checkpointer = Objects.requireNonNull(checkpointer, "checkpointer");
         this.resumeIdempotencyStore = Objects.requireNonNull(resumeIdempotencyStore, "resumeIdempotencyStore");
@@ -114,8 +114,8 @@ public final class DefaultAgent implements Agent {
     }
 
     public Map<String, Object> prepare(TurnInput turnInput,
-                                       ToolConfig toolConfig,
-                                       SkillConfig skillConfig) {
+                                       ToolCatalog toolConfig,
+                                       SkillCatalog skillConfig) {
         Objects.requireNonNull(turnInput, "turn");
 
         Map<String, Object> input = new HashMap<>();

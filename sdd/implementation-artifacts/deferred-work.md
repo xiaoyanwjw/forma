@@ -147,3 +147,35 @@
 - source_spec: `sdd/implementation-artifacts/spec-3-2-电商场景能力包按-scenecode-加载.md`
   summary: Loader 未在装包时校验各 skill promptRef 指向的 md 是否存在。
   evidence: 坏引用延后到读资源失败；骨架包现已成对齐全，加强校验后置。
+
+- source_spec: `docs/superpowers/specs/2026-09-26-official-pi-skills-adapter-design.md`
+  summary: 未将 `read_skill` 重做为官方式通用 `read` 文件工具；仍只读当前 ActiveSkill 正文。
+  evidence: 设计 Non-goals；Adam 场景靠 SKILL.md + read_skill 按需拉全文。
+
+- source_spec: `docs/superpowers/specs/2026-09-26-official-pi-skills-adapter-design.md`
+  summary: 未引入 pi-mono 内置 coding tools（bash / edit / write / …）；默认 Spring 路径为代码注册 Tool（如 `read_skill`）+ `allowed-tools` 按名激活。
+  evidence: 设计 Non-goals；已删 ToolLevel；无 `*.tool.json` 扫盘 on default path。
+
+- source_spec: `docs/superpowers/specs/2026-09-26-official-pi-skills-adapter-design.md`
+  summary: WRITE HITL 为全局开关 + 已注册且本轮 active 的工具批次挂起（不按 READ/WRITE level）；未改为「按工具名点名审批」协议。
+  evidence: `ToolPolicyExtension` 不读 level；默认 `lims.pi.tool.write-approval.enabled=false`；后续故事可改 per-tool named approval。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-3-会话态工作台-侧栏-对话-computer.md`
+  summary: 窄屏侧栏隐藏的验证仅靠 CSS 源码正则，无法在 jsdom 中诚实覆盖 media-query 布局。
+  evidence: verification-gap：去掉 session CSS import 后源码测仍绿；需浏览器/冒烟才锁 UX-DR10。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
+  summary: 客户端取消/SSE 断流时服务端无法中断 AgentSession.prompt，仍可能跑完并 settle。
+  evidence: 评审确认与 empty-run 同构；近端无 AgentSession 取消端口；FE 已 abort 本地流并忽略迟到成果。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
+  summary: mid-stream SSE 发送失败只设 aborted，不取消正在进行的模型 turn。
+  evidence: 与 empty-run 同构限制；补取消需打断 prompt，超出本故事最小补丁。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
+  summary: settle 失败（成果已落库）不自动 release，需运维/补偿路径处理卡住的 hold 与孤儿清单。
+  evidence: 释放会导致白嫖；当前人话「联系支持」；完整补偿后置。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
+  summary: modelUsage 日志仍为 token/成本占位，真实 promptTokens/totalTokens 待 TurnResult 贯通。
+  evidence: NFR2 近端以占位+responseChars 满足；真实用量字段后置。

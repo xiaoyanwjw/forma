@@ -31,16 +31,18 @@ import com.xmut.lims.pi.agent.session.DefaultAgentSession;
 import com.xmut.lims.pi.agent.session.InMemorySessionStore;
 import com.xmut.lims.pi.agent.session.SessionStore;
 import com.xmut.lims.pi.agent.session.SqliteSessionStore;
-import com.xmut.lims.pi.agent.skill.ClasspathSkillBootstrap;
-import com.xmut.lims.pi.agent.skill.InMemorySkillConfig;
-import com.xmut.lims.pi.agent.skill.SkillConfig;
-import com.xmut.lims.pi.agent.skill.SkillConfigProperties;
-import com.xmut.lims.pi.agent.tool.ClasspathToolBootstrap;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
-import com.xmut.lims.pi.agent.tool.ToolBinding;
-import com.xmut.lims.pi.agent.tool.ToolConfig;
-import com.xmut.lims.pi.agent.tool.ToolHandlerAutoBinder;
-import com.xmut.lims.pi.agent.tool.ToolManifest;
+import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
+import com.xmut.lims.pi.agent.skill.SkillCatalog;
+import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.lims.pi.agent.skill.Skills;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
+import com.xmut.lims.pi.agent.tool.ToolCatalog;
+import com.xmut.lims.pi.agent.tool.ToolDefinition;
+import com.xmut.lims.pi.agent.tool.Tool;
+import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
+import com.xmut.lims.pi.ai.model.ToolSchema;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -51,7 +53,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -138,37 +139,53 @@ public class AgentConfiguration {
     }
 
     /**
-     * 默认 ToolConfig：扫 {@code classpath*:tools/*.tool.json}；
-     * 若 JSON 含 {@code handlerClass} → {@link ToolHandlerAutoBinder} 自动创建并绑定 Handler。
-     *
-     * <p>仅 JSON、无 handlerClass → 声明型工具（有 schema、不可执行）。
+     * 默认 ToolCatalog：代码注册 {@code read_skill}（不依赖 *.tool.json）。
      */
     @Bean
-    @ConditionalOnMissingBean(ToolConfig.class)
-    public ToolConfig toolConfig(ResourcePatternResolver resourcePatternResolver,
-                                 org.springframework.beans.factory.BeanFactory beanFactory) {
-        List<ToolManifest> scanned = ClasspathToolBootstrap.load(resourcePatternResolver);
-        List<ToolBinding> coded = new ArrayList<>(
-                ToolHandlerAutoBinder.bindFromManifests(scanned, beanFactory));
-        return DefaultToolConfig.merge(scanned, coded);
+    @ConditionalOnMissingBean(ToolCatalog.class)
+    public ToolCatalog toolConfig(SkillCatalog skillConfig) {
+        return InMemoryToolCatalog.of(Collections.singletonList(readSkillTool(skillConfig)));
+    }
+
+    static Tool readSkillTool(SkillCatalog skillConfig) {
+        ObjectNode parameters = new ObjectMapper().createObjectNode();
+        parameters.put("type", "object");
+        ObjectNode properties = parameters.putObject("properties");
+        ObjectNode skillId = properties.putObject("skill_id");
+        skillId.put("type", "string");
+        skillId.put("description", "Registered skill id, e.g. ecommerce-picklist");
+        parameters.putArray("required").add("skill_id");
+        ToolSchema schema = ToolSchema.builder()
+                .name(ReadSkill.TOOL_ID)
+                .description("Read the full skill markdown/instructions for a skill_id from the Skills catalog")
+                .parametersSchema(parameters)
+                .build();
+        ToolDefinition definition = ToolDefinition.builder()
+                .id(ReadSkill.TOOL_ID)
+                .description("Load the full markdown body of a registered skill by skill_id")
+                .text("[read_skill] Load skill body by skill_id. Never invent skill content.")
+                .schema(schema)
+                .handlerClass(ReadSkill.class.getName())
+                .build();
+        return new Tool(definition, new ReadSkill(skillConfig));
     }
 
     @Bean
-    @ConditionalOnMissingBean(SkillConfigProperties.class)
-    public SkillConfigProperties skillConfigProperties(@Value("${pi.skills.allow-runtime-mutation:false}") boolean allowRuntimeMutation) {
-        return new SkillConfigProperties(allowRuntimeMutation);
+    @ConditionalOnMissingBean(SkillCatalogProperties.class)
+    public SkillCatalogProperties skillConfigProperties(@Value("${pi.skills.allow-runtime-mutation:false}") boolean allowRuntimeMutation) {
+        return new SkillCatalogProperties(allowRuntimeMutation);
     }
 
     /**
-     * 默认可注入 SkillConfig：扫 {@code classpath*:skills/*.skill.json}
-     * （含 certificate.ocr）→ {@code sealBootstrap}。
+     * 默认可注入 SkillCatalog：扫 classpath*:scenes/{scene}/{skill}/SKILL.md，
+     * 然后 sealBootstrap。Skill 仅启动装载，reload 不重扫 skills。
      */
     @Bean
-    @ConditionalOnMissingBean(SkillConfig.class)
-    public SkillConfig skillConfig(ResourcePatternResolver resourcePatternResolver,
-                                   SkillConfigProperties skillConfigProperties) {
-        InMemorySkillConfig config = new InMemorySkillConfig(skillConfigProperties);
-        ClasspathSkillBootstrap.load(config, resourcePatternResolver);
+    @ConditionalOnMissingBean(SkillCatalog.class)
+    public SkillCatalog skillConfig(ResourcePatternResolver resourcePatternResolver,
+                                   SkillCatalogProperties skillConfigProperties) {
+        InMemorySkillCatalog config = new InMemorySkillCatalog(skillConfigProperties);
+        Skills.loadFromClasspath(config, resourcePatternResolver, Skills.DEFAULT_PATTERN);
         config.sealBootstrap();
         return config;
     }
@@ -196,8 +213,8 @@ public class AgentConfiguration {
     @Bean
     @ConditionalOnMissingBean(PiResourceLoader.class)
     public PiResourceLoader piResourceLoader(ResourcePatternResolver resourcePatternResolver,
-                                             SkillConfig skillConfig,
-                                             ToolConfig toolConfig,
+                                             SkillCatalog skillConfig,
+                                             ToolCatalog toolConfig,
                                              ExtensionRunner extensionRunner) {
         return new DefaultPiResourceLoader(
                 resourcePatternResolver,
@@ -213,7 +230,7 @@ public class AgentConfiguration {
      */
     @Bean
     public ToolPolicyExtension toolPolicyExtension(
-            ToolConfig toolConfig,
+            ToolCatalog toolConfig,
             @Value("${lims.pi.tool.write-approval.enabled:false}") boolean writeApprovalEnabled) {
         return new ToolPolicyExtension(toolConfig, writeApprovalEnabled);
     }
@@ -237,8 +254,8 @@ public class AgentConfiguration {
     @ConditionalOnMissingBean(AgentSession.class)
     public AgentSession agentSession(ModelProvider modelProvider,
                                      PromptBuilder promptBuilder,
-                                     ToolConfig toolConfig,
-                                     SkillConfig skillConfig,
+                                     ToolCatalog toolConfig,
+                                     SkillCatalog skillConfig,
                                      Checkpointer checkpointStore,
                                      ResumeIdempotencyStore resumeIdempotencyStore,
                                      SessionStore sessionStore,

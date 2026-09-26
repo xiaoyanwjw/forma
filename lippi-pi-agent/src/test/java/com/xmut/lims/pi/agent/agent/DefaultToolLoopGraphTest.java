@@ -10,7 +10,7 @@ import com.xmut.lims.pi.agent.graph.StateGraph;
 import com.xmut.lims.pi.agent.graph.StateKeys;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.message.Message;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -26,7 +26,7 @@ class DefaultToolLoopGraphTest {
 
     @Test
     void defaultTopology_noToolCalls_endsWithOkPath() {
-        StateGraph graph = DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty());
+        StateGraph graph = DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), InMemoryToolCatalog.empty());
         CompiledGraph compiled = graph.compile(CompileConfig.builder().maxSupersteps(10).build());
 
         Map<String, Object> input = new HashMap<>();
@@ -50,20 +50,20 @@ class DefaultToolLoopGraphTest {
 
     @Test
     void factory_hasNoLoadMemoryOrPolicyNodes() {
-        StateGraph graph = DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty());
+        StateGraph graph = DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), InMemoryToolCatalog.empty());
         assertThatThrownBy(() -> graph.compile(CompileConfig.builder()
                 .interruptBefore(Collections.singletonList("load_memory")).build()))
                 .isInstanceOf(GraphCompilationException.class)
                 .hasMessageContaining("load_memory");
-        assertThatThrownBy(() -> DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()).compile(CompileConfig.builder()
+        assertThatThrownBy(() -> DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), InMemoryToolCatalog.empty()).compile(CompileConfig.builder()
                 .interruptBefore(Collections.singletonList("policy")).build()))
                 .isInstanceOf(GraphCompilationException.class)
                 .hasMessageContaining("policy");
-        assertThatThrownBy(() -> DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()).compile(CompileConfig.builder()
+        assertThatThrownBy(() -> DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), InMemoryToolCatalog.empty()).compile(CompileConfig.builder()
                 .interruptBefore(Collections.singletonList("human")).build()))
                 .isInstanceOf(GraphCompilationException.class)
                 .hasMessageContaining("human");
-        assertThatThrownBy(() -> DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), DefaultToolConfig.empty()).compile(CompileConfig.builder()
+        assertThatThrownBy(() -> DefaultToolLoopGraph.create(com.xmut.lims.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), InMemoryToolCatalog.empty()).compile(CompileConfig.builder()
                 .interruptBefore(Collections.singletonList("tool_call")).build()))
                 .isInstanceOf(GraphCompilationException.class)
                 .hasMessageContaining("tool_call");
@@ -89,7 +89,7 @@ class DefaultToolLoopGraphTest {
                     updates.put(StateKeys.LLM_RESPONSE, "custom");
                     return updates;
                 },
-                DefaultToolConfig.empty());
+                InMemoryToolCatalog.empty());
 
         GraphOutcome outcome = graph.compile().invoke(Collections.emptyMap(), RunnableConfig.of("r1", "tr1"));
         assertThat(outcome.isSuccess()).isTrue();

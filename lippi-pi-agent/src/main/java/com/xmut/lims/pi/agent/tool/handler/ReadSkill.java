@@ -5,8 +5,8 @@ import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.agent.graph.node.ToolHandler;
 import com.xmut.lims.pi.ai.tool.ToolResult;
-import com.xmut.lims.pi.agent.skill.SkillConfig;
-import com.xmut.lims.pi.agent.skill.SkillManifest;
+import com.xmut.lims.pi.agent.skill.SkillCatalog;
+import com.xmut.lims.pi.agent.skill.Skill;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -31,13 +31,13 @@ public final class ReadSkill implements ToolHandler {
     public static final String TOOL_ID = "read_skill";
     public static final String ARG_SKILL_ID = "skill_id";
 
-    private final SkillConfig skillConfig;
+    private final SkillCatalog skillConfig;
     private final ResourceLoader resourceLoader;
 
     /**
-     * 生产 / {@code createBean}：仅依赖 {@link SkillConfig}（正文加载用默认 Classpath ResourceLoader）。
+     * 生产 / {@code createBean}：仅依赖 {@link SkillCatalog}（正文加载用默认 Classpath ResourceLoader）。
      */
-    public ReadSkill(SkillConfig skillConfig) {
+    public ReadSkill(SkillCatalog skillConfig) {
         this.skillConfig = skillConfig;
         this.resourceLoader = new DefaultResourceLoader();
     }
@@ -56,24 +56,22 @@ public final class ReadSkill implements ToolHandler {
                     "skill_id not active: " + requested + " (active=" + ctx.getActiveSkillId() + ")");
         }
         if (skillConfig == null) {
-            return ToolResult.failed(callId, TOOL_ID, "SkillConfig unavailable");
+            return ToolResult.failed(callId, TOOL_ID, "SkillCatalog unavailable");
         }
-        Optional<SkillManifest> resolved = skillConfig.resolve(requested);
+        Optional<Skill> resolved = skillConfig.resolve(requested);
         if (!resolved.isPresent()) {
             return ToolResult.failed(callId, TOOL_ID, "skill not found: " + skillId);
         }
-        SkillManifest manifest = resolved.get();
-        Optional<String> body = resolveBody(manifest);
+        Skill skill = resolved.get();
+        Optional<String> body = resolveBody(skill);
         if (!body.isPresent()) {
             return ToolResult.failed(callId, TOOL_ID,
                     "skill body unavailable: " + skillId
-                            + (StringUtils.hasText(manifest.getPromptRef())
-                            ? " (promptRef=" + manifest.getPromptRef() + ")"
+                            + (StringUtils.hasText(skill.getPromptRef())
+                            ? " (promptRef=" + skill.getPromptRef() + ")"
                             : ""));
         }
-        String header = "# Skill " + manifest.getId()
-                + (StringUtils.hasText(manifest.getVersion()) ? " @" + manifest.getVersion() : "")
-                + "\n\n";
+        String header = "# Skill " + skill.getId() + "\n\n";
         // 明确告知「已加载完毕」——从根上消掉模型读完又再调一次的冲动
         String footer = "\n\n---\n"
                 + "[Skill loaded] You already have the full skill body above. "
@@ -82,20 +80,13 @@ public final class ReadSkill implements ToolHandler {
     }
 
     /**
-     * 优先 {@code promptRef}；失败不回落内联（避免读错文件却假装成功）。
-     * 无 promptRef 时用 {@code skillsPrompt}。
+     * 仅通过 {@code promptRef} 读正文；失败不回落（避免读错文件却假装成功）。
      */
-    public Optional<String> resolveBody(SkillManifest manifest) {
-        if (manifest == null) {
+    public Optional<String> resolveBody(Skill skill) {
+        if (skill == null || !StringUtils.hasText(skill.getPromptRef())) {
             return Optional.empty();
         }
-        if (StringUtils.hasText(manifest.getPromptRef())) {
-            return loadRef(manifest.getPromptRef().trim(), manifest.getId());
-        }
-        if (StringUtils.hasText(manifest.getSkillsPrompt())) {
-            return Optional.of(manifest.getSkillsPrompt().trim());
-        }
-        return Optional.empty();
+        return loadRef(skill.getPromptRef().trim(), skill.getId());
     }
 
     private Optional<String> loadRef(String promptRef, String skillId) {

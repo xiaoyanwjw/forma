@@ -10,10 +10,9 @@ import com.xmut.lims.pi.agent.event.PiEventType;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.agent.graph.node.ToolHandler;
 import com.xmut.lims.pi.ai.tool.ToolResult;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolDecision;
-import com.xmut.lims.pi.agent.tool.ToolLevel;
-import com.xmut.lims.pi.agent.tool.ToolRegistration;
+import com.xmut.lims.pi.agent.tool.Tool;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import org.junit.jupiter.api.Test;
 
@@ -28,23 +27,56 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ToolPolicyExtensionTest {
 
     @Test
+    void deniesToolNotInActiveSet() {
+        InMemoryToolCatalog config = new InMemoryToolCatalog(java.util.Arrays.asList(
+                new Tool("read_skill",
+                        ToolSchema.builder().name("read_skill").build(),
+                        null),
+                new Tool("echo",
+                        ToolSchema.builder().name("echo").build(),
+                        null)));
+        ToolPolicyExtension ext = new ToolPolicyExtension(config, false);
+
+        BeforeToolCallResult result = ext.evaluate(
+                new ToolCallEntry("c1", "echo", JsonNodeFactory.instance.objectNode()),
+                null, null, Collections.singletonList("read_skill"));
+
+        assertThat(result.isBlock()).isTrue();
+        assertThat(result.getReason()).containsIgnoringCase("active");
+    }
+
+    @Test
+    void allowsToolInActiveSet() {
+        InMemoryToolCatalog config = InMemoryToolCatalog.of(Collections.singletonList(
+                new Tool("read_skill",
+                        ToolSchema.builder().name("read_skill").build(),
+                        null)));
+        ToolPolicyExtension ext = new ToolPolicyExtension(config, false);
+
+        BeforeToolCallResult result = ext.evaluate(
+                new ToolCallEntry("c1", "read_skill", JsonNodeFactory.instance.objectNode()),
+                null, null, Collections.singletonList("read_skill"));
+
+        assertThat(result.isAllow()).isTrue();
+    }
+
+    @Test
     void null_call_blocks() {
-        ToolPolicyExtension ext = new ToolPolicyExtension(DefaultToolConfig.empty());
+        ToolPolicyExtension ext = new ToolPolicyExtension(InMemoryToolCatalog.empty());
         BeforeToolCallResult result = ext.evaluate(null, null, null);
         assertThat(result.isBlock()).isTrue();
     }
 
     @Test
-    void forbidden_blocks_and_never_keeps_call() {
+    void unregistered_blocks_and_never_keeps_call() {
         AtomicInteger calls = new AtomicInteger();
         ToolHandler handler = (call, c) -> {
             calls.incrementAndGet();
             return ToolResult.ok(call.getId(), call.getToolName(), "no");
         };
-        DefaultToolConfig config = new DefaultToolConfig(Collections.singletonList(
-                new ToolRegistration("danger",
-                        ToolSchema.builder().name("danger").build(),
-                        ToolLevel.FORBIDDEN,
+        InMemoryToolCatalog config = new InMemoryToolCatalog(Collections.singletonList(
+                new Tool("safe",
+                        ToolSchema.builder().name("safe").build(),
                         handler)));
         ToolPolicyExtension ext = new ToolPolicyExtension(config);
 
@@ -53,19 +85,19 @@ class ToolPolicyExtensionTest {
 
         assertThat(calls.get()).isZero();
         assertThat(result.isBlock()).isTrue();
-        assertThat(result.getReason()).containsIgnoringCase("forbidden");
+        assertThat(result.getReason()).containsIgnoringCase("registered");
     }
 
-    /** Adam 默认：WRITE 审批关 → 未批准 WRITE 直接 allow（与 READ 同面）。 */
+    /** Adam 默认：审批关 → 已注册工具直接 allow。 */
     @Test
-    void write_approval_disabled_by_default_allows_write_without_hitl() {
-        DefaultToolConfig config = new DefaultToolConfig(java.util.Arrays.asList(
-                new ToolRegistration("save",
+    void write_approval_disabled_by_default_allows_registered_without_hitl() {
+        InMemoryToolCatalog config = new InMemoryToolCatalog(java.util.Arrays.asList(
+                new Tool("save",
                         ToolSchema.builder().name("save").build(),
-                        ToolLevel.WRITE, null),
-                new ToolRegistration("lookup",
+                        null),
+                new Tool("lookup",
                         ToolSchema.builder().name("lookup").build(),
-                        ToolLevel.READ, null)));
+                        null)));
         ToolPolicyExtension ext = new ToolPolicyExtension(config);
 
         assertThat(ext.isWriteApprovalEnabled()).isFalse();
@@ -78,14 +110,14 @@ class ToolPolicyExtensionTest {
     }
 
     @Test
-    void unapproved_write_needs_hitl_when_approval_enabled() {
-        DefaultToolConfig config = new DefaultToolConfig(java.util.Arrays.asList(
-                new ToolRegistration("save",
+    void unapproved_tool_needs_hitl_when_approval_enabled() {
+        InMemoryToolCatalog config = new InMemoryToolCatalog(java.util.Arrays.asList(
+                new Tool("save",
                         ToolSchema.builder().name("save").build(),
-                        ToolLevel.WRITE, null),
-                new ToolRegistration("lookup",
+                        null),
+                new Tool("lookup",
                         ToolSchema.builder().name("lookup").build(),
-                        ToolLevel.READ, null)));
+                        null)));
         ToolPolicyExtension ext = new ToolPolicyExtension(config, true);
 
         assertThat(ext.evaluate(
@@ -93,15 +125,15 @@ class ToolPolicyExtensionTest {
                 null, null).isNeedsHitl()).isTrue();
         assertThat(ext.evaluate(
                 new ToolCallEntry("r1", "lookup", JsonNodeFactory.instance.objectNode()),
-                null, null).isAllow()).isTrue();
+                null, null).isNeedsHitl()).isTrue();
     }
 
     @Test
-    void approve_allows_write_when_approval_enabled() {
-        DefaultToolConfig config = new DefaultToolConfig(Collections.singletonList(
-                new ToolRegistration("save",
+    void approve_allows_when_approval_enabled() {
+        InMemoryToolCatalog config = new InMemoryToolCatalog(Collections.singletonList(
+                new Tool("save",
                         ToolSchema.builder().name("save").build(),
-                        ToolLevel.WRITE, null)));
+                        null)));
         ToolPolicyExtension ext = new ToolPolicyExtension(config, true);
 
         BeforeToolCallResult result = ext.evaluate(
@@ -112,10 +144,10 @@ class ToolPolicyExtensionTest {
 
     @Test
     void deny_blocks_with_reason_when_approval_enabled() {
-        DefaultToolConfig config = new DefaultToolConfig(Collections.singletonList(
-                new ToolRegistration("save",
+        InMemoryToolCatalog config = new InMemoryToolCatalog(Collections.singletonList(
+                new Tool("save",
                         ToolSchema.builder().name("save").build(),
-                        ToolLevel.WRITE, null)));
+                        null)));
         ToolPolicyExtension ext = new ToolPolicyExtension(config, true);
 
         BeforeToolCallResult result = ext.evaluate(
@@ -127,10 +159,10 @@ class ToolPolicyExtensionTest {
 
     @Test
     void register_wires_before_tool_call_on_bus() {
-        DefaultToolConfig config = new DefaultToolConfig(Collections.singletonList(
-                new ToolRegistration("save",
+        InMemoryToolCatalog config = new InMemoryToolCatalog(Collections.singletonList(
+                new Tool("save",
                         ToolSchema.builder().name("save").build(),
-                        ToolLevel.WRITE, null)));
+                        null)));
         PiEventBus bus = new DefaultPiEventBus();
         new ToolPolicyExtension(config, true).register(bus);
 

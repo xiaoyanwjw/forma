@@ -20,14 +20,12 @@ import com.xmut.lims.pi.ai.model.ModelResponse;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.agent.resource.DefaultPiResourceLoader;
-import com.xmut.lims.pi.agent.skill.InMemorySkillConfig;
-import com.xmut.lims.pi.agent.skill.SkillConfigProperties;
-import com.xmut.lims.pi.agent.skill.SkillGraphTopology;
-import com.xmut.lims.pi.agent.skill.SkillManifest;
-import com.xmut.lims.pi.agent.tool.DefaultToolConfig;
+import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
+import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolBinding;
-import com.xmut.lims.pi.agent.tool.ToolLevel;
-import com.xmut.lims.pi.agent.tool.ToolManifest;
+import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -103,27 +101,24 @@ class AgentSessionPromptExpandTest {
     void skill_slash_puts_body_in_user_not_overwriting_explicit_template_skill() {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenReturn(ConversationResult.ok("r1", "ok", Collections.emptyList()));
-        InMemorySkillConfig skills = new InMemorySkillConfig(SkillConfigProperties.defaults());
-        skills.registerBootstrap(SkillManifest.builder()
-                .id("certificate.ocr")
-                .version("1.0.0")
-                .skillsPrompt("inline-should-not-win")
-                .promptRef("classpath:skills/certificate-ocr.md")
-                .toolWhitelist(Collections.singletonList("read_skill"))
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
+        skills.registerBootstrap(Skill.builder()
+                .id("ecommerce-picklist")
+                .description("inline-should-not-win")
+                .promptRef("classpath:scenes/ecommerce/ecommerce-picklist/SKILL.md")
+                .allowedTools(Collections.singletonList("read_skill"))
                 .build());
-        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, DefaultToolConfig.empty(), java.util.Collections.emptyList());
+        DefaultPiResourceLoader loader = new DefaultPiResourceLoader(new PathMatchingResourcePatternResolver(), skills, InMemoryToolCatalog.empty(), java.util.Collections.emptyList());
         DefaultAgentSession session = sessionWith(runner(), loader);
 
         session.prompt(PromptRequest.builder()
-                .text("/skill:certificate.ocr")
+                .text("/skill:ecommerce-picklist")
                 .build());
 
         ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
         verify(conversationLoop).run(cap.capture(), any());
-        assertThat(cap.getValue().getMessages().get(0).getContent()).contains("资质证书 OCR");
-        assertThat(cap.getValue().getSkillId()).isEqualTo("certificate.ocr");
+        assertThat(cap.getValue().getMessages().get(0).getContent()).contains("非实时平台数据");
+        assertThat(cap.getValue().getSkillId()).isEqualTo("ecommerce-picklist");
     }
 
     @Test
@@ -136,21 +131,17 @@ class AgentSessionPromptExpandTest {
                     .toolCalls(Collections.emptyList())
                     .build();
         };
-        InMemorySkillConfig skills = new InMemorySkillConfig(SkillConfigProperties.defaults());
-        skills.registerBootstrap(SkillManifest.builder()
-                .id("certificate.ocr")
-                .version("1.0.0")
-                .skillsPrompt("inline-should-not-win")
-                .promptRef("classpath:skills/certificate-ocr.md")
-                .toolWhitelist(Collections.singletonList("read_skill"))
-                .maxToolLevel(ToolLevel.READ)
-                .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
+        skills.registerBootstrap(Skill.builder()
+                .id("ecommerce-picklist")
+                .description("inline-should-not-win")
+                .promptRef("classpath:scenes/ecommerce/ecommerce-picklist/SKILL.md")
+                .allowedTools(Collections.singletonList("read_skill"))
                 .build());
-        DefaultToolConfig tools = DefaultToolConfig.ofBindings(Collections.singletonList(
-                ToolBinding.of(ToolManifest.builder()
+        InMemoryToolCatalog tools = InMemoryToolCatalog.ofBindings(Collections.singletonList(
+                ToolBinding.of(ToolDefinition.builder()
                         .id("read_skill")
                         .text("[read_skill]")
-                        .level(ToolLevel.READ)
                         .schema(ToolSchema.builder().name("read_skill").build())
                         .build(), (call, ctx) -> null)));
         DefaultAgent loop = new DefaultAgent(
@@ -165,7 +156,7 @@ class AgentSessionPromptExpandTest {
                 loop, new InMemorySessionStore(), loader, bus);
 
         session.prompt(PromptRequest.builder()
-                .text("/skill:certificate.ocr")
+                .text("/skill:ecommerce-picklist")
                 .build());
 
         assertThat(captured.get()).isNotNull();
@@ -175,11 +166,9 @@ class AgentSessionPromptExpandTest {
                 .findFirst()
                 .map(Message::getContent)
                 .orElse("");
-        assertThat(system).contains("certificate.ocr");
-        assertThat(system).doesNotContain("certType");
-        assertThat(system).doesNotContain("资质证书 OCR");
-        assertThat(user).contains("资质证书 OCR");
-        assertThat(user).contains("certType");
+        assertThat(system).contains("ecommerce-picklist");
+        assertThat(system).doesNotContain("非实时平台数据");
+        assertThat(user).contains("非实时平台数据");
     }
 
 
@@ -218,24 +207,24 @@ class AgentSessionPromptExpandTest {
     }
 
     @Test
-    void ocr_multimodal_without_slash_keeps_image_and_skill() {
+    void multimodal_without_slash_keeps_image_and_skill() {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenReturn(ConversationResult.ok("r1", "ok", Collections.emptyList()));
         Message ocr = Message.user(Arrays.asList(
                 ContentPart.text("extract"),
-                ContentPart.imageUrl("https://img/cert.png")));
+                ContentPart.imageUrl("https://img/product.png")));
         DefaultAgentSession session = sessionWith(runner(), testLoader());
 
         session.prompt(PromptRequest.builder()
                 .text("extract")
-                .skillId("certificate.ocr")
+                .skillId("ecommerce-picklist")
                 .messages(Collections.singletonList(ocr))
                 .build());
 
         ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
         verify(conversationLoop).run(cap.capture(), any());
         assertThat(cap.getValue().getMessages().get(0).hasImagePart()).isTrue();
-        assertThat(cap.getValue().getSkillId()).isEqualTo("certificate.ocr");
+        assertThat(cap.getValue().getSkillId()).isEqualTo("ecommerce-picklist");
     }
 
     @Test
@@ -325,12 +314,12 @@ class AgentSessionPromptExpandTest {
 
         session.prompt(PromptRequest.builder()
                 .text("/echo x")
-                .skillId("certificate.ocr")
+                .skillId("ecommerce-picklist")
                 .build());
 
         ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
         verify(conversationLoop).run(cap.capture(), any());
-        assertThat(cap.getValue().getSkillId()).isEqualTo("certificate.ocr");
+        assertThat(cap.getValue().getSkillId()).isEqualTo("ecommerce-picklist");
         assertThat(cap.getValue().getMessages().get(0).getContent()).isEqualTo("echo: x");
     }
 
@@ -344,7 +333,7 @@ class AgentSessionPromptExpandTest {
 
     private static ExtensionRunner runner(PiExtension... extras) {
         java.util.List<PiExtension> exts = new java.util.ArrayList<>();
-        exts.add(new ToolPolicyExtension(DefaultToolConfig.empty()));
+        exts.add(new ToolPolicyExtension(InMemoryToolCatalog.empty()));
         if (extras != null) {
             Collections.addAll(exts, extras);
         }

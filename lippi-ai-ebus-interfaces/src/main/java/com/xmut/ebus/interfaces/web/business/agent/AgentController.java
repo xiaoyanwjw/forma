@@ -1,17 +1,21 @@
 package com.xmut.ebus.interfaces.web.business.agent;
 
 import com.xmut.ebus.application.business.agent.command.StartEmptyRunCommand;
+import com.xmut.ebus.application.business.agent.command.StartPicklistRunCommand;
 import com.xmut.ebus.application.business.agent.dto.EmptyRunContext;
+import com.xmut.ebus.application.business.agent.dto.PicklistRunContext;
 import com.xmut.ebus.application.business.agent.service.AgentApplicationService;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.response.ApiResponse;
 import com.xmut.ebus.interfaces.security.SecuritySupport;
+import com.xmut.ebus.interfaces.vo.business.agent.StartPicklistRunRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,9 +27,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Agent 计费生成 SSE（空跑骨架）：JWT 鉴权后直接返回 {@code text/event-stream}。
+ * Agent 计费生成 SSE：JWT 鉴权后直接返回 {@code text/event-stream}。
  * <p>
  * 预占失败（如积分不足）在打开流之前以 JSON 业务错误返回，避免 SSE produces 干扰统一异常出口。
+ * 空跑永不 settle；计费选品走独立入口。
  */
 @Slf4j
 @RestController
@@ -44,7 +49,7 @@ public class AgentController {
     });
 
     /**
-     * 空跑：预占失败返回 JSON 业务错误；成功则打开 SSE。
+     * 空跑：预占失败返回 JSON 业务错误；成功则打开 SSE。永不 settle。
      *
      * @param sessionId 可选，复用同一聊天 session（每次仍新 hold）
      * @param sceneId   场景业务 UUID；与 sceneCode 至少一项
@@ -80,6 +85,49 @@ public class AgentController {
                 emitter.complete();
             } catch (Exception ex) {
                 log.warn("empty run sse failed runId={}: {}", context.getRunId(), ex.toString());
+                try {
+                    emitter.completeWithError(ex);
+                } catch (Exception ignored) {
+                    // already completed
+                }
+            }
+        });
+        return emitter;
+    }
+
+    /**
+     * 计费选品：预占失败返回 JSON；成功则 SSE（artifact_ready / run_settled 或 run_failed）。
+     */
+    @PostMapping(value = "/runs/picklist")
+    public Object startPicklistRun(@RequestBody StartPicklistRunRequest request) {
+        String userId = SecuritySupport.requireUserId();
+        StartPicklistRunRequest body = request != null ? request : new StartPicklistRunRequest();
+        StartPicklistRunCommand command = StartPicklistRunCommand.builder()
+                .userId(userId)
+                .username(SecuritySupport.currentUsername())
+                .text(body.getText())
+                .sessionId(body.getSessionId())
+                .sceneId(body.getSceneId())
+                .sceneCode(body.getSceneCode())
+                .build();
+
+        final PicklistRunContext context;
+        try {
+            context = agentService.preparePicklistRun(command);
+        } catch (BusinessException ex) {
+            int status = ex.getErrorCode().getHttpStatus();
+            return ResponseEntity.status(status)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.error(status, ex.getMessage()));
+        }
+
+        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
+        sseExecutor.execute(() -> {
+            try {
+                agentService.streamPicklistRun(context, event -> sendEvent(emitter, event));
+                emitter.complete();
+            } catch (Exception ex) {
+                log.warn("picklist run sse failed runId={}: {}", context.getRunId(), ex.toString());
                 try {
                     emitter.completeWithError(ex);
                 } catch (Exception ignored) {

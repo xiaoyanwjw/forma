@@ -1,6 +1,6 @@
 package com.xmut.ebus.application.business.scene.pack;
 
-import com.xmut.lims.pi.agent.skill.SkillManifest;
+import com.xmut.lims.pi.agent.skill.Skill;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,21 +10,21 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 场景能力包：按 sceneCode 绑定的 skill 清单（正文在 classpath 资源，不进库）。
+ * 场景能力包：按 sceneCode 绑定的已注册 skill 快照（正文由 Pi ResourceLoader 加载，本类不解析）。
  */
 public final class SceneCapabilityPack {
 
     private final String sceneCode;
-    private final Map<String, SkillManifest> skillsById;
+    private final Map<String, Skill> skillsById;
 
-    public SceneCapabilityPack(String sceneCode, List<SkillManifest> skills) {
+    public SceneCapabilityPack(String sceneCode, List<Skill> skills) {
         if (sceneCode == null || sceneCode.trim().isEmpty()) {
             throw new IllegalArgumentException("sceneCode required");
         }
         this.sceneCode = sceneCode.trim();
-        Map<String, SkillManifest> map = new LinkedHashMap<String, SkillManifest>();
+        Map<String, Skill> map = new LinkedHashMap<String, Skill>();
         if (skills != null) {
-            for (SkillManifest skill : skills) {
+            for (Skill skill : skills) {
                 if (skill == null || skill.getId() == null) {
                     continue;
                 }
@@ -38,11 +38,11 @@ public final class SceneCapabilityPack {
         return sceneCode;
     }
 
-    public List<SkillManifest> getSkills() {
-        return Collections.unmodifiableList(new ArrayList<SkillManifest>(skillsById.values()));
+    public List<Skill> getSkills() {
+        return Collections.unmodifiableList(new ArrayList<Skill>(skillsById.values()));
     }
 
-    public Optional<SkillManifest> findSkill(String skillId) {
+    public Optional<Skill> findSkill(String skillId) {
         if (skillId == null || skillId.trim().isEmpty()) {
             return Optional.empty();
         }

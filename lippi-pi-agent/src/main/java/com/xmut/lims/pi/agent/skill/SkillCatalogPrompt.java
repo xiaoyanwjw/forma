@@ -23,7 +23,7 @@ public final class SkillCatalogPrompt {
      * @param activeSkillId 已激活 id；可空
      * @return 写入 SKILLS 的文本；无可列则 null
      */
-    public static String build(List<SkillManifest> available, String activeSkillId) {
+    public static String build(List<Skill> available, String activeSkillId) {
         if (available == null || available.isEmpty()) {
             if (StringUtils.hasText(activeSkillId)) {
                 return "Active skill: " + activeSkillId.trim() + ". " + READ_SKILL_HINT;
@@ -32,14 +32,11 @@ public final class SkillCatalogPrompt {
         }
         StringBuilder sb = new StringBuilder();
         sb.append("## Skills catalog\n");
-        for (SkillManifest m : available) {
+        for (Skill m : available) {
             if (m == null || !StringUtils.hasText(m.getId())) {
                 continue;
             }
             sb.append("- ").append(m.getId().trim());
-            if (StringUtils.hasText(m.getDisplayName())) {
-                sb.append(" (").append(m.getDisplayName().trim()).append(')');
-            }
             if (StringUtils.hasText(m.getDescription())) {
                 sb.append(": ").append(m.getDescription().trim());
             }
