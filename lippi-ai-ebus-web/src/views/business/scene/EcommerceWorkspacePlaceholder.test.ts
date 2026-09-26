@@ -344,12 +344,20 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
   })
 
-  it('rejects send when prompt still contains 【】 placeholders', async () => {
+  it('rejects send when prompt still contains template placeholders', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     await enterViaSend(mounted.root, '请帮我生成【品类】类选品清单，客单价【最低价】–【最高价】元。')
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
     expect(mounted.root.textContent).toMatch(/【】里的占位/)
+  })
+
+  it('sends picklist intent when user text contains 【优先试】 but no template slots', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '帮我做家居选品，优先试【优先试】那一类')
+    expect(picklistApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
+    expect(mounted.root.textContent).not.toMatch(/【】里的占位/)
   })
 
   it('aligns quick-row and prompt inside one composer column', async () => {
@@ -421,11 +429,13 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       const streamBody = mounted.root.querySelector('.chat-stream-body')
       expect(streamBody?.textContent?.endsWith('…')).toBe(true)
       expect(streamBody?.textContent).toBe(`${'x'.repeat(120)}…`)
-      const streamHead = mounted.root.querySelector('.chat-stream-head') as HTMLButtonElement
+      const streamHead = mounted.root.querySelector('button.chat-stream-head') as HTMLButtonElement
       expect(streamHead).toBeTruthy()
+      expect(streamHead.getAttribute('aria-expanded')).toBe('false')
       expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('展开')
       streamHead.click()
       await flushUi()
+      expect(streamHead.getAttribute('aria-expanded')).toBe('true')
       expect(mounted.root.querySelector('.chat-stream-body')?.textContent).toBe('x'.repeat(130))
       expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('收起')
       expect(creditEvents.length).toBeGreaterThanOrEqual(1)
@@ -517,6 +527,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     await enterViaSend(mounted.root)
 
     expect(mounted.root.querySelector('.chat-stream-toggle')).toBeNull()
+    expect(mounted.root.querySelector('button.chat-stream-head')).toBeNull()
+    expect(mounted.root.querySelector('div.chat-stream-head')).toBeTruthy()
     expect(mounted.root.querySelector('.chat-stream-body')?.textContent).toBe(shortText)
   })
 

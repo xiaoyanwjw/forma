@@ -165,44 +165,36 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
 }
 
 .pick-list .n {
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--ink);
+  font-size: 0.75rem;
+  color: var(--mute);
   font-variant-numeric: tabular-nums;
   padding-top: 2px;
-  letter-spacing: 0.02em;
 }
 
 .pick-list .t {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  line-height: 1.35;
 }
 
 .pick-list .r {
   font-size: 0.8rem;
   color: var(--mute);
-  margin-top: 4px;
-  line-height: 1.45;
+  margin-top: 2px;
 }
 
 .pick-list .r.price {
   color: var(--ink);
-  font-weight: 600;
-  font-size: 0.8125rem;
-  margin-top: 6px;
+  font-weight: 500;
 }
 
 .priority-tag {
   display: inline-block;
-  margin-right: 8px;
-  padding: 2px 8px;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  margin-right: 6px;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
   color: var(--ink);
-  background: color-mix(in srgb, var(--accent, #c45c26) 28%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent, #c45c26) 45%, transparent);
+  background: color-mix(in srgb, var(--accent, #c45c26) 18%, transparent);
   border-radius: 4px;
   vertical-align: 1px;
 }
@@ -210,8 +202,8 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
 .dims {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 8px;
-  margin-top: 8px;
+  gap: 6px 10px;
+  margin-top: 6px;
   font-size: 0.72rem;
   color: var(--mute);
   line-height: 1.4;
@@ -220,9 +212,8 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
 .dim-pill {
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 3px 10px;
-  background: var(--chip, var(--canvas, var(--line-2)));
-  color: var(--ink);
+  padding: 2px 8px;
+  background: var(--chip, var(--line-2));
 }
 
 .cv-media {

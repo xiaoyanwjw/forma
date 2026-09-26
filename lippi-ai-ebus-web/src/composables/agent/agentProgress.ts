@@ -58,16 +58,23 @@ export function foldPreview(text: string, threshold = MESSAGE_FOLD_THRESHOLD): {
   return { needsFold: true, preview: text.slice(0, threshold) + '…' }
 }
 
+function stripTrailingJsonObject(text: string): string {
+  for (let i = text.lastIndexOf('{'); i >= 0; i = text.lastIndexOf('{', i - 1)) {
+    const suffix = text.slice(i).trim()
+    try {
+      JSON.parse(suffix)
+      return text.slice(0, i)
+    } catch {
+      if (i === 0) break
+    }
+  }
+  return text
+}
+
 /**
  * Process-area copy: drop fenced / trailing artifact JSON so the chat does not dump deliverables.
  */
 export function processStreamText(raw: string): string {
-  let text = raw
-    .replace(/```json[\s\S]*?```/gi, '')
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/\s*\{[\s\S]*"templateId"[\s\S]*\}\s*$/g, '')
-    .replace(/\s*\{[\s\S]*"items"\s*:\s*\[[\s\S]*\}\s*$/g, '')
-    .trim()
-  if (!text) return '正在整理选品结果…'
-  return text
+  const text = raw.replace(/```json[\s\S]*?```/gi, '').replace(/```[\s\S]*?```/g, '')
+  return stripTrailingJsonObject(text).trim()
 }

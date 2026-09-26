@@ -59,6 +59,15 @@ describe('agentProgress', () => {
       prose + ' {"templateId":"domestic-generic-default","disclaimer":"x","items":[{"title":"a"}]}'
     expect(processStreamText(withRaw)).toBe(prose)
 
-    expect(processStreamText('{"templateId":"x","items":[]}')).toBe('正在整理选品结果…')
+    expect(processStreamText('{"templateId":"x","items":[]}')).toBe('')
+  })
+
+  it('processStreamText keeps braces in prose and only strips a trailing JSON object', () => {
+    const artifact = '{"templateId":"domestic-generic-default","items":[]}'
+    expect(processStreamText(`关注{价格}后给出清单 ${artifact}`)).toBe('关注{价格}后给出清单')
+  })
+
+  it('processStreamText keeps truncated mid-stream brace instead of wiping prose', () => {
+    expect(processStreamText('我先整理{')).toBe('我先整理{')
   })
 })

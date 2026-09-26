@@ -234,7 +234,7 @@
   color: inherit;
 }
 
-.msg .chat-stream-head:disabled {
+.msg div.chat-stream-head {
   cursor: default;
 }
 

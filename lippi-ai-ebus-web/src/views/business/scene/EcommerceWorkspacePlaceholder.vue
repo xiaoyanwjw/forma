@@ -23,7 +23,7 @@ const PICKS_TEMPLATE = '请帮我生成厨房小件类选品清单，客单价 1
 const LISTING_TEMPLATE =
   '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。'
 
-const PLACEHOLDER_MARK = /【[^】]+】/
+const TEMPLATE_SLOT_MARK = /【品类】|【最低价】|【最高价】|【商品名称】|【淘宝\/拼多多\/闲鱼】/
 
 type ComputerKind = 'picks' | 'listing' | null
 
@@ -124,7 +124,7 @@ async function sendFromSession() {
   const text = sessionPrompt.value.trim()
   if (!text || picklistRunning.value) return
 
-  if (PLACEHOLDER_MARK.test(text)) {
+  if (TEMPLATE_SLOT_MARK.test(text)) {
     messages.value.push({ id: nextMsgId(), role: 'user', text })
     sessionPrompt.value = ''
     messages.value.push({
@@ -342,19 +342,24 @@ onMounted(async () => {
                 </ul>
                 <div v-if="m.streamText && streamProcessFor(m)" class="chat-stream">
                   <button
+                    v-if="streamFoldFor(m).needsFold"
                     type="button"
                     class="chat-stream-head"
-                    :disabled="!streamFoldFor(m).needsFold"
-                    @click="streamFoldFor(m).needsFold && toggleStreamExpand(m.id)"
+                    :aria-expanded="expandedStreamIds.has(m.id)"
+                    @click="toggleStreamExpand(m.id)"
                   >
                     <span class="chat-stream-chevron" aria-hidden="true">{{
-                      expandedStreamIds.has(m.id) || !streamFoldFor(m).needsFold ? '▾' : '▸'
+                      expandedStreamIds.has(m.id) ? '▾' : '▸'
                     }}</span>
                     <span class="chat-stream-title">工作过程</span>
-                    <span v-if="streamFoldFor(m).needsFold" class="chat-stream-toggle">
+                    <span class="chat-stream-toggle">
                       {{ expandedStreamIds.has(m.id) ? '收起' : '展开' }}
                     </span>
                   </button>
+                  <div v-else class="chat-stream-head">
+                    <span class="chat-stream-chevron" aria-hidden="true">▾</span>
+                    <span class="chat-stream-title">工作过程</span>
+                  </div>
                   <pre class="chat-stream-body">{{
                     expandedStreamIds.has(m.id) || !streamFoldFor(m).needsFold
                       ? streamProcessFor(m)
