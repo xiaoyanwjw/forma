@@ -1,7 +1,7 @@
 # 工作台：通用 Agent 步骤 / 消息气泡 + Computer 预览样式
 
 日期：2026-09-26  
-状态：approved  
+状态：implemented  
 范围：电商工作台对话；`ComputerRenderer` 视觉  
 前置：AD-4 SSE：`tool_started` / `tool_finished` / `message_delta`
 
