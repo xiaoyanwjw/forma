@@ -12,6 +12,7 @@ import com.xmut.ebus.application.business.picklist.command.PersistPicklistComman
 import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
 import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
+import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -84,6 +85,7 @@ public class AgentApplicationService {
     private final AgentSession agentSession;
     private final PicklistArtifactParser picklistArtifactParser;
     private final PicklistApplicationService picklistApplicationService;
+    private final PicklistViewProjector picklistViewProjector;
     private final Clock clock;
 
     /**
@@ -588,7 +590,7 @@ public class AgentApplicationService {
         return data;
     }
 
-    private static Map<String, Object> toArtifactReady(PicklistArtifactDTO artifact) {
+    private Map<String, Object> toArtifactReady(PicklistArtifactDTO artifact) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("artifactType", "picklist");
         data.put("artifactRef", artifact.getPicklistId());
@@ -613,6 +615,7 @@ public class AgentApplicationService {
             items.add(row);
         }
         data.put("items", items);
+        data.put("view", picklistViewProjector.project(artifact));
         return data;
     }
 

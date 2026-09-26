@@ -11,6 +11,7 @@ import com.xmut.ebus.application.business.picklist.command.PersistPicklistComman
 import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
 import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
+import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,6 +54,7 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -103,6 +106,7 @@ class AgentApplicationServiceTest {
                 agentSession,
                 picklistArtifactParser,
                 picklistApplicationService,
+                new PicklistViewProjector(),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -625,6 +629,11 @@ class AgentApplicationServiceTest {
         assertTrue(String.valueOf(ready.getData().get("disclaimer")).contains("非实时"));
         assertTrue(ready.getData().get("items") instanceof List);
         assertEquals(8, ((List<?>) ready.getData().get("items")).size());
+        assertNotNull(ready.getData().get("view"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> view = (Map<String, Object>) ready.getData().get("view");
+        assertEquals(Integer.valueOf(1), view.get("version"));
+        assertEquals("选品清单", view.get("title"));
         assertEquals(Ad4EventName.run_settled, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
@@ -799,8 +808,11 @@ class AgentApplicationServiceTest {
         List<PicklistArtifactDTO.PicklistItemDTO> items = new ArrayList<PicklistArtifactDTO.PicklistItemDTO>();
         for (int i = 0; i < 8; i++) {
             items.add(new PicklistArtifactDTO.PicklistItemDTO(
-                    "品" + i, "19-39", "理由" + i, "差异" + i,
-                    "需求", "竞争", "利润", "风险"));
+                    (i == 0 ? "【优先试】" : "") + "品" + i,
+                    "19-39",
+                    "痛点：台面；切入：刚需；差异：多色" + i,
+                    "细分：细分" + (i % 3) + "；差异" + i,
+                    "高｜需求", "中｜竞争", "中｜利润", "低｜风险"));
         }
         return new PicklistArtifactDTO(
                 picklistId, runId, "domestic-generic-default",
