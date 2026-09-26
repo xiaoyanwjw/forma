@@ -74,7 +74,7 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
           </li>
         </component>
 
-        <div v-else-if="block.type === 'media'" class="listing-stack">
+        <div v-else-if="block.type === 'media'" class="cv-media">
           <img
             v-if="block.src"
             class="listing-hero listing-hero-img"
@@ -194,7 +194,7 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
   line-height: 1.4;
 }
 
-.listing-stack {
+.cv-media {
   display: flex;
   flex-direction: column;
   gap: 14px;

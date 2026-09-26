@@ -1,3 +1,5 @@
+import type { ComputerDocument } from '@/types/business/computerView'
+
 /** Demo fixtures for story 3.3 Computer preview — not real generation output. */
 
 export interface DemoPickItem {
@@ -26,6 +28,17 @@ export const DEMO_LISTING: DemoListingPreview = {
   sku: '硅胶沥水垫（多色）',
   title: '硅胶沥水垫（多色） · 易清洗 · 多色可选',
   body: '水槽边总积水？软硅胶垫贴合台面，洗完随手一垫。可卷收纳。',
+}
+
+export const DEMO_LISTING_VIEW: ComputerDocument = {
+  version: 1,
+  title: '上架素材预览',
+  status: '演示',
+  blocks: [
+    { type: 'media', role: 'hero', placeholder: '主图方案预览', alt: '主图方案' },
+    { type: 'section', heading: '详情标题', body: DEMO_LISTING.title },
+    { type: 'section', heading: '详情正文', body: DEMO_LISTING.body },
+  ],
 }
 
 export const DEMO_SESSION_TITLE = '电商开店演示'

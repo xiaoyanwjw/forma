@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
+import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
 import { getScenes } from '@/api/business/scene/scene'
 import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
 import {
-  DEMO_LISTING,
+  DEMO_LISTING_VIEW,
   DEMO_PICKS,
   DEMO_SESSION_TITLE,
 } from '@/views/business/scene/ecommerceDemoFixtures'
+import type { ComputerDocument } from '@/types/business/computerView'
 import type { PicklistArtifactPayload } from '@/types/business/agent'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
@@ -34,7 +36,7 @@ const sceneBizId = ref<string | null>(null)
 const messages = ref<ChatMessage[]>([])
 const sessionTitle = ref(DEMO_SESSION_TITLE)
 const computerKind = ref<ComputerKind>(null)
-const livePicklist = ref<PicklistArtifactPayload | null>(null)
+const livePicklist = ref<(PicklistArtifactPayload & { view?: ComputerDocument }) | null>(null)
 const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
 
@@ -69,6 +71,15 @@ const displayPicks = computed(() => {
 })
 
 const picksIsLive = computed(() => Boolean(livePicklist.value?.items?.length))
+
+const activeComputerDoc = computed(() => {
+  if (computerKind.value === 'listing') return DEMO_LISTING_VIEW
+  if (computerKind.value === 'picks') {
+    if (livePicklist.value?.view) return livePicklist.value.view
+    return null
+  }
+  return null
+})
 
 let msgSeq = 0
 function nextMsgId() {
@@ -346,7 +357,10 @@ onMounted(async () => {
             </button>
           </div>
           <div class="computer-body">
-            <div v-if="computerKind === 'picks'" class="comp-card">
+            <div v-if="activeComputerDoc" class="comp-card">
+              <ComputerRenderer :document="activeComputerDoc" />
+            </div>
+            <div v-else-if="computerKind === 'picks'" class="comp-card">
               <div class="comp-card-head">
                 <span>选品清单</span>
                 <span class="status">{{ picksIsLive ? '已结算' : '演示' }}</span>
@@ -358,37 +372,25 @@ onMounted(async () => {
                   <li v-for="(item, i) in displayPicks" :key="item.title + '-' + i">
                     <span class="n">{{ padIndex(i) }}</span>
                     <div>
-                      <div class="t">{{ item.title }}</div>
+                      <div class="t">
+                        <span
+                          v-if="item.title.startsWith('【优先试】')"
+                          class="priority-tag"
+                        >优先试</span>
+                        {{ item.title.replace(/^【优先试】/, '') }}
+                      </div>
                       <div v-if="item.priceBand" class="r">价格带：{{ item.priceBand }}</div>
                       <div class="r">{{ item.reason }}</div>
-                      <div v-if="item.differentiation" class="r dim">差异：{{ item.differentiation }}</div>
+                      <div v-if="item.differentiation" class="r dim">{{ item.differentiation }}</div>
                       <div v-if="item.demand" class="dims">
-                        <span>需求·{{ item.demand }}</span>
-                        <span>竞争·{{ item.competition }}</span>
-                        <span>利润·{{ item.margin }}</span>
-                        <span>风险·{{ item.risk }}</span>
+                        <span>需求 {{ item.demand }}</span>
+                        <span>竞争 {{ item.competition }}</span>
+                        <span>利润 {{ item.margin }}</span>
+                        <span>风险 {{ item.risk }}</span>
                       </div>
                     </div>
                   </li>
                 </ol>
-              </div>
-            </div>
-
-            <div v-else-if="computerKind === 'listing'" class="comp-card">
-              <div class="comp-card-head">
-                <span>上架素材预览</span>
-                <span class="status">演示</span>
-              </div>
-              <div class="comp-card-body">
-                <div class="listing-stack">
-                  <div class="listing-hero" aria-hidden="true">主图方案预览</div>
-                  <div class="listing-copy">
-                    <h4>详情标题</h4>
-                    <p class="title-text">{{ DEMO_LISTING.title }}</p>
-                    <h4>详情正文</h4>
-                    <p class="body-text">{{ DEMO_LISTING.body }}</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -529,6 +531,18 @@ onMounted(async () => {
   font-size: 0.72rem;
   color: var(--mute);
   line-height: 1.4;
+}
+
+.priority-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent, #c45c26) 18%, transparent);
+  border-radius: 4px;
+  vertical-align: 1px;
 }
 
 .r.dim {

@@ -29,14 +29,14 @@ const ECOMMERCE = {
 }
 
 const SAMPLE_ITEMS = Array.from({ length: 8 }, (_, i) => ({
-  title: `候选${i + 1}`,
+  title: `${i === 0 ? '【优先试】' : ''}候选${i + 1}`,
   priceBand: '19–39 元',
-  reason: `可卖理由${i + 1}`,
-  differentiation: `差异${i + 1}`,
-  demand: '需求稳',
-  competition: '可切入',
-  margin: '测款友好',
-  risk: '勿夸大',
+  reason: `痛点：场景不便；切入：刚需测款；差异：视觉点${i + 1}`,
+  differentiation: `细分：细分${i % 3}；差异动作${i + 1}`,
+  demand: '高｜需求稳',
+  competition: '中｜可切入',
+  margin: '中｜测款友好',
+  risk: '低｜勿夸大',
 }))
 
 function okScenes(data: unknown) {
@@ -351,7 +351,9 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(computer?.textContent).toMatch(/选品清单/)
       expect(computer?.textContent).toMatch(/非实时/)
       expect(computer?.querySelectorAll('.pick-list li').length).toBe(8)
-      expect(computer?.textContent).toMatch(/需求·/)
+      expect(computer?.textContent).toMatch(/需求 /)
+      expect(computer?.textContent).toMatch(/优先试/)
+      expect(computer?.querySelector('.priority-tag')).toBeTruthy()
       expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/已生成/)
       expect(creditEvents.length).toBeGreaterThanOrEqual(1)
     } finally {
@@ -418,6 +420,10 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     const body = mounted.root.querySelector('.computer-body')
     expect(body?.textContent).toContain(DEMO_LISTING.title)
     expect(body?.textContent).toContain(DEMO_LISTING.body)
+    expect(mounted.root.querySelector('.listing-stack')).toBeNull()
+    expect(mounted.root.textContent).toMatch(/主图方案预览/)
+    expect(mounted.root.textContent).toMatch(/详情标题/)
+    expect(mounted.root.textContent).toMatch(DEMO_LISTING.title)
   })
 
   it('new task clears thread and Computer but stays on session shell', async () => {
