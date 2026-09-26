@@ -31,7 +31,7 @@
 # - 2026-09-26: 按 epics.md 全量重生；旧键进度已移植（见 last_updated）；未入新清单的
 #   Pi/session/checkpoint（原 2-6～2-8b）与落地页/docker 等仍以仓内 spec/代码为准，不在本表跟踪
 generated: 09-26-2026 10:49
-last_updated: 09-26-2026 10:52
+last_updated: 09-26-2026 11:11
 project: lippi-ai-ebusiness
 project_key: NOKEY
 tracking_system: file-system
@@ -46,8 +46,8 @@ development_status:
   1-6-协议声明与轻量防刷: done
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-scenecatalog-与画廊列表-api: backlog
+  epic-2: in-progress
+  2-1-scenecatalog-与画廊列表-api: review
   2-2-全站顶栏契约与-design-token: backlog
   2-3-场景画廊页-1-亮-3-灰: backlog
   2-4-灰卡-即将推出-提示: backlog

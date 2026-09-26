@@ -103,3 +103,11 @@
 - source_spec: `sdd/implementation-artifacts/spec-2-8b-mysql-resume-idempotency.md`
   summary: TTL 过期后同 confirmRequestId 可再次 CLAIMED 并可能重跑工具副作用，客户端说明不足。
   evidence: 设计如此（过期视同无键）；HITL 客户端应换新 confirmId 或知晓窗口；改文档超出最小补丁。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-1-scenecatalog-与画廊列表-api.md`
+  summary: 生产 `008_ebus_scene.sql` 种子未进自动化（仅 H2 schema-h2 孪生），MySQL 真源可漂移而 IT 仍绿。
+  evidence: verification-gap：test profile 只加载 schema-h2；仓库无 Testcontainers/compose 跑 008；与既有 bootstrap SQL 门禁缺口同类。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-1-scenecatalog-与画廊列表-api.md`
+  summary: Scene 仓储暂无按 bizId/sceneCode 单条查询，Epic 3 会话绑场景时需补端口。
+  evidence: 本故事 Intent 仅画廊列表；epic-2-context / AD-15 绑定落在 Epic 3。
