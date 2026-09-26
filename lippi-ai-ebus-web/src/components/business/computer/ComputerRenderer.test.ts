@@ -48,6 +48,7 @@ describe('ComputerRenderer', () => {
 
 describe('parseComputerDocument', () => {
   it('accepts version 1 documents and drops unknown blocks', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const parsed = parseComputerDocument({
       version: 1,
       title: '选品清单',
@@ -58,6 +59,8 @@ describe('parseComputerDocument', () => {
     expect(parsed?.version).toBe(1)
     expect(parsed?.title).toBe('选品清单')
     expect(parsed?.blocks.map((b) => b.type)).toEqual(['note', 'list', 'media', 'section'])
+    expect(warn).toHaveBeenCalledWith('[parseComputerDocument] skip unknown block type:', 'nope')
+    warn.mockRestore()
   })
 
   it('returns null when version or title is invalid', () => {

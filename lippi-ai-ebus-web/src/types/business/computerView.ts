@@ -78,12 +78,22 @@ function parseListItem(raw: unknown): ComputerListItem | null {
   return item
 }
 
+function warnSkipBlock(reason: 'unknown' | 'malformed', detail: string): void {
+  if (reason === 'unknown') {
+    console.warn('[parseComputerDocument] skip unknown block type:', detail)
+    return
+  }
+  console.warn('[parseComputerDocument] skip malformed block:', detail)
+}
+
 function parseBlock(raw: unknown): ComputerBlock | null {
   if (!isRecord(raw) || typeof raw.type !== 'string') {
+    warnSkipBlock('malformed', 'missing or invalid type')
     return null
   }
   if (raw.type === 'note') {
     if (typeof raw.text !== 'string') {
+      warnSkipBlock('malformed', 'note')
       return null
     }
     const note: ComputerNoteBlock = { type: 'note', text: raw.text }
@@ -94,6 +104,7 @@ function parseBlock(raw: unknown): ComputerBlock | null {
   }
   if (raw.type === 'list') {
     if (!Array.isArray(raw.items)) {
+      warnSkipBlock('malformed', 'list')
       return null
     }
     const items = raw.items
@@ -126,10 +137,12 @@ function parseBlock(raw: unknown): ComputerBlock | null {
   }
   if (raw.type === 'section') {
     if (typeof raw.heading !== 'string' || typeof raw.body !== 'string') {
+      warnSkipBlock('malformed', 'section')
       return null
     }
     return { type: 'section', heading: raw.heading, body: raw.body }
   }
+  warnSkipBlock('unknown', raw.type)
   return null
 }
 
