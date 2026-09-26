@@ -9,7 +9,7 @@ import { ApiError } from '@/api/client'
 import { clearToken } from '@/api/http'
 import type { Scene } from '@/types/business/scene'
 
-/** Live card target — reserved for 2.5 empty-state workbench */
+/** Live card target — ecommerce workbench empty state (2.5) */
 const ECOMMERCE_WORKSPACE = { name: 'scene-ecommerce' } as const
 const TOAST_MS = 4500
 
