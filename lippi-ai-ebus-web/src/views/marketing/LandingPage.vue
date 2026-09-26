@@ -101,7 +101,7 @@ function goRegister() {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
+  font-family: var(--font);
   font-weight: 600;
   font-size: 1.05rem;
   letter-spacing: -0.03em;
@@ -197,7 +197,7 @@ function goRegister() {
 
 .headline {
   margin: 0 0 1.5rem;
-  font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
+  font-family: var(--font);
   font-weight: 500;
   font-size: clamp(1.75rem, 3.5vw, 2.35rem);
   letter-spacing: -0.02em;

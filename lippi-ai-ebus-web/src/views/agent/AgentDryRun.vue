@@ -74,7 +74,7 @@ button {
   border-radius: 3px;
   padding: 0.5rem 1rem;
   cursor: pointer;
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--font);
 }
 button:disabled {
   opacity: 0.6;
@@ -84,7 +84,7 @@ button:disabled {
   color: #e11d48;
 }
 .events h2 {
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--font);
   font-size: 1.1rem;
 }
 .events ol {

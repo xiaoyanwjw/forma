@@ -4,6 +4,8 @@ import router from '@/router'
 import CreditPlan from '@/views/business/credit/CreditPlan.vue'
 import LandingPage from '@/views/marketing/LandingPage.vue'
 import AgentDryRun from '@/views/agent/AgentDryRun.vue'
+import ScenePlaceholder from '@/views/business/scene/ScenePlaceholder.vue'
+import HistoryPlaceholder from '@/views/business/history/HistoryPlaceholder.vue'
 
 describe('router landing', () => {
   afterEach(() => {
@@ -66,5 +68,25 @@ describe('router agent dry-run', () => {
     expect(typeof loader).toBe('function')
     const mod = await (loader as () => Promise<{ default: unknown }>)()
     expect(mod.default).toBe(AgentDryRun)
+  })
+})
+
+describe('router scene/history shell placeholders', () => {
+  it('resolve /scenes points to ScenePlaceholder', async () => {
+    const resolved = router.resolve({ name: 'scenes' })
+    expect(resolved.path).toBe('/scenes')
+    const loader = resolved.matched[0]?.components?.default
+    expect(typeof loader).toBe('function')
+    const mod = await (loader as () => Promise<{ default: unknown }>)()
+    expect(mod.default).toBe(ScenePlaceholder)
+  })
+
+  it('resolve /history points to HistoryPlaceholder', async () => {
+    const resolved = router.resolve({ name: 'history' })
+    expect(resolved.path).toBe('/history')
+    const loader = resolved.matched[0]?.components?.default
+    expect(typeof loader).toBe('function')
+    const mod = await (loader as () => Promise<{ default: unknown }>)()
+    expect(mod.default).toBe(HistoryPlaceholder)
   })
 })
