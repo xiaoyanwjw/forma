@@ -9,12 +9,14 @@ public final class EmptyRunContext {
     private final String userId;
     private final String holdId;
     private final String sessionId;
+    private final String sceneCode;
 
-    public EmptyRunContext(String runId, String userId, String holdId, String sessionId) {
+    public EmptyRunContext(String runId, String userId, String holdId, String sessionId, String sceneCode) {
         this.runId = runId;
         this.userId = userId;
         this.holdId = holdId;
         this.sessionId = sessionId;
+        this.sceneCode = sceneCode;
     }
 
     public String getRunId() {
@@ -31,5 +33,9 @@ public final class EmptyRunContext {
 
     public String getSessionId() {
         return sessionId;
+    }
+
+    public String getSceneCode() {
+        return sceneCode;
     }
 }

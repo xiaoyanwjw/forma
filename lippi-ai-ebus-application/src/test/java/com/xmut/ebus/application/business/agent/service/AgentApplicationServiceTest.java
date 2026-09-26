@@ -5,6 +5,8 @@ import com.xmut.ebus.application.business.agent.dto.EmptyRunContext;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
+import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
+import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.domain.business.agent.constant.GenerationRunStatus;
@@ -20,6 +22,9 @@ import com.xmut.lims.pi.agent.event.PiEventType;
 import com.xmut.lims.pi.agent.session.AgentSession;
 import com.xmut.lims.pi.agent.session.PromptRequest;
 import com.xmut.lims.pi.agent.session.TurnResult;
+import com.xmut.lims.pi.agent.skill.SkillGraphTopology;
+import com.xmut.lims.pi.agent.skill.SkillManifest;
+import com.xmut.lims.pi.agent.tool.ToolLevel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +37,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -71,6 +77,8 @@ class AgentApplicationServiceTest {
     @Mock
     private SceneRepository sceneRepository;
     @Mock
+    private SceneCapabilityPackLoader sceneCapabilityPackLoader;
+    @Mock
     private AgentSession agentSession;
 
     private AgentApplicationService service;
@@ -82,6 +90,7 @@ class AgentApplicationServiceTest {
                 generationRunRepository,
                 piSessionSceneRepository,
                 sceneRepository,
+                sceneCapabilityPackLoader,
                 agentSession,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
@@ -99,6 +108,7 @@ class AgentApplicationServiceTest {
 
         assertEquals(HOLD_ID, ctx.getHoldId());
         assertEquals(USER_ID, ctx.getUserId());
+        assertEquals(ECOM_SCENE_CODE, ctx.getSceneCode());
         ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
         verify(generationRunRepository).save(captor.capture());
         GenerationRun saved = captor.getValue();
@@ -308,7 +318,8 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunEmitsStartedDeltaToRunFailedAndReleasesWithoutSettle() {
-        EmptyRunContext ctx = new EmptyRunContext("run-1", USER_ID, HOLD_ID, "session-1");
+        EmptyRunContext ctx = emptyCtx("run-1", "session-1");
+        stubEcommercePack();
         AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
         when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
             subscriber.set(invocation.getArgument(0));
@@ -339,13 +350,18 @@ class AgentApplicationServiceTest {
         assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
         assertEquals(AgentApplicationService.EMPTY_RUN_FAIL_REASON, failed.getData().get("reason"));
 
+        ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
+        verify(agentSession).prompt(promptCaptor.capture());
+        assertEquals(SceneCapabilityPackLoader.DEFAULT_EMPTY_RUN_SKILL_ID, promptCaptor.getValue().getSkillId());
+
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
 
     @Test
     void streamEmptyRunSynthesizesMessageDeltaWhenNoPiUpdate() {
-        EmptyRunContext ctx = new EmptyRunContext("run-3", USER_ID, HOLD_ID, "session-3");
+        EmptyRunContext ctx = emptyCtx("run-3", "session-3");
+        stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
@@ -375,7 +391,8 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunReleasesOnAgentFailureAndStillDoesNotSettle() {
-        EmptyRunContext ctx = new EmptyRunContext("run-2", USER_ID, HOLD_ID, "session-2");
+        EmptyRunContext ctx = emptyCtx("run-2", "session-2");
+        stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
         when(agentSession.prompt(any(PromptRequest.class)))
@@ -395,7 +412,8 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunReportsReleaseFailureReasonAndDoesNotClaimReleased() {
-        EmptyRunContext ctx = new EmptyRunContext("run-4", USER_ID, HOLD_ID, "session-4");
+        EmptyRunContext ctx = emptyCtx("run-4", "session-4");
+        stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
@@ -420,7 +438,8 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunAbortsOnSinkFailureThenReleasesAndEmitsRunToRunFailed() {
-        EmptyRunContext ctx = new EmptyRunContext("run-5", USER_ID, HOLD_ID, "session-5");
+        EmptyRunContext ctx = emptyCtx("run-5", "session-5");
+        stubEcommercePack();
         AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
         when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
             subscriber.set(invocation.getArgument(0));
@@ -451,6 +470,104 @@ class AgentApplicationServiceTest {
         assertEquals(Ad4EventName.run_failed, failed.getName());
         assertEquals(AgentApplicationService.SSE_SEND_FAILED_RELEASED, failed.getData().get("reason"));
         verify(creditApplicationService, never()).settle(anyString(), anyString());
+    }
+
+    @Test
+    void streamEmptyRunFailsHumanWithoutPromptWhenPackMissing() {
+        EmptyRunContext ctx = emptyCtx("run-pack-miss", "session-pack-miss");
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE))
+                .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID,
+                        SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE));
+        when(generationRunRepository.findById("run-pack-miss")).thenReturn(Optional.of(
+                GenerationRun.start("run-pack-miss", USER_ID, HOLD_ID, "session-pack-miss",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamEmptyRun(ctx, events::add);
+
+        assertEquals(Ad4EventName.run_started, events.get(0).getName());
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.run_failed, failed.getName());
+        assertEquals(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE, failed.getData().get("reason"));
+        assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
+        verify(agentSession, never()).prompt(any(PromptRequest.class));
+        verify(agentSession, never()).subscribe(any());
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+    }
+
+    @Test
+    void streamEmptyRunFailsHumanWithoutPromptWhenDefaultSkillMissing() {
+        EmptyRunContext ctx = emptyCtx("run-default-miss", "session-default-miss");
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(
+                new SceneCapabilityPack(ECOM_SCENE_CODE, Collections.singletonList(
+                        skill(SceneCapabilityPackLoader.SKILL_SKULIST,
+                                "classpath:scenes/ecommerce/ecommerce.skulist.md"))));
+        when(generationRunRepository.findById("run-default-miss")).thenReturn(Optional.of(
+                GenerationRun.start("run-default-miss", USER_ID, HOLD_ID, "session-default-miss",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamEmptyRun(ctx, events::add);
+
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.run_failed, failed.getName());
+        assertEquals(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE, failed.getData().get("reason"));
+        assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
+        verify(agentSession, never()).prompt(any(PromptRequest.class));
+        verify(agentSession, never()).subscribe(any());
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+    }
+
+    @Test
+    void streamEmptyRunReportsReleaseFailureWhenPackMissing() {
+        EmptyRunContext ctx = emptyCtx("run-pack-miss-release", "session-pack-miss-release");
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE))
+                .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID,
+                        SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE));
+        when(generationRunRepository.findById("run-pack-miss-release")).thenReturn(Optional.of(
+                GenerationRun.start("run-pack-miss-release", USER_ID, HOLD_ID, "session-pack-miss-release",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID))
+                .when(creditApplicationService).release(USER_ID, HOLD_ID);
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamEmptyRun(ctx, events::add);
+
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.run_failed, failed.getName());
+        assertEquals(AgentApplicationService.RELEASE_FAILED_REASON, failed.getData().get("reason"));
+        assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
+        verify(agentSession, never()).prompt(any(PromptRequest.class));
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+    }
+
+    private EmptyRunContext emptyCtx(String runId, String sessionId) {
+        return new EmptyRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE);
+    }
+
+    private void stubEcommercePack() {
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(ecommercePack());
+    }
+
+    private static SceneCapabilityPack ecommercePack() {
+        return new SceneCapabilityPack(ECOM_SCENE_CODE, Arrays.asList(
+                skill(SceneCapabilityPackLoader.SKILL_PICKLIST, "classpath:scenes/ecommerce/ecommerce.picklist.md"),
+                skill(SceneCapabilityPackLoader.SKILL_SKULIST, "classpath:scenes/ecommerce/ecommerce.skulist.md")));
+    }
+
+    private static SkillManifest skill(String id, String promptRef) {
+        return SkillManifest.builder()
+                .id(id)
+                .version("1.0.0")
+                .displayName(id)
+                .description(id)
+                .promptRef(promptRef)
+                .toolWhitelist(Collections.singletonList("read_skill"))
+                .maxToolLevel(ToolLevel.READ)
+                .graphTopology(SkillGraphTopology.SIMPLE_AGENT_END)
+                .build();
     }
 
     private void stubEcommerceByCode() {

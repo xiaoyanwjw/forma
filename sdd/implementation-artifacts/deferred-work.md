@@ -131,3 +131,19 @@
 - source_spec: `sdd/implementation-artifacts/spec-3-1-generationrun-sse-与会话必绑场景.md`
   summary: updateScene 影响 0 行时可能出现 run 有场景而 pi_session 行缺失（并发删行）。
   evidence: maybe-false medium；需可复现的并发删行场景才能证实。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-2-电商场景能力包按-scenecode-加载.md`
+  summary: starter 与 application test/resources 双份 ecommerce pack 可能漂移，Loader 单测绿不保证生产 classpath 同步。
+  evidence: 评审确认两处镜像无同步校验；近端靠手改两边，非运行时用户缺陷。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-2-电商场景能力包按-scenecode-加载.md`
+  summary: Loader.load 成功未与同进程 SkillConfig.resolve(默认 skillId) 联检，注册失败时可能用人话以外的错误进 prompt。
+  evidence: EbusSkillConfiguration 与 Loader 分路径扫描；补联检需注入 SkillConfig，超出本轮最小补丁。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-2-电商场景能力包按-scenecode-加载.md`
+  summary: AgentEmptyRunIntegrationTest 未覆盖装包成功注入 skillId / 缺包人话 run_failed。
+  evidence: IT 仍只断言 AD-4 事件与 release；单元测已覆盖主路径，IT 加强后置。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-2-电商场景能力包按-scenecode-加载.md`
+  summary: Loader 未在装包时校验各 skill promptRef 指向的 md 是否存在。
+  evidence: 坏引用延后到读资源失败；骨架包现已成对齐全，加强校验后置。

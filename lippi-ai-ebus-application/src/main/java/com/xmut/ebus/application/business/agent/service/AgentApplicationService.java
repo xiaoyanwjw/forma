@@ -6,6 +6,8 @@ import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.agent.sse.PiEventToAd4Mapper;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
+import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
+import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.logging.LoggerUtils;
@@ -64,6 +66,7 @@ public class AgentApplicationService {
     private final GenerationRunRepository generationRunRepository;
     private final PiSessionSceneRepository piSessionSceneRepository;
     private final SceneRepository sceneRepository;
+    private final SceneCapabilityPackLoader sceneCapabilityPackLoader;
     private final AgentSession agentSession;
     private final Clock clock;
 
@@ -104,7 +107,7 @@ public class AgentApplicationService {
                 NameValue.create("sessionId", sessionId),
                 NameValue.create("sceneId", scene.getId()),
                 NameValue.create("sceneCode", scene.getSceneCode()));
-        return new EmptyRunContext(runId, userId, holdId, sessionId);
+        return new EmptyRunContext(runId, userId, holdId, sessionId, scene.getSceneCode());
     }
 
     /**
@@ -173,7 +176,7 @@ public class AgentApplicationService {
     }
 
     /**
-     * 流式空跑：{@code run_started} → Pi 进度映射 → 结束 release + {@code run_failed}。
+     * 流式空跑：{@code run_started} → 按 sceneCode 装包 → Pi 进度映射 → 结束 release + {@code run_failed}。
      * 绝不调用 settle；异常路径同样尝试 release + {@code run_failed}。
      */
     public void streamEmptyRun(EmptyRunContext context, Consumer<Ad4SseEvent> sink) {
@@ -186,6 +189,31 @@ public class AgentApplicationService {
         boolean released = false;
         try {
             emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context)));
+
+            final SceneCapabilityPack pack;
+            try {
+                pack = sceneCapabilityPackLoader.load(context.getSceneCode());
+            } catch (BusinessException ex) {
+                boolean releaseOk = release(context);
+                released = releaseOk;
+                markRunFailed(context.getRunId());
+                String reason = releaseOk
+                        ? (StringUtils.hasText(ex.getMessage())
+                        ? ex.getMessage()
+                        : SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE)
+                        : RELEASE_FAILED_REASON;
+                emitRunFailed(sink, reason);
+                return;
+            }
+            if (!pack.hasSkill(SceneCapabilityPackLoader.DEFAULT_EMPTY_RUN_SKILL_ID)) {
+                boolean releaseOk = release(context);
+                released = releaseOk;
+                markRunFailed(context.getRunId());
+                emitRunFailed(sink, releaseOk
+                        ? SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE
+                        : RELEASE_FAILED_REASON);
+                return;
+            }
 
             final Consumer<PiEvent> listener = new Consumer<PiEvent>() {
                 @Override
@@ -218,6 +246,7 @@ public class AgentApplicationService {
                     .runId(context.getRunId())
                     .sessionId(context.getSessionId())
                     .text("empty-run")
+                    .skillId(SceneCapabilityPackLoader.DEFAULT_EMPTY_RUN_SKILL_ID)
                     .build());
 
             if (aborted.get()) {
