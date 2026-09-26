@@ -13,7 +13,7 @@
 
 1. 一张 **`ebus_artifact`** 承载所有计费可用成果；`GenerationRun.artifactRef` = `artifact.biz_id`。
 2. 选品校验 / 解析 / Computer 投影仍在应用层 `picklist` 包（类型化），落库前序列化进 `payload_json`。
-3. Listing（3.6）复用同表、`artifact_type=listing`，不新开表。
+3. 上架素材 / SKU（3.6）复用同表、`artifact_type=sku`，不新开表。
 4. 更新 Spine AD-6：逻辑所有者保留；**物理写口**归 **ArtifactStore**。
 
 ## 非目标
@@ -29,7 +29,7 @@
 |----|------|
 | 存储 | 单表 `ebus_artifact` + JSON payload |
 | 选品域 | 应用层保留 Parser / Service 校验 / DTO / Projector；删除 Picklist 实体表与专用 Repo |
-| Listing | 同表，后续故事 |
+| Listing | 同表，`artifact_type=sku`（对齐 ecommerce-skulist），后续故事 |
 | 本地已有 picklist 数据 | **丢弃重建**（开发库） |
 | Spine | AD-6 增 ArtifactStore；Picklist/Listing 改为逻辑形状所有者 |
 
@@ -41,9 +41,9 @@ CREATE TABLE ebus_artifact (
     biz_id          VARCHAR(36)  NOT NULL,  -- 对外 UUID = artifactRef
     user_id         VARCHAR(36)  NOT NULL,
     run_id          VARCHAR(36)  NOT NULL,  -- UNIQUE：一次 Run 一份成果
-    artifact_type   VARCHAR(32)  NOT NULL,  -- picklist | listing
+    artifact_type   VARCHAR(32)  NOT NULL,  -- picklist | sku
     scene_code      VARCHAR(64)  NOT NULL,  -- ecommerce …
-    template_id     VARCHAR(64)  NULL,      -- 选品必填；Listing 可空
+    template_id     VARCHAR(64)  NULL,      -- 选品必填；sku 可空
     title           VARCHAR(256) NOT NULL,  -- 列表摘要
     payload_json    JSON         NOT NULL,  -- MySQL JSON；H2 可用 CLOB + 应用校验
     created_at      DATETIME(3)  NOT NULL,
@@ -80,9 +80,9 @@ CREATE TABLE ebus_artifact (
 - 条数 8–12、disclaimer 含「非实时」、字段非空等：**写入前**由现有 `PicklistApplicationService` / Parser 规则保证；表不拆 item 行。
 - `template_id` 列冗余自 payload/命令，便于列表筛选；与 payload 一致。
 
-### `artifact_type = listing`（预留，本轮不实现写入）
+### `artifact_type = sku`（预留，本轮不实现写入）
 
-后续：文案 + `mediaObjectId[]` + 可选 `picklistItemId` 进 payload；`title` 用商品名摘要。
+后续：上架素材（Listing 套装）文案 + `mediaObjectId[]` + 可选来源选品条目 id 进 payload；`title` 用商品名摘要。常量/枚举名用 `sku`，与 skill `ecommerce-skulist` 对齐；对外文案仍可叫「上架素材」。
 
 ## 代码边界
 
