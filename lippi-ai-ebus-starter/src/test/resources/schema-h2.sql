@@ -72,40 +72,23 @@ CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_session ON ebus_generation_ru
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_scene ON ebus_generation_run (scene_id);
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_scene_code ON ebus_generation_run (scene_code);
 
-CREATE TABLE IF NOT EXISTS ebus_picklist (
-    id            BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    biz_id        VARCHAR(36)  NOT NULL,
-    user_id       VARCHAR(36)  NOT NULL,
-    run_id        VARCHAR(36)  NOT NULL,
-    template_id   VARCHAR(64)  NOT NULL,
-    disclaimer    VARCHAR(512) NOT NULL,
-    assumptions   VARCHAR(1024) NULL,
-    created_at    TIMESTAMP    NOT NULL,
-    updated_at    TIMESTAMP    NOT NULL,
-    CONSTRAINT uk_ebus_picklist_biz UNIQUE (biz_id),
-    CONSTRAINT uk_ebus_picklist_run UNIQUE (run_id)
+CREATE TABLE IF NOT EXISTS ebus_artifact (
+    id              BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    biz_id          VARCHAR(36)  NOT NULL,
+    user_id         VARCHAR(36)  NOT NULL,
+    run_id          VARCHAR(36)  NOT NULL,
+    artifact_type   VARCHAR(32)  NOT NULL,
+    scene_code      VARCHAR(64)  NOT NULL,
+    template_id     VARCHAR(64)  NULL,
+    title           VARCHAR(256) NOT NULL,
+    payload_json    CLOB         NOT NULL,
+    created_at      TIMESTAMP    NOT NULL,
+    updated_at      TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_ebus_artifact_biz UNIQUE (biz_id),
+    CONSTRAINT uk_ebus_artifact_run UNIQUE (run_id)
 );
-
-CREATE INDEX IF NOT EXISTS idx_ebus_picklist_user ON ebus_picklist (user_id);
-
-CREATE TABLE IF NOT EXISTS ebus_picklist_item (
-    id               BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    biz_id           VARCHAR(36)  NOT NULL,
-    picklist_id      VARCHAR(36)  NOT NULL,
-    sort_order       INT          NOT NULL,
-    title            VARCHAR(256) NOT NULL,
-    price_band       VARCHAR(64)  NOT NULL,
-    reason           VARCHAR(1024) NOT NULL,
-    differentiation  VARCHAR(512) NOT NULL,
-    demand           VARCHAR(512) NOT NULL,
-    competition      VARCHAR(512) NOT NULL,
-    margin           VARCHAR(512) NOT NULL,
-    risk             VARCHAR(512) NOT NULL,
-    created_at       TIMESTAMP    NOT NULL,
-    CONSTRAINT uk_ebus_picklist_item_biz UNIQUE (biz_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_ebus_picklist_item_picklist ON ebus_picklist_item (picklist_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_ebus_artifact_user_time ON ebus_artifact (user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ebus_artifact_user_type ON ebus_artifact (user_id, artifact_type);
 
 CREATE TABLE IF NOT EXISTS pi_session (
     id                  BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
