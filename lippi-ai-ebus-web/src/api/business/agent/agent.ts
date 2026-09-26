@@ -1,30 +1,40 @@
 import { ApiError } from '@/api/client'
 import { getToken } from '@/api/http'
-import type { Ad4EventName, Ad4SseEvent } from '@/types/business/agent'
+import type { Ad4EventName, Ad4SseEvent, StreamEmptyRunOptions } from '@/types/business/agent'
 import { isAd4EventName } from '@/types/business/agent'
 
 const EMPTY_RUN_PATH = '/api/v1/agent/runs/empty'
 
-export interface StreamEmptyRunOptions {
-  sessionId?: string
-  signal?: AbortSignal
-}
-
 /**
  * 启动空跑 SSE：fetch + ReadableStream + JWT（禁止 EventSource）。
- * 不经 {@code request().json()}。
+ * 不经 {@code request().json()}。须带 sceneId 或 sceneCode。
  */
 export async function* streamEmptyRun(
   options: StreamEmptyRunOptions = {},
 ): AsyncGenerator<Ad4SseEvent, void, undefined> {
+  const sceneId = options.sceneId?.trim()
+  const sceneCode = options.sceneCode?.trim()
+  if (!sceneId && !sceneCode) {
+    throw new ApiError(400, '请先选择场景')
+  }
+
   const token = getToken()
   if (!token) {
     throw new ApiError(401, '未授权，请先登录')
   }
 
-  const url = options.sessionId
-    ? `${EMPTY_RUN_PATH}?sessionId=${encodeURIComponent(options.sessionId)}`
-    : EMPTY_RUN_PATH
+  const params = new URLSearchParams()
+  if (options.sessionId) {
+    params.set('sessionId', options.sessionId)
+  }
+  if (sceneId) {
+    params.set('sceneId', sceneId)
+  }
+  if (sceneCode) {
+    params.set('sceneCode', sceneCode)
+  }
+  const qs = params.toString()
+  const url = qs ? `${EMPTY_RUN_PATH}?${qs}` : EMPTY_RUN_PATH
 
   const response = await fetch(url, {
     method: 'POST',

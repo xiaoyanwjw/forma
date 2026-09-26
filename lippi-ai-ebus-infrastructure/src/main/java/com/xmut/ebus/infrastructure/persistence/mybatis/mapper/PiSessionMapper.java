@@ -38,6 +38,11 @@ public interface PiSessionMapper {
                     @Param("title") String title,
                     @Param("updatedAt") Instant updatedAt);
 
+    int updateScene(@Param("sessionId") String sessionId,
+                    @Param("sceneId") String sceneId,
+                    @Param("sceneCode") String sceneCode,
+                    @Param("updatedAt") Instant updatedAt);
+
     List<PiSessionPO> selectRecent(@Param("limit") int limit);
 
     List<PiSessionPO> selectChildrenRoots();

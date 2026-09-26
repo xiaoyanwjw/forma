@@ -17,7 +17,7 @@ onMounted(() => {
 })
 
 async function onStart() {
-  await startEmptyRun()
+  await startEmptyRun({ sceneCode: 'ecommerce' })
 }
 </script>
 

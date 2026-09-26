@@ -16,6 +16,14 @@ export interface Ad4SseEvent {
   data: Record<string, unknown>
 }
 
+/** 空跑请求：sceneId / sceneCode 至少一项 */
+export interface StreamEmptyRunOptions {
+  sceneId?: string
+  sceneCode?: string
+  sessionId?: string
+  signal?: AbortSignal
+}
+
 export function isAd4EventName(value: string): value is Ad4EventName {
   return (AD4_EVENT_NAMES as readonly string[]).includes(value)
 }

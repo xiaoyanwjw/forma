@@ -7,10 +7,12 @@ import com.xmut.ebus.infrastructure.persistence.mybatis.mapper.SceneMapper;
 import com.xmut.ebus.infrastructure.persistence.mybatis.po.ScenePO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -29,6 +31,22 @@ public class SceneRepositoryImpl implements SceneRepository {
             scenes.add(toDomain(po));
         }
         return scenes;
+    }
+
+    @Override
+    public Optional<Scene> findByBizId(String bizId) {
+        if (!StringUtils.hasText(bizId)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(sceneMapper.selectByBizId(bizId.trim())).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<Scene> findBySceneCode(String sceneCode) {
+        if (!StringUtils.hasText(sceneCode)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(sceneMapper.selectBySceneCode(sceneCode.trim())).map(this::toDomain);
     }
 
     private Scene toDomain(ScenePO po) {

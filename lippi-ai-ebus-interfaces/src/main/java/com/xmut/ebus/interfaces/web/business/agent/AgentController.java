@@ -47,14 +47,20 @@ public class AgentController {
      * 空跑：预占失败返回 JSON 业务错误；成功则打开 SSE。
      *
      * @param sessionId 可选，复用同一聊天 session（每次仍新 hold）
+     * @param sceneId   场景业务 UUID；与 sceneCode 至少一项
+     * @param sceneCode 稳定场景码；与 sceneId 至少一项
      */
     @PostMapping(value = "/runs/empty")
-    public Object startEmptyRun(@RequestParam(value = "sessionId", required = false) String sessionId) {
+    public Object startEmptyRun(@RequestParam(value = "sessionId", required = false) String sessionId,
+                                @RequestParam(value = "sceneId", required = false) String sceneId,
+                                @RequestParam(value = "sceneCode", required = false) String sceneCode) {
         String userId = SecuritySupport.requireUserId();
         StartEmptyRunCommand command = StartEmptyRunCommand.builder()
                 .userId(userId)
                 .username(SecuritySupport.currentUsername())
                 .sessionId(sessionId)
+                .sceneId(sceneId)
+                .sceneCode(sceneCode)
                 .build();
 
         final EmptyRunContext context;

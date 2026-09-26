@@ -1,7 +1,7 @@
 import { onUnmounted, ref } from 'vue'
 import { ApiError } from '@/api/client'
 import { streamEmptyRun } from '@/api/business/agent/agent'
-import type { Ad4EventName, Ad4SseEvent } from '@/types/business/agent'
+import type { Ad4EventName, Ad4SseEvent, StreamEmptyRunOptions } from '@/types/business/agent'
 
 /**
  * 空跑试跑：发起 SSE 并收集 AD-4 事件名列表。
@@ -22,7 +22,7 @@ export function useAgentEmptyRun() {
     abort()
   })
 
-  async function startEmptyRun(sessionId?: string) {
+  async function startEmptyRun(options: StreamEmptyRunOptions = {}) {
     if (running.value) {
       return
     }
@@ -34,7 +34,7 @@ export function useAgentEmptyRun() {
     events.value = []
     eventNames.value = []
     try {
-      for await (const event of streamEmptyRun({ sessionId, signal })) {
+      for await (const event of streamEmptyRun({ ...options, signal })) {
         events.value = [...events.value, event]
         eventNames.value = [...eventNames.value, event.name]
       }

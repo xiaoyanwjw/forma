@@ -115,3 +115,19 @@
 - source_spec: `sdd/implementation-artifacts/spec-2-3-场景画廊页-1-亮-3-灰.md`
   summary: 窄屏单列布局仅靠源码 `@media` 正则断言，jsdom 无法证明运行时单列。
   evidence: verification-gap：改 media 规则或保留 `1fr` 子串仍可能绿；需浏览器级检查才能闭合。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-1-generationrun-sse-与会话必绑场景.md`
+  summary: AgentDryRun / useAgentEmptyRun 无组件级单测，场景必传仅靠 api.flow 锁定。
+  evidence: verification-gap：改 DryRun 去掉 sceneCode 时 agent.flow 仍绿；窄调试页，API 契约已覆盖。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-1-generationrun-sse-与会话必绑场景.md`
+  summary: 空跑可复用任意 sessionId，无「会话归属当前用户」校验。
+  evidence: 2.1 起即接受客户端传入 sessionId；本故事只加场景绑定，未引入归属检查。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-1-generationrun-sse-与会话必绑场景.md`
+  summary: pi_session 场景绑定时仍可能 userId=null（与 MysqlSessionStore 建行一致）。
+  evidence: 本人历史/归属筛选属后续故事；本故事只保证场景列写入。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-1-generationrun-sse-与会话必绑场景.md`
+  summary: updateScene 影响 0 行时可能出现 run 有场景而 pi_session 行缺失（并发删行）。
+  evidence: maybe-false medium；需可复现的并发删行场景才能证实。

@@ -7,6 +7,8 @@
         <id property="id" column="id"/>
         <result property="sessionId" column="session_id"/>
         <result property="userId" column="user_id"/>
+        <result property="sceneId" column="scene_id"/>
+        <result property="sceneCode" column="scene_code"/>
         <result property="title" column="title"/>
         <result property="source" column="source"/>
         <result property="status" column="status"/>
@@ -19,16 +21,16 @@
     </resultMap>
 
     <sql id="SessionColumns">
-        id, session_id, user_id, title, source, status, parent_session_id,
+        id, session_id, user_id, scene_id, scene_code, title, source, status, parent_session_id,
         compact_anchor_seq, last_run_id, message_count, created_at, updated_at
     </sql>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO pi_session
-            (session_id, user_id, title, source, status, parent_session_id,
+            (session_id, user_id, scene_id, scene_code, title, source, status, parent_session_id,
              compact_anchor_seq, last_run_id, message_count, created_at, updated_at)
         VALUES
-            (#{sessionId}, #{userId}, #{title}, #{source}, #{status}, #{parentSessionId},
+            (#{sessionId}, #{userId}, #{sceneId}, #{sceneCode}, #{title}, #{source}, #{status}, #{parentSessionId},
              #{compactAnchorSeq}, #{lastRunId}, #{messageCount}, #{createdAt}, #{updatedAt})
     </insert>
 
@@ -84,6 +86,14 @@
     <update id="updateTitle">
         UPDATE pi_session
         SET title = #{title},
+            updated_at = #{updatedAt}
+        WHERE session_id = #{sessionId}
+    </update>
+
+    <update id="updateScene">
+        UPDATE pi_session
+        SET scene_id = #{sceneId},
+            scene_code = #{sceneCode},
             updated_at = #{updatedAt}
         WHERE session_id = #{sessionId}
     </update>

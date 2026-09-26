@@ -41,6 +41,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class AgentEmptyRunIntegrationTest {
 
+    private static final String ECOM_SCENE_ID = "a1000001-0001-4000-8000-000000000001";
+    private static final String ECOM_SCENE_CODE = "ecommerce";
+
     private static final Set<String> AD4_NAMES = new HashSet<String>(Arrays.asList(
             "run_started", "message_delta", "tool_started", "tool_finished",
             "artifact_ready", "run_failed", "run_settled"
@@ -73,8 +76,26 @@ class AgentEmptyRunIntegrationTest {
     @Test
     void emptyRunWithoutTokenUnauthorized() throws Exception {
         mockMvc.perform(post("/api/v1/agent/runs/empty")
+                        .param("sceneCode", ECOM_SCENE_CODE)
                         .accept(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(status().isUnauthorized());
+        Integer runCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ebus_generation_run", Integer.class);
+        assertEquals(0, runCount.intValue());
+    }
+
+    @Test
+    void emptyRunMissingSceneReturnsBadRequestWithoutRun() throws Exception {
+        String username = "ag_miss_" + shortId();
+        String token = registerAndLogin(username);
+
+        mockMvc.perform(post("/api/v1/agent/runs/empty")
+                        .header("Authorization", "Bearer " + token)
+                        .accept(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(status().isBadRequest())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.message").value("请先选择场景"));
+
         Integer runCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM ebus_generation_run", Integer.class);
         assertEquals(0, runCount.intValue());
@@ -88,6 +109,7 @@ class AgentEmptyRunIntegrationTest {
         jdbcTemplate.update("UPDATE ebus_credit_account SET balance = 0, reserved = 0 WHERE user_id = ?", userId);
 
         mockMvc.perform(post("/api/v1/agent/runs/empty")
+                        .param("sceneCode", ECOM_SCENE_CODE)
                         .header("Authorization", "Bearer " + token)
                         .accept(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(status().isPaymentRequired());
@@ -104,6 +126,7 @@ class AgentEmptyRunIntegrationTest {
         String userId = userIdOf(username);
 
         MvcResult async = mockMvc.perform(post("/api/v1/agent/runs/empty")
+                        .param("sceneCode", ECOM_SCENE_CODE)
                         .header("Authorization", "Bearer " + token)
                         .accept(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(request().asyncStarted())
@@ -125,10 +148,21 @@ class AgentEmptyRunIntegrationTest {
         }
 
         Map<String, Object> run = jdbcTemplate.queryForMap(
-                "SELECT biz_id, hold_id, session_id, artifact_ref, status FROM ebus_generation_run WHERE user_id = ?",
+                "SELECT biz_id, hold_id, session_id, scene_id, scene_code, artifact_ref, status "
+                        + "FROM ebus_generation_run WHERE user_id = ?",
                 userId);
         assertEquals(GenerationRunStatus.FAILED.name(), run.get("status"));
         assertTrue(run.get("artifact_ref") == null || "".equals(run.get("artifact_ref")));
+        assertEquals(ECOM_SCENE_ID, String.valueOf(run.get("scene_id")));
+        assertEquals(ECOM_SCENE_CODE, String.valueOf(run.get("scene_code")));
+
+        String sessionId = String.valueOf(run.get("session_id"));
+        Map<String, Object> session = jdbcTemplate.queryForMap(
+                "SELECT scene_id, scene_code FROM pi_session WHERE session_id = ?",
+                sessionId);
+        assertEquals(ECOM_SCENE_ID, String.valueOf(session.get("scene_id")));
+        assertEquals(ECOM_SCENE_CODE, String.valueOf(session.get("scene_code")));
+
         String holdId = String.valueOf(run.get("hold_id"));
         String holdStatus = jdbcTemplate.queryForObject(
                 "SELECT status FROM ebus_credit_hold WHERE biz_id = ?", String.class, holdId);

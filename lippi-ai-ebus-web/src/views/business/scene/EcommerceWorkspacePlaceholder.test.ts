@@ -122,13 +122,15 @@ describe('EcommerceWorkspacePlaceholder empty state', () => {
     const pathBefore = mounted.router.currentRoute.value.fullPath
 
     const [picks, listing] = [...mounted.root.querySelectorAll<HTMLButtonElement>('.pill')]
-    picks.click()
+    expect(picks).toBeTruthy()
+    expect(listing).toBeTruthy()
+    picks!.click()
     await flushUi()
     const area = mounted.root.querySelector('textarea') as HTMLTextAreaElement
     expect(area.value).toContain('选品清单')
     expect(area.value).toContain('【品类】')
 
-    listing.click()
+    listing!.click()
     await flushUi()
     expect(area.value).toContain('生成上架素材')
     expect(area.value).toContain('【商品名称】')

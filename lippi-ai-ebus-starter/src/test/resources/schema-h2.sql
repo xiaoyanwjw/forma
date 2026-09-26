@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS ebus_generation_run (
     user_id      VARCHAR(36)  NOT NULL,
     hold_id      VARCHAR(36)  NOT NULL,
     session_id   VARCHAR(36)  NOT NULL,
+    scene_id     VARCHAR(36)  NULL,
+    scene_code   VARCHAR(64)  NULL,
     artifact_ref VARCHAR(36)  NULL,
     status       VARCHAR(16)  NOT NULL,
     created_at   TIMESTAMP    NOT NULL,
@@ -67,11 +69,15 @@ CREATE TABLE IF NOT EXISTS ebus_generation_run (
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_user ON ebus_generation_run (user_id);
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_hold ON ebus_generation_run (hold_id);
 CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_session ON ebus_generation_run (session_id);
+CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_scene ON ebus_generation_run (scene_id);
+CREATE INDEX IF NOT EXISTS idx_ebus_generation_run_scene_code ON ebus_generation_run (scene_code);
 
 CREATE TABLE IF NOT EXISTS pi_session (
     id                  BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     session_id          VARCHAR(64)  NOT NULL,
     user_id             VARCHAR(36)  NULL,
+    scene_id            VARCHAR(36)  NULL,
+    scene_code          VARCHAR(64)  NULL,
     title               VARCHAR(255) NULL,
     source              VARCHAR(32)  NOT NULL DEFAULT 'api',
     status              VARCHAR(16)  NOT NULL DEFAULT 'active',
@@ -86,6 +92,8 @@ CREATE TABLE IF NOT EXISTS pi_session (
 
 CREATE INDEX IF NOT EXISTS idx_pi_session_updated ON pi_session (updated_at);
 CREATE INDEX IF NOT EXISTS idx_pi_session_parent ON pi_session (parent_session_id);
+CREATE INDEX IF NOT EXISTS idx_pi_session_scene ON pi_session (scene_id);
+CREATE INDEX IF NOT EXISTS idx_pi_session_scene_code ON pi_session (scene_code);
 
 CREATE TABLE IF NOT EXISTS pi_session_entry (
     id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,

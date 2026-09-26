@@ -10,6 +10,8 @@ public class PiSessionPO {
     private Long id;
     private String sessionId;
     private String userId;
+    private String sceneId;
+    private String sceneCode;
     private String title;
     private String source;
     private String status;
@@ -42,6 +44,22 @@ public class PiSessionPO {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getSceneId() {
+        return sceneId;
+    }
+
+    public void setSceneId(String sceneId) {
+        this.sceneId = sceneId;
+    }
+
+    public String getSceneCode() {
+        return sceneCode;
+    }
+
+    public void setSceneCode(String sceneCode) {
+        this.sceneCode = sceneCode;
     }
 
     public String getTitle() {

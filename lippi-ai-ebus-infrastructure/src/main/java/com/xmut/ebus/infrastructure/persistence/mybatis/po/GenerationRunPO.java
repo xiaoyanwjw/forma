@@ -12,6 +12,8 @@ public class GenerationRunPO {
     private String userId;
     private String holdId;
     private String sessionId;
+    private String sceneId;
+    private String sceneCode;
     private String artifactRef;
     private String status;
     private Instant createdAt;
@@ -55,6 +57,22 @@ public class GenerationRunPO {
 
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
+    }
+
+    public String getSceneId() {
+        return sceneId;
+    }
+
+    public void setSceneId(String sceneId) {
+        this.sceneId = sceneId;
+    }
+
+    public String getSceneCode() {
+        return sceneCode;
+    }
+
+    public void setSceneCode(String sceneCode) {
+        this.sceneCode = sceneCode;
     }
 
     public String getArtifactRef() {

@@ -13,6 +13,8 @@ public class GenerationRun {
     private String userId;
     private String holdId;
     private String sessionId;
+    private String sceneId;
+    private String sceneCode;
     private String artifactRef;
     private GenerationRunStatus status;
     private Instant createdAt;
@@ -22,12 +24,16 @@ public class GenerationRun {
                                       String userId,
                                       String holdId,
                                       String sessionId,
+                                      String sceneId,
+                                      String sceneCode,
                                       Instant now) {
         GenerationRun run = new GenerationRun();
         run.id = id;
         run.userId = userId;
         run.holdId = holdId;
         run.sessionId = sessionId;
+        run.sceneId = sceneId;
+        run.sceneCode = sceneCode;
         run.artifactRef = null;
         run.status = GenerationRunStatus.RUNNING;
         run.createdAt = now;
@@ -76,6 +82,22 @@ public class GenerationRun {
 
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
+    }
+
+    public String getSceneId() {
+        return sceneId;
+    }
+
+    public void setSceneId(String sceneId) {
+        this.sceneId = sceneId;
+    }
+
+    public String getSceneCode() {
+        return sceneCode;
+    }
+
+    public void setSceneCode(String sceneCode) {
+        this.sceneCode = sceneCode;
     }
 
     public String getArtifactRef() {
