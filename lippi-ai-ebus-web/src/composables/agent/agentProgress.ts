@@ -2,12 +2,24 @@ export const MESSAGE_FOLD_THRESHOLD = 120
 
 export type ProgressStep = { id: string; label: string; done: boolean }
 
+const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  read_skill: '读取技能说明',
+  echo: '执行辅助工具',
+  tool: '执行工具',
+}
+
 export function toolEventLabel(data: Record<string, unknown>): string {
   for (const key of ['toolName', 'name', 'tool', 'payload'] as const) {
     const v = data[key]
     if (typeof v === 'string' && v.trim()) return v.trim()
   }
   return 'tool'
+}
+
+/** Human-readable step label; unknown tool ids stay as-is (not scene copy). */
+export function toolDisplayLabel(raw: string): string {
+  const key = raw.trim()
+  return TOOL_DISPLAY_NAMES[key] ?? key
 }
 
 export function applyToolStarted(steps: ProgressStep[], data: Record<string, unknown>): ProgressStep[] {
@@ -44,4 +56,18 @@ export function appendMessageDelta(prev: string, data: Record<string, unknown>):
 export function foldPreview(text: string, threshold = MESSAGE_FOLD_THRESHOLD): { needsFold: boolean; preview: string } {
   if (text.length <= threshold) return { needsFold: false, preview: text }
   return { needsFold: true, preview: text.slice(0, threshold) + '…' }
+}
+
+/**
+ * Process-area copy: drop fenced / trailing artifact JSON so the chat does not dump deliverables.
+ */
+export function processStreamText(raw: string): string {
+  let text = raw
+    .replace(/```json[\s\S]*?```/gi, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/\s*\{[\s\S]*"templateId"[\s\S]*\}\s*$/g, '')
+    .replace(/\s*\{[\s\S]*"items"\s*:\s*\[[\s\S]*\}\s*$/g, '')
+    .trim()
+  if (!text) return '正在整理选品结果…'
+  return text
 }

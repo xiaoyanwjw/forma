@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken } from '@/api/http'
 import EcommerceWorkspacePlaceholder from '@/views/business/scene/EcommerceWorkspacePlaceholder.vue'
 import { DEMO_LISTING } from '@/views/business/scene/ecommerceDemoFixtures'
+import { processStreamText } from '@/composables/agent/agentProgress'
 
 const sessionCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'ecommerceWorkspaceSession.css'),
@@ -334,11 +335,30 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     const area = mounted.root.querySelector(
       'textarea[aria-label="继续提问"]',
     ) as HTMLTextAreaElement
-    expect(area.value).toMatch(/选品清单/)
+    expect(area.value).toMatch(/厨房小件/)
+    expect(area.value).toMatch(/19–39/)
+    expect(area.value).not.toMatch(/【/)
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(mounted.router.currentRoute.value.fullPath).toBe(pathBefore)
     expect(fetchMock.mock.calls.length).toBe(callsBefore)
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
+  })
+
+  it('rejects send when prompt still contains 【】 placeholders', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '请帮我生成【品类】类选品清单，客单价【最低价】–【最高价】元。')
+    expect(picklistApiHits(fetchMock)).toHaveLength(0)
+    expect(mounted.root.textContent).toMatch(/【】里的占位/)
+  })
+
+  it('aligns quick-row and prompt inside one composer column', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    const composer = mounted.root.querySelector('.chat-input-wrap .chat-composer')
+    expect(composer).toBeTruthy()
+    expect(composer?.querySelector('.quick-row')).toBeTruthy()
+    expect(composer?.querySelector('.prompt-box')).toBeTruthy()
   })
 
   it('session listing capsule fills prompt without sending or generation API', async () => {
@@ -353,6 +373,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       'textarea[aria-label="继续提问"]',
     ) as HTMLTextAreaElement
     expect(area.value).toMatch(/上架素材/)
+    expect(area.value).toMatch(/硅胶沥水垫/)
+    expect(area.value).not.toMatch(/【/)
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
   })
@@ -388,8 +410,10 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(computer?.textContent).toMatch(/优先试/)
       expect(computer?.querySelector('.priority-tag')).toBeTruthy()
       expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/已生成/)
-      expect(mounted.root.querySelector('.chat-steps')?.textContent).toContain('read_skill')
+      expect(mounted.root.querySelector('.chat-steps')?.textContent).toContain('读取技能说明')
+      expect(mounted.root.querySelector('.chat-steps')?.textContent).not.toContain('read_skill')
       expect(mounted.root.querySelector('.chat-steps')?.textContent).toContain('✓')
+      expect(mounted.root.querySelector('.chat-stream-title')?.textContent).toContain('工作过程')
       const streamBody = mounted.root.querySelector('.chat-stream-body')
       expect(streamBody?.textContent?.endsWith('…')).toBe(true)
       expect(streamBody?.textContent).toBe(`${'x'.repeat(120)}…`)
@@ -404,6 +428,63 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     } finally {
       window.removeEventListener('ebus:credits-changed', onCredits)
     }
+  })
+
+  it('hides artifact JSON from process stream and keeps prose', async () => {
+    const prose = '我先加载技能说明。'
+    const artifactJson =
+      '{"templateId":"domestic-generic-default","disclaimer":"x","items":[{"title":"a"}]}'
+    fetchMock = mockCatalogAndCredits({
+      onPicklist: () =>
+        new Response(
+          sseBody([
+            'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+            `event: message_delta\ndata: ${JSON.stringify({ text: `${prose} ${artifactJson}` })}\n\n`,
+            `event: artifact_ready\ndata: ${JSON.stringify({
+              artifactType: 'picklist',
+              picklistId: 'pl-1',
+              runId: 'r1',
+              templateId: 'domestic-generic-default',
+              disclaimer: '基于通用电商知识推断，非实时平台数据',
+              items: SAMPLE_ITEMS,
+              view: {
+                version: 1,
+                title: '选品清单',
+                status: '已结算',
+                blocks: [
+                  { type: 'note', text: '基于通用电商知识推断，非实时平台数据', tone: 'mute' },
+                  {
+                    type: 'list',
+                    ordered: true,
+                    items: SAMPLE_ITEMS.slice(0, 2).map((it) => ({
+                      title: it.title.replace(/^【优先试】/, ''),
+                      lines: [`价格带：${it.priceBand}`],
+                      tags: [`需求 ${it.demand}`],
+                    })),
+                  },
+                ],
+              },
+            })}\n\n`,
+            'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
+          ]),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root)
+    for (let i = 0; i < 8; i += 1) {
+      if (mounted.root.textContent?.includes('已生成')) break
+      await flushUi()
+    }
+
+    expect(mounted.root.textContent).toMatch(/已生成/)
+    expect(processStreamText(`${prose} ${artifactJson}`)).toBe(prose)
+    const stream = mounted.root.querySelector('.chat-stream')
+    expect(stream).toBeTruthy()
+    const body = stream?.querySelector('.chat-stream-body')?.textContent || ''
+    expect(body).toBe(prose)
+    expect(body).not.toMatch(/templateId/)
   })
 
   it('short message_delta has no fold toggle', async () => {

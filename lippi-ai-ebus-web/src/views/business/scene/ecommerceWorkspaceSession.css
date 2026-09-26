@@ -175,31 +175,70 @@
   margin: 0 0 10px;
   padding: 10px 12px;
   background: var(--canvas);
+  border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 0.8125rem;
   color: var(--ink);
 }
 
 .msg .chat-steps li {
-  padding: 3px 0;
+  padding: 4px 0;
   display: flex;
   gap: 8px;
   align-items: center;
 }
 
+.msg .chat-steps li.running .step-label {
+  color: var(--ink);
+}
+
 .msg .chat-steps .ok {
   color: #16a34a;
+  flex-shrink: 0;
 }
 
 .msg .chat-steps .pending {
+  color: var(--accent, #c45c26);
+  flex-shrink: 0;
+  animation: chat-step-pulse 1.1s ease-in-out infinite;
+}
+
+.msg .chat-steps .step-status {
+  margin-left: auto;
+  font-size: 0.72rem;
   color: var(--mute);
+}
+
+@keyframes chat-step-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .msg .chat-stream {
   margin: 0 0 10px;
   padding: 10px 12px;
   background: var(--canvas);
+  border: 1px solid var(--line);
   border-radius: 10px;
+}
+
+.msg .chat-stream-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.msg .chat-stream-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--mute);
 }
 
 .msg .chat-stream-toggle {
@@ -208,7 +247,7 @@
   color: var(--mute);
   font-size: 0.75rem;
   cursor: pointer;
-  padding: 0 0 6px;
+  padding: 0;
 }
 
 .msg .chat-stream-body {
@@ -237,14 +276,21 @@
   background: linear-gradient(180deg, transparent, var(--surface) 28%);
 }
 
-.chat-input-wrap .prompt-box {
+/* Shared column so quick pills share the prompt box left edge */
+.chat-input-wrap .chat-composer {
   max-width: 720px;
+  width: 100%;
   margin: 0 auto;
 }
 
+.chat-input-wrap .prompt-box {
+  max-width: none;
+  margin: 0;
+}
+
 .chat-input-wrap .quick-row {
-  max-width: 720px;
-  margin: 0 auto 10px;
+  max-width: none;
+  margin: 0 0 10px;
   justify-content: flex-start;
 }
 

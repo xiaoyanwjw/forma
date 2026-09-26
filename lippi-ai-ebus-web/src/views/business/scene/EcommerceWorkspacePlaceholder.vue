@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
 import { getScenes } from '@/api/business/scene/scene'
-import { foldPreview, type ProgressStep } from '@/composables/agent/agentProgress'
+import { foldPreview, processStreamText, toolDisplayLabel, type ProgressStep } from '@/composables/agent/agentProgress'
 import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
 import {
   DEMO_LISTING_VIEW,
@@ -18,9 +18,12 @@ const SCENE_CODE = 'ecommerce' as const
 const SCENE_BREADCRUMB = '电商开店'
 const ATTACH_SOON = '近端暂不支持附件'
 
-const PICKS_TEMPLATE = '请帮我生成【品类】类选品清单，客单价【最低价】–【最高价】元。'
+/** Concrete defaults — capsule one-click must be sendable (no 【占位】). */
+const PICKS_TEMPLATE = '请帮我生成厨房小件类选品清单，客单价 19–39 元。'
 const LISTING_TEMPLATE =
-  '请为商品「【商品名称】」生成上架素材，优先适配【淘宝/拼多多/闲鱼】。'
+  '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。'
+
+const PLACEHOLDER_MARK = /【[^】]+】/
 
 type ComputerKind = 'picks' | 'listing' | null
 
@@ -120,6 +123,18 @@ function isPicklistIntent(text: string): boolean {
 async function sendFromSession() {
   const text = sessionPrompt.value.trim()
   if (!text || picklistRunning.value) return
+
+  if (PLACEHOLDER_MARK.test(text)) {
+    messages.value.push({ id: nextMsgId(), role: 'user', text })
+    sessionPrompt.value = ''
+    messages.value.push({
+      id: nextMsgId(),
+      role: 'agent',
+      text: '请先把【】里的占位改成真实品类和价格，或点「选品清单」胶囊使用示例后再发送。',
+    })
+    scrollChatToBottom()
+    return
+  }
 
   messages.value.push({ id: nextMsgId(), role: 'user', text })
   sessionPrompt.value = ''
@@ -236,6 +251,14 @@ function toggleStreamExpand(id: string) {
   expandedStreamIds.value = next
 }
 
+function streamProcessFor(m: ChatMessage): string {
+  return processStreamText(m.streamText || '')
+}
+
+function streamFoldFor(m: ChatMessage) {
+  return foldPreview(streamProcessFor(m))
+}
+
 function padIndex(i: number) {
   return String(i + 1).padStart(2, '0')
 }
@@ -310,26 +333,30 @@ onMounted(async () => {
             >
               <div class="role">{{ m.role === 'user' ? '你' : 'Adam' }}</div>
               <div class="body">
-                <ul v-if="m.steps?.length" class="chat-steps">
-                  <li v-for="s in m.steps" :key="s.id">
+                <ul v-if="m.steps?.length" class="chat-steps" aria-label="工作步骤">
+                  <li v-for="s in m.steps" :key="s.id" :class="{ running: !s.done }">
                     <span v-if="s.done" class="ok">✓</span>
-                    <span v-else class="pending">·</span>
-                    {{ s.label }}
+                    <span v-else class="pending" aria-label="进行中">…</span>
+                    <span class="step-label">{{ toolDisplayLabel(s.label) }}</span>
+                    <span v-if="!s.done" class="step-status">进行中</span>
                   </li>
                 </ul>
                 <div v-if="m.streamText" class="chat-stream">
-                  <button
-                    v-if="foldPreview(m.streamText).needsFold"
-                    type="button"
-                    class="chat-stream-toggle"
-                    @click="toggleStreamExpand(m.id)"
-                  >
-                    {{ expandedStreamIds.has(m.id) ? '收起' : '展开' }}
-                  </button>
+                  <div class="chat-stream-head">
+                    <span class="chat-stream-title">工作过程</span>
+                    <button
+                      v-if="streamFoldFor(m).needsFold"
+                      type="button"
+                      class="chat-stream-toggle"
+                      @click="toggleStreamExpand(m.id)"
+                    >
+                      {{ expandedStreamIds.has(m.id) ? '收起' : '展开' }}
+                    </button>
+                  </div>
                   <pre class="chat-stream-body">{{
-                    expandedStreamIds.has(m.id) || !foldPreview(m.streamText).needsFold
-                      ? m.streamText
-                      : foldPreview(m.streamText).preview
+                    expandedStreamIds.has(m.id) || !streamFoldFor(m).needsFold
+                      ? streamProcessFor(m)
+                      : streamFoldFor(m).preview
                   }}</pre>
                 </div>
                 <p>{{ m.text }}</p>
@@ -356,49 +383,51 @@ onMounted(async () => {
           </div>
 
           <div class="chat-input-wrap">
-            <div class="quick-row" role="group" aria-label="快捷任务">
-              <button type="button" class="pill" :disabled="picklistRunning" @click="fillPicksSession">
-                选品清单
-              </button>
-              <button type="button" class="pill" :disabled="picklistRunning" @click="fillListingSession">
-                生成上架素材
-              </button>
-            </div>
-            <div class="prompt-box">
-              <textarea
-                v-model="sessionPrompt"
-                class="prompt-editor"
-                rows="2"
-                placeholder="分配一个任务或提问任何问题"
-                aria-label="继续提问"
-                :disabled="picklistRunning"
-              />
-              <div class="prompt-toolbar">
-                <button
-                  type="button"
-                  class="icon-btn"
-                  aria-label="附件"
-                  aria-describedby="session-attach-soon-hint"
-                  disabled
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
+            <div class="chat-composer">
+              <div class="quick-row" role="group" aria-label="快捷任务">
+                <button type="button" class="pill" :disabled="picklistRunning" @click="fillPicksSession">
+                  选品清单
                 </button>
-                <button
-                  type="button"
-                  class="send-btn"
-                  :class="{ active: sessionSendEnabled }"
-                  aria-label="发送"
-                  :disabled="!sessionSendEnabled"
-                  @click="sendFromSession"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-                    <path d="M12 19V5M5 12l7-7 7 7" />
-                  </svg>
+                <button type="button" class="pill" :disabled="picklistRunning" @click="fillListingSession">
+                  生成上架素材
                 </button>
               </div>
-              <p id="session-attach-soon-hint" class="sr-only">{{ ATTACH_SOON }}</p>
+              <div class="prompt-box">
+                <textarea
+                  v-model="sessionPrompt"
+                  class="prompt-editor"
+                  rows="2"
+                  placeholder="分配一个任务或提问任何问题"
+                  aria-label="继续提问"
+                  :disabled="picklistRunning"
+                />
+                <div class="prompt-toolbar">
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    aria-label="附件"
+                    aria-describedby="session-attach-soon-hint"
+                    disabled
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="send-btn"
+                    :class="{ active: sessionSendEnabled }"
+                    aria-label="发送"
+                    :disabled="!sessionSendEnabled"
+                    @click="sendFromSession"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                      <path d="M12 19V5M5 12l7-7 7 7" />
+                    </svg>
+                  </button>
+                </div>
+                <p id="session-attach-soon-hint" class="sr-only">{{ ATTACH_SOON }}</p>
+              </div>
             </div>
           </div>
         </section>
@@ -466,9 +495,9 @@ onMounted(async () => {
 .quick-row {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
-  margin: 4px 0 14px;
+  margin: 0 0 10px;
 }
 
 .pill {

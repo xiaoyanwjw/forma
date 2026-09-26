@@ -5,6 +5,8 @@ import {
   applyToolFinished,
   applyToolStarted,
   foldPreview,
+  processStreamText,
+  toolDisplayLabel,
   toolEventLabel,
 } from './agentProgress'
 
@@ -14,6 +16,13 @@ describe('agentProgress', () => {
     expect(toolEventLabel({ name: 'echo' })).toBe('echo')
     expect(toolEventLabel({ payload: 'do-thing' })).toBe('do-thing')
     expect(toolEventLabel({})).toBe('tool')
+  })
+
+  it('toolDisplayLabel maps known tools to Chinese; unknown keeps raw', () => {
+    expect(toolDisplayLabel('read_skill')).toBe('读取技能说明')
+    expect(toolDisplayLabel('echo')).toBe('执行辅助工具')
+    expect(toolDisplayLabel('tool')).toBe('执行工具')
+    expect(toolDisplayLabel('custom_foo')).toBe('custom_foo')
   })
 
   it('applyToolStarted appends running step; finished marks matching label done', () => {
@@ -38,5 +47,18 @@ describe('agentProgress', () => {
     const folded = foldPreview(long)
     expect(folded.needsFold).toBe(true)
     expect(folded.preview).toBe('a'.repeat(MESSAGE_FOLD_THRESHOLD) + '…')
+  })
+
+  it('processStreamText strips fenced/raw JSON and keeps prose', () => {
+    const prose = '我先加载技能说明。'
+    const withFence =
+      prose + '\n```json\n{"templateId":"domestic-generic-default","items":[]}\n```'
+    expect(processStreamText(withFence)).toBe(prose)
+
+    const withRaw =
+      prose + ' {"templateId":"domestic-generic-default","disclaimer":"x","items":[{"title":"a"}]}'
+    expect(processStreamText(withRaw)).toBe(prose)
+
+    expect(processStreamText('{"templateId":"x","items":[]}')).toBe('正在整理选品结果…')
   })
 })
