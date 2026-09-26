@@ -159,3 +159,7 @@
 - source_spec: `docs/superpowers/specs/2026-09-26-official-pi-skills-adapter-design.md`
   summary: WRITE HITL 为全局开关 + 已注册且本轮 active 的工具批次挂起（不按 READ/WRITE level）；未改为「按工具名点名审批」协议。
   evidence: `ToolPolicyExtension` 不读 level；默认 `lims.pi.tool.write-approval.enabled=false`；后续故事可改 per-tool named approval。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-3-会话态工作台-侧栏-对话-computer.md`
+  summary: 窄屏侧栏隐藏的验证仅靠 CSS 源码正则，无法在 jsdom 中诚实覆盖 media-query 布局。
+  evidence: verification-gap：去掉 session CSS import 后源码测仍绿；需浏览器/冒烟才锁 UX-DR10。
