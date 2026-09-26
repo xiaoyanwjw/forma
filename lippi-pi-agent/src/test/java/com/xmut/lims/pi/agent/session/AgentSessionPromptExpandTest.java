@@ -117,7 +117,7 @@ class AgentSessionPromptExpandTest {
 
         ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
         verify(conversationLoop).run(cap.capture(), any());
-        assertThat(cap.getValue().getMessages().get(0).getContent()).contains("Picklist rules for Adam.");
+        assertThat(cap.getValue().getMessages().get(0).getContent()).contains("非实时平台数据");
         assertThat(cap.getValue().getSkillId()).isEqualTo("ecommerce-picklist");
     }
 
@@ -167,8 +167,8 @@ class AgentSessionPromptExpandTest {
                 .map(Message::getContent)
                 .orElse("");
         assertThat(system).contains("ecommerce-picklist");
-        assertThat(system).doesNotContain("Picklist rules for Adam.");
-        assertThat(user).contains("Picklist rules for Adam.");
+        assertThat(system).doesNotContain("非实时平台数据");
+        assertThat(user).contains("非实时平台数据");
     }
 
 

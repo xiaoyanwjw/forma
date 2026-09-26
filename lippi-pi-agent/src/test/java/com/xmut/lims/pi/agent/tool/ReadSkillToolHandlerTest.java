@@ -37,7 +37,7 @@ class ReadSkillToolHandlerTest {
 
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.getOutput()).contains("# Skill ecommerce-picklist");
-        assertThat(result.getOutput()).contains("Picklist rules for Adam.");
+        assertThat(result.getOutput()).contains("非实时平台数据");
     }
 
     @Test

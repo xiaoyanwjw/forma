@@ -163,3 +163,19 @@
 - source_spec: `sdd/implementation-artifacts/spec-3-3-会话态工作台-侧栏-对话-computer.md`
   summary: 窄屏侧栏隐藏的验证仅靠 CSS 源码正则，无法在 jsdom 中诚实覆盖 media-query 布局。
   evidence: verification-gap：去掉 session CSS import 后源码测仍绿；需浏览器/冒烟才锁 UX-DR10。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
+  summary: 客户端取消/SSE 断流时服务端无法中断 AgentSession.prompt，仍可能跑完并 settle。
+  evidence: 评审确认与 empty-run 同构；近端无 AgentSession 取消端口；FE 已 abort 本地流并忽略迟到成果。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
+  summary: mid-stream SSE 发送失败只设 aborted，不取消正在进行的模型 turn。
+  evidence: 与 empty-run 同构限制；补取消需打断 prompt，超出本故事最小补丁。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
+  summary: settle 失败（成果已落库）不自动 release，需运维/补偿路径处理卡住的 hold 与孤儿清单。
+  evidence: 释放会导致白嫖；当前人话「联系支持」；完整补偿后置。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
+  summary: modelUsage 日志仍为 token/成本占位，真实 promptTokens/totalTokens 待 TurnResult 贯通。
+  evidence: NFR2 近端以占位+responseChars 满足；真实用量字段后置。

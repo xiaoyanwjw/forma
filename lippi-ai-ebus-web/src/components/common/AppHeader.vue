@@ -62,13 +62,23 @@ const stopAuth = onAuthChange(() => {
   }
 })
 
+function onCreditsChanged() {
+  if (loggedIn.value) {
+    void loadCredits()
+  }
+}
+
 onMounted(async () => {
+  window.addEventListener('ebus:credits-changed', onCreditsChanged)
   if (loggedIn.value) {
     await loadCredits()
   }
 })
 
-onUnmounted(stopAuth)
+onUnmounted(() => {
+  stopAuth()
+  window.removeEventListener('ebus:credits-changed', onCreditsChanged)
+})
 </script>
 
 <template>

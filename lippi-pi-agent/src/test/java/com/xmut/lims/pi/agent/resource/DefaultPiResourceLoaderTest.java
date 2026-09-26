@@ -79,7 +79,7 @@ class DefaultPiResourceLoaderTest {
         SlashExpansion expanded = loader.expandSlash("/skill:ecommerce-picklist");
         assertThat(expanded.isExpanded()).isTrue();
         assertThat(expanded.getSkillId()).isEqualTo("ecommerce-picklist");
-        assertThat(expanded.getText()).contains("Picklist rules for Adam.");
+        assertThat(expanded.getText()).contains("非实时平台数据");
         assertThat(expanded.getText()).doesNotContain("inline-should-not-win");
     }
 

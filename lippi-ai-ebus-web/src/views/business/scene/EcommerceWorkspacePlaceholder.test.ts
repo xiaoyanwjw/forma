@@ -28,6 +28,17 @@ const ECOMMERCE = {
   summary: '选品与上架',
 }
 
+const SAMPLE_ITEMS = Array.from({ length: 8 }, (_, i) => ({
+  title: `候选${i + 1}`,
+  priceBand: '19–39 元',
+  reason: `可卖理由${i + 1}`,
+  differentiation: `差异${i + 1}`,
+  demand: '需求稳',
+  competition: '可切入',
+  margin: '测款友好',
+  risk: '勿夸大',
+}))
+
 function okScenes(data: unknown) {
   return new Response(JSON.stringify({ success: true, code: 0, message: 'ok', data }), {
     status: 200,
@@ -35,23 +46,66 @@ function okScenes(data: unknown) {
   })
 }
 
-function mockCatalogAndCredits() {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+function creditsResponse(available = 14) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      code: 0,
+      message: 'ok',
+      data: { tier: 'FREE', balance: 20, available, reserved: 0 },
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  )
+}
+
+function sseBody(chunks: string[]) {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      const enc = new TextEncoder()
+      for (const c of chunks) {
+        controller.enqueue(enc.encode(c))
+      }
+      controller.close()
+    },
+  })
+}
+
+function mockCatalogAndCredits(opts?: {
+  onPicklist?: () => Response
+  available?: number
+}) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
     if (url.includes('/api/v1/scenes')) {
       return okScenes([ECOMMERCE])
     }
     if (url.includes('/api/v1/credits')) {
+      return creditsResponse(opts?.available ?? 14)
+    }
+    if (url.includes('/api/v1/agent/runs/picklist')) {
+      if (opts?.onPicklist) {
+        return opts.onPicklist()
+      }
       return new Response(
-        JSON.stringify({
-          success: true,
-          code: 0,
-          message: 'ok',
-          data: { tier: 'FREE', balance: 20, available: 14, reserved: 0 },
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
+        sseBody([
+          'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+          `event: artifact_ready\ndata: ${JSON.stringify({
+            artifactType: 'picklist',
+            picklistId: 'pl-1',
+            runId: 'r1',
+            templateId: 'domestic-generic-default',
+            disclaimer: '基于通用电商知识推断，非实时平台数据',
+            items: SAMPLE_ITEMS,
+          })}\n\n`,
+          'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
+        ]),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
       )
     }
+    if (url.includes('/api/v1/agent/runs/empty')) {
+      return new Response('should not empty', { status: 500 })
+    }
+    void init
     return new Response('not found', { status: 404 })
   })
 }
@@ -98,16 +152,12 @@ function setTextareaValue(el: HTMLTextAreaElement, value: string) {
   el.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
-function generationApiHits(fetchMock: ReturnType<typeof vi.spyOn>) {
-  return fetchMock.mock.calls.filter(([input]) => {
-    const url = String(input)
-    return (
-      url.includes('/api/v1/agent') ||
-      url.includes('empty-run') ||
-      url.includes('emptyRun') ||
-      url.includes('/api/v1/generation')
-    )
-  })
+function picklistApiHits(fetchMock: ReturnType<typeof vi.spyOn>) {
+  return fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/v1/agent/runs/picklist'))
+}
+
+function emptyRunApiHits(fetchMock: ReturnType<typeof vi.spyOn>) {
+  return fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/v1/agent/runs/empty'))
 }
 
 describe('EcommerceWorkspacePlaceholder default session shell', () => {
@@ -150,7 +200,7 @@ describe('EcommerceWorkspacePlaceholder default session shell', () => {
       Array.from(mounted.root.querySelectorAll('a')).some((a) => a.textContent?.includes('套餐')),
     ).toBe(false)
 
-    expect(generationApiHits(fetchMock)).toHaveLength(0)
+    expect(picklistApiHits(fetchMock)).toHaveLength(0)
   })
 
   it('keeps attach disabled; session send enabled only with prompt text', async () => {
@@ -192,15 +242,7 @@ describe('EcommerceWorkspacePlaceholder default session shell', () => {
         })
       }
       if (url.includes('/api/v1/credits')) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            code: 0,
-            message: 'ok',
-            data: { tier: 'FREE', balance: 20, available: 14, reserved: 0 },
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        )
+        return creditsResponse()
       }
       return new Response('not found', { status: 404 })
     })
@@ -216,7 +258,7 @@ describe('EcommerceWorkspacePlaceholder default session shell', () => {
   })
 })
 
-describe('EcommerceWorkspacePlaceholder session shell (3.3)', () => {
+describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
   let unmount: (() => void) | undefined
   let fetchMock: ReturnType<typeof mockCatalogAndCredits>
 
@@ -246,6 +288,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.3)', () => {
     expect(send.disabled).toBe(false)
     send.click()
     await flushUi()
+    await flushUi()
   }
 
   it('session picks capsule fills prompt without sending or generation API', async () => {
@@ -265,7 +308,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.3)', () => {
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(mounted.router.currentRoute.value.fullPath).toBe(pathBefore)
     expect(fetchMock.mock.calls.length).toBe(callsBefore)
-    expect(generationApiHits(fetchMock)).toHaveLength(0)
+    expect(picklistApiHits(fetchMock)).toHaveLength(0)
   })
 
   it('session listing capsule fills prompt without sending or generation API', async () => {
@@ -281,69 +324,89 @@ describe('EcommerceWorkspacePlaceholder session shell (3.3)', () => {
     ) as HTMLTextAreaElement
     expect(area.value).toMatch(/上架素材/)
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
-    expect(generationApiHits(fetchMock)).toHaveLength(0)
+    expect(picklistApiHits(fetchMock)).toHaveLength(0)
   })
 
-  it('sendFromSession appends demo messages without generation API', async () => {
+  it('send picklist intent streams billing SSE and opens Computer with live list', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    const creditEvents: Event[] = []
+    const onCredits = (e: Event) => creditEvents.push(e)
+    window.addEventListener('ebus:credits-changed', onCredits)
+    try {
+      await enterViaSend(mounted.root)
+
+      const hits = picklistApiHits(fetchMock)
+      expect(hits.length).toBeGreaterThanOrEqual(1)
+      const [url, init] = hits[0] as [string, RequestInit]
+      expect(url).toBe('/api/v1/agent/runs/picklist')
+      expect(init.method).toBe('POST')
+      const body = JSON.parse(String(init.body)) as { text?: string; sceneCode?: string }
+      expect(body.text).toBe('帮我做家居选品')
+      expect(body.sceneCode).toBe('ecommerce')
+      expect(emptyRunApiHits(fetchMock)).toHaveLength(0)
+      expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(true)
+      const computer = mounted.root.querySelector('.computer')
+      expect(computer?.textContent).toContain("Adam's Computer")
+      expect(computer?.textContent).toMatch(/选品清单/)
+      expect(computer?.textContent).toMatch(/非实时/)
+      expect(computer?.querySelectorAll('.pick-list li').length).toBe(8)
+      expect(computer?.textContent).toMatch(/需求·/)
+      expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/已生成/)
+      expect(creditEvents.length).toBeGreaterThanOrEqual(1)
+    } finally {
+      window.removeEventListener('ebus:credits-changed', onCredits)
+    }
+  })
+
+  it('run_failed also dispatches credits-changed', async () => {
+    fetchMock = mockCatalogAndCredits({
+      onPicklist: () =>
+        new Response(
+          sseBody([
+            'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+            'event: run_failed\ndata: {"reason":"选品成果不合格，请重试"}\n\n',
+          ]),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    })
+    const creditEvents: Event[] = []
+    const onCredits = (e: Event) => creditEvents.push(e)
+    window.addEventListener('ebus:credits-changed', onCredits)
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    try {
+      await enterViaSend(mounted.root)
+      expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/不合格|重试/)
+      expect(creditEvents.length).toBeGreaterThanOrEqual(1)
+    } finally {
+      window.removeEventListener('ebus:credits-changed', onCredits)
+    }
+  })
+
+  it('insufficient credit shows upgrade hint without Computer fake list', async () => {
+    fetchMock = mockCatalogAndCredits({
+      onPicklist: () =>
+        new Response(JSON.stringify({ success: false, code: 402, message: '积分不足，请升级套餐' }), {
+          status: 402,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    })
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     await enterViaSend(mounted.root)
 
-    const beforeUsers = mounted.root.querySelectorAll('.chat-scroll .msg.user').length
-    const beforeAgents = mounted.root.querySelectorAll('.chat-scroll .msg.agent').length
-    const callsBefore = fetchMock.mock.calls.length
-
-    const area = mounted.root.querySelector(
-      'textarea[aria-label="继续提问"]',
-    ) as HTMLTextAreaElement
-    setTextareaValue(area, '再问一句演示')
-    await flushUi()
-    const send = mounted.root.querySelector(
-      '.session button[aria-label="发送"]',
-    ) as HTMLButtonElement
-    expect(send.disabled).toBe(false)
-    send.click()
-    await flushUi()
-
-    expect(mounted.root.querySelectorAll('.chat-scroll .msg.user').length).toBe(beforeUsers + 1)
-    expect(mounted.root.querySelectorAll('.chat-scroll .msg.agent').length).toBe(beforeAgents + 1)
-    expect(mounted.root.querySelector('.chat-scroll')?.textContent).toContain('再问一句演示')
-    expect(fetchMock.mock.calls.length).toBe(callsBefore)
-    expect(generationApiHits(fetchMock)).toHaveLength(0)
-  })
-
-  it('opens Computer with picklist fixture via demo control; closes without killing chat', async () => {
-    const mounted = await mountWorkspace()
-    unmount = mounted.unmount
-    await enterViaSend(mounted.root)
-
-    const openPicks = mounted.root.querySelector(
-      '[data-demo="open-picks"]',
-    ) as HTMLButtonElement
-    expect(openPicks).toBeTruthy()
-    openPicks.click()
-    await flushUi()
-
-    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(true)
-    const computer = mounted.root.querySelector('.computer')
-    expect(computer?.textContent).toContain("Adam's Computer")
-    expect(computer?.textContent).toMatch(/选品清单/)
-    expect(computer?.querySelectorAll('.pick-list li').length).toBeGreaterThanOrEqual(3)
-
-    const closeBtn = mounted.root.querySelector('#close-computer') as HTMLButtonElement
-    closeBtn.click()
-    await flushUi()
-
+    expect(picklistApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
+    expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/积分不足|升级/)
     expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
-    expect(mounted.root.querySelector('.chat-scroll')?.textContent).toContain('帮我做家居选品')
-    expect(generationApiHits(fetchMock)).toHaveLength(0)
   })
 
-  it('opens Computer with listing preview via demo control', async () => {
+  it('opens Computer with listing preview via demo control after non-picklist send', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    await enterViaSend(mounted.root, '请生成上架素材')
+    await enterViaSend(mounted.root, '随便聊聊天气')
 
+    expect(picklistApiHits(fetchMock)).toHaveLength(0)
     const openListing = mounted.root.querySelector(
       '[data-demo="open-listing"]',
     ) as HTMLButtonElement
@@ -355,17 +418,12 @@ describe('EcommerceWorkspacePlaceholder session shell (3.3)', () => {
     const body = mounted.root.querySelector('.computer-body')
     expect(body?.textContent).toContain(DEMO_LISTING.title)
     expect(body?.textContent).toContain(DEMO_LISTING.body)
-    expect(body?.querySelector('.listing-copy, .listing-hero, .comp-card')).toBeTruthy()
-    expect(generationApiHits(fetchMock)).toHaveLength(0)
   })
 
   it('new task clears thread and Computer but stays on session shell', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     await enterViaSend(mounted.root)
-
-    ;(mounted.root.querySelector('[data-demo="open-picks"]') as HTMLButtonElement).click()
-    await flushUi()
     expect(mounted.root.querySelector('.workspace.split')).toBeTruthy()
 
     ;(mounted.root.querySelector('.side-new') as HTMLButtonElement).click()
@@ -375,7 +433,6 @@ describe('EcommerceWorkspacePlaceholder session shell (3.3)', () => {
     expect(mounted.root.querySelector('.home')).toBeNull()
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
-    expect(mounted.root.querySelector('[data-demo="open-picks"]')).toBeNull()
   })
 
   it('sidebar CSS hides at ≤860px breakpoint (narrow readable chat)', () => {

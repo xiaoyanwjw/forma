@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import { getScenes } from '@/api/business/scene/scene'
+import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
 import {
   DEMO_LISTING,
   DEMO_PICKS,
   DEMO_SESSION_TITLE,
 } from '@/views/business/scene/ecommerceDemoFixtures'
+import type { PicklistArtifactPayload } from '@/types/business/agent'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
 /** Stable scene binding for this workbench — Epic 3 session create must carry it */
 const SCENE_CODE = 'ecommerce' as const
 const SCENE_BREADCRUMB = '电商开店'
-const DEMO_SOON = '演示壳暂不支持附件与真实生成'
+const ATTACH_SOON = '近端暂不支持附件'
 
 const PICKS_TEMPLATE = '请帮我生成【品类】类选品清单，客单价【最低价】–【最高价】元。'
 const LISTING_TEMPLATE =
@@ -20,7 +22,7 @@ const LISTING_TEMPLATE =
 
 type ComputerKind = 'picks' | 'listing' | null
 
-interface DemoMessage {
+interface ChatMessage {
   id: string
   role: 'user' | 'agent'
   text: string
@@ -29,23 +31,56 @@ interface DemoMessage {
 const sessionPrompt = ref('')
 /** Optional Catalog bizId when list is available; null if unresolved */
 const sceneBizId = ref<string | null>(null)
-const messages = ref<DemoMessage[]>([])
+const messages = ref<ChatMessage[]>([])
 const sessionTitle = ref(DEMO_SESSION_TITLE)
 const computerKind = ref<ComputerKind>(null)
+const livePicklist = ref<PicklistArtifactPayload | null>(null)
 const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
 
+const {
+  running: picklistRunning,
+  error: picklistError,
+  artifact: picklistArtifact,
+  sessionId,
+  startPicklistRun,
+  reset: resetPicklistRun,
+} = useAgentPicklistRun()
+
 const computerOpen = computed(() => computerKind.value != null)
-const sessionSendEnabled = computed(() => sessionPrompt.value.trim().length > 0)
+const sessionSendEnabled = computed(
+  () => sessionPrompt.value.trim().length > 0 && !picklistRunning.value,
+)
+
+const displayPicks = computed(() => {
+  if (livePicklist.value?.items?.length) {
+    return livePicklist.value.items
+  }
+  return DEMO_PICKS.map((p) => ({
+    title: p.title,
+    priceBand: '',
+    reason: p.reason,
+    differentiation: '',
+    demand: '',
+    competition: '',
+    margin: '',
+    risk: '',
+  }))
+})
+
+const picksIsLive = computed(() => Boolean(livePicklist.value?.items?.length))
 
 let msgSeq = 0
 function nextMsgId() {
   msgSeq += 1
-  return `demo-msg-${msgSeq}`
+  return `msg-${msgSeq}`
 }
 
-function agentDemoReply(): string {
-  return '这是会话态演示：右侧 Computer 需用下方预览按钮打开，不调用生成接口。真生成与结算将在后续故事接入。'
+function scrollChatToBottom() {
+  void nextTick(() => {
+    const el = chatScrollEl.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
 }
 
 function fillPicksSession() {
@@ -56,18 +91,84 @@ function fillListingSession() {
   sessionPrompt.value = LISTING_TEMPLATE
 }
 
-function sendFromSession() {
+function isPicklistIntent(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (/上架|listing|主图|详情文案/i.test(t) && !/选品/.test(t)) {
+    return false
+  }
+  return /选品|测款|品类|候选|可卖|帮我选/.test(t) || t.includes('选品清单')
+}
+
+async function sendFromSession() {
   const text = sessionPrompt.value.trim()
-  if (!text) return
-  messages.value.push(
-    { id: nextMsgId(), role: 'user', text },
-    { id: nextMsgId(), role: 'agent', text: agentDemoReply() },
-  )
+  if (!text || picklistRunning.value) return
+
+  messages.value.push({ id: nextMsgId(), role: 'user', text })
   sessionPrompt.value = ''
-  void nextTick(() => {
-    const el = chatScrollEl.value
-    if (el) el.scrollTop = el.scrollHeight
+  scrollChatToBottom()
+
+  if (!isPicklistIntent(text)) {
+    messages.value.push({
+      id: nextMsgId(),
+      role: 'agent',
+      text: '近端可生成「选品清单」。请用上方选品胶囊，或直接描述品类与客单价。上架素材将在后续故事接入。',
+    })
+    scrollChatToBottom()
+    return
+  }
+
+  const thinkingId = nextMsgId()
+  messages.value.push({
+    id: thinkingId,
+    role: 'agent',
+    text: '正在生成选品清单…',
   })
+  scrollChatToBottom()
+
+  await startPicklistRun({
+    text,
+    sceneCode: SCENE_CODE,
+    sceneId: sceneBizId.value ?? undefined,
+    sessionId: sessionId.value ?? undefined,
+  })
+
+  const idx = messages.value.findIndex((m) => m.id === thinkingId)
+  if (picklistError.value) {
+    const reason = picklistError.value
+    const soft =
+      /积分不足|额度不足|不足/.test(reason)
+        ? `${reason}。可前往套餐页升级后再试。`
+        : reason
+    if (idx >= 0) {
+      messages.value[idx] = { id: thinkingId, role: 'agent', text: soft }
+    } else {
+      messages.value.push({ id: nextMsgId(), role: 'agent', text: soft })
+    }
+    scrollChatToBottom()
+    return
+  }
+
+  if (picklistArtifact.value?.items?.length) {
+    livePicklist.value = picklistArtifact.value
+    computerKind.value = 'picks'
+    revealComputer()
+    const n = picklistArtifact.value.items.length
+    const reply = `已生成 ${n} 条选品候选，右侧 Computer 可查看四维简评与可卖理由。`
+    if (idx >= 0) {
+      messages.value[idx] = { id: thinkingId, role: 'agent', text: reply }
+    } else {
+      messages.value.push({ id: nextMsgId(), role: 'agent', text: reply })
+    }
+  } else {
+    const fallback = '选品已结束，但未收到可用清单，请重试。'
+    if (idx >= 0) {
+      messages.value[idx] = { id: thinkingId, role: 'agent', text: fallback }
+    } else {
+      messages.value.push({ id: nextMsgId(), role: 'agent', text: fallback })
+    }
+  }
+  scrollChatToBottom()
 }
 
 function revealComputer() {
@@ -91,8 +192,10 @@ function closeComputer() {
 }
 
 function newTask() {
+  resetPicklistRun()
   messages.value = []
   computerKind.value = null
+  livePicklist.value = null
   sessionPrompt.value = ''
   sessionTitle.value = DEMO_SESSION_TITLE
 }
@@ -100,6 +203,12 @@ function newTask() {
 function padIndex(i: number) {
   return String(i + 1).padStart(2, '0')
 }
+
+watch(picklistArtifact, (value) => {
+  if (value?.items?.length) {
+    livePicklist.value = value
+  }
+})
 
 onMounted(async () => {
   try {
@@ -111,7 +220,7 @@ onMounted(async () => {
       sceneBizId.value = hit.bizId
     }
   } catch {
-    // Empty UI still works with sceneCode alone; Epic 3 will harden lookup
+    // Empty UI still works with sceneCode alone
   }
 })
 </script>
@@ -154,14 +263,14 @@ onMounted(async () => {
               <div class="role">{{ m.role === 'user' ? '你' : 'Adam' }}</div>
               <div class="body">
                 <p>{{ m.text }}</p>
-                <div v-if="m.role === 'agent'" class="demo-actions">
+                <div v-if="m.role === 'agent' && !picksIsLive" class="demo-actions">
                   <button
                     type="button"
                     class="pill"
                     data-demo="open-picks"
                     @click="openPicksComputer"
                   >
-                    预览选品清单
+                    预览选品清单（演示）
                   </button>
                   <button
                     type="button"
@@ -169,7 +278,7 @@ onMounted(async () => {
                     data-demo="open-listing"
                     @click="openListingComputer"
                   >
-                    预览上架素材
+                    预览上架素材（演示）
                   </button>
                 </div>
               </div>
@@ -178,8 +287,12 @@ onMounted(async () => {
 
           <div class="chat-input-wrap">
             <div class="quick-row" role="group" aria-label="快捷任务">
-              <button type="button" class="pill" @click="fillPicksSession">选品清单</button>
-              <button type="button" class="pill" @click="fillListingSession">生成上架素材</button>
+              <button type="button" class="pill" :disabled="picklistRunning" @click="fillPicksSession">
+                选品清单
+              </button>
+              <button type="button" class="pill" :disabled="picklistRunning" @click="fillListingSession">
+                生成上架素材
+              </button>
             </div>
             <div class="prompt-box">
               <textarea
@@ -188,13 +301,14 @@ onMounted(async () => {
                 rows="2"
                 placeholder="分配一个任务或提问任何问题"
                 aria-label="继续提问"
+                :disabled="picklistRunning"
               />
               <div class="prompt-toolbar">
                 <button
                   type="button"
                   class="icon-btn"
                   aria-label="附件"
-                  aria-describedby="session-demo-soon-hint"
+                  aria-describedby="session-attach-soon-hint"
                   disabled
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -214,7 +328,7 @@ onMounted(async () => {
                   </svg>
                 </button>
               </div>
-              <p id="session-demo-soon-hint" class="sr-only">{{ DEMO_SOON }}</p>
+              <p id="session-attach-soon-hint" class="sr-only">{{ ATTACH_SOON }}</p>
             </div>
           </div>
         </section>
@@ -234,16 +348,26 @@ onMounted(async () => {
           <div class="computer-body">
             <div v-if="computerKind === 'picks'" class="comp-card">
               <div class="comp-card-head">
-                <span>选品清单 · 家居类</span>
-                <span class="status">演示</span>
+                <span>选品清单</span>
+                <span class="status">{{ picksIsLive ? '已结算' : '演示' }}</span>
               </div>
               <div class="comp-card-body">
+                <p v-if="livePicklist?.disclaimer" class="pick-disclaimer">{{ livePicklist.disclaimer }}</p>
+                <p v-if="livePicklist?.assumptions" class="pick-assumptions">假设：{{ livePicklist.assumptions }}</p>
                 <ol class="pick-list">
-                  <li v-for="(item, i) in DEMO_PICKS" :key="item.title">
+                  <li v-for="(item, i) in displayPicks" :key="item.title + '-' + i">
                     <span class="n">{{ padIndex(i) }}</span>
                     <div>
                       <div class="t">{{ item.title }}</div>
+                      <div v-if="item.priceBand" class="r">价格带：{{ item.priceBand }}</div>
                       <div class="r">{{ item.reason }}</div>
+                      <div v-if="item.differentiation" class="r dim">差异：{{ item.differentiation }}</div>
+                      <div v-if="item.demand" class="dims">
+                        <span>需求·{{ item.demand }}</span>
+                        <span>竞争·{{ item.competition }}</span>
+                        <span>利润·{{ item.margin }}</span>
+                        <span>风险·{{ item.risk }}</span>
+                      </div>
                     </div>
                   </li>
                 </ol>
@@ -303,8 +427,13 @@ onMounted(async () => {
     border-color 0.15s;
 }
 
-.pill:hover {
+.pill:hover:not(:disabled) {
   background: var(--line-2);
+}
+
+.pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .pill svg {
@@ -337,6 +466,10 @@ onMounted(async () => {
 
 .prompt-editor::placeholder {
   color: var(--mute-2);
+}
+
+.prompt-editor:disabled {
+  opacity: 0.7;
 }
 
 .prompt-toolbar {
@@ -378,6 +511,28 @@ onMounted(async () => {
 
 .icon-btn:disabled {
   opacity: 0.7;
+}
+
+.pick-disclaimer,
+.pick-assumptions {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  color: var(--mute);
+  line-height: 1.5;
+}
+
+.dims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--mute);
+  line-height: 1.4;
+}
+
+.r.dim {
+  opacity: 0.85;
 }
 
 .sr-only {

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.ebus.infrastructure.persistence.mybatis.mapper.PicklistMapper">
+
+    <resultMap id="PicklistResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.PicklistPO">
+        <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="runId" column="run_id"/>
+        <result property="templateId" column="template_id"/>
+        <result property="disclaimer" column="disclaimer"/>
+        <result property="assumptions" column="assumptions"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="PicklistItemResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.PicklistItemPO">
+        <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="picklistId" column="picklist_id"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="title" column="title"/>
+        <result property="priceBand" column="price_band"/>
+        <result property="reason" column="reason"/>
+        <result property="differentiation" column="differentiation"/>
+        <result property="demand" column="demand"/>
+        <result property="competition" column="competition"/>
+        <result property="margin" column="margin"/>
+        <result property="risk" column="risk"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO ebus_picklist
+            (biz_id, user_id, run_id, template_id, disclaimer, assumptions, created_at, updated_at)
+        VALUES
+            (#{bizId}, #{userId}, #{runId}, #{templateId}, #{disclaimer}, #{assumptions}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <insert id="insertItem" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO ebus_picklist_item
+            (biz_id, picklist_id, sort_order, title, price_band, reason, differentiation,
+             demand, competition, margin, risk, created_at)
+        VALUES
+            (#{bizId}, #{picklistId}, #{sortOrder}, #{title}, #{priceBand}, #{reason}, #{differentiation},
+             #{demand}, #{competition}, #{margin}, #{risk}, #{createdAt})
+    </insert>
+
+    <select id="selectByBizId" resultMap="PicklistResultMap">
+        SELECT id, biz_id, user_id, run_id, template_id, disclaimer, assumptions, created_at, updated_at
+        FROM ebus_picklist
+        WHERE biz_id = #{bizId}
+    </select>
+
+    <select id="selectByRunId" resultMap="PicklistResultMap">
+        SELECT id, biz_id, user_id, run_id, template_id, disclaimer, assumptions, created_at, updated_at
+        FROM ebus_picklist
+        WHERE run_id = #{runId}
+    </select>
+
+    <select id="selectItemsByPicklistId" resultMap="PicklistItemResultMap">
+        SELECT id, biz_id, picklist_id, sort_order, title, price_band, reason, differentiation,
+               demand, competition, margin, risk, created_at
+        FROM ebus_picklist_item
+        WHERE picklist_id = #{picklistId}
+        ORDER BY sort_order ASC
+    </select>
+</mapper>
