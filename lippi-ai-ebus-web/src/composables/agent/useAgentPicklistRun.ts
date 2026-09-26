@@ -7,6 +7,7 @@ import type {
   PicklistArtifactPayload,
   StreamPicklistRunOptions,
 } from '@/types/business/agent'
+import { parseComputerDocument } from '@/types/business/computerView'
 
 const CREDITS_CHANGED_EVENT = 'ebus:credits-changed'
 
@@ -159,6 +160,7 @@ function toPicklistArtifact(data: Record<string, unknown>): PicklistArtifactPayl
     disclaimer: str(data.disclaimer),
     assumptions: str(data.assumptions) || undefined,
     items,
+    view: parseComputerDocument(data.view) ?? undefined,
   }
 }
 

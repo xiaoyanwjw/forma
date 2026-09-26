@@ -9,7 +9,6 @@ import {
   DEMO_PICKS,
   DEMO_SESSION_TITLE,
 } from '@/views/business/scene/ecommerceDemoFixtures'
-import type { ComputerDocument } from '@/types/business/computerView'
 import type { PicklistArtifactPayload } from '@/types/business/agent'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
@@ -36,7 +35,7 @@ const sceneBizId = ref<string | null>(null)
 const messages = ref<ChatMessage[]>([])
 const sessionTitle = ref(DEMO_SESSION_TITLE)
 const computerKind = ref<ComputerKind>(null)
-const livePicklist = ref<(PicklistArtifactPayload & { view?: ComputerDocument }) | null>(null)
+const livePicklist = ref<PicklistArtifactPayload | null>(null)
 const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
 
@@ -360,6 +359,7 @@ onMounted(async () => {
             <div v-if="activeComputerDoc" class="comp-card">
               <ComputerRenderer :document="activeComputerDoc" />
             </div>
+            <!-- FallbackPicklistCard：无 view 时用旧字段，禁止 FE project() -->
             <div v-else-if="computerKind === 'picks'" class="comp-card">
               <div class="comp-card-head">
                 <span>选品清单</span>

@@ -96,6 +96,33 @@ function mockCatalogAndCredits(opts?: {
             templateId: 'domestic-generic-default',
             disclaimer: '基于通用电商知识推断，非实时平台数据',
             items: SAMPLE_ITEMS,
+            view: {
+              version: 1,
+              title: '选品清单',
+              status: '已结算',
+              blocks: [
+                {
+                  type: 'note',
+                  text: '基于通用电商知识推断，非实时平台数据',
+                  tone: 'mute',
+                },
+                {
+                  type: 'list',
+                  ordered: true,
+                  items: SAMPLE_ITEMS.map((it) => ({
+                    badge: it.title.startsWith('【优先试】') ? '优先试' : undefined,
+                    title: it.title.replace(/^【优先试】/, ''),
+                    lines: [`价格带：${it.priceBand}`, it.reason, it.differentiation],
+                    tags: [
+                      `需求 ${it.demand}`,
+                      `竞争 ${it.competition}`,
+                      `利润 ${it.margin}`,
+                      `风险 ${it.risk}`,
+                    ],
+                  })),
+                },
+              ],
+            },
           })}\n\n`,
           'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
         ]),
@@ -349,7 +376,9 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       const computer = mounted.root.querySelector('.computer')
       expect(computer?.textContent).toContain("Adam's Computer")
       expect(computer?.textContent).toMatch(/选品清单/)
-      expect(computer?.textContent).toMatch(/非实时/)
+      expect(computer?.querySelector('article.comp-card')).toBeTruthy()
+      expect(computer?.querySelector('.cv-note')?.textContent).toMatch(/非实时/)
+      expect(computer?.querySelectorAll('.pick-disclaimer').length).toBe(0)
       expect(computer?.querySelectorAll('.pick-list li').length).toBe(8)
       expect(computer?.textContent).toMatch(/需求 /)
       expect(computer?.textContent).toMatch(/优先试/)
@@ -359,6 +388,36 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     } finally {
       window.removeEventListener('ebus:credits-changed', onCredits)
     }
+  })
+
+  it('falls back to old pick-list layout when artifact has items but no view', async () => {
+    fetchMock = mockCatalogAndCredits({
+      onPicklist: () =>
+        new Response(
+          sseBody([
+            'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+            `event: artifact_ready\ndata: ${JSON.stringify({
+              artifactType: 'picklist',
+              picklistId: 'pl-1',
+              runId: 'r1',
+              templateId: 'domestic-generic-default',
+              disclaimer: '基于通用电商知识推断，非实时平台数据',
+              items: SAMPLE_ITEMS,
+            })}\n\n`,
+            'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
+          ]),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root)
+
+    const computer = mounted.root.querySelector('.computer')
+    expect(computer?.querySelector('.cv-note')).toBeNull()
+    expect(computer?.querySelector('.pick-disclaimer')?.textContent).toMatch(/非实时/)
+    expect(computer?.querySelectorAll('.pick-list li').length).toBe(8)
+    expect(computer?.textContent).toMatch(/优先试/)
   })
 
   it('run_failed also dispatches credits-changed', async () => {

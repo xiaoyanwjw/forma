@@ -1,3 +1,5 @@
+import type { ComputerDocument } from '@/types/business/computerView'
+
 /** AD-4 闭合 SSE 事件名（禁止同义别名） */
 export const AD4_EVENT_NAMES = [
   'run_started',
@@ -52,6 +54,7 @@ export interface PicklistArtifactPayload {
   disclaimer: string
   assumptions?: string
   items: PicklistArtifactItem[]
+  view?: ComputerDocument
 }
 
 export function isAd4EventName(value: string): value is Ad4EventName {
