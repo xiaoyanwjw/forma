@@ -179,3 +179,7 @@
 - source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
   summary: modelUsage 日志仍为 token/成本占位，真实 promptTokens/totalTokens 待 TurnResult 贯通。
   evidence: NFR2 近端以占位+responseChars 满足；真实用量字段后置。
+
+- source_spec: `docs/superpowers/specs/2026-09-26-generic-artifact-store-design.md`
+  summary: 本地 compose 若仍挂载含 `ebus_picklist*` 的旧 MySQL volume，bootstrap 不会自动删表；需 `docker compose … down -v` 后重建，让 `010_ebus_artifact.sql` 在空库生效。
+  evidence: 设计决策「开发库丢弃重建、无迁移脚本」；与 1.1 改密后 volume 不 re-init 同类。

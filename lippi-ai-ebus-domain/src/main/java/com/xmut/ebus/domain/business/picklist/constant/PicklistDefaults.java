@@ -1,7 +1,7 @@
 package com.xmut.ebus.domain.business.picklist.constant;
 
 /**
- * 近端默认品类模板身份与字段长度上限（对齐 010_ebus_picklist.sql）。
+ * 近端默认品类模板身份与字段长度上限（对齐 {@code ebus_artifact} picklist payload 与 ArtifactStore 校验）。
  */
 public final class PicklistDefaults {
 

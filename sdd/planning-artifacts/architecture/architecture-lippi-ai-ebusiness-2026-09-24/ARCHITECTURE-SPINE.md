@@ -99,9 +99,10 @@ flowchart LR
 | Identity | 用户账号、凭证校验、JWT 签发/吊销 |
 | CreditLedger | 余额、预占、结算、月重置、套餐档 |
 | AgentRuntime | Agent 会话、`GenerationRun`（关联 holdId + sessionId + artifact 引用）、SSE 推送、`AgentSession` 编排 |
+| ArtifactStore | 唯一物理写入 `ebus_artifact`（及同族存储） |
 | CatalogTemplate | 品类模板；**全部已上线模板对三档套餐均可用**（不按套餐解锁） |
-| PicklistArtifact | 选品清单及候选理由；每份清单必有 `templateId` |
-| ListingArtifact | Listing 文案/展示说明；可选 `picklistItemId`；主图只存 `mediaObjectId[]`（不发明第二套 URL 真相） |
+| PicklistArtifact | 定义 `artifact_type=picklist` 的可用成果形状与校验（约 8–12 条候选、必含 `templateId` 等）；**不**持有专用表 |
+| ListingArtifact | 定义 `artifact_type=sku` 的可用成果形状与校验（文案/展示说明、≥1 个 `mediaObjectId`、可选 `picklistItemId`）；**不**持有专用表 |
 | MediaStore | OSS `objectKey`、字节、派生可读 URL |
 | Feedback | FR-11「质量差」等简短反馈记录 |
 | HistoryQuery | 无独立写模型；只读聚合本人近期成果 |
@@ -112,8 +113,8 @@ flowchart LR
 - **Binds:** FR-3, FR-7, FR-9, FR-11, PicklistArtifact, ListingArtifact, AgentRuntime
 - **Prevents:** 成果定义分叉；重试会话/预占错绑；选品→Listing 交接形状冲突
 - **Rule:**
-  - 选品成功：持久化约 8–12 条带理由候选，必含 `templateId`，并挂到当前 `GenerationRun.artifactRef`。
-  - Listing 成功：持久化文案/展示说明 + ≥1 个 `mediaObjectId`；可带 `picklistItemId`（自填商品则可空）。
+  - 选品成功：**写入 ArtifactStore**（`ebus_artifact`，`artifact_type=picklist`）约 8–12 条带理由候选，必含 `templateId`，并挂到当前 `GenerationRun.artifactRef`。
+  - Listing 成功：**写入 ArtifactStore**（`artifact_type=sku`）文案/展示说明 + ≥1 个 `mediaObjectId`；可带 `picklistItemId`（自填商品则可空）。
   - 每次计费生成（含重试）= **新的 `GenerationRun` + 新预占**；可复用同一聊天 `AgentSession`，但不得复用旧 hold。
   - 达成功条件后由 application 调 CreditLedger 结算，再发 SSE `artifact_ready` / `run_settled`。
   - 历史：**每次成功成果均保留为独立记录**（重试不覆盖、不自动 superseded）；用户删除另议。
@@ -265,15 +266,9 @@ erDiagram
   User ||--o{ AgentSession : owns
   AgentSession ||--o{ GenerationRun : contains
   CreditHold ||--|| GenerationRun : reserved_by
-  GenerationRun ||--o| Picklist : may_produce
-  GenerationRun ||--o| ListingPack : may_produce
-  User ||--o{ Picklist : owns
-  User ||--o{ ListingPack : owns
+  GenerationRun ||--o| Artifact : may_produce
+  User ||--o{ Artifact : owns
   User ||--o{ Feedback : writes
-  CatalogTemplate ||--o{ Picklist : shapes
-  Picklist ||--o{ PicklistItem : contains
-  PicklistItem ||--o{ ListingPack : optional_source
-  ListingPack ||--o{ MediaObject : refs
 ```
 
 ## Capability → Architecture Map

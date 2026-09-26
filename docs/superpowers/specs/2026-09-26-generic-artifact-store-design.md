@@ -1,7 +1,7 @@
 # 通用 ArtifactStore：选品 / Listing 共用落库
 
 日期：2026-09-26  
-状态：approved  
+状态：implemented  
 范围：物理表从 `ebus_picklist*` 收成 `ebus_artifact`；逻辑所有权仍分选品 / Listing（sku）  
 前置：故事 3.4 已用专用表交付；本变更属 course-correction（对齐「存储通用、业务形状专用」）
 
