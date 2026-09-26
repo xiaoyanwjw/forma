@@ -61,9 +61,6 @@ public final class DefaultAgentSession implements AgentSession {
      */
     @Override
     public TurnResult prompt(PromptRequest request) {
-        if (request == null) {
-            return TurnResult.failed(null, "PromptRequest required");
-        }
 
         // 稳定 sessionId / runId：空则建会话、缺 runId 则发 UUID（幂等键交给 SessionStore.append）
         String sessionId = request.getSessionId();
