@@ -89,6 +89,9 @@ function mockCatalogAndCredits(opts?: {
       return new Response(
         sseBody([
           'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+          'event: tool_started\ndata: {"toolName":"read_skill"}\n\n',
+          'event: tool_finished\ndata: {"toolName":"read_skill"}\n\n',
+          `event: message_delta\ndata: {"text":"${'x'.repeat(130)}"}\n\n`,
           `event: artifact_ready\ndata: ${JSON.stringify({
             artifactType: 'picklist',
             picklistId: 'pl-1',
@@ -385,10 +388,64 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(computer?.textContent).toMatch(/优先试/)
       expect(computer?.querySelector('.priority-tag')).toBeTruthy()
       expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/已生成/)
+      expect(mounted.root.querySelector('.chat-steps')?.textContent).toContain('read_skill')
+      expect(mounted.root.querySelector('.chat-steps')?.textContent).toContain('✓')
+      const streamBody = mounted.root.querySelector('.chat-stream-body')
+      expect(streamBody?.textContent?.endsWith('…')).toBe(true)
+      expect(streamBody?.textContent).toBe(`${'x'.repeat(120)}…`)
+      const toggle = mounted.root.querySelector('.chat-stream-toggle') as HTMLButtonElement
+      expect(toggle).toBeTruthy()
+      expect(toggle.textContent).toContain('展开')
+      toggle.click()
+      await flushUi()
+      expect(mounted.root.querySelector('.chat-stream-body')?.textContent).toBe('x'.repeat(130))
+      expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('收起')
       expect(creditEvents.length).toBeGreaterThanOrEqual(1)
     } finally {
       window.removeEventListener('ebus:credits-changed', onCredits)
     }
+  })
+
+  it('short message_delta has no fold toggle', async () => {
+    const shortText = 'x'.repeat(120)
+    fetchMock = mockCatalogAndCredits({
+      onPicklist: () =>
+        new Response(
+          sseBody([
+            'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+            `event: message_delta\ndata: {"text":"${shortText}"}\n\n`,
+            `event: artifact_ready\ndata: ${JSON.stringify({
+              artifactType: 'picklist',
+              picklistId: 'pl-1',
+              runId: 'r1',
+              templateId: 'domestic-generic-default',
+              disclaimer: '基于通用电商知识推断，非实时平台数据',
+              items: SAMPLE_ITEMS,
+            })}\n\n`,
+            'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
+          ]),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root)
+
+    expect(mounted.root.querySelector('.chat-stream-toggle')).toBeNull()
+    expect(mounted.root.querySelector('.chat-stream-body')?.textContent).toBe(shortText)
+  })
+
+  it('does not hardcode picklist-specific step strings in chat source', () => {
+    const vueSrc = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), 'EcommerceWorkspacePlaceholder.vue'),
+      'utf8',
+    )
+    const runSrc = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../../composables/agent/useAgentPicklistRun.ts'),
+      'utf8',
+    )
+    const src = `${vueSrc}\n${runSrc}`
+    expect(src).not.toMatch(/正在读取技能|解析选品|生成候选清单|调用选品工具/)
   })
 
   it('falls back to old pick-list layout when artifact has items but no view', async () => {

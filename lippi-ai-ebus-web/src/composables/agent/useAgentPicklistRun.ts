@@ -8,6 +8,12 @@ import type {
   StreamPicklistRunOptions,
 } from '@/types/business/agent'
 import { parseComputerDocument } from '@/types/business/computerView'
+import {
+  applyToolFinished,
+  applyToolStarted,
+  appendMessageDelta,
+  type ProgressStep,
+} from '@/composables/agent/agentProgress'
 
 const CREDITS_CHANGED_EVENT = 'ebus:credits-changed'
 
@@ -21,6 +27,8 @@ export function useAgentPicklistRun() {
   const eventNames = ref<Ad4EventName[]>([])
   const artifact = ref<PicklistArtifactPayload | null>(null)
   const sessionId = ref<string | null>(null)
+  const progressSteps = ref<ProgressStep[]>([])
+  const streamText = ref('')
   let abortController: AbortController | null = null
   /** Bumped on reset/newTask so late SSE events are ignored. */
   let runGeneration = 0
@@ -40,6 +48,8 @@ export function useAgentPicklistRun() {
     eventNames.value = []
     artifact.value = null
     sessionId.value = null
+    progressSteps.value = []
+    streamText.value = ''
   }
 
   onUnmounted(() => {
@@ -65,6 +75,8 @@ export function useAgentPicklistRun() {
     events.value = []
     eventNames.value = []
     artifact.value = null
+    progressSteps.value = []
+    streamText.value = ''
 
     try {
       for await (const event of streamPicklistRun({
@@ -79,6 +91,15 @@ export function useAgentPicklistRun() {
         events.value = [...events.value, event]
         eventNames.value = [...eventNames.value, event.name]
 
+        if (event.name === 'tool_started') {
+          progressSteps.value = applyToolStarted(progressSteps.value, event.data)
+        }
+        if (event.name === 'tool_finished') {
+          progressSteps.value = applyToolFinished(progressSteps.value, event.data)
+        }
+        if (event.name === 'message_delta') {
+          streamText.value = appendMessageDelta(streamText.value, event.data)
+        }
         if (event.name === 'run_started') {
           const sid = event.data.sessionId
           if (typeof sid === 'string' && sid.trim()) {
@@ -117,6 +138,8 @@ export function useAgentPicklistRun() {
     eventNames,
     artifact,
     sessionId,
+    progressSteps,
+    streamText,
     startPicklistRun,
     abort,
     reset,

@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
 import { getScenes } from '@/api/business/scene/scene'
+import { foldPreview, type ProgressStep } from '@/composables/agent/agentProgress'
 import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
 import {
   DEMO_LISTING_VIEW,
@@ -27,6 +28,8 @@ interface ChatMessage {
   id: string
   role: 'user' | 'agent'
   text: string
+  steps?: ProgressStep[]
+  streamText?: string
 }
 
 const sessionPrompt = ref('')
@@ -38,12 +41,16 @@ const computerKind = ref<ComputerKind>(null)
 const livePicklist = ref<PicklistArtifactPayload | null>(null)
 const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
+const thinkingMessageId = ref<string | null>(null)
+const expandedStreamIds = ref(new Set<string>())
 
 const {
   running: picklistRunning,
   error: picklistError,
   artifact: picklistArtifact,
   sessionId,
+  progressSteps,
+  streamText,
   startPicklistRun,
   reset: resetPicklistRun,
 } = useAgentPicklistRun()
@@ -129,6 +136,7 @@ async function sendFromSession() {
   }
 
   const thinkingId = nextMsgId()
+  thinkingMessageId.value = thinkingId
   messages.value.push({
     id: thinkingId,
     role: 'agent',
@@ -144,6 +152,10 @@ async function sendFromSession() {
   })
 
   const idx = messages.value.findIndex((m) => m.id === thinkingId)
+  const progressSnapshot = {
+    steps: progressSteps.value.length ? [...progressSteps.value] : undefined,
+    streamText: streamText.value.trim() || undefined,
+  }
   if (picklistError.value) {
     const reason = picklistError.value
     const soft =
@@ -151,10 +163,11 @@ async function sendFromSession() {
         ? `${reason}。可前往套餐页升级后再试。`
         : reason
     if (idx >= 0) {
-      messages.value[idx] = { id: thinkingId, role: 'agent', text: soft }
+      messages.value[idx] = { id: thinkingId, role: 'agent', text: soft, ...progressSnapshot }
     } else {
-      messages.value.push({ id: nextMsgId(), role: 'agent', text: soft })
+      messages.value.push({ id: nextMsgId(), role: 'agent', text: soft, ...progressSnapshot })
     }
+    thinkingMessageId.value = null
     scrollChatToBottom()
     return
   }
@@ -166,18 +179,19 @@ async function sendFromSession() {
     const n = picklistArtifact.value.items.length
     const reply = `已生成 ${n} 条选品候选，右侧 Computer 可查看四维简评与可卖理由。`
     if (idx >= 0) {
-      messages.value[idx] = { id: thinkingId, role: 'agent', text: reply }
+      messages.value[idx] = { id: thinkingId, role: 'agent', text: reply, ...progressSnapshot }
     } else {
-      messages.value.push({ id: nextMsgId(), role: 'agent', text: reply })
+      messages.value.push({ id: nextMsgId(), role: 'agent', text: reply, ...progressSnapshot })
     }
   } else {
     const fallback = '选品已结束，但未收到可用清单，请重试。'
     if (idx >= 0) {
-      messages.value[idx] = { id: thinkingId, role: 'agent', text: fallback }
+      messages.value[idx] = { id: thinkingId, role: 'agent', text: fallback, ...progressSnapshot }
     } else {
-      messages.value.push({ id: nextMsgId(), role: 'agent', text: fallback })
+      messages.value.push({ id: nextMsgId(), role: 'agent', text: fallback, ...progressSnapshot })
     }
   }
+  thinkingMessageId.value = null
   scrollChatToBottom()
 }
 
@@ -203,11 +217,23 @@ function closeComputer() {
 
 function newTask() {
   resetPicklistRun()
+  thinkingMessageId.value = null
+  expandedStreamIds.value = new Set()
   messages.value = []
   computerKind.value = null
   livePicklist.value = null
   sessionPrompt.value = ''
   sessionTitle.value = DEMO_SESSION_TITLE
+}
+
+function toggleStreamExpand(id: string) {
+  const next = new Set(expandedStreamIds.value)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+  }
+  expandedStreamIds.value = next
 }
 
 function padIndex(i: number) {
@@ -217,6 +243,18 @@ function padIndex(i: number) {
 watch(picklistArtifact, (value) => {
   if (value?.items?.length) {
     livePicklist.value = value
+  }
+})
+
+watch([progressSteps, streamText], () => {
+  if (!picklistRunning.value || !thinkingMessageId.value) return
+  const idx = messages.value.findIndex((m) => m.id === thinkingMessageId.value)
+  if (idx < 0) return
+  const cur = messages.value[idx]
+  messages.value[idx] = {
+    ...cur,
+    steps: progressSteps.value.length ? [...progressSteps.value] : undefined,
+    streamText: streamText.value.trim() || undefined,
   }
 })
 
@@ -272,6 +310,28 @@ onMounted(async () => {
             >
               <div class="role">{{ m.role === 'user' ? '你' : 'Adam' }}</div>
               <div class="body">
+                <ul v-if="m.steps?.length" class="chat-steps">
+                  <li v-for="s in m.steps" :key="s.id">
+                    <span v-if="s.done" class="ok">✓</span>
+                    <span v-else class="pending">·</span>
+                    {{ s.label }}
+                  </li>
+                </ul>
+                <div v-if="m.streamText" class="chat-stream">
+                  <button
+                    v-if="foldPreview(m.streamText).needsFold"
+                    type="button"
+                    class="chat-stream-toggle"
+                    @click="toggleStreamExpand(m.id)"
+                  >
+                    {{ expandedStreamIds.has(m.id) ? '收起' : '展开' }}
+                  </button>
+                  <pre class="chat-stream-body">{{
+                    expandedStreamIds.has(m.id) || !foldPreview(m.streamText).needsFold
+                      ? m.streamText
+                      : foldPreview(m.streamText).preview
+                  }}</pre>
+                </div>
                 <p>{{ m.text }}</p>
                 <div v-if="m.role === 'agent' && !picksIsLive" class="demo-actions">
                   <button

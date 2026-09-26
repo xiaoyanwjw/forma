@@ -170,6 +170,57 @@
   margin-top: 6px;
 }
 
+.msg .chat-steps {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  background: var(--canvas);
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+
+.msg .chat-steps li {
+  padding: 3px 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.msg .chat-steps .ok {
+  color: #16a34a;
+}
+
+.msg .chat-steps .pending {
+  color: var(--mute);
+}
+
+.msg .chat-stream {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  background: var(--canvas);
+  border-radius: 10px;
+}
+
+.msg .chat-stream-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--mute);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0 0 6px;
+}
+
+.msg .chat-stream-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  color: var(--mute);
+  line-height: 1.5;
+}
+
 .demo-actions {
   display: flex;
   flex-wrap: wrap;
