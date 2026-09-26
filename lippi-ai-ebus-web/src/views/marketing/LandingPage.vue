@@ -4,7 +4,7 @@ import { getToken } from '@/api/http'
 import { AI_DISCLAIMER_SHORT } from '@/constants/compliance'
 
 const router = useRouter()
-/** 入场时读一次 JWT；有 token 则点进 /credits，不强制 redirect */
+/** 入场时读一次 JWT；有 token 则点进场景画廊，不强制 redirect */
 const loggedIn = Boolean(getToken())
 
 const QUICK_PILLS = [
@@ -13,7 +13,7 @@ const QUICK_PILLS = [
 ] as const
 
 function goPrimary() {
-  void router.push({ name: loggedIn ? 'credits' : 'login' })
+  void router.push({ name: loggedIn ? 'scenes' : 'login' })
 }
 
 function goRegister() {
@@ -30,7 +30,7 @@ function goRegister() {
       </span>
       <div class="top-actions">
         <template v-if="loggedIn">
-          <button type="button" class="linkish" @click="goPrimary">套餐与积分</button>
+          <button type="button" class="linkish" @click="goPrimary">进入场景</button>
         </template>
         <template v-else>
           <button type="button" class="linkish" @click="goRegister">注册</button>

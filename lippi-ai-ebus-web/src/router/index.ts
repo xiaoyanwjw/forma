@@ -31,7 +31,12 @@ const router = createRouter({
     {
       path: '/scenes',
       name: 'scenes',
-      component: () => import('@/views/business/scene/ScenePlaceholder.vue'),
+      component: () => import('@/views/business/scene/SceneGallery.vue'),
+    },
+    {
+      path: '/scenes/ecommerce',
+      name: 'scene-ecommerce',
+      component: () => import('@/views/business/scene/EcommerceWorkspacePlaceholder.vue'),
     },
     {
       path: '/history',

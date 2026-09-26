@@ -4,7 +4,8 @@ import router from '@/router'
 import CreditPlan from '@/views/business/credit/CreditPlan.vue'
 import LandingPage from '@/views/marketing/LandingPage.vue'
 import AgentDryRun from '@/views/agent/AgentDryRun.vue'
-import ScenePlaceholder from '@/views/business/scene/ScenePlaceholder.vue'
+import SceneGallery from '@/views/business/scene/SceneGallery.vue'
+import EcommerceWorkspacePlaceholder from '@/views/business/scene/EcommerceWorkspacePlaceholder.vue'
 import HistoryPlaceholder from '@/views/business/history/HistoryPlaceholder.vue'
 
 describe('router landing', () => {
@@ -72,13 +73,22 @@ describe('router agent dry-run', () => {
 })
 
 describe('router scene/history shell placeholders', () => {
-  it('resolve /scenes points to ScenePlaceholder', async () => {
+  it('resolve /scenes points to SceneGallery', async () => {
     const resolved = router.resolve({ name: 'scenes' })
     expect(resolved.path).toBe('/scenes')
     const loader = resolved.matched[0]?.components?.default
     expect(typeof loader).toBe('function')
     const mod = await (loader as () => Promise<{ default: unknown }>)()
-    expect(mod.default).toBe(ScenePlaceholder)
+    expect(mod.default).toBe(SceneGallery)
+  })
+
+  it('resolve /scenes/ecommerce points to EcommerceWorkspacePlaceholder', async () => {
+    const resolved = router.resolve({ name: 'scene-ecommerce' })
+    expect(resolved.path).toBe('/scenes/ecommerce')
+    const loader = resolved.matched[0]?.components?.default
+    expect(typeof loader).toBe('function')
+    const mod = await (loader as () => Promise<{ default: unknown }>)()
+    expect(mod.default).toBe(EcommerceWorkspacePlaceholder)
   })
 
   it('resolve /history points to HistoryPlaceholder', async () => {

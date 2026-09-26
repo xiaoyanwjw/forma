@@ -111,3 +111,7 @@
 - source_spec: `sdd/implementation-artifacts/spec-2-1-scenecatalog-与画廊列表-api.md`
   summary: Scene 仓储暂无按 bizId/sceneCode 单条查询，Epic 3 会话绑场景时需补端口。
   evidence: 本故事 Intent 仅画廊列表；epic-2-context / AD-15 绑定落在 Epic 3。
+
+- source_spec: `sdd/implementation-artifacts/spec-2-3-场景画廊页-1-亮-3-灰.md`
+  summary: 窄屏单列布局仅靠源码 `@media` 正则断言，jsdom 无法证明运行时单列。
+  evidence: verification-gap：改 media 规则或保留 `1fr` 子串仍可能绿；需浏览器级检查才能闭合。

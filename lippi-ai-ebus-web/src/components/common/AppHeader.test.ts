@@ -116,6 +116,9 @@ describe('AppHeader', () => {
     expect(mounted.root.textContent).toMatch(/套餐/)
     expect(mounted.root.textContent).toMatch(/升级/)
     expect(mounted.root.querySelector('[aria-label="账户"]')).toBeTruthy()
+    const logo = mounted.root.querySelector('a.logo')
+    expect(logo?.getAttribute('href')).toBe('/scenes')
+    expect(logo?.getAttribute('aria-label')).toBe('Adam 场景')
   })
 
   it('activeNav applies .on and aria-current=page on the active control', async () => {
@@ -130,7 +133,7 @@ describe('AppHeader', () => {
     expect(plans?.getAttribute('aria-current')).toBe('page')
   })
 
-  it('scenes links to landing; history is not a navigable link', async () => {
+  it('scenes links to scenes gallery; history is not a navigable link', async () => {
     const mounted = await mountHeader()
     unmount = mounted.unmount
     await flushUi()
@@ -138,7 +141,7 @@ describe('AppHeader', () => {
     const sceneLink = Array.from(mounted.root.querySelectorAll('a')).find((a) =>
       a.textContent?.includes('场景'),
     )
-    expect(sceneLink?.getAttribute('href')).toBe('/')
+    expect(sceneLink?.getAttribute('href')).toBe('/scenes')
 
     const historyLink = Array.from(mounted.root.querySelectorAll('a')).find(
       (a) => a.textContent?.trim() === '历史',
@@ -156,7 +159,7 @@ describe('AppHeader', () => {
     expect(crumb?.textContent).toMatch(/场景/)
     expect(crumb?.textContent).toMatch(/电商开店/)
     const back = crumb?.querySelector('a')
-    expect(back?.getAttribute('href')).toBe('/')
+    expect(back?.getAttribute('href')).toBe('/scenes')
   })
 
   it('whitespace-only sceneBreadcrumb stays in default nav mode', async () => {

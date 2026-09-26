@@ -34,6 +34,7 @@ async function mountWithRouter(Component: typeof AuthLogin | typeof AuthRegister
       { path: '/login', name: 'login', component: AuthLogin },
       { path: '/register', name: 'register', component: AuthRegister },
       { path: '/credits', name: 'credits', component: { template: '<div>credits</div>' } },
+      { path: '/scenes', name: 'scenes', component: { template: '<div>scenes</div>' } },
       { path: '/me', name: 'me', component: { template: '<div>me</div>' } },
     ],
   })
@@ -93,7 +94,7 @@ async function fillAndSubmit(root: HTMLElement, values: Record<string, string>, 
   await flushUi()
 }
 
-describe('auth landing pushes credits', () => {
+describe('auth landing pushes scenes', () => {
   let unmount: (() => void) | undefined
 
   beforeEach(() => {
@@ -123,7 +124,7 @@ describe('auth landing pushes credits', () => {
     unmount = undefined
   })
 
-  it('AuthLogin onSubmit pushes { name: credits }', async () => {
+  it('AuthLogin onSubmit pushes { name: scenes }', async () => {
     const mounted = await mountWithRouter(AuthLogin, '/login')
     unmount = mounted.unmount
     await flushUi()
@@ -132,7 +133,7 @@ describe('auth landing pushes credits', () => {
 
     expect(login).toHaveBeenCalled()
     expect(afterLogin).toHaveBeenCalledWith('jwt-demo')
-    expect(mounted.push).toHaveBeenCalledWith({ name: 'credits' })
+    expect(mounted.push).toHaveBeenCalledWith({ name: 'scenes' })
   })
 
   it('AuthRegister without disclaimer does not call register', async () => {
@@ -150,10 +151,10 @@ describe('auth landing pushes credits', () => {
 
     expect(register).not.toHaveBeenCalled()
     expect(mounted.root.textContent).toMatch(/确认/)
-    expect(mounted.push).not.toHaveBeenCalledWith({ name: 'credits' })
+    expect(mounted.push).not.toHaveBeenCalledWith({ name: 'scenes' })
   })
 
-  it('AuthRegister onSubmit pushes { name: credits }', async () => {
+  it('AuthRegister onSubmit pushes { name: scenes }', async () => {
     const mounted = await mountWithRouter(AuthRegister, '/register')
     unmount = mounted.unmount
     await flushUi()
@@ -176,6 +177,6 @@ describe('auth landing pushes credits', () => {
     })
     expect(login).toHaveBeenCalled()
     expect(afterLogin).toHaveBeenCalledWith('jwt-demo')
-    expect(mounted.push).toHaveBeenCalledWith({ name: 'credits' })
+    expect(mounted.push).toHaveBeenCalledWith({ name: 'scenes' })
   })
 })

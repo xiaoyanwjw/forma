@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, getToken, setToken } from '@/api/http'
 import { getCredits } from '@/api/business/credit/credit'
 import CreditPlan from '@/views/business/credit/CreditPlan.vue'
-import ScenePlaceholder from '@/views/business/scene/ScenePlaceholder.vue'
+import SceneGallery from '@/views/business/scene/SceneGallery.vue'
 import HistoryPlaceholder from '@/views/business/history/HistoryPlaceholder.vue'
 import {
   CREDIT_PLAN_ROWS,
@@ -39,7 +39,7 @@ async function mountShell(component: Component, path: string) {
       { path: '/register', name: 'register', component: { template: '<div />' } },
       { path: '/me', name: 'me', component: { template: '<div />' } },
       { path: '/credits', name: 'credits', component: CreditPlan },
-      { path: '/scenes', name: 'scenes', component: ScenePlaceholder },
+      { path: '/scenes', name: 'scenes', component: SceneGallery },
       { path: '/history', name: 'history', component: HistoryPlaceholder },
     ],
   })
@@ -271,8 +271,17 @@ describe('credits FE', () => {
     expect(mounted.root.querySelector('.available')).toBeNull()
   })
 
-  it('ScenePlaceholder mounts AppHeader with nav slots', async () => {
-    const mounted = await mountShell(ScenePlaceholder, '/scenes')
+  it('SceneGallery mounts AppHeader with nav slots', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ success: true, code: 0, message: 'ok', data: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    )
+    const mounted = await mountShell(SceneGallery, '/scenes')
     unmount = mounted.unmount
     await flushUi()
     assertAppHeaderSlots(mounted.root)

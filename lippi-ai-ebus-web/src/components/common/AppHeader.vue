@@ -71,7 +71,7 @@ onUnmounted(stopAuth)
 <template>
   <header class="app-header" role="banner">
     <div class="app-header-left">
-      <RouterLink class="logo" :to="{ name: 'landing' }" aria-label="Adam 首页">
+      <RouterLink class="logo" :to="{ name: 'scenes' }" aria-label="Adam 场景">
         <span class="logo-mark" aria-hidden="true">A</span>
         Adam
       </RouterLink>
@@ -81,7 +81,7 @@ onUnmounted(stopAuth)
           class="scene-switch"
           aria-label="面包屑"
         >
-          <RouterLink :to="{ name: 'landing' }" class="nav-link crumb-link">场景</RouterLink>
+          <RouterLink :to="{ name: 'scenes' }" class="nav-link crumb-link">场景</RouterLink>
           <span class="bc-sep" aria-hidden="true">/</span>
           <strong class="bc-current">{{ breadcrumbLabel }}</strong>
         </span>
@@ -90,7 +90,7 @@ onUnmounted(stopAuth)
           class="nav-link"
           :class="{ on: props.activeNav === 'scenes' }"
           :aria-current="props.activeNav === 'scenes' ? 'page' : undefined"
-          :to="{ name: 'landing' }"
+          :to="{ name: 'scenes' }"
         >
           场景
         </RouterLink>

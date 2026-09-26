@@ -7,8 +7,8 @@ import AppHeader from '@/components/common/AppHeader.vue'
     <AppHeader active-nav="scenes" />
     <main class="page">
       <div class="inner">
-        <h1>场景</h1>
-        <p>选择一个场景开始。积分在账号里通用。</p>
+        <h1>电商开店</h1>
+        <p>从这里继续选品与上架。</p>
       </div>
     </main>
   </div>

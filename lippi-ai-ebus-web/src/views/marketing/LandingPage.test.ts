@@ -21,6 +21,7 @@ async function mountLanding() {
       { path: '/login', name: 'login', component: { template: '<div>login</div>' } },
       { path: '/register', name: 'register', component: { template: '<div>register</div>' } },
       { path: '/credits', name: 'credits', component: { template: '<div>credits</div>' } },
+      { path: '/scenes', name: 'scenes', component: { template: '<div>scenes</div>' } },
     ],
   })
   await router.push('/')
@@ -108,7 +109,7 @@ describe('LandingPage', () => {
     expect(mounted.push).toHaveBeenCalledWith({ name: 'register' })
   })
 
-  it('logged-in: stays on landing; prompt goes to credits', async () => {
+  it('logged-in: stays on landing; prompt goes to scenes', async () => {
     setToken('jwt-demo')
     const mounted = await mountLanding()
     unmount = mounted.unmount
@@ -120,7 +121,7 @@ describe('LandingPage', () => {
     const prompt = mounted.root.querySelector('.prompt')
     prompt?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushUi()
-    expect(mounted.push).toHaveBeenCalledWith({ name: 'credits' })
+    expect(mounted.push).toHaveBeenCalledWith({ name: 'scenes' })
   })
 
   it('has no all-caps eyebrow and no arrow-stacked button labels', async () => {
