@@ -1,7 +1,7 @@
 # 工作台：SSE 过程区视觉对齐 Manus 计划条
 
 日期：2026-09-26  
-状态：approved  
+状态：implemented  
 范围：电商工作台对话气泡内的 `chat-steps` +「工作过程」disclosure  
 前置：已有 AD-4 SSE（`tool_*` / `message_delta`）与中文工具名 / JSON 过滤
 
