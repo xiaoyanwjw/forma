@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Adam · 场景</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header" role="banner">
+    <div class="app-header-left">
+      <a class="logo" href="index.html" aria-label="Adam 首页">
+        <span class="logo-mark">A</span>
+        Adam
+      </a>
+      <nav class="header-nav" aria-label="主导航">
+        <a class="nav-link on" href="index.html">场景</a>
+        <a class="nav-link" href="history.html">历史</a>
+        <a class="nav-link" href="pricing.html">套餐</a>
+      </nav>
+    </div>
+    <div class="app-header-right">
+      <span class="credits-chip">免费 · 14/20</span>
+      <a class="btn btn-ghost" href="pricing.html">升级</a>
+      <a class="avatar-btn" href="profile.html" aria-label="账户" title="账户">陈</a>
+    </div>
+  </header>
+
+  <main class="page gallery-wrap">
+    <div class="gallery-head">
+      <h1>今天想做什么？</h1>
+      <p>选一个场景开始。积分在账号里通用，开店、带货、种草都能用。</p>
+    </div>
+
+    <div class="scene-grid" role="list">
+      <a class="scene-card live" href="scene-ecommerce.html" role="listitem">
+        <div class="scene-card-top">
+          <span class="scene-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
+          </span>
+          <span class="badge live">可用</span>
+        </div>
+        <h2>电商开店</h2>
+        <p>选品与上架素材：带理由的候选清单，以及可直接用的主图和详情。</p>
+      </a>
+
+      <button type="button" class="scene-card soon" data-scene="短视频带货" role="listitem" aria-disabled="true">
+        <div class="scene-card-top">
+          <span class="scene-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
+          </span>
+          <span class="badge">即将推出</span>
+        </div>
+        <h2>短视频带货</h2>
+        <p>脚本、镜头与带货选品：帮你定拍什么、怎么讲、带哪款货。</p>
+        <span class="scene-card-cta">即将推出</span>
+      </button>
+
+      <button type="button" class="scene-card soon" data-scene="小红书种草" role="listitem" aria-disabled="true">
+        <div class="scene-card-top">
+          <span class="scene-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20l-3.5-7H4l8-9 8 9h-4.5L12 20z"/></svg>
+          </span>
+          <span class="badge">即将推出</span>
+        </div>
+        <h2>小红书种草</h2>
+        <p>笔记结构与种草表达：帮你写标题、正文与更像真人分享的草稿。</p>
+        <span class="scene-card-cta">即将推出</span>
+      </button>
+
+      <button type="button" class="scene-card soon" data-scene="本地生活" role="listitem" aria-disabled="true">
+        <div class="scene-card-top">
+          <span class="scene-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-4.5 7-11a7 7 0 10-14 0c0 6.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </span>
+          <span class="badge">即将推出</span>
+        </div>
+        <h2>本地生活</h2>
+        <p>到店、团购与周边生意：帮你整理套餐卖点与上架说法。</p>
+        <span class="scene-card-cta">即将推出</span>
+      </button>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span id="toast-text">这个场景即将上线。</span>
+    <a href="scene-ecommerce.html">先去电商开店</a>
+  </div>
+
+  <script>
+    const toast = document.getElementById("toast");
+    const toastText = document.getElementById("toast-text");
+    let hideTimer;
+    document.querySelectorAll(".scene-card.soon").forEach((el) => {
+      el.addEventListener("click", () => {
+        const name = el.getAttribute("data-scene");
+        toastText.textContent =
+          "「" + name + "」马上就来。你也可以先从电商开店开始。";
+        toast.classList.add("show");
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => toast.classList.remove("show"), 4500);
+      });
+    });
+  </script>
+</body>
+</html>

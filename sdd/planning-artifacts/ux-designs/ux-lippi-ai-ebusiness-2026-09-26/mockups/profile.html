@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Adam · 账户</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header" role="banner">
+    <div class="app-header-left">
+      <a class="logo" href="index.html"><span class="logo-mark">A</span> Adam</a>
+      <nav class="header-nav" aria-label="主导航">
+        <a class="nav-link" href="index.html">场景</a>
+        <a class="nav-link" href="history.html">历史</a>
+        <a class="nav-link" href="pricing.html">套餐</a>
+      </nav>
+    </div>
+    <div class="app-header-right">
+      <span class="credits-chip">免费 · 14/20</span>
+      <a class="btn btn-ghost" href="pricing.html">升级</a>
+      <a class="avatar-btn on" href="profile.html" aria-label="账户" title="账户">陈</a>
+    </div>
+  </header>
+
+  <div class="settings-shell">
+    <aside class="settings-nav" aria-label="账户设置">
+      <div class="settings-nav-title">账户</div>
+      <a class="settings-link on" href="#profile" data-panel="profile">个人资料</a>
+      <a class="settings-link" href="#usage" data-panel="usage">使用情况</a>
+      <a class="settings-link" href="#security" data-panel="security">安全</a>
+    </aside>
+
+    <main class="settings-main">
+      <section class="settings-panel on" id="panel-profile" aria-labelledby="title-profile">
+        <h1 id="title-profile">个人资料</h1>
+        <p class="settings-lead">管理你在 Adam 中显示的名称与联系方式。</p>
+
+        <div class="profile-hero">
+          <div class="profile-avatar" aria-hidden="true">陈</div>
+          <div>
+            <div class="profile-name">小陈</div>
+            <div class="profile-sub">chen@example.com</div>
+          </div>
+          <button type="button" class="btn btn-ghost" disabled>更换头像</button>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-row">
+            <div>
+              <div class="row-label">显示名称</div>
+              <div class="row-value">小陈</div>
+            </div>
+            <button type="button" class="btn btn-ghost" disabled>编辑</button>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="row-label">邮箱</div>
+              <div class="row-value">chen@example.com</div>
+            </div>
+            <button type="button" class="btn btn-ghost" disabled>更换</button>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="row-label">当前套餐</div>
+              <div class="row-value">免费 · 本月剩余 14 / 20</div>
+            </div>
+            <a class="btn btn-ghost" href="pricing.html">查看套餐</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-panel" id="panel-usage" aria-labelledby="title-usage" hidden>
+        <h1 id="title-usage">使用情况</h1>
+        <p class="settings-lead">查看积分余额与近期消耗，扣分发生在成功产出可用结果之后。</p>
+
+        <div class="usage-summary">
+          <div class="usage-stat">
+            <div class="usage-label">本月剩余</div>
+            <div class="usage-num">14 <span>/ 20</span></div>
+          </div>
+          <div class="usage-stat">
+            <div class="usage-label">本月已用</div>
+            <div class="usage-num">6</div>
+          </div>
+          <div class="usage-stat">
+            <div class="usage-label">下次重置</div>
+            <div class="usage-num small">约 30 天后</div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="usage-item">
+            <div>
+              <div class="row-value">家居类选品清单</div>
+              <div class="row-label">今天 09:12 · 电商开店</div>
+            </div>
+            <span class="usage-delta">−1</span>
+          </div>
+          <div class="usage-item">
+            <div>
+              <div class="row-value">保温杯上架素材</div>
+              <div class="row-label">昨天 21:04 · 电商开店</div>
+            </div>
+            <span class="usage-delta">−1</span>
+          </div>
+          <div class="usage-item">
+            <div>
+              <div class="row-value">电子配件候选</div>
+              <div class="row-label">3 天前 · 电商开店</div>
+            </div>
+            <span class="usage-delta">−1</span>
+          </div>
+        </div>
+        <p class="pricing-note">完整规则见套餐页。选品清单与上架素材各扣 1 积分。</p>
+      </section>
+
+      <section class="settings-panel" id="panel-security" aria-labelledby="title-security" hidden>
+        <h1 id="title-security">安全</h1>
+        <p class="settings-lead">登录与账户安全相关操作。</p>
+
+        <div class="settings-card">
+          <div class="settings-row">
+            <div>
+              <div class="row-label">密码</div>
+              <div class="row-value">已设置</div>
+            </div>
+            <button type="button" class="btn btn-ghost" disabled>更新密码</button>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="row-label">登录方式</div>
+              <div class="row-value">邮箱登录</div>
+            </div>
+            <button type="button" class="btn btn-ghost" disabled>管理</button>
+          </div>
+        </div>
+
+        <div class="settings-card danger">
+          <div class="settings-row">
+            <div>
+              <div class="row-label">退出登录</div>
+              <div class="row-value">在此设备结束会话</div>
+            </div>
+            <button type="button" class="btn btn-ghost" disabled>退出</button>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="row-label">删除账户</div>
+              <div class="row-value">删除后数据不可恢复</div>
+            </div>
+            <button type="button" class="btn btn-ghost danger-btn" disabled>删除账户</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const links = document.querySelectorAll(".settings-link");
+    const panels = {
+      profile: document.getElementById("panel-profile"),
+      usage: document.getElementById("panel-usage"),
+      security: document.getElementById("panel-security")
+    };
+    function show(id) {
+      links.forEach((l) => l.classList.toggle("on", l.getAttribute("data-panel") === id));
+      Object.keys(panels).forEach((key) => {
+        const on = key === id;
+        panels[key].classList.toggle("on", on);
+        panels[key].hidden = !on;
+      });
+      history.replaceState(null, "", "#" + id);
+    }
+    links.forEach((l) => {
+      l.addEventListener("click", (e) => {
+        e.preventDefault();
+        show(l.getAttribute("data-panel"));
+      });
+    });
+    const hash = (location.hash || "#profile").slice(1);
+    show(panels[hash] ? hash : "profile");
+  </script>
+</body>
+</html>

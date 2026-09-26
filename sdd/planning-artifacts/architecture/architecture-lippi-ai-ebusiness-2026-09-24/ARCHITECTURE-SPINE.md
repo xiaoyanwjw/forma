@@ -4,15 +4,18 @@ type: architecture-spine
 purpose: build-substrate
 altitude: initiative
 paradigm: SPA + API 模块化单体（流式 Agent）
-scope: Adam 近端：网页自助选品清单 + Listing 生成（积分制）；不含小程序与支付网关
+scope: >
+  Adam 近端：场景壳（SceneCatalog）+ 电商选品/Listing（积分制）+ 账户 /account；
+  不含小程序与支付网关；未开放场景后端硬拒后置
 status: final
 created: 2026-09-24
-updated: 2026-09-25
-binds: [FR-1..FR-12, NFR-1..NFR-5, UJ-1..UJ-3]
+updated: 2026-09-26
+binds: [FR-1..FR-18, NFR-1..NFR-6, UJ-0..UJ-5]
 sources:
   - sdd/planning-artifacts/prds/prd-lippi-ai-ebusiness-2026-09-23/prd.md
-  - sdd/planning-artifacts/ux-designs/ux-lippi-ai-ebusiness-2026-09-24/
-companions: []
+  - sdd/planning-artifacts/ux-designs/ux-lippi-ai-ebusiness-2026-09-26/
+companions:
+  - sdd/planning-artifacts/architecture/architecture-lippi-ai-ebusiness-2026-09-26/ARCHITECTURE-SPINE.md
 ---
 
 # Architecture Spine — lippi-ai-ebusiness
@@ -21,10 +24,10 @@ companions: []
 
 **SPA + API 模块化单体（流式 Agent）**
 
-- **Web（Vue SPA）**：展示、对话、预览；不拥有积分账本、不直连大模型。
-- **Backend（Spring Boot 单部署单元）**：账号、积分、Agent 会话/SSE、选品/Listing 成果、OSS；内部按所有权分包，**不**拆微服务。
-- **Agent 运行时**：vendor-copy 自 LIMS 的 `pi-ai` + `pi-agent`（门面 `AgentSession`）；模型调用只走 `pi-ai` 端口。
-- **传输**：计费生成路径用 **SSE** 推送 Agent 事件；其余用 REST。
+- **Web（Vue SPA）**：场景画廊、对话、预览、账户；不拥有积分账本、不直连大模型。
+- **Backend（Spring Boot 单部署单元）**：账号、积分、场景目录、Agent 会话/SSE、选品/Listing 成果、OSS；内部按所有权分包，**不**拆微服务。
+- **Agent 运行时**：vendor-copy 自 LIMS 的 `pi-ai` + `pi-agent`（门面 `AgentSession`）；模型调用只走 `pi-ai` 端口；按 `sceneCode` 加载代码内提示词/skill/tool 包。
+- **传输**：计费生成路径用 **SSE** 推送 Agent 事件；其余用 REST（账户统一 `/api/v1/account/**`）。
 
 ```mermaid
 flowchart LR
@@ -32,6 +35,7 @@ flowchart LR
   SPA -->|SSE JWT| API
   API --> ID[Identity]
   API --> CL[CreditLedger]
+  API --> SC[SceneCatalog]
   API --> AR[AgentRuntime]
   API --> PL[PicklistArtifact]
   API --> LI[ListingArtifact]
@@ -39,11 +43,13 @@ flowchart LR
   API --> MS[MediaStore]
   API --> FB[Feedback]
   API --> HQ[HistoryQuery]
+  AR -->|sceneCode| PACK[Code Packs]
   AR --> PiA[pi-agent AgentSession]
   PiA --> PiAI[pi-ai ModelProvider]
   MS --> OSS[Aliyun OSS]
   ID --> DB[(MySQL)]
   CL --> DB
+  SC --> DB
   PL --> DB
   LI --> DB
   AR --> DB
@@ -99,6 +105,7 @@ flowchart LR
 | MediaStore | OSS `objectKey`、字节、派生可读 URL |
 | Feedback | FR-11「质量差」等简短反馈记录 |
 | HistoryQuery | 无独立写模型；只读聚合本人近期成果 |
+| SceneCatalog | 场景元数据（含灰卡）；不写提示词/skill/tool 正文 |
 
 ### AD-7 — 可用成果与 GenerationRun [ADOPTED]
 
@@ -166,12 +173,45 @@ flowchart TB
 - **Prevents:** `backend/` / `web/` / `deploy/` 再包一层；与 LIMS 模块/部署习惯分叉
 - **Rule:** 仓库根即 Maven parent（`packaging=pom`）。业务模块统一前缀 **`lippi-ai-ebus-*`**，与 parent 平级，**不**再套 `backend/`、`web/`。例外：从 LIMS 拷贝的 Pi 运行时模块名为 **`lippi-pi-ai`** / **`lippi-pi-agent`**（不加 `ebus`）。Java 模块进 parent `<modules>`；前端目录名为 **`lippi-ai-ebus-web`**（Vite/Vue，非 Maven 子模块）。部署用 **`APP-META/`**（AD-10），不用 `deploy/`。禁止把领域代码塞进 `starter`。
 
+### AD-14 — SceneCatalog 所有权 [ADOPTED]
+
+- **Binds:** FR-13..FR-17, UJ-0, UJ-4, SceneCatalog
+- **Prevents:** 场景元数据散落在前端常量 / CatalogTemplate / AgentRuntime 多处真相
+- **Rule:** **SceneCatalog** 是场景行的唯一写者。每行至少含：`biz_id`、稳定 **`sceneCode`**、展示名、状态（如 `AVAILABLE` / `COMING_SOON`）、排序、可选文案字段。灰卡场景也是真记录（`COMING_SOON`）。**CatalogTemplate** 仍只管品类模板，不表示产品场景。画廊列表 API 只读 SceneCatalog。
+
+### AD-15 — 会话必绑场景；历史可筛 [ADOPTED]
+
+- **Binds:** AgentRuntime, HistoryQuery, FR-12, UJ-0
+- **Prevents:** 无场景会话导致错包；历史隔离策略分叉
+- **Rule:** 创建计费 Agent 会话 / `GenerationRun` 时 **必须**携带 `sceneId` 或 `sceneCode`（持久化到会话与 run）。历史查询 **默认全球（本人）**，支持按场景筛选。积分账本仍全站共用（AD-5），不按场景拆账。
+
+### AD-16 — 场景能力包在代码，按 sceneCode 绑定 [ADOPTED]
+
+- **Binds:** AgentRuntime, pi-agent prompt/skill/tool, FR-7, FR-9, FR-16
+- **Prevents:** 运营改库即可改提示词导致不可审计；或前端自带提示词
+- **Rule:** 提示词包、skill、tool **正文在仓库代码/资源中**（随发版）。SceneCatalog 行通过 **`sceneCode`** 指向包。Application / AgentRuntime 在 `prompt` 前按码加载包并注入 `AgentSession`（遵守 pi-agent 槽位 allowlist）。禁止浏览器下发系统提示词或 tool 定义。电商开店包须覆盖选品 + Listing。
+
+### AD-17 — 账户 API 前缀与职责 [ADOPTED]
+
+- **Binds:** FR-1, FR-2, FR-18, Identity, CreditLedger
+- **Prevents:** `/me` 与账户页两套资料模型；账户页开写积分口
+- **Rule:** 用户可见账户能力统一挂在 **`/api/v1/account/**`**。**邮箱只读**；**显示名可改**；**改密为真接口**（Identity）。**积分用量明细**只读由 CreditLedger 提供、经 account 路由暴露。既有 `GET /api/v1/me`、`GET /api/v1/credits` 可保留兼容。禁止在 account 下增加结算/改档写口。
+
+### AD-18 — 未开放场景后端硬拒 [DEFERRED]
+
+- **Binds:** SceneCatalog status, AgentRuntime
+- **Prevents:** （后置）绕过前端对 `COMING_SOON` 起会话/计费生成
+- **Rule（近端）：** **不做**后端硬拒；灰卡闸主要靠 UX。  
+- **Rule（后置必补）：** 状态非 `AVAILABLE` 时拒绝创建会话与计费生成（如 403），即使代码包已存在。
+
 ## Consistency Conventions
 
 | Concern | Convention |
 | --- | --- |
 | 命名 | 业务模块前缀 `lippi-ai-ebus-`；Pi 拷贝模块 `lippi-pi-ai` / `lippi-pi-agent`（AD-3/AD-13）；Java 包按所有者；前端文案中文 |
 | ID | AD-12（对外 UUID；库内可有 BIGINT 自增代理主键） |
+| 场景键 | 稳定 `sceneCode` 绑定代码包；列表可同时返回 `biz_id` |
+| 账户路径 | `/api/v1/account/**`（AD-17） |
 | 时间 | 存储 UTC；展示东八区；月重置按用户订阅周期锚点 |
 | 错误 | REST：`code` + 人话 `message`（NFR-3）；SSE：用 `run_failed`，不静默断流 |
 | 鉴权 | 除注册/登录/公开落地页外，REST 与 SSE 均需 JWT |
@@ -250,18 +290,24 @@ erDiagram
 | FR-8 品类模板三档通用 | CatalogTemplate | AD-6 |
 | FR-9..10 Listing + 导出 | AgentRuntime + ListingArtifact + MediaStore | AD-4, AD-6, AD-7, AD-9 |
 | FR-11 重试/反馈 | GenerationRun + Feedback + CreditLedger | AD-5, AD-6, AD-7 |
-| FR-12 历史 | HistoryQuery | AD-6 |
+| FR-12 历史 | HistoryQuery | AD-6, AD-15 |
+| FR-13..15 场景画廊/灰卡 | SceneCatalog + web | AD-14, AD-18 |
+| FR-16 短聊拉回 | ecommerce pack + AgentRuntime | AD-16 |
+| FR-17 场景可扩展形状 | SceneCatalog + pack 约定 | AD-14, AD-16 |
+| FR-18 账户 | Identity + CreditLedger + `/account` | AD-17 |
 | UJ Agent 壳 + 预览 | web ↔ SSE | AD-4 |
 | NFR-1 质量底线 | 产品抽检（非架构强制） | Conventions |
 | NFR-2 成本 | GenerationRun 用量 | Conventions |
 | NFR-3 失败人话 | REST/SSE 错误约定 | Conventions |
 | NFR-4 合规声明 | 协议/UI 文案 | Conventions |
 | NFR-5 防刷 | interfaces 限流 + JWT | AD-8 |
+| NFR-6 场景扩展不改首页范式 | SceneCatalog + web | AD-14 |
 
 ## Deferred
 
+- **AD-18** 未开放场景后端硬拒（近端靠前端；后置必补）。
 - 微信支付 / 支付宝；月费数字 — 条件：定价实测 + 商户号。
-- 手机号验证码、微信 OAuth、小程序。
+- 手机号验证码、微信 OAuth、小程序；删号 API。
 - `lippi-pi-ai` / `lippi-pi-agent` 抽共享库（现 vendor-copy）。
 - Spring Boot 3.x / Java 17+（2.7.18 EOL）。
 - 云部署、CI/CD、staging/prod、可观测性栈。
@@ -269,3 +315,4 @@ erDiagram
 - 具体大模型 / 出图模型（经 `pi-ai` 端口）。
 - SSE 各事件 JSON 字段表（事件**名**已在 AD-4 闭合）。
 - NFR-1 抽检比例与自动化质检。
+- 场景包目录精确路径与 skill 清单文件格式。

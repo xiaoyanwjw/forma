@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Adam · 套餐与积分</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header" role="banner">
+    <div class="app-header-left">
+      <a class="logo" href="index.html"><span class="logo-mark">A</span> Adam</a>
+      <nav class="header-nav" aria-label="主导航">
+        <a class="nav-link" href="index.html">场景</a>
+        <a class="nav-link" href="history.html">历史</a>
+        <a class="nav-link on" href="pricing.html">套餐</a>
+      </nav>
+    </div>
+    <div class="app-header-right">
+      <span class="credits-chip">免费 · 14/20</span>
+      <a class="btn btn-ghost" href="pricing.html">升级</a>
+      <a class="avatar-btn" href="profile.html" aria-label="账户" title="账户">陈</a>
+    </div>
+  </header>
+
+  <main class="pricing-page">
+    <div class="pricing-head">
+      <h1>套餐与积分</h1>
+      <p>三档只差每月积分。选品清单、上架素材各用 1 积分；每月重置，剩余不结转。</p>
+    </div>
+
+    <section class="balance-card" aria-label="当前积分">
+      <div>
+        <div class="balance-label">本月剩余</div>
+        <div class="balance-value">14 <span>/ 20</span></div>
+      </div>
+      <div class="balance-meta">
+        <div>当前套餐 <strong>免费</strong></div>
+        <div>下次重置约 30 天后</div>
+      </div>
+    </section>
+
+    <div class="plan-grid">
+      <article class="plan-card current">
+        <div class="plan-top">
+          <h2>免费</h2>
+          <span class="plan-badge">当前</span>
+        </div>
+        <div class="plan-price">¥0 <span>/ 月</span></div>
+        <div class="plan-quota">20 积分 / 月</div>
+        <ul class="plan-feats">
+          <li>选品清单与上架素材</li>
+          <li>全部已上线品类模板</li>
+          <li>近 60 天生成历史</li>
+        </ul>
+        <button type="button" class="btn plan-cta" disabled>当前方案</button>
+      </article>
+
+      <article class="plan-card featured">
+        <div class="plan-top">
+          <h2>Pro</h2>
+          <span class="plan-badge soft">常用</span>
+        </div>
+        <div class="plan-price">待公布 <span>/ 月</span></div>
+        <div class="plan-quota">200 积分 / 月</div>
+        <ul class="plan-feats">
+          <li>选品清单与上架素材</li>
+          <li>全部已上线品类模板</li>
+          <li>近 60 天生成历史</li>
+        </ul>
+        <button type="button" class="btn btn-dark plan-cta" disabled>即将开放订阅</button>
+      </article>
+
+      <article class="plan-card">
+        <div class="plan-top">
+          <h2>Plus</h2>
+        </div>
+        <div class="plan-price">待公布 <span>/ 月</span></div>
+        <div class="plan-quota">600 积分 / 月</div>
+        <ul class="plan-feats">
+          <li>选品清单与上架素材</li>
+          <li>全部已上线品类模板</li>
+          <li>近 60 天生成历史</li>
+        </ul>
+        <button type="button" class="btn btn-ghost plan-cta" disabled>即将开放订阅</button>
+      </article>
+    </div>
+
+    <p class="pricing-note">积分按成功产出可用结果时扣除；生成失败不扣分。价格将按实际用量成本确定后公布。</p>
+  </main>
+</body>
+</html>
