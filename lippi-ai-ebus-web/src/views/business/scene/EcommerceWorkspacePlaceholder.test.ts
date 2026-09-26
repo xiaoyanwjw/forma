@@ -413,14 +413,18 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(mounted.root.querySelector('.chat-steps')?.textContent).toContain('读取技能说明')
       expect(mounted.root.querySelector('.chat-steps')?.textContent).not.toContain('read_skill')
       expect(mounted.root.querySelector('.chat-steps')?.textContent).toContain('✓')
+      expect(mounted.root.querySelector('.chat-steps')?.textContent).not.toMatch(/进行中/)
+      expect(mounted.root.querySelector('.chat-steps .step-status')).toBeNull()
+      expect(mounted.root.querySelector('.chat-stream-head .chat-stream-chevron')).toBeTruthy()
+      expect(mounted.root.querySelector('.chat-stream-chevron')).toBeTruthy()
       expect(mounted.root.querySelector('.chat-stream-title')?.textContent).toContain('工作过程')
       const streamBody = mounted.root.querySelector('.chat-stream-body')
       expect(streamBody?.textContent?.endsWith('…')).toBe(true)
       expect(streamBody?.textContent).toBe(`${'x'.repeat(120)}…`)
-      const toggle = mounted.root.querySelector('.chat-stream-toggle') as HTMLButtonElement
-      expect(toggle).toBeTruthy()
-      expect(toggle.textContent).toContain('展开')
-      toggle.click()
+      const streamHead = mounted.root.querySelector('.chat-stream-head') as HTMLButtonElement
+      expect(streamHead).toBeTruthy()
+      expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('展开')
+      streamHead.click()
       await flushUi()
       expect(mounted.root.querySelector('.chat-stream-body')?.textContent).toBe('x'.repeat(130))
       expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('收起')
@@ -521,6 +525,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       join(dirname(fileURLToPath(import.meta.url)), 'EcommerceWorkspacePlaceholder.vue'),
       'utf8',
     )
+    expect(vueSrc).not.toMatch(/step-status/)
     const runSrc = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), '../../../composables/agent/useAgentPicklistRun.ts'),
       'utf8',

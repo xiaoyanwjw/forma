@@ -338,21 +338,23 @@ onMounted(async () => {
                     <span v-if="s.done" class="ok">✓</span>
                     <span v-else class="pending" aria-label="进行中">…</span>
                     <span class="step-label">{{ toolDisplayLabel(s.label) }}</span>
-                    <span v-if="!s.done" class="step-status">进行中</span>
                   </li>
                 </ul>
-                <div v-if="m.streamText" class="chat-stream">
-                  <div class="chat-stream-head">
+                <div v-if="m.streamText && streamProcessFor(m)" class="chat-stream">
+                  <button
+                    type="button"
+                    class="chat-stream-head"
+                    :disabled="!streamFoldFor(m).needsFold"
+                    @click="streamFoldFor(m).needsFold && toggleStreamExpand(m.id)"
+                  >
+                    <span class="chat-stream-chevron" aria-hidden="true">{{
+                      expandedStreamIds.has(m.id) || !streamFoldFor(m).needsFold ? '▾' : '▸'
+                    }}</span>
                     <span class="chat-stream-title">工作过程</span>
-                    <button
-                      v-if="streamFoldFor(m).needsFold"
-                      type="button"
-                      class="chat-stream-toggle"
-                      @click="toggleStreamExpand(m.id)"
-                    >
+                    <span v-if="streamFoldFor(m).needsFold" class="chat-stream-toggle">
                       {{ expandedStreamIds.has(m.id) ? '收起' : '展开' }}
-                    </button>
-                  </div>
+                    </span>
+                  </button>
                   <pre class="chat-stream-body">{{
                     expandedStreamIds.has(m.id) || !streamFoldFor(m).needsFold
                       ? streamProcessFor(m)
