@@ -6,6 +6,8 @@ import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.agent.sse.PiEventToAd4Mapper;
 import com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin;
+import com.xmut.ebus.application.business.agent.support.BilledRunInterceptor;
+import com.xmut.ebus.application.business.agent.support.BilledRunContext;
 import com.xmut.ebus.application.business.agent.support.CreditHoldSupport;
 import com.xmut.ebus.application.business.agent.support.GenerationOutputParser;
 import com.xmut.ebus.application.business.agent.support.ParsedGenerationOutput;
@@ -40,7 +42,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,7 +57,7 @@ import java.util.function.Consumer;
  * 空跑只 {@code reserveOne} + 结束 {@code release}；禁止 {@code settle}；
  * 不发 {@code artifact_ready}/{@code run_settled}。
  * 通用 Generation 管道：{@link #streamGenerationRun}；dry 永不 settle；
- * 非 dry 统一 {@code streamBilledRun}：parse → view → persist → settle（无 Skill 亦写 chat artifact）。
+ * 非 dry 统一 {@code streamBilledRun}：pre → prompt → parse → view → post → persist → settle。
  * 计费生成必须绑定 AVAILABLE 场景（AD-15）。
  */
 @Slf4j
@@ -88,7 +92,7 @@ public class AgentApplicationService {
     private final GenerationOutputParser generationOutputParser;
     private final ArtifactPersistPlugin artifactPersistPlugin;
     private final ComputerViewResolver computerViewResolver;
-    private final ListingMediaMountSupport listingMediaMountSupport;
+    private final List<BilledRunInterceptor> billedRunInterceptors;
     private final Clock clock;
 
     /**
@@ -314,7 +318,7 @@ public class AgentApplicationService {
     }
 
     /**
-     * Settle 路径：prompt → parse → view 门禁 → persist → settle → artifact_ready + run_settled。
+     * Settle 路径：pre → prompt → parse → view → post → persist → settle → artifact_ready + run_settled。
      * 投影失败不落库、不 settle；{@code persistAs=none} 仍写 chat artifact。
      */
     private void streamBilledRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
@@ -324,6 +328,7 @@ public class AgentApplicationService {
         boolean holdClosed = false;
         boolean settledOk = false;
         SkillRunProfile profile = context.getProfile();
+        BilledRunContext runContext = new BilledRunContext(context);
         try {
             emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context.getRunId(),
                     context.getSessionId(), context.getHoldId())));
@@ -339,6 +344,16 @@ public class AgentApplicationService {
             }
             if (profile.isSkillBound() && !pack.hasSkill(profile.getSkillId())) {
                 holdClosed = finishFailed(context, sink, SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
+                return;
+            }
+
+            try {
+                for (BilledRunInterceptor interceptor : billedRunInterceptors) {
+                    interceptor.before(runContext);
+                }
+            } catch (BusinessException ex) {
+                holdClosed = finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "生成准备失败");
                 return;
             }
 
@@ -410,22 +425,21 @@ public class AgentApplicationService {
                 return;
             }
 
-            Map<String, Object> businessPayload = parsed.getBusinessPayload();
-            if (profile.isBilledListing()) {
-                try {
-                    ListingMediaMountSupport.MountedListingMedia mounted =
-                            listingMediaMountSupport.mountSystemPlaceholder(
-                                    context.getUserId(), projectedView, businessPayload);
-                    projectedView = mounted.getView();
-                    businessPayload = mounted.getBusinessPayload();
-                } catch (BusinessException ex) {
-                    holdClosed = finishFailed(context, sink,
-                            StringUtils.hasText(ex.getMessage())
-                                    ? ex.getMessage()
-                                    : ListingMediaMountSupport.MSG_MEDIA_BUSY);
-                    return;
+            runContext.setProjectedView(projectedView);
+            runContext.setBusinessPayload(parsed.getBusinessPayload());
+            try {
+                for (BilledRunInterceptor interceptor : billedRunInterceptors) {
+                    interceptor.after(runContext);
                 }
+            } catch (BusinessException ex) {
+                holdClosed = finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage())
+                                ? ex.getMessage()
+                                : ListingMediaMountSupport.MSG_MEDIA_BUSY);
+                return;
             }
+            projectedView = runContext.getProjectedView();
+            Map<String, Object> businessPayload = runContext.getBusinessPayload();
 
             final PersistedGenerationArtifact persisted;
             try {

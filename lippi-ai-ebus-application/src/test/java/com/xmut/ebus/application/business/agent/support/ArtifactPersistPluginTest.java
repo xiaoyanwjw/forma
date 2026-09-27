@@ -120,7 +120,7 @@ class ArtifactPersistPluginTest {
     @Test
     void persist_skuType_acceptsAssumptionsWhenUserInfoSparse() {
         Map<String, Object> payload = usableSkuPayload();
-        payload.put("assumptions", "未指定平台时按国内淘宝通用详情结构默认");
+        payload.put("assumptions", "用户提到优先淘宝；仍输出跨平台公共底稿");
         plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_SKU, listViewMap(), payload);
         verify(artifactRepository).save(any(Artifact.class));
     }

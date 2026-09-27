@@ -2,6 +2,8 @@ package com.xmut.ebus.application.business.media.support;
 
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
+import com.xmut.ebus.common.logging.LoggerUtils;
+import com.xmut.ebus.common.logging.NameValue;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.domain.business.media.model.MediaObject;
 import com.xmut.ebus.domain.business.media.store.MediaStore;
@@ -55,9 +57,18 @@ public class ListingMediaMountSupport {
         } catch (BusinessException ex) {
             throw ex;
         } catch (RuntimeException ex) {
+            LoggerUtils.error(log, ListingMediaMountSupport.class, "mountSystemPlaceholder",
+                    "mediaStore.put unexpected failure",
+                    ex,
+                    NameValue.create("userId", userId),
+                    NameValue.create("step", "put"));
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, MSG_MEDIA_BUSY);
         }
         if (media == null || !StringUtils.hasText(media.getId())) {
+            LoggerUtils.error(log, ListingMediaMountSupport.class, "mountSystemPlaceholder",
+                    "mediaStore.put returned blank mediaObjectId",
+                    NameValue.create("userId", userId),
+                    NameValue.create("step", "put"));
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, MSG_MEDIA_BUSY);
         }
 
@@ -69,10 +80,21 @@ public class ListingMediaMountSupport {
             if (ex instanceof BusinessException) {
                 throw (BusinessException) ex;
             }
+            LoggerUtils.error(log, ListingMediaMountSupport.class, "mountSystemPlaceholder",
+                    "mediaStore.issueReadUrl unexpected failure",
+                    ex,
+                    NameValue.create("userId", userId),
+                    NameValue.create("mediaObjectId", media.getId()),
+                    NameValue.create("step", "issueReadUrl"));
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, MSG_MEDIA_BUSY);
         }
         if (!StringUtils.hasText(readUrl)) {
             deleteQuietly(media.getId(), "blank readUrl after put");
+            LoggerUtils.error(log, ListingMediaMountSupport.class, "mountSystemPlaceholder",
+                    "issueReadUrl returned blank url",
+                    NameValue.create("userId", userId),
+                    NameValue.create("mediaObjectId", media.getId()),
+                    NameValue.create("step", "issueReadUrl"));
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, MSG_MEDIA_BUSY);
         }
 
@@ -93,8 +115,10 @@ public class ListingMediaMountSupport {
         try {
             mediaStore.delete(mediaObjectId);
         } catch (RuntimeException cleanupEx) {
-            log.warn("Orphan media may remain mediaObjectId={} reason={}: {}",
-                    mediaObjectId, reason, cleanupEx.toString());
+            LoggerUtils.warn(log, ListingMediaMountSupport.class, "deleteQuietly",
+                    cleanupEx.getMessage() != null ? cleanupEx.getMessage() : "orphan cleanup failed",
+                    NameValue.create("mediaObjectId", mediaObjectId),
+                    NameValue.create("reason", reason));
         }
     }
 

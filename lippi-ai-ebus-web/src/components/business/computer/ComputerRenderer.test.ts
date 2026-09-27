@@ -61,8 +61,8 @@ describe('ComputerRenderer', () => {
     expect(host.textContent).toMatch(/详情标题/)
     expect(host.textContent).toMatch(/标题文案/)
     expect(host.textContent).toMatch(/正文文案/)
-    expect(host.querySelector('.section-body:not(.mute)')).toBeTruthy()
-    expect(host.querySelector('.section-body.mute')?.textContent).toMatch(/正文文案/)
+    expect(host.querySelector('.listing-copy.is-title')).toBeTruthy()
+    expect(host.querySelector('.listing-copy.is-notes .section-body')?.textContent).toMatch(/正文文案/)
     expect(host.textContent).not.toMatch(/nope/)
     expect(warn).toHaveBeenCalled()
     app.unmount()
@@ -170,6 +170,81 @@ describe('ComputerRenderer', () => {
     expect(host.textContent).toMatch(/商品A/)
     expect(host.textContent).toMatch(/商品B/)
     expect(host.textContent).not.toMatch(/http:\/\/item/)
+    app.unmount()
+    host.remove()
+  })
+
+  it('shows listing hero plan text instead of stretching placeholder src', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: {
+        version: 1,
+        title: 'listingPreview',
+        blocks: [
+          {
+            type: 'media',
+            role: 'hero',
+            src: 'data:image/png;base64,aaa',
+            mediaObjectId: 'm1',
+            placeholder: '白底俯拍主图方案说明',
+            alt: '主图',
+          },
+          { type: 'section', heading: '详情标题', body: '硅胶沥水垫标题' },
+          { type: 'section', heading: '详情正文', body: '详情段落' },
+          {
+            type: 'section',
+            heading: '展示说明',
+            body: '主图顺序说明',
+            tone: 'mute',
+          },
+        ],
+      },
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelector('.platform-switch')).toBeTruthy()
+    expect(host.querySelectorAll('.platform-btn').length).toBe(4)
+    // Adam：素材卡片，无手机框
+    expect(host.querySelector('.adam-doc')).toBeTruthy()
+    expect(host.querySelector('.iphone')).toBeNull()
+    expect(host.textContent).toMatch(/白底俯拍主图方案说明/)
+    expect(host.textContent).toMatch(/硅胶沥水垫标题/)
+    expect(host.textContent).toMatch(/详情段落/)
+    expect(host.textContent).not.toMatch(/素材规范/)
+    const taobao = host.querySelector('.platform-btn.platform-taobao') as HTMLButtonElement
+    taobao.click()
+    await nextTick()
+    expect(host.querySelector('.iphone')).toBeTruthy()
+    expect(host.querySelector('.tb-bar')).toBeTruthy()
+    expect(host.querySelector('.tb-buy')).toBeTruthy()
+    // 切换平台只换壳，文案仍是同一套公共字段
+    expect(host.textContent).toMatch(/硅胶沥水垫标题/)
+    expect(host.textContent).toMatch(/详情段落/)
+    expect(host.textContent).toMatch(/立即购买/)
+    const xianyu = host.querySelector('.platform-btn.platform-xianyu') as HTMLButtonElement
+    xianyu.click()
+    await nextTick()
+    expect(host.querySelector('.xy-bar')).toBeTruthy()
+    expect(host.textContent).toMatch(/硅胶沥水垫标题/)
+    expect(host.textContent).toMatch(/闲鱼/)
+    const douyin = host.querySelector('.platform-btn.platform-douyin') as HTMLButtonElement
+    douyin.click()
+    await nextTick()
+    expect(host.querySelector('.dy-bar')).toBeTruthy()
+    expect(host.textContent).toMatch(/硅胶沥水垫标题/)
+    expect(host.textContent).toMatch(/封面|立即购买/)
+    app.unmount()
+    host.remove()
+  })
+
+  it('hides platform switcher on picklist documents', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, { document: doc })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelector('.platform-switch')).toBeNull()
     app.unmount()
     host.remove()
   })

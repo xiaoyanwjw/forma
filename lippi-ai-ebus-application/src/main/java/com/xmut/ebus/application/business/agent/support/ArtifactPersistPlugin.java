@@ -94,7 +94,7 @@ public class ArtifactPersistPlugin {
     }
 
     /**
-     * 可用 Listing：详情文案 + 展示说明 + ≥1 mediaObjectId；templateId 固定国内通用默认。
+     * 可用 Listing：跨平台公共文案四字段 + ≥1 mediaObjectId；templateId 固定国内通用默认。
      */
     static void requireUsableSkuPayload(Map<String, Object> data) {
         if (data == null || data.isEmpty()) {

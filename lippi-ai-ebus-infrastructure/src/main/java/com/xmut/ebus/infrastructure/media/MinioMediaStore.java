@@ -2,6 +2,8 @@ package com.xmut.ebus.infrastructure.media;
 
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
+import com.xmut.ebus.common.logging.LoggerUtils;
+import com.xmut.ebus.common.logging.NameValue;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.domain.business.media.model.MediaObject;
 import com.xmut.ebus.domain.business.media.repository.MediaObjectRepository;
@@ -72,6 +74,12 @@ public class MinioMediaStore implements MediaStore {
         } catch (BusinessException ex) {
             throw ex;
         } catch (Exception ex) {
+            LoggerUtils.error(log, MinioMediaStore.class, "put",
+                    "MinIO putObject failed",
+                    ex,
+                    NameValue.create("userId", userId),
+                    NameValue.create("bucket", bucket),
+                    NameValue.create("objectKey", objectKey));
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, MSG_MEDIA_BUSY);
         }
         Instant now = Instant.now(clock);
@@ -79,6 +87,13 @@ public class MinioMediaStore implements MediaStore {
         try {
             mediaObjectRepository.save(meta);
         } catch (RuntimeException ex) {
+            LoggerUtils.error(log, MinioMediaStore.class, "put",
+                    "media metadata save failed after putObject",
+                    ex,
+                    NameValue.create("userId", userId),
+                    NameValue.create("mediaObjectId", id),
+                    NameValue.create("bucket", bucket),
+                    NameValue.create("objectKey", objectKey));
             removeObjectQuietly(objectKey, "metadata save failed after putObject");
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, MSG_MEDIA_BUSY);
         }
@@ -97,6 +112,12 @@ public class MinioMediaStore implements MediaStore {
                     .expiry(presignExpirySeconds, TimeUnit.SECONDS)
                     .build());
         } catch (Exception ex) {
+            LoggerUtils.error(log, MinioMediaStore.class, "issueReadUrl",
+                    "MinIO presign failed",
+                    ex,
+                    NameValue.create("mediaObjectId", mediaObjectId),
+                    NameValue.create("bucket", bucket),
+                    NameValue.create("objectKey", meta.getObjectKey()));
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, MSG_MEDIA_BUSY);
         }
     }
@@ -117,8 +138,9 @@ public class MinioMediaStore implements MediaStore {
             try {
                 mediaObjectRepository.deleteById(mediaObjectId.trim());
             } catch (RuntimeException ex) {
-                log.warn("Failed to delete media metadata mediaObjectId={}: {}",
-                        mediaObjectId, ex.toString());
+                LoggerUtils.warn(log, MinioMediaStore.class, "delete",
+                        ex.getMessage() != null ? ex.getMessage() : "delete media metadata failed",
+                        NameValue.create("mediaObjectId", mediaObjectId));
             }
         }
     }
@@ -140,8 +162,10 @@ public class MinioMediaStore implements MediaStore {
                     .object(objectKey)
                     .build());
         } catch (Exception cleanupEx) {
-            log.warn("Orphan media object may remain key={} reason={}: {}",
-                    objectKey, reason, cleanupEx.toString());
+            LoggerUtils.warn(log, MinioMediaStore.class, "removeObjectQuietly",
+                    cleanupEx.getMessage() != null ? cleanupEx.getMessage() : "orphan cleanup failed",
+                    NameValue.create("objectKey", objectKey),
+                    NameValue.create("reason", reason));
         }
     }
 }

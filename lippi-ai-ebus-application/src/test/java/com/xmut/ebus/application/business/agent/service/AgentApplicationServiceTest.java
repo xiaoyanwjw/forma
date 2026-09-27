@@ -2,14 +2,10 @@ package com.xmut.ebus.application.business.agent.service;
 
 import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
-import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
+import com.xmut.ebus.application.business.agent.support.*;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
-import com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin;
-import com.xmut.ebus.application.business.agent.support.CreditHoldSupport;
-import com.xmut.ebus.application.business.agent.support.GenerationOutputParser;
-import com.xmut.ebus.application.business.agent.support.PersistedGenerationArtifact;
 import com.xmut.ebus.application.business.computer.ComputerViewProjector;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
@@ -125,7 +121,9 @@ class AgentApplicationServiceTest {
                 new GenerationOutputParser(new com.fasterxml.jackson.databind.ObjectMapper()),
                 artifactPersistPlugin,
                 viewResolver,
-                listingMediaMountSupport,
+                Collections.<com.xmut.ebus.application.business.agent.support.BilledRunInterceptor>singletonList(
+                        new SkuMediaMountInterceptor(
+                                listingMediaMountSupport)),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

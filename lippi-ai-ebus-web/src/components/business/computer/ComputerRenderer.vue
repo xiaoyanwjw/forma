@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type {
   ComputerBlock,
   ComputerDocument,
@@ -16,10 +16,17 @@ import {
   resolveTagDisplay,
   sanitizeHttpsHref,
 } from '@/types/business/computerView'
+import ListingPlatformPreview from './ListingPlatformPreview.vue'
+import {
+  LISTING_PLATFORM_SKINS,
+  type ListingPlatformSkin,
+} from './listingPlatform'
 
 const props = defineProps<{
   document: ComputerDocument
 }>()
+
+const platformSkin = ref<ListingPlatformSkin>('adam')
 
 function isKnownBlock(block: ComputerBlock | { type: string }): block is ComputerBlock {
   return (
@@ -49,6 +56,52 @@ const documentStatus = computed(() => {
   const raw = props.document.status?.trim()
   if (!raw || raw === 'ready') return undefined
   return resolveComputerStatus(raw)
+})
+
+/** 上架素材预览才显示平台样式切换（选品 list 文档不显示） */
+const isListingPreview = computed(() => {
+  const key = props.document.title?.trim() || ''
+  if (key === 'picklist' || key === 'report') return false
+  if (key === 'listingPreview') return true
+  if (/上架|listing/i.test(documentTitle.value)) return true
+  const hasPickList = props.document.blocks.some((b) => b.type === 'list')
+  if (hasPickList) return false
+  const hasHero = props.document.blocks.some((b) => b.type === 'media')
+  const hasListingCopy = props.document.blocks.some(
+    (b) =>
+      b.type === 'section' &&
+      (b.heading === '详情标题' || b.heading === '详情正文' || b.heading === '展示说明'),
+  )
+  return hasHero && hasListingCopy
+})
+
+const platformSkins = LISTING_PLATFORM_SKINS
+
+watch(
+  () => props.document.title,
+  () => {
+    platformSkin.value = 'adam'
+  },
+)
+
+/** 从双轨 blocks 抽出上架公共文案；切换平台只换预览壳 */
+const listingContent = computed(() => {
+  let heroPlan = ''
+  let heroMounted = false
+  let detailTitle = ''
+  let detailBody = ''
+  let displayNotes = ''
+  for (const block of visibleBlocks.value) {
+    if (block.type === 'media') {
+      heroPlan = mediaPlanText(block)
+      heroMounted = Boolean(block.src || block.mediaObjectId)
+    } else if (block.type === 'section') {
+      if (block.heading === '详情标题') detailTitle = block.body
+      else if (block.heading === '详情正文') detailBody = block.body
+      else if (block.heading === '展示说明') displayNotes = block.body
+    }
+  }
+  return { heroPlan, heroMounted, detailTitle, detailBody, displayNotes }
 })
 
 function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean {
@@ -116,91 +169,144 @@ function itemTitle(item: { badge?: string; title: string }): string {
   }
   return item.title
 }
+
+function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string {
+  return (block.placeholder || block.alt || '').trim()
+}
 </script>
 
 <template>
   <article class="comp-card">
     <div class="comp-card-head">
-      <span>{{ documentTitle }}</span>
-      <span v-if="documentStatus" class="status">{{ documentStatus }}</span>
-    </div>
-    <div class="comp-card-body">
-      <template v-for="(block, index) in visibleBlocks" :key="index">
+      <span class="comp-card-title">{{ documentTitle }}</span>
+      <div class="comp-card-head-actions">
         <div
-          v-if="block.type === 'markdown'"
-          class="cv-markdown"
-        >{{ block.text }}</div>
-        <p
-          v-else-if="block.type === 'note'"
-          class="cv-note"
-          :class="{ mute: block.tone === 'mute' }"
+          v-if="isListingPreview"
+          class="platform-switch"
+          role="tablist"
+          aria-label="预览平台效果"
         >
-          {{ noteText(block) }}
-        </p>
-
-        <component
-          :is="isOrderedList(block) ? 'ol' : 'ul'"
-          v-else-if="block.type === 'list'"
-          class="pick-list"
-        >
-          <li v-for="(item, itemIndex) in block.items" :key="item.title + '-' + itemIndex">
-            <div class="item-body">
-              <div class="item-top">
-                <div class="t">
-                  <span v-if="itemBadge(item)" class="priority-tag">{{ itemBadge(item) }}</span>
-                  <a
-                    v-if="itemHref(item)"
-                    class="item-title-link"
-                    :href="itemHref(item)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >{{ itemTitle(item) }}</a>
-                  <template v-else>{{ itemTitle(item) }}</template>
-                </div>
-                <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
-              </div>
-              <div v-if="factLines(item.lines).length" class="item-lines">
-                <div
-                  v-for="(line, lineIndex) in factLines(item.lines)"
-                  :key="lineIndex"
-                  :class="lineClass(line)"
-                >
-                  <span class="item-line-label">{{ line.label || '说明' }}</span>
-                  <span class="item-line-text">{{ line.text }}</span>
-                </div>
-              </div>
-              <div v-if="item.tags?.length" class="dims">
-                <span
-                  v-for="(tag, tagIndex) in item.tags"
-                  :key="tagIndex"
-                  :class="tagPillClass(tag)"
-                >{{ resolveTagDisplay(tag) }}</span>
-              </div>
-            </div>
-          </li>
-        </component>
-
-        <div v-else-if="block.type === 'media'" class="cv-media">
-          <img
-            v-if="block.src"
-            class="listing-hero listing-hero-img"
-            :src="block.src"
-            :alt="block.alt || block.placeholder || ''"
-          />
-          <div v-else class="listing-hero" aria-hidden="true">
-            {{ block.placeholder }}
-          </div>
+          <button
+            v-for="skin in platformSkins"
+            :key="skin.id"
+            type="button"
+            class="platform-btn"
+            :class="[`platform-${skin.id}`, { active: platformSkin === skin.id }]"
+            role="tab"
+            :aria-selected="platformSkin === skin.id"
+            :title="`${skin.label}效果`"
+            :aria-label="`${skin.label}浏览器预期效果`"
+            @click="platformSkin = skin.id"
+          >
+            <span class="platform-mark" aria-hidden="true">{{ skin.mark }}</span>
+          </button>
         </div>
-
-        <div v-else-if="block.type === 'section'" class="listing-copy">
-          <h4>{{ block.heading }}</h4>
+        <span v-else-if="documentStatus" class="status">{{ documentStatus }}</span>
+      </div>
+    </div>
+    <div
+      class="comp-card-body"
+      :class="{ 'is-plat': isListingPreview && platformSkin !== 'adam' }"
+    >
+      <ListingPlatformPreview
+        v-if="isListingPreview"
+        :platform="platformSkin"
+        :content="listingContent"
+      />
+      <template v-else>
+        <template v-for="(block, index) in visibleBlocks" :key="index">
+          <div
+            v-if="block.type === 'markdown'"
+            class="cv-markdown"
+          >{{ block.text }}</div>
           <p
-            class="section-body"
+            v-else-if="block.type === 'note'"
+            class="cv-note"
             :class="{ mute: block.tone === 'mute' }"
           >
-            {{ block.body }}
+            {{ noteText(block) }}
           </p>
-        </div>
+
+          <component
+            :is="isOrderedList(block) ? 'ol' : 'ul'"
+            v-else-if="block.type === 'list'"
+            class="pick-list"
+          >
+            <li v-for="(item, itemIndex) in block.items" :key="item.title + '-' + itemIndex">
+              <div class="item-body">
+                <div class="item-top">
+                  <div class="t">
+                    <span v-if="itemBadge(item)" class="priority-tag">{{ itemBadge(item) }}</span>
+                    <a
+                      v-if="itemHref(item)"
+                      class="item-title-link"
+                      :href="itemHref(item)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >{{ itemTitle(item) }}</a>
+                    <template v-else>{{ itemTitle(item) }}</template>
+                  </div>
+                  <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
+                </div>
+                <div v-if="factLines(item.lines).length" class="item-lines">
+                  <div
+                    v-for="(line, lineIndex) in factLines(item.lines)"
+                    :key="lineIndex"
+                    :class="lineClass(line)"
+                  >
+                    <span class="item-line-label">{{ line.label || '说明' }}</span>
+                    <span class="item-line-text">{{ line.text }}</span>
+                  </div>
+                </div>
+                <div v-if="item.tags?.length" class="dims">
+                  <span
+                    v-for="(tag, tagIndex) in item.tags"
+                    :key="tagIndex"
+                    :class="tagPillClass(tag)"
+                  >{{ resolveTagDisplay(tag) }}</span>
+                </div>
+              </div>
+            </li>
+          </component>
+
+          <div v-else-if="block.type === 'media'" class="cv-media">
+            <div
+              v-if="mediaPlanText(block)"
+              class="listing-hero listing-hero-plan-card"
+            >
+              <div class="listing-hero-meta">
+                <span class="listing-hero-kicker">主图方案</span>
+                <span
+                  v-if="block.src || block.mediaObjectId"
+                  class="listing-hero-chip"
+                >占位已挂载</span>
+              </div>
+              <p class="listing-hero-plan">{{ mediaPlanText(block) }}</p>
+            </div>
+            <img
+              v-else-if="block.src"
+              class="listing-hero listing-hero-img"
+              :src="block.src"
+              :alt="block.alt || ''"
+            />
+            <div v-else class="listing-hero listing-hero-empty" aria-hidden="true">
+              主图位
+            </div>
+          </div>
+
+          <div
+            v-else-if="block.type === 'section'"
+            class="listing-copy"
+            :class="{
+              'is-notes': block.tone === 'mute' || block.heading === '展示说明',
+              'is-title': block.heading === '详情标题',
+              'is-body': block.heading === '详情正文' || (block.heading !== '详情标题' && block.tone !== 'mute'),
+            }"
+          >
+            <h4>{{ block.heading }}</h4>
+            <p class="section-body">{{ block.body }}</p>
+          </div>
+        </template>
       </template>
     </div>
   </article>
@@ -216,13 +322,28 @@ function itemTitle(item: { badge?: string; title: string }): string {
 }
 
 .comp-card-head {
-  padding: 12px 14px;
+  padding: 10px 12px 10px 14px;
   border-bottom: 1px solid var(--line-2);
   font-size: 0.8125rem;
   font-weight: 600;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
+}
+
+.comp-card-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comp-card-head-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .comp-card-head .status {
@@ -231,8 +352,74 @@ function itemTitle(item: { badge?: string; title: string }): string {
   font-size: 0.75rem;
 }
 
+.platform-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--line-2, #f1f1f1);
+}
+
+.platform-btn {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: transparent;
+  color: var(--mute);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.platform-btn:hover {
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+}
+
+.platform-btn.active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+.platform-mark {
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.platform-btn.platform-taobao.active {
+  color: #ff5000;
+}
+
+.platform-btn.platform-xianyu.active {
+  color: #ffe60f;
+  background: #1f2937;
+}
+
+.platform-btn.platform-douyin.active {
+  color: #fff;
+  background: #111;
+  box-shadow: none;
+}
+
+.platform-btn.platform-adam.active {
+  color: #0f172a;
+}
+
 .comp-card-body {
   padding: 14px;
+}
+
+.comp-card-body.is-plat {
+  padding: 12px 12px 14px;
+  background: #f3f4f6;
 }
 
 .cv-markdown {
@@ -413,49 +600,135 @@ function itemTitle(item: { badge?: string; title: string }): string {
 .cv-media {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  margin-bottom: 4px;
 }
 
 .listing-hero {
-  aspect-ratio: 4 / 3;
   width: 100%;
   border-radius: var(--r-md);
   border: 1px solid var(--line);
   background:
-    radial-gradient(ellipse 70% 50% at 50% 78%, rgba(0, 0, 0, 0.07), transparent),
-    linear-gradient(180deg, #f8f8f8, #ececec);
+    radial-gradient(ellipse 80% 55% at 20% 0%, rgba(15, 23, 42, 0.04), transparent 55%),
+    linear-gradient(165deg, #f4f6f8 0%, #e8ecf1 100%);
+  color: var(--mute);
+}
+
+.listing-hero-plan-card {
+  aspect-ratio: auto;
+  min-height: 148px;
+  padding: 14px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.listing-hero-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.listing-hero-kicker {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  color: #475569;
+}
+
+.listing-hero-chip {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #166534;
+  background: #ecfdf3;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.listing-hero-plan {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.listing-hero-img {
+  display: block;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  object-position: center;
+  background: #f1f5f9;
+  padding: 0;
+}
+
+.listing-hero-empty {
+  aspect-ratio: 4 / 3;
   display: grid;
   place-items: center;
-  color: var(--mute);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
-.listing-hero-img {
-  object-fit: cover;
-  padding: 0;
+.listing-copy {
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--line-2);
+}
+
+.listing-copy:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .listing-copy h4 {
-  margin: 0 0 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--mute);
-  letter-spacing: 0.02em;
+  margin: 0 0 6px;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: var(--mute-2, #a3a3a3);
+  letter-spacing: 0.04em;
 }
 
 .listing-copy .section-body {
-  margin: 0 0 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  margin: 0;
   color: var(--ink);
-  line-height: 1.45;
+  word-break: break-word;
 }
 
-.listing-copy .section-body.mute {
-  font-size: 0.82rem;
-  font-weight: normal;
+.listing-copy.is-title .section-body {
+  font-size: 1.02rem;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.listing-copy.is-body .section-body {
+  font-size: 0.875rem;
+  font-weight: 450;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--ink) 88%, transparent);
+}
+
+.listing-copy.is-notes {
+  margin-top: 4px;
+  padding: 12px 12px 14px;
+  border-top: 0;
+  border-radius: var(--r-md);
+  background: #f8fafc;
+  border: 1px solid var(--line-2);
+}
+
+.listing-copy.is-notes h4 {
+  color: #64748b;
+}
+
+.listing-copy.is-notes .section-body {
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.6;
   color: var(--mute);
-  line-height: 1.55;
 }
 </style>

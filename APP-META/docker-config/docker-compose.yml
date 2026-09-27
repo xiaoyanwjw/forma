@@ -78,7 +78,8 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       EBUS_MEDIA_STORE: ${EBUS_MEDIA_STORE:-minio}
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      # 容器内固定走 compose 服务名；勿用宿主机 .env 的 localhost（IDEA 本机跑才用 localhost）
+      MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-ebus-media}

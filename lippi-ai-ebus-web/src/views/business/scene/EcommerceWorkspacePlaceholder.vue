@@ -661,7 +661,7 @@ onMounted(async () => {
                   选品清单
                 </button>
                 <button type="button" class="pill" :disabled="generationRunning" @click="fillListingSession">
-                  生成上架素材
+                  生成素材
                 </button>
               </div>
               <div class="prompt-box">

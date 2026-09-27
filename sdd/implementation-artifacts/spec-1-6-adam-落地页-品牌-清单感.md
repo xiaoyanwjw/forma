@@ -110,7 +110,7 @@ context:
 
 ## Design Notes
 
-- 第一视口：标题 + 胶囊（选品清单 / 生成上架素材）+ 输入外观；勿堆套餐价目。
+- 第一视口：标题 + 胶囊（选品清单 / 生成素材）+ 输入外观；勿堆套餐价目。
 - 胶囊与 prompt 点击同源：guest→login，JWT→credits。
 - 入场动效：最多一次轻量；须尊重 `prefers-reduced-motion`。
 
