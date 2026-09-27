@@ -22,6 +22,9 @@ import java.util.function.Consumer;
  */
 public final class ToolPolicyExtension implements PiExtension {
 
+    /** AD-S12 选品/Listing 问人工具；独立于 WRITE 审批。 */
+    public static final String ASK_HUMAN_TOOL = "ask_human";
+
     /** Unapproved WRITE: ToolNode requests suspend. */
     public static final String ROUTE_NEEDS_HITL = "needs_hitl";
     /** Gate allows ToolNode to execute. */
@@ -111,6 +114,12 @@ public final class ToolPolicyExtension implements PiExtension {
             return BeforeToolCallResult.block("Tool not in active set: " + name);
         }
 
+        // AD-S12: ask_human 走独立 HITL，≠ WRITE 审批；resume 用 tool-result 摘掉该 call。
+        if (isAskHuman(name)) {
+            emit(ToolAuditEvent.of(ToolAuditEvent.Kind.SUSPEND, name, call.getId(), null, "ask_human"));
+            return BeforeToolCallResult.needsHitl("ask_human");
+        }
+
         ToolDecision decision = parseDecision(approvalRaw);
         if (writeApprovalEnabled) {
             if (decision == ToolDecision.DENY) {
@@ -128,6 +137,10 @@ public final class ToolPolicyExtension implements PiExtension {
         }
 
         return BeforeToolCallResult.allow();
+    }
+
+    private static boolean isAskHuman(String name) {
+        return name != null && ASK_HUMAN_TOOL.equals(name.trim());
     }
 
     private static boolean containsName(Collection<String> activeTools, String name) {

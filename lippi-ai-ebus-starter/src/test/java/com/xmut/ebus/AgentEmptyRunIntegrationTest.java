@@ -46,7 +46,7 @@ class AgentEmptyRunIntegrationTest {
 
     private static final Set<String> AD4_NAMES = new HashSet<String>(Arrays.asList(
             "run_started", "agent_started", "message_delta", "tool_started", "tool_finished",
-            "agent_ended", "artifact_ready", "run_failed", "run_settled"
+            "agent_ended", "human_input_required", "artifact_ready", "run_failed", "run_settled"
     ));
 
     private static final Pattern EVENT_NAME = Pattern.compile("(?m)^event:(.+)$");

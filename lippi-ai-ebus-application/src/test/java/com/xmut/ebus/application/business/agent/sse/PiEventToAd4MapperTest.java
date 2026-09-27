@@ -1,13 +1,18 @@
 package com.xmut.ebus.application.business.agent.sse;
 
+import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandlerTest;
 import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventType;
+import com.xmut.lims.pi.agent.event.ToolSuspendPayload;
+import com.xmut.lims.pi.agent.session.TurnResult;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -30,6 +35,7 @@ class PiEventToAd4MapperTest {
                 "tool_started",
                 "tool_finished",
                 "agent_ended",
+                "human_input_required",
                 "artifact_ready",
                 "run_failed",
                 "run_settled"
@@ -92,5 +98,33 @@ class PiEventToAd4MapperTest {
         assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.MESSAGE_START)).isPresent());
         assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.BEFORE_AGENT_START)).isPresent());
         assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.TURN_START)).isPresent());
+        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.SUSPENDED, "awaiting approval")).isPresent());
+        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(
+                PiEventType.SUSPENDED, TurnResult.builder().status(TurnResult.Status.SUSPENDED).build())).isPresent());
+    }
+
+    @Test
+    void mapsAskHumanSuspendToHumanInputRequired() {
+        ToolCallEntry call = AskHumanToolHandlerTest.listingAskCall("call-ask");
+        Ad4SseEvent ev = PiEventToAd4Mapper.mapEvent(
+                PiEvent.of(PiEventType.SUSPENDED, ToolSuspendPayload.of(call, "run-hitl", "ask_human"))).get();
+        assertEquals(Ad4EventName.human_input_required, ev.getName());
+        assertEquals("策划可以了吗？确认后写出执行稿，或补充需求。", ev.getData().get("question"));
+        assertEquals(Boolean.TRUE, ev.getData().get("allowFreeText"));
+        assertEquals("call-ask", ev.getData().get("toolCallId"));
+        assertEquals("run-hitl", ev.getData().get("runId"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> options = (List<Map<String, String>>) ev.getData().get("options");
+        assertEquals("confirm_execute", options.get(0).get("id"));
+        assertEquals("确认，出执行稿", options.get(0).get("label"));
+        assertEquals("supplement", options.get(1).get("id"));
+    }
+
+    @Test
+    void doesNotMapWriteHitlSuspendAsHumanInput() {
+        ToolCallEntry write = new ToolCallEntry("w1", "save", null);
+        assertFalse(PiEventToAd4Mapper.mapEvent(
+                PiEvent.of(PiEventType.SUSPENDED, ToolSuspendPayload.of(write, "run-w", "awaiting approval")))
+                .isPresent());
     }
 }

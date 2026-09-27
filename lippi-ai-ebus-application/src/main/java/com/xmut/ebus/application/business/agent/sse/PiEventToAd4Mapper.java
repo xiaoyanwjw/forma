@@ -1,7 +1,11 @@
 package com.xmut.ebus.application.business.agent.sse;
 
+import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandler;
 import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventType;
+import com.xmut.lims.pi.agent.event.ToolSuspendPayload;
+import com.xmut.lims.pi.agent.extension.ToolPolicyExtension;
+import com.xmut.lims.pi.agent.session.TurnResult;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
 
@@ -19,6 +23,7 @@ import java.util.Optional;
  * 进度 payload：{@code agent_started}/{@code agent_ended} 带展示用 {@code label}；
  * 工具事件带 {@code toolName}/{@code toolCallId}；{@code tool_finished} 另带
  * {@code success} 与截断后的 {@code output}/{@code error}；文本 delta 带 {@code text}。
+ * {@code ask_human} 挂起映射为 {@code human_input_required}（AD-S12）。
  */
 public final class PiEventToAd4Mapper {
 
@@ -51,12 +56,47 @@ public final class PiEventToAd4Mapper {
         if (type == PiEventType.TOOL_EXECUTION_END) {
             return Optional.of(Ad4SseEvent.of(Ad4EventName.tool_finished, payloadMap(event.getPayload())));
         }
+        if (type == PiEventType.SUSPENDED) {
+            return mapHumanInputRequired(event.getPayload());
+        }
         return Optional.empty();
     }
 
     /** 供测试与类型声明：AD-4 事件名全集。 */
     public static Ad4EventName[] declaredEventNames() {
         return Ad4EventName.values();
+    }
+
+    private static Optional<Ad4SseEvent> mapHumanInputRequired(Object payload) {
+        ToolCallEntry call = null;
+        String runId = null;
+        if (payload instanceof ToolSuspendPayload) {
+            ToolSuspendPayload suspend = (ToolSuspendPayload) payload;
+            call = suspend.getCall();
+            runId = suspend.getRunId();
+        } else if (payload instanceof ToolCallEntry) {
+            call = (ToolCallEntry) payload;
+        } else if (payload instanceof TurnResult) {
+            return Optional.empty();
+        }
+        if (call == null || !isAskHuman(call.getToolName())) {
+            return Optional.empty();
+        }
+        AskHumanToolHandler.ParsedAsk parsed = AskHumanToolHandler.parse(call);
+        if (parsed == null) {
+            return Optional.empty();
+        }
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("question", parsed.getQuestion());
+        data.put("options", parsed.getOptions());
+        data.put("allowFreeText", Boolean.valueOf(parsed.isAllowFreeText()));
+        putIfText(data, "toolCallId", call.getId());
+        putIfText(data, "runId", runId);
+        return Optional.of(Ad4SseEvent.of(Ad4EventName.human_input_required, data));
+    }
+
+    private static boolean isAskHuman(String toolName) {
+        return toolName != null && ToolPolicyExtension.ASK_HUMAN_TOOL.equals(toolName.trim());
     }
 
     private static Map<String, Object> labelMap(String label) {

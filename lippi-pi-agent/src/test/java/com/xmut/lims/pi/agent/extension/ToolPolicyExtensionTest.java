@@ -158,6 +158,22 @@ class ToolPolicyExtensionTest {
     }
 
     @Test
+    void ask_human_needs_hitl_without_write_approval() {
+        InMemoryToolCatalog config = InMemoryToolCatalog.of(Collections.singletonList(
+                new Tool("ask_human",
+                        ToolSchema.builder().name("ask_human").build(),
+                        null)));
+        ToolPolicyExtension ext = new ToolPolicyExtension(config, false);
+
+        BeforeToolCallResult result = ext.evaluate(
+                new ToolCallEntry("ah1", "ask_human", JsonNodeFactory.instance.objectNode()),
+                ToolDecision.APPROVE, null, Collections.singletonList("ask_human"));
+
+        assertThat(result.isNeedsHitl()).isTrue();
+        assertThat(result.getReason()).isEqualTo("ask_human");
+    }
+
+    @Test
     void register_wires_before_tool_call_on_bus() {
         InMemoryToolCatalog config = new InMemoryToolCatalog(Collections.singletonList(
                 new Tool("save",

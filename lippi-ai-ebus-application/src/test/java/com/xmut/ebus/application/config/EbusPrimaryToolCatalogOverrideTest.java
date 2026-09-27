@@ -3,6 +3,7 @@ package com.xmut.ebus.application.config;
 import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
+import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandler;
 import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -29,10 +30,13 @@ class EbusPrimaryToolCatalogOverrideTest {
             ToolCatalog catalog = context.getBean(ToolCatalog.class);
             assertThat(catalog.resolve("read_skill")).isPresent();
             assertThat(catalog.resolve("search_sku")).isPresent();
+            assertThat(catalog.resolve("ask_human")).isPresent();
             assertThat(catalog.handlerOf("read_skill")).isPresent();
             assertThat(catalog.handlerOf("read_skill").get()).isInstanceOf(ReadSkill.class);
             assertThat(catalog.handlerOf("search_sku")).isPresent();
             assertThat(catalog.handlerOf("search_sku").get()).isInstanceOf(SearchSkuToolHandler.class);
+            assertThat(catalog.handlerOf("ask_human")).isPresent();
+            assertThat(catalog.handlerOf("ask_human").get()).isInstanceOf(AskHumanToolHandler.class);
         });
     }
 }

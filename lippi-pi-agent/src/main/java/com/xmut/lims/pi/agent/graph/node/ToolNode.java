@@ -9,6 +9,7 @@ import com.xmut.lims.pi.agent.event.BeforeToolCallResult;
 import com.xmut.lims.pi.agent.event.Emitter;
 import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventType;
+import com.xmut.lims.pi.agent.event.ToolSuspendPayload;
 import com.xmut.lims.pi.agent.extension.ToolPolicyExtension;
 import com.xmut.lims.pi.agent.graph.GraphNode;
 import com.xmut.lims.pi.agent.graph.GraphState;
@@ -72,7 +73,7 @@ public final class ToolNode implements GraphNode {
                     remaining.add(call);
                     appendRemaining(calls, i + 1, remaining);
                     interrupted = true;
-                    onSuspended(ctx, gate.getReason() != null ? gate.getReason() : "awaiting approval");
+                    onSuspended(ctx, call, gate.getReason() != null ? gate.getReason() : "awaiting approval");
                     break;
                 }
 
@@ -209,15 +210,16 @@ public final class ToolNode implements GraphNode {
     }
 
     /**
-     * [回调] suspended — HITL
+     * [回调] suspended — HITL（ask_human / WRITE）；payload 带 call 供 SSE 映射。
      */
-    private void onSuspended(NodeContext ctx, String reason) {
+    private void onSuspended(NodeContext ctx, ToolCallEntry call, String reason) {
         Emitter emitter = emitterOf(ctx);
         if (emitter == null) {
             return;
         }
         try {
-            emitter.emit(PiEvent.of(PiEventType.SUSPENDED, reason));
+            String runId = ctx != null ? ctx.getRunId() : null;
+            emitter.emit(PiEvent.of(PiEventType.SUSPENDED, ToolSuspendPayload.of(call, runId, reason)));
         } catch (RuntimeException ex) {
             log.warn("emitter emit SUSPENDED failed: {}", ex.toString());
         }

@@ -2,6 +2,7 @@ package com.xmut.ebus.application.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandler;
 import com.xmut.ebus.application.business.sku.MockSkuSearchClient;
 import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.sku.SkuSearchPort;
@@ -19,7 +20,7 @@ import org.springframework.context.annotation.Primary;
 import java.util.Arrays;
 
 /**
- * Primary {@link ToolCatalog} for Adam: {@code read_skill} + {@code search_sku}.
+ * Primary {@link ToolCatalog} for Adam: {@code read_skill} + {@code search_sku} + {@code ask_human}.
  *
  * <p>Not {@code @ConditionalOnMissingBean} — this bean must replace pi-agent's default
  * catalog so {@code search_sku} is registered at startup.
@@ -37,7 +38,8 @@ public class EbusPiToolCatalogConfiguration {
     public ToolCatalog toolCatalog(SkillCatalog skillCatalog, SkuSearchPort skuSearchPort) {
         return InMemoryToolCatalog.of(Arrays.asList(
                 readSkillTool(skillCatalog),
-                searchSkuTool(skuSearchPort)));
+                searchSkuTool(skuSearchPort),
+                askHumanTool()));
     }
 
     /**
@@ -93,5 +95,39 @@ public class EbusPiToolCatalogConfiguration {
                 .handlerClass(SearchSkuToolHandler.class.getName())
                 .build();
         return new Tool(definition, new SearchSkuToolHandler(port));
+    }
+
+    static Tool askHumanTool() {
+        ObjectNode parameters = new ObjectMapper().createObjectNode();
+        parameters.put("type", "object");
+        ObjectNode properties = parameters.putObject("properties");
+        ObjectNode question = properties.putObject("question");
+        question.put("type", "string");
+        question.put("description", "Question shown to the human");
+        ObjectNode options = properties.putObject("options");
+        options.put("type", "array");
+        options.put("description", "Selectable options with id and label");
+        ObjectNode optionItems = options.putObject("items");
+        optionItems.put("type", "object");
+        ObjectNode optionProps = optionItems.putObject("properties");
+        optionProps.putObject("id").put("type", "string");
+        optionProps.putObject("label").put("type", "string");
+        ObjectNode allowFreeText = properties.putObject("allowFreeText");
+        allowFreeText.put("type", "boolean");
+        allowFreeText.put("description", "Whether free-text answers are allowed; default true");
+        parameters.putArray("required").add("question").add("options");
+        ToolSchema schema = ToolSchema.builder()
+                .name(AskHumanToolHandler.TOOL_NAME)
+                .description("Ask the human a structured question with options; suspends until resume")
+                .parametersSchema(parameters)
+                .build();
+        ToolDefinition definition = ToolDefinition.builder()
+                .id(AskHumanToolHandler.TOOL_NAME)
+                .description("Ask the human to confirm or supplement")
+                .text("[ask_human] Ask a question with options. Do not invent the human answer.")
+                .schema(schema)
+                .handlerClass(AskHumanToolHandler.class.getName())
+                .build();
+        return new Tool(definition, new AskHumanToolHandler());
     }
 }

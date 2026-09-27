@@ -11,6 +11,7 @@ public enum Ad4EventName {
     tool_started,
     tool_finished,
     agent_ended,
+    human_input_required,
     artifact_ready,
     run_failed,
     run_settled;
