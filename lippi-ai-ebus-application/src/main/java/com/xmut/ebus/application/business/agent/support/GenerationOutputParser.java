@@ -19,13 +19,14 @@ import java.util.regex.Pattern;
  * Business payload rules (no picklist field validation):
  * <ul>
  *   <li>Non-JSON text → {@code {text: trimmed}}</li>
- *   <li>Root has {@code artifact} object → payload = artifact map</li>
+ *   <li>Root has {@code artifact} key: object → payload = artifact map; else → empty map</li>
  *   <li>Else root has no {@code view} → payload = entire root object</li>
  *   <li>Else root has only {@code view} → payload = empty map</li>
  *   <li>Else (view + other keys, no artifact) → payload = root minus {@code view}</li>
  * </ul>
- * Skill {@code rawView} is taken from root {@code view} only when dual-track envelope
- * ({@code artifact} object) is present.
+ * Skill {@code rawView} is taken from root {@code view} whenever that value is an object.
+ * If {@code artifact} key exists but is not an object, {@code businessPayload} is empty and
+ * {@code view} is still extracted when present.
  */
 @Component
 public class GenerationOutputParser {
@@ -68,24 +69,25 @@ public class GenerationOutputParser {
         }
 
         JsonNode artifactNode = root.get("artifact");
-        boolean dualTrack = artifactNode != null && artifactNode.isObject();
+        boolean artifactObject = artifactNode != null && artifactNode.isObject();
 
         Map<String, Object> rawView = null;
-        if (dualTrack) {
-            JsonNode viewNode = root.get("view");
-            if (viewNode != null && viewNode.isObject()) {
-                rawView = objectMapper.convertValue(viewNode, MAP_TYPE);
-            }
+        JsonNode viewNode = root.get("view");
+        if (viewNode != null && viewNode.isObject()) {
+            rawView = objectMapper.convertValue(viewNode, MAP_TYPE);
         }
 
-        Map<String, Object> businessPayload = resolveBusinessPayload(root, dualTrack, artifactNode);
+        Map<String, Object> businessPayload = resolveBusinessPayload(root, artifactObject, artifactNode);
         return new ParsedGenerationOutput(rawView, businessPayload);
     }
 
-    private Map<String, Object> resolveBusinessPayload(JsonNode root, boolean dualTrack, JsonNode artifactNode) {
-        if (dualTrack) {
-            Map<String, Object> artifactMap = objectMapper.convertValue(artifactNode, MAP_TYPE);
-            return artifactMap == null ? Collections.<String, Object>emptyMap() : artifactMap;
+    private Map<String, Object> resolveBusinessPayload(JsonNode root, boolean artifactObject, JsonNode artifactNode) {
+        if (root.has("artifact")) {
+            if (artifactObject) {
+                Map<String, Object> artifactMap = objectMapper.convertValue(artifactNode, MAP_TYPE);
+                return artifactMap == null ? Collections.<String, Object>emptyMap() : artifactMap;
+            }
+            return Collections.<String, Object>emptyMap();
         }
         if (!root.has("view")) {
             return objectMapper.convertValue(root, MAP_TYPE);

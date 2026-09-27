@@ -34,6 +34,23 @@ class GenerationOutputParserTest {
     }
 
     @Test
+    void viewOnly_json_extractsRawViewAndEmptyBusinessPayload() {
+        ParsedGenerationOutput out = parser.parse("{\"view\":{\"version\":1,\"blocks\":[]}}");
+        assertNotNull(out.getRawView());
+        assertEquals(1, out.getRawView().get("version"));
+        assertTrue(out.getBusinessPayload().isEmpty());
+    }
+
+    @Test
+    void artifactNonObject_emptyPayloadStillExtractsView() {
+        String raw = "{\"view\":{\"version\":1,\"blocks\":[]},\"artifact\":\"not-an-object\"}";
+        ParsedGenerationOutput out = parser.parse(raw);
+        assertNotNull(out.getRawView());
+        assertEquals(1, out.getRawView().get("version"));
+        assertTrue(out.getBusinessPayload().isEmpty());
+    }
+
+    @Test
     void plainText_rawViewNull_payloadHasText() {
         ParsedGenerationOutput out = parser.parse("你好，这是草稿");
         assertNull(out.getRawView());
