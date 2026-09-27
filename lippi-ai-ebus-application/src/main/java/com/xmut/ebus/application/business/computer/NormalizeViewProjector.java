@@ -134,6 +134,10 @@ public class NormalizeViewProjector implements ComputerViewProjector {
             if (tags != null && !tags.isEmpty()) {
                 out.put("tags", tags);
             }
+            String href = asHttpsHref(item.get("href"));
+            if (href != null) {
+                out.put("href", href);
+            }
             items.add(out);
         }
         boolean ordered = !(block.get("ordered") instanceof Boolean) || Boolean.TRUE.equals(block.get("ordered"));
@@ -235,5 +239,16 @@ public class NormalizeViewProjector implements ComputerViewProjector {
         }
         String text = ((String) value).trim();
         return allowed.contains(text) ? text : null;
+    }
+
+    private static String asHttpsHref(Object value) {
+        if (!(value instanceof String)) {
+            return null;
+        }
+        String text = ((String) value).trim();
+        if (!text.startsWith("https://")) {
+            return null;
+        }
+        return text;
     }
 }

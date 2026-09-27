@@ -130,6 +130,38 @@ describe('ComputerRenderer', () => {
     host.remove()
   })
 
+  it('renders https list item href as external link; omits http and missing href', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: {
+        version: 1,
+        title: 'picklist',
+        blocks: [
+          {
+            type: 'list',
+            items: [
+              { title: '商品A', href: 'https://item.example/1' },
+              { title: '商品B', href: 'http://item.example/2' },
+              { title: '商品C' },
+            ],
+          },
+        ],
+      },
+    })
+    app.mount(host)
+    await nextTick()
+    const links = host.querySelectorAll('a[target="_blank"]')
+    expect(links.length).toBe(1)
+    expect(links[0].getAttribute('href')).toBe('https://item.example/1')
+    expect(links[0].getAttribute('rel')).toBe('noopener noreferrer')
+    expect(host.textContent).toMatch(/商品A/)
+    expect(host.textContent).toMatch(/商品B/)
+    expect(host.textContent).not.toMatch(/http:\/\/item/)
+    app.unmount()
+    host.remove()
+  })
+
   it('accepts legacy string lines and tags', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
@@ -176,6 +208,25 @@ describe('parseComputerDocument', () => {
     expect(bodySection && bodySection.type === 'section' && bodySection.tone).toBe('mute')
     expect(warn).toHaveBeenCalledWith('[parseComputerDocument] skip unknown block type:', 'nope')
     warn.mockRestore()
+  })
+
+  it('parses https href on list items and drops http', () => {
+    const parsed = parseComputerDocument({
+      version: 1,
+      title: 'picklist',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            { title: 'A', href: 'https://item.example/1' },
+            { title: 'B', href: 'http://item.example/2' },
+          ],
+        },
+      ],
+    })
+    const list = parsed?.blocks.find((b) => b.type === 'list')
+    expect(list && list.type === 'list' && list.items[0].href).toBe('https://item.example/1')
+    expect(list && list.type === 'list' && list.items[1].href).toBeUndefined()
   })
 
   it('returns null when version or title is invalid', () => {

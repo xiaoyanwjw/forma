@@ -14,6 +14,7 @@ import {
   resolveLineLabel,
   resolveNoteText,
   resolveTagDisplay,
+  sanitizeHttpsHref,
 } from '@/types/business/computerView'
 
 const props = defineProps<{
@@ -100,6 +101,10 @@ function itemBadge(item: { badge?: string; title: string }): string | undefined 
   return undefined
 }
 
+function itemHref(item: { href?: string }): string | undefined {
+  return sanitizeHttpsHref(item.href)
+}
+
 function itemTitle(item: { badge?: string; title: string }): string {
   if (item.badge || item.title.startsWith(PRIORITY_MARK)) {
     return item.title.startsWith(PRIORITY_MARK)
@@ -140,7 +145,14 @@ function itemTitle(item: { badge?: string; title: string }): string {
               <div class="item-top">
                 <div class="t">
                   <span v-if="itemBadge(item)" class="priority-tag">{{ itemBadge(item) }}</span>
-                  {{ itemTitle(item) }}
+                  <a
+                    v-if="itemHref(item)"
+                    class="item-title-link"
+                    :href="itemHref(item)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >{{ itemTitle(item) }}</a>
+                  <template v-else>{{ itemTitle(item) }}</template>
                 </div>
                 <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
               </div>
@@ -278,6 +290,15 @@ function itemTitle(item: { badge?: string; title: string }): string {
   line-height: 1.35;
   color: var(--ink);
   min-width: 0;
+}
+
+.pick-list .item-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.pick-list .item-title-link:hover {
+  text-decoration: underline;
 }
 
 .item-price {

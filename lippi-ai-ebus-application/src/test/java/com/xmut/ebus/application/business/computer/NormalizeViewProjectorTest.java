@@ -55,4 +55,39 @@ class NormalizeViewProjectorTest {
         assertEquals("note", outBlocks.get(0).get("type"));
         assertEquals("markdown", outBlocks.get(1).get("type"));
     }
+
+    @Test
+    void passesThroughHttpsListItemHrefAndDropsNonHttps() {
+        List<Object> items = new ArrayList<Object>();
+        Map<String, Object> withHttps = new LinkedHashMap<String, Object>();
+        withHttps.put("title", "A");
+        withHttps.put("href", "https://item.example/1");
+        items.add(withHttps);
+        Map<String, Object> withHttp = new LinkedHashMap<String, Object>();
+        withHttp.put("title", "B");
+        withHttp.put("href", "http://item.example/2");
+        items.add(withHttp);
+        Map<String, Object> noHref = new LinkedHashMap<String, Object>();
+        noHref.put("title", "C");
+        items.add(noHref);
+
+        Map<String, Object> listBlock = new LinkedHashMap<String, Object>();
+        listBlock.put("type", "list");
+        listBlock.put("items", items);
+
+        Map<String, Object> raw = new LinkedHashMap<String, Object>();
+        raw.put("version", Integer.valueOf(1));
+        raw.put("title", "picklist");
+        raw.put("blocks", Arrays.asList(listBlock));
+
+        Map<String, Object> view = projector.project(ViewProjectContext.builder().rawView(raw).build());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> outBlocks = (List<Map<String, Object>>) view.get("blocks");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> outItems = (List<Map<String, Object>>) outBlocks.get(0).get("items");
+        assertEquals(3, outItems.size());
+        assertEquals("https://item.example/1", outItems.get(0).get("href"));
+        assertFalse(outItems.get(1).containsKey("href"));
+        assertFalse(outItems.get(2).containsKey("href"));
+    }
 }

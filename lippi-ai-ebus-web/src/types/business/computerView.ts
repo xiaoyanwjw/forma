@@ -51,6 +51,8 @@ export interface ComputerListItem {
   title: string
   lines?: ComputerListLine[]
   tags?: ComputerTag[]
+  /** https only; omit if invalid */
+  href?: string
 }
 
 export interface ComputerListBlock {
@@ -227,6 +229,13 @@ function asLineList(value: unknown): ComputerListLine[] | undefined {
   return lines.length ? lines : undefined
 }
 
+export function sanitizeHttpsHref(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined
+  const t = raw.trim()
+  if (!t.startsWith('https://')) return undefined
+  return t
+}
+
 function parseListItem(raw: unknown): ComputerListItem | null {
   if (!isRecord(raw) || typeof raw.title !== 'string') {
     return null
@@ -242,6 +251,10 @@ function parseListItem(raw: unknown): ComputerListItem | null {
   const tags = asTagList(raw.tags)
   if (tags) {
     item.tags = tags
+  }
+  const href = sanitizeHttpsHref(raw.href)
+  if (href) {
+    item.href = href
   }
   return item
 }
