@@ -86,7 +86,7 @@ flowchart LR
 
 - **Binds:** FR-3..FR-6, CreditLedger, NFR-2
 - **Prevents:** 工具/前端直接改余额；失败仍扣分；并发双花；「SSE 结束」误当结算点
-- **Rule:** 仅 **CreditLedger** 可变余额。套餐月额度：**免费 20 / Pro 200 / Plus 600**；月重置时剩余 **清零不结转**。计费：`检查 → 预占 1 → 仅当可用成果已持久化后结算 → 否则释放预占`。**禁止**仅因 SSE `agent_end`/流结束而结算。Agent 工具不得写积分表。
+- **Rule:** 仅 **CreditLedger** 可变余额。套餐月额度：**免费 20 / Pro 200 / Plus 600**；月重置时剩余 **清零不结转**。计费：`检查 → 预占 1 → 仅当可用成果已持久化后结算 → 否则释放预占`。**禁止**仅因 SSE `agent_end`/流结束而结算。Agent 工具不得写积分表。**操作化（方案 A）：** 可用成果 = 可投影 Computer `view`；先 project → persist（回显，含无 Skill→`chat`）→ settle；见 [`docs/superpowers/specs/2026-09-27-generation-artifact-persist-simplify-design.md`](../../../../docs/superpowers/specs/2026-09-27-generation-artifact-persist-simplify-design.md)。
 
 ### AD-6 — 领域所有权 [ADOPTED]
 

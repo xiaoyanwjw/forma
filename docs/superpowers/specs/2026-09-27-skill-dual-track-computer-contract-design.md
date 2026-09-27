@@ -20,7 +20,7 @@
 2. Skill 终态**首先**产出合法 `view`（blocks 只用白名单）。  
 3. 计费场景**另外**带可校验的业务包（下文称 `artifact`）；类型名由业务插件解释，**不进入 Computer 渲染协议**。  
 4. **Projector 策略模式**（`supports` + `project`）：对已有 `view` 做**规范化**；**无 Skill** 时把终态文本**包成 markdown**。
-5. **Settle**：有 `persistAs` 业务轨 → 可用 `artifact` 落库后 settle（AD-5）；**无 Skill**（`persistAs=none`）→ 可用 Computer `view` 门禁通过后 settle（草稿回合扣 1 分）。
+5. **Settle**：门禁 = **可投影 Computer `view`**（AD-5 操作化）；**落库 = 回显**（凡 settle 成功都写 `ebus_artifact` 并带 `artifactRef`）。`persistAs` 只映射 `artifact_type`（无 Skill：`none` → `chat`），不再表示「不写表」。
 
 ## 非目标
 
@@ -100,6 +100,11 @@ interface ListItem {
   badge?: string           // 语义 token 或短文案；FE 可映射
   lines?: ListLine[]
   tags?: ListTag[]
+  /**
+   * 可选外链（如商品原页）。仅允许 https:；FE 新标签打开。
+   * 选品等需「跳原链」的 Skill 必填；无链场景可省略。
+   */
+  href?: string
 }
 
 interface ListLine {
@@ -118,6 +123,8 @@ interface ListTag {
 ```
 
 说明：`kind: "painPoint"` 可以出现在**某个 Skill 的写作指引**里，并在 FE 词典登记；**本规约不把 painPoint 写成平台枚举**。
+
+`href`：Normalize 时丢弃非 `https:`；FE 渲染为可访问外链（标题可点或独立「打开原页」），`rel="noopener noreferrer"`。**不要**另造业务 block type（如 `productLink`）。
 
 ### 1.5 最小合法 `view` 例子（无任何业务类型名）
 
@@ -223,7 +230,7 @@ output:
 }
 ```
 
-默认 **settle**：`view` 门禁通过后扣 1 分，发 `artifact_ready(view)` + `run_settled`（无 `artifactRef`）。聊天区仍可有 `message_delta`。失败/无 view 则 release。
+默认 **settle**：可投影 `view` 后门禁通过 → 写库（`artifact_type=chat`）→ 扣 1 分，发 `artifact_ready(view + artifactRef)` + `run_settled`。聊天区仍可有 `message_delta`。失败/无 view 则 release、不写库。
 
 ---
 
@@ -233,9 +240,9 @@ output:
 reserve? → prompt(skill|none) → final
   → 组装 ViewProjectContext
   → ComputerViewResolver.resolve(ctx)   // 策略：Normalize | NoSkillMarkdown | …
-  → 若 billing + persistAs：artifact 校验 → persist → settle → artifact_ready(view + artifactRef)
-  → 若无 Skill：view 门禁 → settle → artifact_ready(view) + run_settled
-  → 若失败：release + run_failed
+  → 可投影 view？否 → release + run_failed（不写库）
+  → 是 → persist（artifact_type ← persistAs；无 Skill → chat）→ settle
+       → artifact_ready(view + artifactRef) + run_settled
 ```
 
 `artifact_ready` 给 FE 的**渲染字段只有 `view`**。业务 ref 仅用于历史/跳转：
@@ -398,3 +405,6 @@ FE 若登记了 `painPoint → 痛点` 词典则显示标签；未登记则只�
 | 2026-09-27 | **无 Skill 路径**：blank `skillId` → `NoSkillMarkdown` → `artifact_ready(view)` → release；不 settle、成功不发 `run_failed` |
 | 2026-09-27 | **无 Skill 计费**：可用 markdown `view` 门禁后 settle + `run_settled`；失败仍 release |
 | 2026-09-27 | **合并**：`ViewProjectorChain` 内嵌进 `ComputerViewResolver` |
+| 2026-09-27 | `ListItem.href`：选品等原链跳转；仅 https；见 picklist-marketplace-search 设计 |
+| 2026-09-27 | **落库简化 A**：settle 门禁 = 可投影 view；artifact 宽进历史；删除 Legacy/Picklist 硬校验栈。见 [`2026-09-27-generation-artifact-persist-simplify-design.md`](./2026-09-27-generation-artifact-persist-simplify-design.md) |
+| 2026-09-27 | **修订对齐 A**：废「无 Skill：`artifact_ready(view)` 无 `artifactRef`」——成功路径一律带 `artifactRef`，`artifact_type=chat`；settle = 可投影 view；落库 = 回显 |

@@ -21,7 +21,7 @@
 - 候选条目必须能对应工具返回的商品摘要（品名 / 价格带以抽样为准）。  
 - **Computer 预览每条候选必须可跳到平台原链**：用户一点就能打开商品页（新标签、`https` only）。  
 - `ecommerce-picklist/SKILL.md` 按 **§4 标准模板**重写；`allowed-tools` 含 `read_skill` + `search_sku`。  
-- 积分仍 AD-5：可用 `artifact` 落库 + view 门禁后 settle；搜不到合格结果则 release。  
+- 积分仍 AD-5：**可投影 view** 后落库（回显）再 settle；搜不到结果 / 不可投影则 release。应用层**不再**用 `sourceUrl` / 条数硬校验挡 settle（软约束仍在本 SKILL）。  
 
 ## 3. Non-goals
 
@@ -108,15 +108,15 @@ metadata:
 reserve → prompt(skillId=ecommerce-picklist)
   → agent ⇄ tools（search_sku ≥1 次成功）
   → 终态 JSON { view, artifact }
-  → Picklist persist 插件 → ComputerViewResolver → settle
-  → artifact_ready + run_settled
+  → ComputerViewResolver → ArtifactPersistPlugin → settle
+  → artifact_ready(view + artifactRef) + run_settled
 ```
 
 | 组件 | 职责 |
 |------|------|
 | `SKILL.md` | 流程 SSOT；白名单工具 |
 | `search_sku` Tool | 淘宝客（MVP）/ 可选多多客；只读；密钥环境变量；超时限流 |
-| `PicklistArtifactPersistPlugin` | 仍校验 8–12 + 四维等；可增「来源声明」字段（可选后续） |
+| `ArtifactPersistPlugin` | 可投影后宽进写库（`artifact_type=picklist`）；**不再**硬校验 8–12 / `sourceUrl` |
 | `SkillRunProfile` | 近端仍 `billedPicklist()`；日后可由 `metadata.output` 驱动 |
 
 **禁止模型：** 零次成功搜索就输出 8–12 条完整候选。  
@@ -146,7 +146,7 @@ reserve → prompt(skillId=ecommerce-picklist)
 | 层 | 字段 | 规则 |
 |----|------|------|
 | Tool 出参 | `detailUrl` | 淘宝客/多多客返回的落地 URL；mock 也须给可解析的 `https` 假链 |
-| `artifact.items[]` | `sourceUrl` | = 对应工具条目的 `detailUrl`；插件校验：8–12 条且**每条非空 https** |
+| `artifact.items[]` | `sourceUrl` | = 对应工具条目的 `detailUrl`；**Skill 软约束**（不再挡 settle）；预览跳转以 `view.href` 为准 |
 | `view.blocks` list item | `href` | = 同条 `sourceUrl`；见双轨合同 `ListItem.href` |
 | FE Computer | 外链 | 每条展示可点控件（标题可点或「查看原商品」）；`target=_blank` + `rel=noopener noreferrer`；非 `https:` 丢弃不渲染 |
 
@@ -164,7 +164,7 @@ Computer `note` 与 artifact disclaimer 统一口径，例如：
 - [x] 2. 集成/单测：选品成功路径可观察到 ≥1 次 tool 调用（mock 即可）。  
 - [x] 3. 无 tool / 空结果 → 不 settle。  
 - [x] 4. 有 tool 结果 → 合格 artifact + view → settle；FE 仍只渲染 `view`。  
-- [x] 5. **预览**：成功清单每条可点开原链（`href`/`sourceUrl` 对齐）；缺链条目不得 settle。  
+- [x] 5. **预览**：成功清单每条可点开原链（`href`/`sourceUrl` 对齐，Skill 软约束）；应用层不再因缺链硬挡 settle。  
 - [x] 6. 密钥仅环境变量 / APP-META；前端零直连。（`search_sku` Mock 路径；淘宝客真客户端 Task 6 deferred。）  
 
 ## 9. 落地顺序（建议）
@@ -184,4 +184,6 @@ Computer `note` 与 artifact disclaimer 统一口径，例如：
 | 2026-09-27 | Tool 改名：`search_marketplace` → `search_sku` |
 | 2026-09-27 | 预览必含原链跳转：`detailUrl` → `sourceUrl` → `view.href` |
 | 2026-09-27 | 实现计划：[`../plans/2026-09-27-picklist-search-sku.md`](../plans/2026-09-27-picklist-search-sku.md) |
+| 2026-09-27 | 落库简化方案 A：硬校验 `sourceUrl`/条数不再挡 settle；见 [`2026-09-27-generation-artifact-persist-simplify-design.md`](./2026-09-27-generation-artifact-persist-simplify-design.md) |
 | 2026-09-27 | Tasks 1–5 已合入：§4.3 / §8 验收勾选；Task 6（TBK 真客户端）后置 follow-up |
+| 2026-09-27 | **修订对齐 A**：正文 Goal / Runtime / §6.1 与简化规约一致——`sourceUrl`/条数硬校验不再挡 settle；指向 simplify |
