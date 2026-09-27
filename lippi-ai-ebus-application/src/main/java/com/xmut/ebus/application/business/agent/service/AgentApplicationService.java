@@ -7,9 +7,9 @@ import com.xmut.ebus.application.business.agent.dto.PicklistRunContext;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.agent.sse.PiEventToAd4Mapper;
+import com.xmut.ebus.application.business.agent.support.CreditHoldLifecycle;
+import com.xmut.ebus.application.business.computer.ComputerViewGate;
 import com.xmut.ebus.application.business.computer.ViewProjectContext;
-import com.xmut.ebus.application.business.computer.ViewProjectorChain;
-import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
 import com.xmut.ebus.application.business.picklist.command.PersistPicklistCommand;
 import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
 import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
@@ -55,7 +55,8 @@ import java.util.function.Consumer;
  * <p>
  * 空跑只 {@code reserveOne} + 结束 {@code release}；禁止 {@code settle}；
  * 不发 {@code artifact_ready}/{@code run_settled}。
- * 计费选品：可用成果落库后 {@code settle}，再发 {@code artifact_ready}/{@code run_settled}。
+ * 计费选品管道：parse → persist → {@link ComputerViewGate} → settle →
+ * {@code artifact_ready}/{@code run_settled}。投影失败不 settle。
  * 计费生成必须绑定 AVAILABLE 场景（AD-15）。
  */
 @Slf4j
@@ -79,7 +80,7 @@ public class AgentApplicationService {
     static final String MSG_SESSION_SCENE_MISMATCH = "当前会话已绑定其他场景";
     static final String MSG_PROMPT_REQUIRED = "请先描述选品需求";
 
-    private final CreditApplicationService creditService;
+    private final CreditHoldLifecycle creditHoldLifecycle;
     private final GenerationRunRepository generationRunRepository;
     private final PiSessionSceneRepository piSessionSceneRepository;
     private final SceneRepository sceneRepository;
@@ -87,7 +88,7 @@ public class AgentApplicationService {
     private final AgentSession agentSession;
     private final PicklistArtifactParser picklistArtifactParser;
     private final PicklistApplicationService picklistApplicationService;
-    private final ViewProjectorChain viewProjectorChain;
+    private final ComputerViewGate computerViewGate;
     private final Clock clock;
 
     /**
@@ -232,7 +233,7 @@ public class AgentApplicationService {
     }
 
     private String reserveOne(String userId) {
-        return creditService.reserveOne(userId);
+        return creditHoldLifecycle.reserveOne(userId);
     }
 
     /**
@@ -255,7 +256,7 @@ public class AgentApplicationService {
             try {
                 pack = sceneCapabilityPackLoader.load(context.getSceneCode());
             } catch (BusinessException ex) {
-                boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
+                boolean releaseOk = creditHoldLifecycle.tryRelease(context.getUserId(), context.getHoldId(), context.getRunId());
                 released = releaseOk;
                 markRunFailed(context.getRunId());
                 String reason = releaseOk
@@ -267,7 +268,7 @@ public class AgentApplicationService {
                 return;
             }
             if (!pack.hasSkill(SceneCapabilityPackLoader.DEFAULT_EMPTY_RUN_SKILL_ID)) {
-                boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
+                boolean releaseOk = creditHoldLifecycle.tryRelease(context.getUserId(), context.getHoldId(), context.getRunId());
                 released = releaseOk;
                 markRunFailed(context.getRunId());
                 emitRunFailed(sink, releaseOk
@@ -311,7 +312,7 @@ public class AgentApplicationService {
                     .build());
 
             if (aborted.get()) {
-                boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
+                boolean releaseOk = creditHoldLifecycle.tryRelease(context.getUserId(), context.getHoldId(), context.getRunId());
                 markRunFailed(context.getRunId());
                 emitRunFailed(sink, releaseOk ? SSE_SEND_FAILED_RELEASED : SSE_SEND_FAILED_RELEASE_FAILED, true);
                 return;
@@ -325,7 +326,7 @@ public class AgentApplicationService {
                 emit(sink, Ad4SseEvent.of(Ad4EventName.message_delta, delta));
             }
 
-            boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
+            boolean releaseOk = creditHoldLifecycle.tryRelease(context.getUserId(), context.getHoldId(), context.getRunId());
             released = releaseOk;
             markRunFailed(context.getRunId());
             emitRunFailed(sink, releaseOk ? EMPTY_RUN_FAIL_REASON : RELEASE_FAILED_REASON, true);
@@ -334,7 +335,7 @@ public class AgentApplicationService {
                     ex.getMessage() != null ? ex.getMessage() : "stream failed",
                     NameValue.create("runId", context.getRunId()));
             if (!released) {
-                boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
+                boolean releaseOk = creditHoldLifecycle.tryRelease(context.getUserId(), context.getHoldId(), context.getRunId());
                 released = releaseOk;
                 markRunFailed(context.getRunId());
                 if (releaseOk) {
@@ -352,8 +353,8 @@ public class AgentApplicationService {
     }
 
     /**
-     * 计费选品流：预占已完成 → prompt(skill) → 解析落库 → settle → {@code artifact_ready}/{@code run_settled}。
-     * 失败/不合格：release + {@code run_failed}；绝不因 SSE 结束单独 settle。
+     * 计费选品流：prompt(skill) → parse → persist → {@link ComputerViewGate} → settle →
+     * {@code artifact_ready}/{@code run_settled}。投影失败 release，不 settle。
      */
     public void streamPicklistRun(PicklistRunContext context, Consumer<Ad4SseEvent> sink) {
         ObjectUtils.requireNonNull(context, "选品上下文不能为空");
@@ -462,8 +463,22 @@ public class AgentApplicationService {
 
             PicklistArtifactDTO artifact = picklistApplicationService.persistUsable(persistCommand);
 
+            final Map<String, Object> projectedView;
             try {
-                creditService.settle(context.getUserId(), context.getHoldId());
+                projectedView = computerViewGate.requireView(ViewProjectContext.builder()
+                        .skillBound(true)
+                        .finalResponse(result.getFinalResponse())
+                        .rawView(skillRawView)
+                        .artifact(artifact)
+                        .build());
+            } catch (BusinessException ex) {
+                holdClosed = finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : ComputerViewGate.MSG_VIEW_UNAVAILABLE);
+                return;
+            }
+
+            try {
+                creditHoldLifecycle.settle(context.getUserId(), context.getHoldId());
             } catch (BusinessException ex) {
                 LoggerUtils.error(log, AgentApplicationService.class, "streamPicklistRun",
                         ex.getMessage() != null ? ex.getMessage() : "settle failed",
@@ -480,7 +495,7 @@ public class AgentApplicationService {
             holdClosed = true;
 
             try {
-                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, toArtifactReady(artifact, skillRawView)));
+                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, toArtifactReady(artifact, projectedView)));
                 emit(sink, Ad4SseEvent.of(Ad4EventName.run_settled, toRunSettled(context, artifact.getPicklistId())));
             } catch (RuntimeException emitEx) {
                 LoggerUtils.error(log, AgentApplicationService.class, "streamPicklistRun",
@@ -538,36 +553,10 @@ public class AgentApplicationService {
     }
 
     private boolean finishFailed(PicklistRunContext context, Consumer<Ad4SseEvent> sink, String reason) {
-        boolean releaseOk = releaseHold(context.getUserId(), context.getHoldId(), context.getRunId());
+        boolean releaseOk = creditHoldLifecycle.tryRelease(context.getUserId(), context.getHoldId(), context.getRunId());
         markRunFailed(context.getRunId());
         emitRunFailed(sink, releaseOk ? reason : PICKLIST_RELEASE_FAILED, false);
         return true;
-    }
-
-    /**
-     * @return true 仅当 release 成功
-     */
-    private boolean releaseHold(String userId, String holdId, String runId) {
-        try {
-            creditService.release(userId, holdId);
-            LoggerUtils.success(log, AgentApplicationService.class, "release",
-                    NameValue.create("userId", userId),
-                    NameValue.create("holdId", holdId),
-                    NameValue.create("runId", runId));
-            return true;
-        } catch (BusinessException ex) {
-            LoggerUtils.error(log, AgentApplicationService.class, "release",
-                    ex.getMessage() != null ? ex.getMessage() : "释放预占失败",
-                    NameValue.create("userId", userId),
-                    NameValue.create("holdId", holdId));
-            return false;
-        } catch (RuntimeException ex) {
-            LoggerUtils.error(log, AgentApplicationService.class, "release",
-                    ex.getMessage() != null ? ex.getMessage() : "释放预占异常",
-                    NameValue.create("userId", userId),
-                    NameValue.create("holdId", holdId));
-            return false;
-        }
     }
 
     private void markRunFailed(String runId) {
@@ -605,10 +594,14 @@ public class AgentApplicationService {
         return data;
     }
 
-    private Map<String, Object> toArtifactReady(PicklistArtifactDTO artifact, Map<String, Object> skillRawView) {
+    /**
+     * SSE payload: Computer renders {@code view}; business fields kept transitional for FE legacy card.
+     */
+    private static Map<String, Object> toArtifactReady(PicklistArtifactDTO artifact, Map<String, Object> projectedView) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
-        data.put("artifactType", "picklist");
         data.put("artifactRef", artifact.getPicklistId());
+        data.put("view", projectedView);
+        data.put("artifactType", "picklist");
         data.put("picklistId", artifact.getPicklistId());
         data.put("runId", artifact.getRunId());
         data.put("templateId", artifact.getTemplateId());
@@ -632,19 +625,10 @@ public class AgentApplicationService {
             items.add(row);
         }
         data.put("items", items);
-        ViewProjectContext viewCtx = ViewProjectContext.builder()
-                .skillBound(true)
-                .artifact(artifact)
-                .rawView(skillRawView)
-                .build();
-        Optional<Map<String, Object>> projected = viewProjectorChain.project(viewCtx);
-        data.put("view", projected.isPresent()
-                ? projected.get()
-                : java.util.Collections.<String, Object>emptyMap());
         return data;
     }
 
-    private static Map<String, Object> toRunSettled(PicklistRunContext context, String artifactRef) {
+        private static Map<String, Object> toRunSettled(PicklistRunContext context, String artifactRef) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("runId", context.getRunId());
         data.put("holdId", context.getHoldId());

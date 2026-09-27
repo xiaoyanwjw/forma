@@ -153,32 +153,33 @@ export function useAgentPicklistRun() {
 export { CREDITS_CHANGED_EVENT }
 
 function toPicklistArtifact(data: Record<string, unknown>): PicklistArtifactPayload | null {
+  const view = parseComputerDocument(data.view) ?? undefined
   const itemsRaw = data.items
-  if (!Array.isArray(itemsRaw) || itemsRaw.length === 0) {
-    return null
-  }
-  const items = itemsRaw
-    .map((row) => {
-      if (!row || typeof row !== 'object') {
-        return null
-      }
-      const o = row as Record<string, unknown>
-      return {
-        title: str(o.title),
-        priceBand: str(o.priceBand),
-        painPoint: str(o.painPoint),
-        angle: str(o.angle),
-        diff: str(o.diff),
-        niche: str(o.niche),
-        demand: str(o.demand),
-        competition: str(o.competition),
-        margin: str(o.margin),
-        risk: str(o.risk),
-      }
-    })
-    .filter((x): x is NonNullable<typeof x> => x != null && Boolean(x.title))
+  const items = Array.isArray(itemsRaw)
+    ? itemsRaw
+        .map((row) => {
+          if (!row || typeof row !== 'object') {
+            return null
+          }
+          const o = row as Record<string, unknown>
+          return {
+            title: str(o.title),
+            priceBand: str(o.priceBand),
+            painPoint: str(o.painPoint),
+            angle: str(o.angle),
+            diff: str(o.diff),
+            niche: str(o.niche),
+            demand: str(o.demand),
+            competition: str(o.competition),
+            margin: str(o.margin),
+            risk: str(o.risk),
+          }
+        })
+        .filter((x): x is NonNullable<typeof x> => x != null && Boolean(x.title))
+    : []
 
-  if (items.length === 0) {
+  // Prefer Computer view; items remain optional transitional payload for legacy card.
+  if (!view && items.length === 0) {
     return null
   }
 
@@ -189,7 +190,7 @@ function toPicklistArtifact(data: Record<string, unknown>): PicklistArtifactPayl
     disclaimer: str(data.disclaimer),
     assumptions: str(data.assumptions) || undefined,
     items,
-    view: parseComputerDocument(data.view) ?? undefined,
+    view,
   }
 }
 

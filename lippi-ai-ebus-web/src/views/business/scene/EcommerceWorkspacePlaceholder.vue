@@ -80,7 +80,7 @@ const displayPicks = computed(() => {
   }))
 })
 
-const picksIsLive = computed(() => Boolean(livePicklist.value?.items?.length))
+const picksIsLive = computed(() => Boolean(livePicklist.value?.view || livePicklist.value?.items?.length))
 
 const activeComputerDoc = computed(() => {
   if (computerKind.value === 'listing') return DEMO_LISTING_VIEW
@@ -195,12 +195,16 @@ async function sendFromSession() {
     return
   }
 
-  if (picklistArtifact.value?.items?.length) {
+  if (picklistArtifact.value?.view || picklistArtifact.value?.items?.length) {
     livePicklist.value = picklistArtifact.value
     computerKind.value = 'picks'
     revealComputer()
-    const n = picklistArtifact.value.items.length
-    const reply = `已生成 ${n} 条选品候选，右侧 Computer 可查看四维简评与可卖理由。`
+    const n = picklistArtifact.value.items?.length
+      ? picklistArtifact.value.items.length
+      : picklistArtifact.value.view?.blocks?.length || 0
+    const reply = n > 0
+      ? `已生成选品候选，右侧 Computer 可查看详情。`
+      : `已生成选品成果，右侧 Computer 可查看。`
     if (idx >= 0) {
       messages.value[idx] = {
         id: thinkingId,
@@ -309,7 +313,7 @@ function eventTitle(e: ProcessEvent): string {
 }
 
 watch(picklistArtifact, (value) => {
-  if (value?.items?.length) {
+  if (value?.view || value?.items?.length) {
     livePicklist.value = value
   }
 })

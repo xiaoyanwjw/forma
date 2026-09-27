@@ -12,6 +12,8 @@ import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
 import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
 import com.xmut.ebus.application.business.picklist.support.PicklistParseResult;
+import com.xmut.ebus.application.business.agent.support.CreditHoldLifecycle;
+import com.xmut.ebus.application.business.computer.ComputerViewGate;
 import com.xmut.ebus.application.business.computer.LegacyPicklistFallbackProjector;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
@@ -103,8 +105,12 @@ class AgentApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
+        ViewProjectorChain chain = new ViewProjectorChain(java.util.Arrays.asList(
+                new NormalizeViewProjector(),
+                new LegacyPicklistFallbackProjector(new PicklistViewProjector()),
+                new NoSkillMarkdownProjector()));
         service = new AgentApplicationService(
-                creditApplicationService,
+                new CreditHoldLifecycle(creditApplicationService),
                 generationRunRepository,
                 piSessionSceneRepository,
                 sceneRepository,
@@ -112,10 +118,7 @@ class AgentApplicationServiceTest {
                 agentSession,
                 picklistArtifactParser,
                 picklistApplicationService,
-                new ViewProjectorChain(java.util.Arrays.asList(
-                        new NormalizeViewProjector(),
-                        new LegacyPicklistFallbackProjector(new PicklistViewProjector()),
-                        new NoSkillMarkdownProjector())),
+                new ComputerViewGate(chain),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -710,6 +713,53 @@ class AgentApplicationServiceTest {
         assertEquals(1, outBlocks.size());
         assertEquals("note", outBlocks.get(0).get("type"));
         assertEquals("skill-owned note", outBlocks.get(0).get("text"));
+    }
+
+    @Test
+    void streamPicklistRunReleasesWithoutSettleWhenViewGateFails() {
+        ViewProjectorChain emptyChain = new ViewProjectorChain(Collections.<com.xmut.ebus.application.business.computer.ComputerViewProjector>emptyList());
+        AgentApplicationService gated = new AgentApplicationService(
+                new CreditHoldLifecycle(creditApplicationService),
+                generationRunRepository,
+                piSessionSceneRepository,
+                sceneRepository,
+                sceneCapabilityPackLoader,
+                agentSession,
+                picklistArtifactParser,
+                picklistApplicationService,
+                new ComputerViewGate(emptyChain),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        PicklistRunContext ctx = picklistCtx("run-pl-noview", "session-pl-noview");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-pl-noview", "session-pl-noview", VALID_PICKLIST_JSON,
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
+                .userId(USER_ID)
+                .runId("run-pl-noview")
+                .templateId("domestic-generic-default")
+                .disclaimer("基于通用电商知识推断，非实时平台数据")
+                .items(Collections.emptyList())
+                .build();
+        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-noview"))
+                .thenReturn(new PicklistParseResult(persistCmd, null));
+        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
+                .thenReturn(sampleArtifact("pl-noview", "run-pl-noview"));
+        when(generationRunRepository.findById("run-pl-noview")).thenReturn(Optional.of(
+                GenerationRun.start("run-pl-noview", USER_ID, HOLD_ID, "session-pl-noview",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        gated.streamPicklistRun(ctx, events::add);
+
+        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.run_failed));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
 
     @Test
