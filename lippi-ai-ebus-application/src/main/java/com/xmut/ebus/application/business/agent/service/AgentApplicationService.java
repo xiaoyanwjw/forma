@@ -11,12 +11,13 @@ import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.agent.sse.PiEventToAd4Mapper;
 import com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin;
 import com.xmut.ebus.application.business.agent.support.CreditHoldSupport;
+import com.xmut.ebus.application.business.agent.support.GenerationOutputParser;
+import com.xmut.ebus.application.business.agent.support.ParsedGenerationOutput;
 import com.xmut.ebus.application.business.agent.support.PersistedGenerationArtifact;
 import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.ViewProjectContext;
-import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
-import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
+import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -46,7 +47,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +62,7 @@ import java.util.function.Consumer;
  * 空跑只 {@code reserveOne} + 结束 {@code release}；禁止 {@code settle}；
  * 不发 {@code artifact_ready}/{@code run_settled}。
  * 通用 Generation 管道：{@link #streamGenerationRun}；dry 永不 settle；
- * 非 dry 统一 {@code streamBilledRun}（无 Skill 跳过 persist；计费 Skill 走插件落库）→ view → settle。
+ * 非 dry 统一 {@code streamBilledRun}：parse → view → persist → settle（无 Skill 亦写 chat artifact）。
  * 计费生成必须绑定 AVAILABLE 场景（AD-15）。
  */
 @Slf4j
@@ -93,8 +93,8 @@ public class AgentApplicationService {
     private final SceneRepository sceneRepository;
     private final SceneCapabilityPackLoader sceneCapabilityPackLoader;
     private final AgentSession agentSession;
+    private final GenerationOutputParser generationOutputParser;
     private final ArtifactPersistPlugin artifactPersistPlugin;
-    private final com.xmut.ebus.application.business.agent.support.PicklistArtifactPersistPlugin picklistArtifactPersistPlugin;
     private final ComputerViewResolver computerViewResolver;
     private final Clock clock;
 
@@ -276,7 +276,7 @@ public class AgentApplicationService {
     }
 
     /**
-     * 通用 Generation SSE：dry → run_failed；否则 settle 路径（无 Skill / 计费 Skill）。
+     * 通用 Generation SSE：dry → run_failed；否则 billed 路径（含无 Skill）。
      */
     public void streamGenerationRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         ObjectUtils.requireNonNull(context, "生成上下文不能为空");
@@ -377,8 +377,8 @@ public class AgentApplicationService {
     }
 
     /**
-     * Settle 路径：prompt →（可选 persist）→ view 门禁 → settle → artifact_ready + run_settled。
-     * 无 Skill（persistAs=none）跳过落库；计费 Skill 走对应 {@link ArtifactPersistPlugin}。
+     * Settle 路径：prompt → parse → view 门禁 → persist → settle → artifact_ready + run_settled。
+     * 投影失败不落库、不 settle；{@code persistAs=none} 仍写 chat artifact。
      */
     private void streamBilledRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         AtomicBoolean hasMessageDelta = new AtomicBoolean(false);
@@ -442,26 +442,29 @@ public class AgentApplicationService {
                 return;
             }
 
-            final PersistedGenerationArtifact persisted;
-            try {
-                persisted = persistIfNeeded(profile, context, result.getFinalResponse());
-            } catch (BusinessException ex) {
-                holdClosed = finishFailed(context, sink,
-                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PicklistArtifactParser.MSG_UNUSABLE);
-                return;
-            }
-
+            ParsedGenerationOutput parsed = generationOutputParser.parse(result.getFinalResponse());
             final Map<String, Object> projectedView;
             try {
                 projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                         .skillBound(profile.isSkillBound())
                         .finalResponse(result.getFinalResponse())
-                        .rawView(persisted.getRawView())
-                        .artifact(persisted.getArtifact())
+                        .rawView(parsed.getRawView())
+                        .artifact(parsed.getBusinessPayload())
                         .build());
             } catch (BusinessException ex) {
                 holdClosed = finishFailed(context, sink,
                         StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : ComputerViewResolver.MSG_VIEW_UNAVAILABLE);
+                return;
+            }
+
+            final PersistedGenerationArtifact persisted;
+            try {
+                persisted = artifactPersistPlugin.persist(
+                        context.getUserId(), context.getRunId(), context.getSceneCode(),
+                        profile.getPersistAs(), projectedView, parsed.getBusinessPayload());
+            } catch (BusinessException ex) {
+                holdClosed = finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果落库失败");
                 return;
             }
 
@@ -518,21 +521,6 @@ public class AgentApplicationService {
         } finally {
             closeQuietly(subscription);
         }
-    }
-
-    private PersistedGenerationArtifact persistIfNeeded(SkillRunProfile profile,
-                                                        GenerationRunContext context,
-                                                        String finalResponse) {
-        if (SkillRunProfile.PERSIST_NONE.equals(profile.getPersistAs())) {
-            return new PersistedGenerationArtifact(null, Collections.<String, Object>emptyMap());
-        }
-
-        if (SkillRunProfile.PERSIST_PICKLIST.equals(profile.getPersistAs())) {
-            return picklistArtifactPersistPlugin.persistFromFinalResponse(
-                    context.getUserId(), context.getRunId(), context.getSceneCode(), finalResponse);
-        }
-
-        throw new BusinessException(ErrorCode.PARAM_INVALID, "未注册成果落库路径: " + profile.getPersistAs());
     }
 
     /**

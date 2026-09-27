@@ -10,19 +10,18 @@ import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
-import com.xmut.ebus.application.business.picklist.command.PersistPicklistCommand;
-import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
-import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
-import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
-import com.xmut.ebus.application.business.picklist.support.PicklistParseResult;
+import com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin;
 import com.xmut.ebus.application.business.agent.support.CreditHoldSupport;
-import com.xmut.ebus.application.business.agent.support.PicklistArtifactPersistPlugin;
+import com.xmut.ebus.application.business.agent.support.GenerationOutputParser;
+import com.xmut.ebus.application.business.agent.support.PersistedGenerationArtifact;
+import com.xmut.ebus.application.business.computer.ComputerViewProjector;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.LegacyPicklistFallbackProjector;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
-import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
+import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
+import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -56,7 +55,6 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,6 +69,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -102,32 +101,37 @@ class AgentApplicationServiceTest {
     @Mock
     private AgentSession agentSession;
     @Mock
-    private PicklistArtifactParser picklistArtifactParser;
-    @Mock
-    private PicklistApplicationService picklistApplicationService;
+    private ArtifactPersistPlugin artifactPersistPlugin;
 
     private AgentApplicationService service;
 
     @BeforeEach
     void setUp() {
-        ComputerViewResolver viewResolver = new ComputerViewResolver(java.util.Arrays.asList(
-                new NormalizeViewProjector(),
-                new LegacyPicklistFallbackProjector(new PicklistViewProjector()),
-                new NoSkillMarkdownProjector()));
-        service = new AgentApplicationService(
+        org.mockito.Mockito.lenient().when(artifactPersistPlugin.persist(
+                        anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap()))
+                .thenReturn(new PersistedGenerationArtifact("art-1", Collections.<String, Object>emptyMap()));
+        service = newService(defaultViewResolver());
+    }
+
+    private AgentApplicationService newService(ComputerViewResolver viewResolver) {
+        return new AgentApplicationService(
                 new CreditHoldSupport(creditApplicationService),
                 generationRunRepository,
                 piSessionSceneRepository,
                 sceneRepository,
                 sceneCapabilityPackLoader,
                 agentSession,
-                new com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin(
-                        org.mockito.Mockito.mock(com.xmut.ebus.domain.business.artifact.repository.ArtifactRepository.class),
-                        new com.fasterxml.jackson.databind.ObjectMapper(),
-                        Clock.fixed(NOW, ZoneOffset.UTC)),
-                new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService),
+                new GenerationOutputParser(new com.fasterxml.jackson.databind.ObjectMapper()),
+                artifactPersistPlugin,
                 viewResolver,
                 Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    private static ComputerViewResolver defaultViewResolver() {
+        return new ComputerViewResolver(java.util.Arrays.asList(
+                new NormalizeViewProjector(),
+                new LegacyPicklistFallbackProjector(new PicklistViewProjector()),
+                new NoSkillMarkdownProjector()));
     }
 
     @Test
@@ -648,7 +652,7 @@ class AgentApplicationServiceTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("missing artifact_ready"));
         assertNotNull(ready.getData().get("view"));
-        assertFalse(ready.getData().containsKey("artifactRef"));
+        assertTrue(StringUtils.hasText((String) ready.getData().get("artifactRef")));
         assertFalse(ready.getData().containsKey("artifactType"));
         @SuppressWarnings("unchecked")
         Map<String, Object> view = (Map<String, Object>) ready.getData().get("view");
@@ -664,7 +668,8 @@ class AgentApplicationServiceTest {
         assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_failed));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
-        verify(picklistApplicationService, never()).persistUsable(any());
+        verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-ns-ok"), eq(ECOM_SCENE_CODE),
+                eq(SkillRunProfile.PERSIST_NONE), anyMap(), anyMap());
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
         assertEquals(null, promptCaptor.getValue().getSkillId());
@@ -672,7 +677,36 @@ class AgentApplicationServiceTest {
         ArgumentCaptor<GenerationRun> runCaptor = ArgumentCaptor.forClass(GenerationRun.class);
         verify(generationRunRepository).update(runCaptor.capture());
         assertEquals(GenerationRunStatus.SETTLED, runCaptor.getValue().getStatus());
-        assertEquals(null, runCaptor.getValue().getArtifactRef());
+        assertTrue(StringUtils.hasText(runCaptor.getValue().getArtifactRef()));
+    }
+
+    @Test
+    void streamGenerationRun_whenViewUnavailable_doesNotPersistOrSettle() {
+        AgentApplicationService gated = newService(new ComputerViewResolver(
+                Collections.<ComputerViewProjector>emptyList()));
+        GenerationRunContext ctx = new GenerationRunContext(
+                "run-ns-noview", USER_ID, HOLD_ID, "session-ns-noview", ECOM_SCENE_CODE,
+                "你好", SkillRunProfile.noSkill());
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(ecommercePack());
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-ns-noview", "session-ns-noview", "草稿",
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-ns-noview")).thenReturn(Optional.of(
+                GenerationRun.start("run-ns-noview", USER_ID, HOLD_ID, "session-ns-noview",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        gated.streamGenerationRun(ctx, events::add);
+
+        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.run_failed));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
     }
 
     @Test
@@ -771,7 +805,8 @@ class AgentApplicationServiceTest {
         assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
-        verify(picklistApplicationService, never()).persistUsable(any());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
     }
 
     @Test
@@ -793,8 +828,8 @@ class AgentApplicationServiceTest {
         assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
-        verify(picklistApplicationService, never()).persistUsable(any());
-        verify(picklistArtifactParser, never()).parse(anyString(), anyString(), anyString());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
     }
 
     @Test
@@ -802,17 +837,6 @@ class AgentApplicationServiceTest {
         PicklistRunContext ctx = picklistCtx("run-pl-searchok", "session-pl-searchok");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-searchok", "session-pl-searchok", VALID_PICKLIST_JSON);
-        PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
-                .userId(USER_ID)
-                .runId("run-pl-searchok")
-                .templateId("domestic-generic-default")
-                .disclaimer("基于通用电商知识推断，非实时平台数据")
-                .items(Collections.emptyList())
-                .build();
-        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-searchok"))
-                .thenReturn(new PicklistParseResult(persistCmd, null));
-        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
-                .thenReturn(sampleArtifact("pl-search", "run-pl-searchok"));
         when(generationRunRepository.findById("run-pl-searchok")).thenReturn(Optional.of(
                 GenerationRun.start("run-pl-searchok", USER_ID, HOLD_ID, "session-pl-searchok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -823,7 +847,8 @@ class AgentApplicationServiceTest {
         assertEquals(Ad4EventName.run_settled, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
-        verify(picklistApplicationService).persistUsable(any(PersistPicklistCommand.class));
+        verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-searchok"), eq(ECOM_SCENE_CODE),
+                eq(SkillRunProfile.PERSIST_PICKLIST), anyMap(), anyMap());
     }
 
     @Test
@@ -831,17 +856,6 @@ class AgentApplicationServiceTest {
         PicklistRunContext ctx = picklistCtx("run-pl-ok", "session-pl-ok");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-ok", "session-pl-ok", VALID_PICKLIST_JSON);
-        PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
-                .userId(USER_ID)
-                .runId("run-pl-ok")
-                .templateId("domestic-generic-default")
-                .disclaimer("基于通用电商知识推断，非实时平台数据")
-                .items(Collections.emptyList())
-                .build();
-        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-ok"))
-                .thenReturn(new PicklistParseResult(persistCmd, null));
-        PicklistArtifactDTO artifact = sampleArtifact("pl-1", "run-pl-ok");
-        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class))).thenReturn(artifact);
         when(generationRunRepository.findById("run-pl-ok")).thenReturn(Optional.of(
                 GenerationRun.start("run-pl-ok", USER_ID, HOLD_ID, "session-pl-ok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -854,14 +868,8 @@ class AgentApplicationServiceTest {
                 .filter(e -> e.getName() == Ad4EventName.artifact_ready)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("missing artifact_ready"));
-        assertEquals("picklist", ready.getData().get("artifactType"));
-        assertEquals("pl-1", ready.getData().get("artifactRef"));
-        assertEquals("pl-1", ready.getData().get("picklistId"));
-        assertEquals("run-pl-ok", ready.getData().get("runId"));
-        assertEquals("domestic-generic-default", ready.getData().get("templateId"));
-        assertTrue(String.valueOf(ready.getData().get("disclaimer")).contains("非实时"));
-        assertTrue(ready.getData().get("items") instanceof List);
-        assertEquals(8, ((List<?>) ready.getData().get("items")).size());
+        assertEquals("art-1", ready.getData().get("artifactRef"));
+        assertFalse(ready.getData().containsKey("items"));
         assertNotNull(ready.getData().get("view"));
         @SuppressWarnings("unchecked")
         Map<String, Object> view = (Map<String, Object>) ready.getData().get("view");
@@ -873,43 +881,20 @@ class AgentApplicationServiceTest {
         ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
         verify(generationRunRepository).update(captor.capture());
         assertEquals(GenerationRunStatus.SETTLED, captor.getValue().getStatus());
-        assertEquals("pl-1", captor.getValue().getArtifactRef());
+        assertEquals("art-1", captor.getValue().getArtifactRef());
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
         assertEquals(SceneCapabilityPackLoader.SKILL_PICKLIST, promptCaptor.getValue().getSkillId());
         assertEquals("帮我选品", promptCaptor.getValue().getText());
-        ArgumentCaptor<PersistPicklistCommand> persistCaptor = ArgumentCaptor.forClass(PersistPicklistCommand.class);
-        verify(picklistApplicationService).persistUsable(persistCaptor.capture());
-        assertEquals(ECOM_SCENE_CODE, persistCaptor.getValue().getSceneCode());
+        verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-ok"), eq(ECOM_SCENE_CODE),
+                eq(SkillRunProfile.PERSIST_PICKLIST), anyMap(), anyMap());
     }
 
     @Test
     void streamPicklistRunPrefersSkillViewOverLegacyProjection() {
         PicklistRunContext ctx = picklistCtx("run-pl-view", "session-pl-view");
         stubEcommercePack();
-        stubSubscribeEmittingSearchSkuOk("run-pl-view", "session-pl-view", VALID_PICKLIST_JSON);
-        PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
-                .userId(USER_ID)
-                .runId("run-pl-view")
-                .templateId("domestic-generic-default")
-                .disclaimer("基于通用电商知识推断，非实时平台数据")
-                .items(Collections.emptyList())
-                .build();
-        Map<String, Object> skillView = new LinkedHashMap<String, Object>();
-        skillView.put("version", 1);
-        skillView.put("title", "report");
-        skillView.put("status", "ready");
-        List<Map<String, Object>> blocks = new ArrayList<Map<String, Object>>();
-        Map<String, Object> note = new LinkedHashMap<String, Object>();
-        note.put("type", "note");
-        note.put("tone", "mute");
-        note.put("text", "skill-owned note");
-        blocks.add(note);
-        skillView.put("blocks", blocks);
-        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-view"))
-                .thenReturn(new PicklistParseResult(persistCmd, skillView));
-        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
-                .thenReturn(sampleArtifact("pl-view", "run-pl-view"));
+        stubSubscribeEmittingSearchSkuOk("run-pl-view", "session-pl-view", SKILL_OWNED_VIEW_JSON);
         when(generationRunRepository.findById("run-pl-view")).thenReturn(Optional.of(
                 GenerationRun.start("run-pl-view", USER_ID, HOLD_ID, "session-pl-view",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -933,37 +918,12 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamPicklistRunReleasesWithoutSettleWhenViewGateFails() {
-        ComputerViewResolver emptyResolver = new ComputerViewResolver(
-                Collections.<com.xmut.ebus.application.business.computer.ComputerViewProjector>emptyList());
-        AgentApplicationService gated = new AgentApplicationService(
-                new CreditHoldSupport(creditApplicationService),
-                generationRunRepository,
-                piSessionSceneRepository,
-                sceneRepository,
-                sceneCapabilityPackLoader,
-                agentSession,
-                new com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin(
-                        org.mockito.Mockito.mock(com.xmut.ebus.domain.business.artifact.repository.ArtifactRepository.class),
-                        new com.fasterxml.jackson.databind.ObjectMapper(),
-                        Clock.fixed(NOW, ZoneOffset.UTC)),
-                new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService),
-                emptyResolver,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        AgentApplicationService gated = newService(new ComputerViewResolver(
+                Collections.<ComputerViewProjector>emptyList()));
 
         PicklistRunContext ctx = picklistCtx("run-pl-noview", "session-pl-noview");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-noview", "session-pl-noview", VALID_PICKLIST_JSON);
-        PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
-                .userId(USER_ID)
-                .runId("run-pl-noview")
-                .templateId("domestic-generic-default")
-                .disclaimer("基于通用电商知识推断，非实时平台数据")
-                .items(Collections.emptyList())
-                .build();
-        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-noview"))
-                .thenReturn(new PicklistParseResult(persistCmd, null));
-        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
-                .thenReturn(sampleArtifact("pl-noview", "run-pl-noview"));
         when(generationRunRepository.findById("run-pl-noview")).thenReturn(Optional.of(
                 GenerationRun.start("run-pl-noview", USER_ID, HOLD_ID, "session-pl-noview",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -976,6 +936,8 @@ class AgentApplicationServiceTest {
         assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
     }
 
     @Test
@@ -983,17 +945,6 @@ class AgentApplicationServiceTest {
         PicklistRunContext ctx = picklistCtx("run-pl-settle", "session-pl-settle");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-settle", "session-pl-settle", VALID_PICKLIST_JSON);
-        PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
-                .userId(USER_ID)
-                .runId("run-pl-settle")
-                .templateId("domestic-generic-default")
-                .disclaimer("基于通用电商知识推断，非实时平台数据")
-                .items(Collections.emptyList())
-                .build();
-        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-settle"))
-                .thenReturn(new PicklistParseResult(persistCmd, null));
-        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
-                .thenReturn(sampleArtifact("pl-s", "run-pl-settle"));
         org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
                 .when(creditApplicationService).settle(USER_ID, HOLD_ID);
         when(generationRunRepository.findById("run-pl-settle")).thenReturn(Optional.of(
@@ -1020,17 +971,6 @@ class AgentApplicationServiceTest {
         PicklistRunContext ctx = picklistCtx("run-pl-emit", "session-pl-emit");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-emit", "session-pl-emit", VALID_PICKLIST_JSON);
-        PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
-                .userId(USER_ID)
-                .runId("run-pl-emit")
-                .templateId("domestic-generic-default")
-                .disclaimer("基于通用电商知识推断，非实时平台数据")
-                .items(Collections.emptyList())
-                .build();
-        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-emit"))
-                .thenReturn(new PicklistParseResult(persistCmd, null));
-        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
-                .thenReturn(sampleArtifact("pl-e", "run-pl-emit"));
         when(generationRunRepository.findById("run-pl-emit")).thenReturn(Optional.of(
                 GenerationRun.start("run-pl-emit", USER_ID, HOLD_ID, "session-pl-emit",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -1054,25 +994,29 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamPicklistRunReleasesWhenArtifactUnusable() {
+        ComputerViewResolver failingView = org.mockito.Mockito.mock(ComputerViewResolver.class);
+        when(failingView.resolve(any())).thenThrow(
+                new BusinessException(ErrorCode.PARAM_INVALID, ComputerViewResolver.MSG_VIEW_UNAVAILABLE));
+        AgentApplicationService gated = newService(failingView);
+
         PicklistRunContext ctx = picklistCtx("run-pl-bad", "session-pl-bad");
         stubEcommercePack();
-        stubSubscribeEmittingSearchSkuOk("run-pl-bad", "session-pl-bad", "{bad}");
-        when(picklistArtifactParser.parse("{bad}", USER_ID, "run-pl-bad"))
-                .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID, PicklistArtifactParser.MSG_UNUSABLE));
+        stubSubscribeEmittingSearchSkuOk("run-pl-bad", "session-pl-bad", VALID_PICKLIST_JSON);
         when(generationRunRepository.findById("run-pl-bad")).thenReturn(Optional.of(
                 GenerationRun.start("run-pl-bad", USER_ID, HOLD_ID, "session-pl-bad",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamPicklistRun(ctx, events::add);
+        gated.streamPicklistRun(ctx, events::add);
 
         Ad4SseEvent failed = events.get(events.size() - 1);
         assertEquals(Ad4EventName.run_failed, failed.getName());
-        assertEquals(PicklistArtifactParser.MSG_UNUSABLE, failed.getData().get("reason"));
+        assertEquals(ComputerViewResolver.MSG_VIEW_UNAVAILABLE, failed.getData().get("reason"));
         assertFalse(Boolean.TRUE.equals(failed.getData().get("emptyRun")));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
-        verify(picklistApplicationService, never()).persistUsable(any());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
     }
 
     @Test
@@ -1095,7 +1039,8 @@ class AgentApplicationServiceTest {
         assertEquals("模型超时", failed.getData().get("reason"));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
-        verify(picklistArtifactParser, never()).parse(anyString(), anyString(), anyString());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
     }
 
     @Test
@@ -1121,28 +1066,18 @@ class AgentApplicationServiceTest {
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
 
-    private static final String VALID_PICKLIST_JSON = "{\"ok\":true}";
+    private static final String VALID_PICKLIST_JSON =
+            "{\"view\":{\"version\":1,\"title\":\"picklist\",\"status\":\"ready\","
+                    + "\"blocks\":[{\"type\":\"note\",\"tone\":\"mute\",\"text\":\"ok\"}]},"
+                    + "\"artifact\":{\"ok\":true}}";
+
+    private static final String SKILL_OWNED_VIEW_JSON =
+            "{\"view\":{\"version\":1,\"title\":\"report\",\"status\":\"ready\","
+                    + "\"blocks\":[{\"type\":\"note\",\"tone\":\"mute\",\"text\":\"skill-owned note\"}]},"
+                    + "\"artifact\":{\"ok\":true}}";
 
     private PicklistRunContext picklistCtx(String runId, String sessionId) {
         return new PicklistRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE, "帮我选品");
-    }
-
-    private static PicklistArtifactDTO sampleArtifact(String picklistId, String runId) {
-        List<PicklistArtifactDTO.PicklistItemDTO> items = new ArrayList<PicklistArtifactDTO.PicklistItemDTO>();
-        for (int i = 0; i < 8; i++) {
-            items.add(new PicklistArtifactDTO.PicklistItemDTO(
-                    (i == 0 ? "【优先试】" : "") + "品" + i,
-                    "19-39",
-                    "台面积水",
-                    "租房刚需",
-                    "多色" + i,
-                    "细分" + (i % 3),
-                    "高｜需求", "中｜竞争", "中｜利润", "低｜风险",
-                    "https://item.example/" + i));
-        }
-        return new PicklistArtifactDTO(
-                picklistId, runId, "domestic-generic-default",
-                "基于通用电商知识推断，非实时平台数据", "默认假设", items);
     }
 
     private EmptyRunContext emptyCtx(String runId, String sessionId) {
