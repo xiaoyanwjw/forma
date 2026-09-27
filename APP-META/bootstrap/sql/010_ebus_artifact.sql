@@ -1,10 +1,10 @@
--- ArtifactStore: generic billed artifacts (picklist | sku)
+-- ArtifactStore: generic billed artifacts (picklist | sku | chat)
 CREATE TABLE IF NOT EXISTS ebus_artifact (
     id              BIGINT       NOT NULL AUTO_INCREMENT COMMENT '库内自增主键（禁止对外暴露）',
     biz_id          VARCHAR(36)  NOT NULL COMMENT '业务成果 ID（UUID = GenerationRun.artifactRef）',
     user_id         VARCHAR(36)  NOT NULL COMMENT '用户业务 ID（UUID）',
     run_id          VARCHAR(36)  NOT NULL COMMENT 'GenerationRun 业务 ID（UUID）',
-    artifact_type   VARCHAR(32)  NOT NULL COMMENT 'picklist | sku',
+    artifact_type   VARCHAR(32)  NOT NULL COMMENT 'picklist | sku | chat',
     scene_code      VARCHAR(64)  NOT NULL COMMENT '场景 code，如 ecommerce',
     template_id     VARCHAR(64)  NULL COMMENT '选品模板；sku 可空',
     title           VARCHAR(256) NOT NULL COMMENT '列表摘要',

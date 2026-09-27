@@ -6,7 +6,8 @@ package com.xmut.ebus.domain.business.artifact.model;
 public enum ArtifactType {
 
     PICKLIST("picklist"),
-    SKU("sku");
+    SKU("sku"),
+    CHAT("chat");
 
     private final String code;
 

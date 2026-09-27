@@ -13,4 +13,10 @@ class ArtifactTypeTest {
         assertEquals(ArtifactType.PICKLIST, ArtifactType.fromCode("picklist"));
         assertEquals(ArtifactType.SKU, ArtifactType.fromCode("SKU"));
     }
+
+    @Test
+    void codes_include_chat() {
+        assertEquals("chat", ArtifactType.CHAT.getCode());
+        assertEquals(ArtifactType.CHAT, ArtifactType.fromCode("chat"));
+    }
 }
