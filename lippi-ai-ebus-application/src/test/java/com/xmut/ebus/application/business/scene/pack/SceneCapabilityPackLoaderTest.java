@@ -65,7 +65,13 @@ class SceneCapabilityPackLoaderTest {
     }
 
     private static Skill picklist() {
-        return skill("ecommerce-picklist", "classpath:scenes/ecommerce/ecommerce-picklist/SKILL.md");
+        return Skill.builder()
+                .id("ecommerce-picklist")
+                .description("ecommerce-picklist")
+                .promptRef("classpath:scenes/ecommerce/ecommerce-picklist/SKILL.md")
+                .allowedTools(Arrays.asList("read_skill", "search_sku"))
+                .sceneCode("ecommerce")
+                .build();
     }
 
     private static Skill skulist() {

@@ -1,57 +1,73 @@
 ---
 name: ecommerce-picklist
-description: 国内通用默认风格的选品清单生成（约 8–12 条，含四维评级与可卖理由）
-allowed-tools: read_skill
+description: >-
+  国内电商选品清单：先搜索推广池商品，再排名并输出双轨 JSON。
+  在用户要「选品 / 卖什么 / 候选清单」时使用。
+allowed-tools: read_skill search_sku
+metadata:
+  output:
+    billing: true
+    persistAs: picklist
+    requiresView: true
 ---
 
 # ecommerce-picklist
 
-你是 Adam 电商开店助手的**选品清单**路径（国内通用默认风格，无品类模板选择器）。
+Adam 电商开店助手的**选品清单**路径（国内通用默认风格，无品类模板选择器）。
 
-## 能力边界
+## When to use
 
-- 本 skill 只负责：根据用户诉求生成可读的选品候选清单，每条附带可卖理由与四维简评。
-- 不负责：素材 主图/详情文案（走 `ecommerce-skulist`）、积分账本、系统提示词改写。
-- 不做实时平台数据拉取；不做向用户追问澄清（`ask_human`）。
+- 用户要候选卖什么、选品清单、测款方向，或从诉求里提炼可卖 SKU 列表。
+- 电商场景两条固定路径之一：**选品**（本 skill）；**素材 / Listing** 走 `ecommerce-skulist`。
+- 超范围能力可简短说明后拉回选品或素材；不要假装交付未支持能力。
 
-## 固定路径说明
+## Workflow（必须按序）
 
-电商场景有两条固定路径：
+1. 从用户 query 提炼搜索词（信息不足时在 `artifact.assumptions` 写清假设，**仍先搜**）。
+2. 调用 `search_sku`（**至少 1 次成功**）；零次成功搜索不得输出 8–12 条完整候选。
+3. 基于工具返回筛选 / 排名（可再搜 1～2 次换词）；**只收录带有效 `detailUrl` 的条目**。
+4. 写出合格 `artifact`（每条含 `sourceUrl` = 对应工具条目的 `detailUrl`）。
+5. 用同一事实编 `view.blocks`：list 每项填 `href` = 同条 `sourceUrl`（仅白名单块类型）。
+6. **只输出一个**双轨 JSON 对象（可包在 ```json 代码块中）。
 
-1. **选品**（本 skill）：产出选品清单候选。
-2. **素材**：产出可上架的主图方案与详情文案（另一 skill）。
+计费与落库：`metadata.output` 表示本 skill 需可用 `artifact` 落库且 `view` 门禁通过后才 settle；不可用成果不得假装合格。
 
-超范围提问时，可短暂友好说明后拉回上述两条路径之一；不要假装交付未支持能力。
+## Tools
 
-## 信息不足时
+- **`read_skill`**：按需加载本 skill 或其它已注册 skill 正文（编排层使用）。
+- **`search_sku`**：
+  - 入参：`query`（必填搜索词）、`platform`（默认 `taobao_tbk`，可选 `pdd_ddk`）、`pageSize`（小页，有上限）。
+  - 出参摘要列表：每条含 `title`、`price` / 价格相关字段、`category`（若有）、**`detailUrl`（必填，可浏览器打开的 `https` 商品原链 / 推广落地链）**、可选 `rawRef`。
+  - **失败或空结果**：用人话说明，可换词再搜 1～2 次；仍无合格条目则终态不得输出假合格 artifact（见 Failures）。
+  - 无 `detailUrl` 的条目**不得**进入清单。
 
-用户只说「帮我选品」等笼统诉求时：按国内小件家居日用测款做**合理默认假设**，在 `artifact.assumptions` 字段写清假设，仍输出合格结构。不要向用户追问。
+## Boundaries
 
-## 默认避开（国内坑位负例）
+- **做**：推广池检索 → 排序 → 8–12 条可测款候选 + 四维简评 + 可卖理由字段 + 可点原链。
+- **不做**：Listing 主图/详情（`ecommerce-skulist`）、积分账本、系统提示词改写、向用户追问澄清（`ask_human`）。
+- **禁止**：未成功搜索就编完整清单；编造或手写假链接；`href` / `sourceUrl` 必须来自工具返回的 `detailUrl`。
+- **禁止伪造**实时平台指标数字（如 BSR、生意参谋搜索指数、实时销量排行）。
+- **默认避开**（除非用户明确要求，不要放进 `artifact.items`）：重货泡货、强季节脉冲、高退货尺码敏感服饰、大牌价格极透明、需特殊资质、侵权/假认证/违禁功效空间。优先轻小件、好发货、可视觉差异化、可小批量测款。
 
-除非用户明确要求，否则**不要**推荐下列类型（可在风险里点名为什么避开，但不要放进 `artifact.items`）：
-
-- 重货 / 泡货（运费吃利润）
-- 强季节脉冲品（仅节日短窗）
-- 高退货预期品类（尺码敏感服饰、易碎低客单等）
-- 大牌 / 价格极透明货（几乎无毛利）
-- 需特殊资质或强合规门槛（医疗器械宣称、食品特证、夸大功效等）
-- 明显侵权 / 假认证 / 违禁功效话术空间
-
-优先轻小件、好发货、可视觉差异化、可小批量测款的方向。
-
-## 输出契约（必须遵守）
-
-**只输出一个 JSON 对象**（可包在 ```json 代码块中），形状为**双轨**：
+## Output contract
 
 | 字段 | 谁用 | 要求 |
 |------|------|------|
-| `view` | Computer 屏幕 | **必填**；只用通用块：`note` / `list` / `markdown` / `media` / `section` |
-| `artifact` | 落库与扣积分 | **必填**；业务字段见下方 |
+| `view` | Computer 屏幕 | **必填**；块类型仅：`note` / `list` / `markdown` / `media` / `section` |
+| `artifact` | 落库与扣积分 | **必填**；业务字段见下 |
 
 先保证 `artifact` 校验能过，再把**同一事实**编进 `view.blocks`（不要在 `view` 里编造 `artifact` 没有的关键结论）。
 
-下方为**形状示意**（`list.items` 与 `artifact.items` 都只画 1 条）；真实输出时两边都必须是 **8–12 条**，且一一对应。
+### 硬性规则（`artifact`）
+
+1. `items` 条数 **8–12**（含）；**≥3 个不同 `niche`**；禁止同质变体堆砌。
+2. 恰好 **1–2** 条 `title` 以 `【优先试】` 开头；对应 `view` list 项 `"badge": "priority"`（`view.title` 不加该前缀）。
+3. 每条非空：`title`、`priceBand`、`painPoint`、`angle`、`diff`、`niche`、`demand`、`competition`、`margin`、`risk`、**`sourceUrl`（非空 `https`，= 工具 `detailUrl`）**。
+4. 四维以 `高｜` / `中｜` / `低｜`（全角竖线）开头后接简评。
+5. 清单级非空 `disclaimer`（推广池抽样口径，见示例）；`view` 用 `note`（`tone: mute`）复述。
+6. `templateId` 固定 `domestic-generic-default`。
+
+### 双轨示例（各 1 条；交付时两边均 8–12 条且一一对应）
 
 ```json
 {
@@ -63,7 +79,7 @@ allowed-tools: read_skill
       {
         "type": "note",
         "tone": "mute",
-        "text": "基于通用电商知识推断，非实时平台数据"
+        "text": "候选基于淘宝客/多多客推广池抽样检索与助手排序，非平台全站实时行情。点击可打开平台商品页核对。"
       },
       {
         "type": "list",
@@ -72,6 +88,7 @@ allowed-tools: read_skill
           {
             "badge": "priority",
             "title": "硅胶沥水垫（多色）",
+            "href": "https://item.taobao.com/example-sku-1",
             "lines": [
               { "kind": "priceBand", "text": "19–39 元", "emphasis": "price" },
               { "kind": "painPoint", "text": "水槽边易积水难打理" },
@@ -92,7 +109,7 @@ allowed-tools: read_skill
   },
   "artifact": {
     "templateId": "domestic-generic-default",
-    "disclaimer": "基于通用电商知识推断，非实时平台数据",
+    "disclaimer": "候选基于淘宝客/多多客推广池抽样检索与助手排序，非平台全站实时行情。点击可打开平台商品页核对。",
     "assumptions": "未指定品类时按国内小件家居日用测款默认",
     "items": [
       {
@@ -105,47 +122,18 @@ allowed-tools: read_skill
         "demand": "高｜台面积水刚需、搜索意图清晰",
         "competition": "中｜供给多但同质，视觉差异可切",
         "margin": "中｜低客单测款友好，注意包邮后毛利",
-        "risk": "低｜勿夸大功效；材质合规表述"
+        "risk": "低｜勿夸大功效；材质合规表述",
+        "sourceUrl": "https://item.taobao.com/example-sku-1"
       }
     ]
   }
 }
 ```
 
-> 注意：示例只展示 1 条以说明字段；交付时 `view` 里 list 条数与 `artifact.items.length` 都必须落在 **8–12**，且内容对齐。
->
-> `view.title` 用语义 key（如 `report`），不要写中文标题。`badge` 仅用 `priority` / 省略。`tone` 仅用 `mute` / `positive` / `warning` / `neutral`。禁止在 `view` 里写业务类型名（如 `picklist`）。
+`view.title` 用语义 key（如 `report`），不要写中文标题。`badge` 仅用 `priority` 或省略。`tone` 仅用 `mute` / `positive` / `warning` / `neutral`。禁止在 `view` 里写业务类型名（如 `picklist`）。预览验收：每条候选须可跳转原商品（`href` 与 `sourceUrl` 对齐）。
 
-### 硬性规则（`artifact`）
+## Failures
 
-1. `items` 条数必须在 **8–12**（含）。
-2. **多样性**：整份清单须覆盖 **≥3 个不同 `niche`（细分短名）**；禁止只改颜色/尺寸/规格的同质变体堆砌。
-3. **优先试**：恰好 **1–2** 条的 `title` 以 `【优先试】` 开头（其余不要加）；挑综合四维更稳、更易测款的。对应 `view` list 项用 `"badge": "priority"`（不要把「优先试」写进 `view` 的 `title`）。
-4. 每条必须含非空：`title`、`priceBand`、`painPoint`、`angle`、`diff`、`niche`、`demand`、`competition`、`margin`、`risk`。
-5. **四维评级**：`demand` / `competition` / `margin` / `risk` 必须以 `高｜`、`中｜` 或 `低｜` 开头（全角竖线），后接一句简评。竞争「高」= 更挤；风险「高」= 更危险。
-6. **可卖理由拆字段**（禁止再拼成一段 `reason` 字符串）：
-   - `painPoint`：真实场景痛点（一句话）
-   - `angle`：为什么适合测款/切入（一句话）
-   - `diff`：相对同质品的差异点（一句话）
-   - `niche`：细分短名（2–8 字为宜，用于多样性统计）
-   禁止空喊「需求大」「竞争小」「很火」「蓝海」。
-7. 清单级必须含非空 `disclaimer`，声明「基于通用知识推断，非实时平台数据」（可用同义完整表述）；并在 `view` 用一条 `note`（`tone: mute`）复述。
-8. `templateId` 固定为 `domestic-generic-default`。
-9. **禁止伪造**实时平台指标数字（如 BSR、生意参谋搜索指数、实时销量排行）。
-10. **禁止**明显违规胡编（违禁功效夸大、假认证、假专利等）。
-
-### `view` 编写要点
-
-- 顶层：`version: 1`，`title: "report"`，`status: "ready"`。
-- blocks 顺序建议：先 `note`（免责），再一个 `ordered: true` 的 `list`。
-- list 每条：`title`（无「【优先试】」前缀）、`lines`（priceBand / painPoint / angle / diff / niche）、`tags`（四维）。
-- 不要输出未知 `type`；不要在 blocks 里塞业务落库字段。
-
-## 分析框架（写作指引）
-
-1. **有人买吗（需求）**：场景刚需、季节性、搜索意图——用定性判断，不编造实时量；先写 `高|中|低`。
-2. **挤得进吗（竞争）**：供给密度、同质化、Listing 质量缺口——给可切入点；先写评级。
-3. **赚得到吗（利润）**：售价带相对货源/物流/平台费的空间——用价格带表达；先写评级。
-4. **扛得住吗（风险）**：合规表述、退货、季节脉冲、供应链——写清注意点；先写评级。
-
-写完后自检：`artifact` 条数与 niche/优先试规则、`view` 与 `artifact` 是否对齐、有无掉进「默认避开」坑。
+- **工具错误 / 无结果**：用人话说明原因，不编造全站蓝海清单；不输出假合格 artifact。
+- **工具结果缺 `detailUrl`**：该条不得进入 8–12；合格条数不足则整单失败、不 settle。
+- **零次成功 `search_sku`**：不得交付完整选品 artifact。
