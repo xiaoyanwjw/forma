@@ -16,11 +16,9 @@ import com.xmut.ebus.application.business.agent.support.GenerationOutputParser;
 import com.xmut.ebus.application.business.agent.support.PersistedGenerationArtifact;
 import com.xmut.ebus.application.business.computer.ComputerViewProjector;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
-import com.xmut.ebus.application.business.computer.LegacyPicklistFallbackProjector;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
 import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
-import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -130,7 +128,6 @@ class AgentApplicationServiceTest {
     private static ComputerViewResolver defaultViewResolver() {
         return new ComputerViewResolver(java.util.Arrays.asList(
                 new NormalizeViewProjector(),
-                new LegacyPicklistFallbackProjector(new PicklistViewProjector()),
                 new NoSkillMarkdownProjector()));
     }
 

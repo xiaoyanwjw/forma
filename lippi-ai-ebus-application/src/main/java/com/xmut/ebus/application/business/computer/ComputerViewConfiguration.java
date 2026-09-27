@@ -13,11 +13,9 @@ public class ComputerViewConfiguration {
 
     @Bean
     public ComputerViewResolver computerViewResolver(NormalizeViewProjector normalizeViewProjector,
-                                                     LegacyPicklistFallbackProjector legacyPicklistFallbackProjector,
                                                      NoSkillMarkdownProjector noSkillMarkdownProjector) {
         return new ComputerViewResolver(Arrays.asList(
                 normalizeViewProjector,
-                legacyPicklistFallbackProjector,
                 noSkillMarkdownProjector));
     }
 }

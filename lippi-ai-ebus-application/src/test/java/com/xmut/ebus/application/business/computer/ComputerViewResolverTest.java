@@ -1,7 +1,5 @@
 package com.xmut.ebus.application.business.computer;
 
-import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
-import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.common.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +19,6 @@ class ComputerViewResolverTest {
     private static ComputerViewResolver defaultResolver() {
         return new ComputerViewResolver(Arrays.asList(
                 new NormalizeViewProjector(),
-                new LegacyPicklistFallbackProjector(new PicklistViewProjector()),
                 new NoSkillMarkdownProjector()));
     }
 
@@ -83,24 +80,12 @@ class ComputerViewResolverTest {
     }
 
     @Test
-    void usesLegacyPicklistWhenSkillBoundArtifactWithoutView() {
-        List<PicklistArtifactDTO.PicklistItemDTO> items = new ArrayList<PicklistArtifactDTO.PicklistItemDTO>();
-        for (int i = 0; i < 8; i++) {
-            items.add(new PicklistArtifactDTO.PicklistItemDTO(
-                    (i == 0 ? "【优先试】" : "") + "品" + i,
-                    "19-39",
-                    "痛点", "切入", "差异", "细分" + (i % 3),
-                    "高｜d", "中｜c", "中｜m", "低｜r",
-                    "https://item.example/" + i));
-        }
-        PicklistArtifactDTO dto = new PicklistArtifactDTO(
-                "pl-1", "run-1", "domestic-generic-default",
-                "基于通用知识推断，非实时平台数据", null, items);
-
-        Map<String, Object> view = defaultResolver().resolve(ViewProjectContext.builder()
-                .skillBound(true)
-                .artifact(dto)
-                .build());
-        assertEquals("picklist", view.get("title"));
+    void failsWhenSkillBoundWithoutRawView() {
+        BusinessException ex = assertThrows(BusinessException.class, () -> defaultResolver().resolve(
+                ViewProjectContext.builder()
+                        .skillBound(true)
+                        .finalResponse("plain picklist json without view")
+                        .build()));
+        assertEquals(ComputerViewResolver.MSG_VIEW_UNAVAILABLE, ex.getMessage());
     }
 }
