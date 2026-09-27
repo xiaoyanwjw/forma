@@ -67,6 +67,7 @@ public final class PicklistArtifactDTO {
         private final String competition;
         private final String margin;
         private final String risk;
+        private final String sourceUrl;
 
         public PicklistItemDTO(String title,
                                String priceBand,
@@ -77,7 +78,8 @@ public final class PicklistArtifactDTO {
                                String demand,
                                String competition,
                                String margin,
-                               String risk) {
+                               String risk,
+                               String sourceUrl) {
             this.title = title;
             this.priceBand = priceBand;
             this.painPoint = painPoint;
@@ -88,6 +90,7 @@ public final class PicklistArtifactDTO {
             this.competition = competition;
             this.margin = margin;
             this.risk = risk;
+            this.sourceUrl = sourceUrl;
         }
 
         public String getTitle() {
@@ -128,6 +131,10 @@ public final class PicklistArtifactDTO {
 
         public String getRisk() {
             return risk;
+        }
+
+        public String getSourceUrl() {
+            return sourceUrl;
         }
     }
 }

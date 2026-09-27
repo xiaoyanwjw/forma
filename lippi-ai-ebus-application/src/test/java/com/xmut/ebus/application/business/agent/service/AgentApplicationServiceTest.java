@@ -1075,7 +1075,8 @@ class AgentApplicationServiceTest {
                     "租房刚需",
                     "多色" + i,
                     "细分" + (i % 3),
-                    "高｜需求", "中｜竞争", "中｜利润", "低｜风险"));
+                    "高｜需求", "中｜竞争", "中｜利润", "低｜风险",
+                    "https://item.example/" + i));
         }
         return new PicklistArtifactDTO(
                 picklistId, runId, "domestic-generic-default",

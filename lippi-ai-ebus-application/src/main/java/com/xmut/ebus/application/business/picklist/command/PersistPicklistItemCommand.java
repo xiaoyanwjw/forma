@@ -20,4 +20,6 @@ public class PersistPicklistItemCommand {
     private final String competition;
     private final String margin;
     private final String risk;
+    /** Marketplace origin URL; required https. Stored in artifact JSON payload. */
+    private final String sourceUrl;
 }

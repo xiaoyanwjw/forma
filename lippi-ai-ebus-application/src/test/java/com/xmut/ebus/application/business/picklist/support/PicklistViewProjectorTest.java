@@ -19,15 +19,18 @@ class PicklistViewProjectorTest {
         items.add(new PicklistArtifactDTO.PicklistItemDTO(
                 "【优先试】硅胶垫", "19-39",
                 "水槽边积水", "租房刚需", "多色套装", "厨房沥水",
-                "高｜稳", "中｜可切", "中｜友好", "低｜合规"));
+                "高｜稳", "中｜可切", "中｜友好", "低｜合规",
+                "https://item.example/pad"));
         items.add(new PicklistArtifactDTO.PicklistItemDTO(
                 "置物架", "29-59", "台面乱", "免打孔", "伸缩", "收纳",
-                "中｜x", "中｜y", "高｜z", "低｜w"));
+                "中｜x", "中｜y", "高｜z", "低｜w",
+                "https://item.example/rack"));
         while (items.size() < 8) {
             int i = items.size();
             items.add(new PicklistArtifactDTO.PicklistItemDTO(
                     "品" + i, "19-39", "痛点" + i, "切入" + i, "差异" + i,
-                    "细分" + (i % 3), "高｜d", "中｜c", "中｜m", "低｜r"));
+                    "细分" + (i % 3), "高｜d", "中｜c", "中｜m", "低｜r",
+                    "https://item.example/" + i));
         }
         PicklistArtifactDTO dto = new PicklistArtifactDTO(
                 "pl-1", "run-1", "domestic-generic-default",
@@ -50,6 +53,8 @@ class PicklistViewProjectorTest {
         List<Map<String, Object>> listItems = (List<Map<String, Object>>) blocks.get(2).get("items");
         assertEquals("priority", listItems.get(0).get("badge"));
         assertEquals("硅胶垫", listItems.get(0).get("title"));
+        assertEquals("https://item.example/pad", listItems.get(0).get("href"));
+        assertEquals("https://item.example/rack", listItems.get(1).get("href"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> lines = (List<Map<String, Object>>) listItems.get(0).get("lines");
         assertEquals("priceBand", lines.get(0).get("kind"));

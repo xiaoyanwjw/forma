@@ -38,6 +38,7 @@ class PicklistArtifactParserTest {
         assertEquals("多色套装", cmd.getItems().get(0).getDiff());
         assertEquals("细分0", cmd.getItems().get(0).getNiche());
         assertTrue(cmd.getItems().get(0).getDemand().startsWith("高"));
+        assertEquals("https://item.example/0", cmd.getItems().get(0).getSourceUrl());
     }
 
     @Test
@@ -78,6 +79,34 @@ class PicklistArtifactParserTest {
         PicklistParseResult result = parser.parse(json, "u1", "r1");
         assertNull(result.getRawView());
         assertEquals(8, result.getCommand().getItems().size());
+    }
+
+    @Test
+    void rejectsEightCompleteItemsMissingSourceUrl() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\"disclaimer\":\"基于通用知识推断，非实时平台数据\",\"items\":[");
+        for (int i = 0; i < 8; i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(itemJson(i).replace(",\"sourceUrl\":\"https://item.example/" + i + "\"", ""));
+        }
+        sb.append("]}");
+        BusinessException ex = assertThrows(BusinessException.class, () -> parser.parse(sb.toString(), "u1", "r1"));
+        assertEquals(PicklistArtifactParser.MSG_UNUSABLE, ex.getMessage());
+    }
+
+    @Test
+    void rejectsHttpSourceUrl() {
+        String bad = itemJson(0).replace("https://item.example/0", "http://item.example/0");
+        String json = "{"
+                + "\"disclaimer\":\"基于通用知识推断，非实时平台数据\","
+                + "\"items\":[" + bad + "," + itemJson(1) + "," + itemJson(2) + ","
+                + itemJson(3) + "," + itemJson(4) + "," + itemJson(5) + ","
+                + itemJson(6) + "," + itemJson(7) + "]"
+                + "}";
+        BusinessException ex = assertThrows(BusinessException.class, () -> parser.parse(json, "u1", "r1"));
+        assertEquals(PicklistArtifactParser.MSG_UNUSABLE, ex.getMessage());
     }
 
     @Test
@@ -242,7 +271,8 @@ class PicklistArtifactParserTest {
                 + "\"demand\":\"高｜需求稳\","
                 + "\"competition\":\"中｜可切\","
                 + "\"margin\":\"中｜测款友好\","
-                + "\"risk\":\"低｜注意表述\""
+                + "\"risk\":\"低｜注意表述\","
+                + "\"sourceUrl\":\"https://item.example/" + i + "\""
                 + "}";
     }
 }

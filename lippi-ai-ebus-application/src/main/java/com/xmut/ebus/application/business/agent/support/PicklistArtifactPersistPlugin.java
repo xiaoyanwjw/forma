@@ -78,6 +78,7 @@ public class PicklistArtifactPersistPlugin implements ArtifactPersistPlugin {
             row.put("competition", item.getCompetition());
             row.put("margin", item.getMargin());
             row.put("risk", item.getRisk());
+            row.put("sourceUrl", item.getSourceUrl());
             items.add(row);
         }
         data.put("items", items);

@@ -16,6 +16,7 @@ public final class PicklistDefaults {
     public static final int MAX_DIM = 512;
     public static final int MAX_DISCLAIMER = 512;
     public static final int MAX_ASSUMPTIONS = 1024;
+    public static final int MAX_SOURCE_URL = 512;
 
     private PicklistDefaults() {
     }

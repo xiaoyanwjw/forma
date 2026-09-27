@@ -90,7 +90,8 @@ class ComputerViewResolverTest {
                     (i == 0 ? "【优先试】" : "") + "品" + i,
                     "19-39",
                     "痛点", "切入", "差异", "细分" + (i % 3),
-                    "高｜d", "中｜c", "中｜m", "低｜r"));
+                    "高｜d", "中｜c", "中｜m", "低｜r",
+                    "https://item.example/" + i));
         }
         PicklistArtifactDTO dto = new PicklistArtifactDTO(
                 "pl-1", "run-1", "domestic-generic-default",

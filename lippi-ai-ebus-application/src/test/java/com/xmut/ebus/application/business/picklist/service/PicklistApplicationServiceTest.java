@@ -59,6 +59,8 @@ class PicklistApplicationServiceTest {
         assertEquals("ecommerce", saved.getSceneCode());
         assertEquals("选品清单", saved.getTitle());
         assertTrue(saved.getPayloadJson().contains("\"painPoint\""));
+        assertTrue(saved.getPayloadJson().contains("\"sourceUrl\""));
+        assertEquals("https://item.example/0", dto.getItems().get(0).getSourceUrl());
         assertEquals(saved.getId(), dto.getPicklistId());
     }
 
@@ -92,6 +94,7 @@ class PicklistApplicationServiceTest {
                 .competition("竞争")
                 .margin("利润")
                 .risk("风险")
+                .sourceUrl("https://item.example/0")
                 .build());
         PersistPicklistCommand cmd = PersistPicklistCommand.builder()
                 .userId("u1")
@@ -117,6 +120,7 @@ class PicklistApplicationServiceTest {
                     .competition("竞争")
                     .margin("利润")
                     .risk("风险")
+                    .sourceUrl("https://item.example/" + i)
                     .build());
         }
         return list;

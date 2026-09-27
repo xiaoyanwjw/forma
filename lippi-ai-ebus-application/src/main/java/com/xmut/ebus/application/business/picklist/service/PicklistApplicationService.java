@@ -87,8 +87,9 @@ public class PicklistApplicationService {
             String competition = requireMaxLen(requireItemField(raw.getCompetition()), PicklistDefaults.MAX_DIM);
             String margin = requireMaxLen(requireItemField(raw.getMargin()), PicklistDefaults.MAX_DIM);
             String risk = requireMaxLen(requireItemField(raw.getRisk()), PicklistDefaults.MAX_DIM);
+            String sourceUrl = requireHttpsSourceUrl(raw.getSourceUrl());
             dtoItems.add(new PicklistArtifactDTO.PicklistItemDTO(
-                    title, priceBand, painPoint, angle, diff, niche, demand, competition, margin, risk));
+                    title, priceBand, painPoint, angle, diff, niche, demand, competition, margin, risk, sourceUrl));
             Map<String, Object> itemMap = new LinkedHashMap<String, Object>();
             itemMap.put("title", title);
             itemMap.put("priceBand", priceBand);
@@ -100,6 +101,7 @@ public class PicklistApplicationService {
             itemMap.put("competition", competition);
             itemMap.put("margin", margin);
             itemMap.put("risk", risk);
+            itemMap.put("sourceUrl", sourceUrl);
             itemMaps.add(itemMap);
         }
 
@@ -146,6 +148,14 @@ public class PicklistApplicationService {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
         }
         return templateId;
+    }
+
+    private static String requireHttpsSourceUrl(String value) {
+        String sourceUrl = requireMaxLen(requireItemField(value), PicklistDefaults.MAX_SOURCE_URL);
+        if (!sourceUrl.startsWith("https://")) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
+        }
+        return sourceUrl;
     }
 
     private static String requireItemField(String value) {

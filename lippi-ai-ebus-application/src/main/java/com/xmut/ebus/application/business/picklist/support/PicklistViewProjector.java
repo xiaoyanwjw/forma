@@ -61,6 +61,7 @@ public class PicklistViewProjector {
         } else {
             row.put("title", rawTitle);
         }
+        row.put("href", item.getSourceUrl());
         List<Map<String, Object>> lines = new ArrayList<Map<String, Object>>();
         appendLine(lines, "priceBand", item.getPriceBand(), "price");
         appendLine(lines, "painPoint", item.getPainPoint(), null);

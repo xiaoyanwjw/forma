@@ -97,6 +97,7 @@ public class PicklistArtifactParser {
             String competition = requiredLevelField(itemNode, "competition");
             String margin = requiredLevelField(itemNode, "margin");
             String risk = requiredLevelField(itemNode, "risk");
+            String sourceUrl = requiredHttps(itemNode, "sourceUrl");
             if (title.startsWith(PRIORITY_MARK)) {
                 priorityCount++;
             }
@@ -112,6 +113,7 @@ public class PicklistArtifactParser {
                     .competition(competition)
                     .margin(margin)
                     .risk(risk)
+                    .sourceUrl(sourceUrl)
                     .build());
         }
         if (priorityCount < 1 || priorityCount > 2) {
@@ -217,6 +219,14 @@ public class PicklistArtifactParser {
             return raw.substring(start, end + 1);
         }
         throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
+    }
+
+    private static String requiredHttps(JsonNode node, String field) {
+        String text = requiredText(node, field);
+        if (!text.startsWith("https://")) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
+        }
+        return text;
     }
 
     private static String requiredText(JsonNode node, String field) {
