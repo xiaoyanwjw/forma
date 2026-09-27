@@ -75,12 +75,19 @@ const {
   error: listingError,
   artifact: listingArtifact,
   sessionId: listingSessionId,
+  pendingHuman: listingPendingHuman,
   processEvents: listingProcessEvents,
   startListingRun,
+  resumeListingRun,
   reset: resetListingRun,
 } = useAgentListingRun()
 
+const listingSupplementOpen = ref(false)
+const listingSupplementText = ref('')
+
 const generationRunning = computed(() => picklistRunning.value || listingRunning.value)
+const listingAwaitingHuman = computed(() => Boolean(listingPendingHuman.value))
+const sessionBusy = computed(() => generationRunning.value || listingAwaitingHuman.value)
 const sessionId = computed(() => picklistSessionId.value ?? listingSessionId.value)
 const processEvents = computed(() =>
   listingRunning.value ||
@@ -91,7 +98,7 @@ const processEvents = computed(() =>
 
 const computerOpen = computed(() => computerKind.value != null)
 const sessionSendEnabled = computed(
-  () => sessionPrompt.value.trim().length > 0 && !generationRunning.value,
+  () => sessionPrompt.value.trim().length > 0 && !sessionBusy.value,
 )
 
 const picksIsLive = computed(() => Boolean(livePicklist.value?.view))
@@ -229,9 +236,103 @@ async function finishGenerationMessage(opts: {
   scrollChatToBottom()
 }
 
+function applyListingArtifactToComputer() {
+  if (listingArtifact.value?.view) {
+    liveListing.value = listingArtifact.value
+    computerKind.value = 'listing'
+    revealComputer()
+  }
+}
+
+function presentListingHumanInput(thinkingId: string) {
+  listingSupplementOpen.value = false
+  listingSupplementText.value = ''
+  applyListingArtifactToComputer()
+  const idx = messages.value.findIndex((m) => m.id === thinkingId)
+  const question =
+    listingPendingHuman.value?.question ||
+    '策划分镜已出。请确认出执行稿，或补充需求。'
+  const snapshot = listingProcessEvents.value.length
+    ? [...listingProcessEvents.value]
+    : undefined
+  const next = {
+    id: thinkingId,
+    role: 'agent' as const,
+    text: question,
+    processEvents: snapshot,
+  }
+  if (idx >= 0) {
+    messages.value[idx] = next
+  } else {
+    messages.value.push({ ...next, id: nextMsgId() })
+  }
+  thinkingMessageId.value = thinkingId
+  scrollChatToBottom()
+}
+
+async function finishListingAfterStream(thinkingId: string) {
+  if (listingPendingHuman.value) {
+    presentListingHumanInput(thinkingId)
+    return
+  }
+  await finishGenerationMessage({
+    thinkingId,
+    error: listingError.value,
+    artifact: listingArtifact.value,
+    kind: 'listing',
+    successFallback: '已生成上架素材，右侧 Computer 可查看主图位与文案。',
+    emptyFallback: '上架素材已结束，但未收到可用成果，请重试。',
+    processSnapshot: listingProcessEvents.value.length
+      ? [...listingProcessEvents.value]
+      : undefined,
+  })
+}
+
+async function confirmListingExecute() {
+  if (!listingPendingHuman.value || listingRunning.value) return
+  listingSupplementOpen.value = false
+  const thinkingId = thinkingMessageId.value
+  if (thinkingId) {
+    const idx = messages.value.findIndex((m) => m.id === thinkingId)
+    if (idx >= 0) {
+      const cur = messages.value[idx]
+      if (cur) {
+        messages.value[idx] = {
+          id: cur.id,
+          role: 'agent',
+          text: '正在根据确认生成执行稿…',
+          processEvents: listingProcessEvents.value.length
+            ? [...listingProcessEvents.value]
+            : cur.processEvents,
+        }
+      }
+    }
+  }
+  await resumeListingRun({ optionId: 'confirm_execute' })
+  if (thinkingId) {
+    await finishListingAfterStream(thinkingId)
+  }
+}
+
+function openListingSupplement() {
+  listingSupplementOpen.value = true
+}
+
+async function submitListingSupplement() {
+  if (!listingPendingHuman.value || listingRunning.value) return
+  const note = listingSupplementText.value.trim()
+  await resumeListingRun({ optionId: 'supplement', freeText: note || undefined })
+  listingSupplementText.value = ''
+  listingSupplementOpen.value = false
+  const thinkingId = thinkingMessageId.value
+  if (thinkingId) {
+    await finishListingAfterStream(thinkingId)
+  }
+}
+
 async function sendFromSession() {
   const text = sessionPrompt.value.trim()
-  if (!text || generationRunning.value) return
+  if (!text || sessionBusy.value) return
 
   if (TEMPLATE_SLOT_MARK.test(text)) {
     messages.value.push({ id: nextMsgId(), role: 'user', text })
@@ -279,17 +380,7 @@ async function sendFromSession() {
 
   if (listing) {
     await startListingRun(shared)
-    await finishGenerationMessage({
-      thinkingId,
-      error: listingError.value,
-      artifact: listingArtifact.value,
-      kind: 'listing',
-      successFallback: '已生成上架素材，右侧 Computer 可查看主图位与文案。',
-      emptyFallback: '上架素材已结束，但未收到可用成果，请重试。',
-      processSnapshot: listingProcessEvents.value.length
-        ? [...listingProcessEvents.value]
-        : undefined,
-    })
+    await finishListingAfterStream(thinkingId)
     return
   }
 
@@ -382,6 +473,8 @@ function closeComputer() {
 function newTask() {
   resetPicklistRun()
   resetListingRun()
+  listingSupplementOpen.value = false
+  listingSupplementText.value = ''
   thinkingMessageId.value = null
   expandedStreamIds.value = new Set()
   expandedStatusIds.value = new Set()
@@ -583,7 +676,61 @@ onMounted(async () => {
                     </div>
                   </div>
                   <div
-                    v-if="m.text && !(generationRunning && m.id === thinkingMessageId)"
+                    v-if="
+                      listingAwaitingHuman &&
+                      m.id === thinkingMessageId &&
+                      listingPendingHuman
+                    "
+                    class="ask-human"
+                    data-testid="ask-human"
+                  >
+                    <p class="ask-human-q">{{ listingPendingHuman.question }}</p>
+                    <div class="ask-human-actions" role="group" aria-label="确认策划">
+                      <button
+                        type="button"
+                        class="pill"
+                        data-testid="ask-human-confirm"
+                        :disabled="listingRunning"
+                        @click="confirmListingExecute"
+                      >
+                        确认，出执行稿
+                      </button>
+                      <button
+                        type="button"
+                        class="pill"
+                        data-testid="ask-human-supplement"
+                        :disabled="listingRunning"
+                        @click="openListingSupplement"
+                      >
+                        补充需求
+                      </button>
+                    </div>
+                    <div
+                      v-if="listingSupplementOpen"
+                      class="ask-human-supplement"
+                      data-testid="ask-human-supplement-form"
+                    >
+                      <textarea
+                        v-model="listingSupplementText"
+                        class="ask-human-note"
+                        rows="3"
+                        placeholder="写下要改的分镜、标题或详情大纲"
+                        aria-label="补充需求"
+                        :disabled="listingRunning"
+                      />
+                      <button
+                        type="button"
+                        class="pill"
+                        data-testid="ask-human-supplement-submit"
+                        :disabled="listingRunning"
+                        @click="submitListingSupplement"
+                      >
+                        提交补充
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    v-else-if="m.text && !(generationRunning && m.id === thinkingMessageId)"
                     class="chat-event chat-event-status"
                     :class="{
                       'is-preview': canPreviewFromStatus(m),
@@ -657,10 +804,10 @@ onMounted(async () => {
           <div class="chat-input-wrap">
             <div class="chat-composer">
               <div class="quick-row" role="group" aria-label="快捷任务">
-                <button type="button" class="pill" :disabled="generationRunning" @click="fillPicksSession">
+                <button type="button" class="pill" :disabled="sessionBusy" @click="fillPicksSession">
                   选品清单
                 </button>
-                <button type="button" class="pill" :disabled="generationRunning" @click="fillListingSession">
+                <button type="button" class="pill" :disabled="sessionBusy" @click="fillListingSession">
                   生成素材
                 </button>
               </div>
@@ -671,7 +818,7 @@ onMounted(async () => {
                   rows="2"
                   placeholder="分配一个任务或提问任何问题"
                   aria-label="继续提问"
-                  :disabled="generationRunning"
+                  :disabled="sessionBusy"
                 />
                 <div class="prompt-toolbar">
                   <button
@@ -728,6 +875,47 @@ onMounted(async () => {
 <style scoped>
 .shell {
   min-height: 100vh;
+}
+
+.ask-human {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+}
+
+.ask-human-q {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.ask-human-actions,
+.ask-human-supplement {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.ask-human-supplement {
+  margin-top: 10px;
+  flex-direction: column;
+}
+
+.ask-human-note {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.875rem;
+  line-height: 1.6;
 }
 
 .quick-row {

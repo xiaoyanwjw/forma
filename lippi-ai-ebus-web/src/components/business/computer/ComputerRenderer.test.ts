@@ -316,6 +316,40 @@ describe('parseComputerDocument', () => {
     expect(list && list.type === 'list' && list.items[1]?.href).toBeUndefined()
   })
 
+  it('renders listing plan storyboard as generic blocks without platform shell', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: {
+        version: 1,
+        title: '硅胶沥水垫 · 策划分镜',
+        status: 'ready',
+        blocks: [
+          { type: 'note', text: '痛点：台面长期积水', tone: 'mute' },
+          {
+            type: 'list',
+            ordered: true,
+            items: [
+              { title: '主图：白底产品' },
+              { title: '对比：湿台面' },
+              { title: '场景：沥水收纳' },
+            ],
+          },
+          { type: 'section', heading: '标题草稿', body: '硅胶沥水垫' },
+        ],
+      },
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.textContent).toMatch(/主图：白底产品/)
+    expect(host.textContent).toMatch(/标题草稿/)
+    expect(host.querySelector('.platform-switch')).toBeNull()
+    expect(host.querySelector('.listing-stack')).toBeNull()
+    expect(host.querySelector('.iphone')).toBeNull()
+    app.unmount()
+    host.remove()
+  })
+
   it('returns null when version or title is invalid', () => {
     expect(parseComputerDocument({ version: 2, title: '选品清单', blocks: [] })).toBeNull()
     expect(parseComputerDocument({ version: 1, title: 3, blocks: [] })).toBeNull()

@@ -3,6 +3,7 @@ import { getToken } from '@/api/http'
 import type {
   Ad4EventName,
   Ad4SseEvent,
+  ResumeGenerationRunOptions,
   StreamAgentRunOptions,
   StreamEmptyRunOptions,
   StreamListingRunOptions,
@@ -96,6 +97,52 @@ export async function* streamListingRun(
     skillId: 'ecommerce-skulist',
     dryRun: false,
   })
+}
+
+/**
+ * ask_human 续跑：POST /runs/{runId}/resume，返回新 SSE。
+ */
+export async function* resumeGenerationRun(
+  options: ResumeGenerationRunOptions,
+): AsyncGenerator<Ad4SseEvent, void, undefined> {
+  const runId = options.runId?.trim()
+  const toolCallId = options.toolCallId?.trim()
+  if (!runId) {
+    throw new ApiError(400, '缺少 runId')
+  }
+  if (!toolCallId) {
+    throw new ApiError(400, '缺少 toolCallId')
+  }
+
+  const token = getToken()
+  if (!token) {
+    throw new ApiError(401, '未授权，请先登录')
+  }
+
+  const response = await fetch(`${AGENT_RUN_PATH}/${encodeURIComponent(runId)}/resume`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      toolCallId,
+      optionId: options.optionId?.trim() || undefined,
+      freeText: options.freeText?.trim() || undefined,
+      confirmRequestId: options.confirmRequestId?.trim() || undefined,
+    }),
+    signal: options.signal,
+  })
+
+  if (!response.ok) {
+    throw await readApiError(response)
+  }
+  if (!response.body) {
+    throw new ApiError(response.status, '服务未返回事件流')
+  }
+
+  yield* parseSseStream(response.body)
 }
 
 async function readApiError(response: Response): Promise<ApiError> {

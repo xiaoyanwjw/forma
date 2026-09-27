@@ -144,9 +144,51 @@ function listingArtifactReadyData(view = sampleListingView()) {
   }
 }
 
+function samplePlanView() {
+  return {
+    version: 1,
+    title: '硅胶沥水垫 · 策划分镜',
+    status: 'ready',
+    blocks: [
+      { type: 'note', text: '痛点：台面长期积水', tone: 'mute' },
+      {
+        type: 'list',
+        ordered: true,
+        items: [
+          { title: '主图：白底产品' },
+          { title: '对比：湿台面' },
+          { title: '场景：沥水收纳' },
+        ],
+      },
+      { type: 'section', heading: '标题草稿', body: '硅胶沥水垫' },
+    ],
+  }
+}
+
+function listingPlanReadyData() {
+  return {
+    artifactRef: 'plan-1',
+    view: samplePlanView(),
+  }
+}
+
+function humanInputRequiredData() {
+  return {
+    question: '策划分镜已出。确认后将生成执行稿与生图 Prompt（再扣 1 积分）。也可补充需求让我改策划。',
+    options: [
+      { id: 'confirm_execute', label: '确认，出执行稿' },
+      { id: 'supplement', label: '补充需求' },
+    ],
+    allowFreeText: true,
+    toolCallId: 'ask-1',
+    runId: 'r-l1',
+  }
+}
+
 function mockCatalogAndCredits(opts?: {
   onPicklist?: () => Response
   onListing?: () => Response
+  onResume?: (init?: RequestInit) => Response
   available?: number
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -156,6 +198,19 @@ function mockCatalogAndCredits(opts?: {
     }
     if (url.includes('/api/v1/credits')) {
       return creditsResponse(opts?.available ?? 14)
+    }
+    if (url.includes('/resume')) {
+      if (opts?.onResume) {
+        return opts.onResume(init)
+      }
+      return new Response(
+        sseBody([
+          'event: run_started\ndata: {"runId":"r-l1","sessionId":"s1","holdId":"h2"}\n\n',
+          `event: artifact_ready\ndata: ${JSON.stringify(listingArtifactReadyData())}\n\n`,
+          'event: run_settled\ndata: {"runId":"r-l1","holdId":"h2","artifactRef":"sku-1","amount":1}\n\n',
+        ]),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+      )
     }
     if (url.includes('/api/v1/agent/runs') && !url.includes('/runs/empty')) {
       const body = typeof init?.body === 'string' ? init.body : ''
@@ -261,6 +316,10 @@ function picklistApiHits(fetchMock: FetchSpy) {
 
 function listingApiHits(fetchMock: FetchSpy) {
   return billedRunApiHits(fetchMock, 'ecommerce-skulist')
+}
+
+function resumeApiHits(fetchMock: FetchSpy) {
+  return fetchMock.mock.calls.filter(([input]) => String(input).includes('/resume'))
 }
 
 function emptyRunApiHits(fetchMock: FetchSpy) {
@@ -780,7 +839,9 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.textContent).toMatch(/详情标题/)
     expect(mounted.root.textContent).toMatch(DEMO_LISTING.title)
     expect(body?.querySelectorAll('.comp-card').length).toBe(1)
-    expect(body?.querySelector('.section-body.mute')?.textContent).toContain(DEMO_LISTING.body)
+    expect(body?.querySelector('.listing-copy.is-body .section-body')?.textContent).toContain(
+      DEMO_LISTING.body,
+    )
   })
 
   it('listing intent streams billed skulist and shows live Computer (not demo)', async () => {
@@ -795,8 +856,56 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.textContent).toMatch(/已生成上架素材/)
     expect(mounted.root.textContent).toMatch(/厨房硅胶沥水垫/)
     expect(mounted.root.textContent).toMatch(/易清洗防滑/)
-    expect(mounted.root.querySelector('.listing-hero-img')).toBeTruthy()
+    expect(mounted.root.querySelector('.platform-switch')).toBeTruthy()
+    expect(mounted.root.querySelector('.listing-hero-plan')).toBeTruthy()
     expect(mounted.root.querySelector('[data-demo="open-listing"]')).toBeNull()
+  })
+
+  it('listing human_input_required shows confirm/supplement and resume confirm_execute', async () => {
+    fetchMock = mockCatalogAndCredits({
+      onListing: () =>
+        new Response(
+          sseBody([
+            'event: run_started\ndata: {"runId":"r-l1","sessionId":"s1","holdId":"h1"}\n\n',
+            'event: agent_started\ndata: {"label":"agent.start"}\n\n',
+            `event: artifact_ready\ndata: ${JSON.stringify(listingPlanReadyData())}\n\n`,
+            `event: human_input_required\ndata: ${JSON.stringify(humanInputRequiredData())}\n\n`,
+          ]),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。')
+
+    expect(listingApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
+    expect(resumeApiHits(fetchMock)).toHaveLength(0)
+    expect(mounted.root.querySelector('[data-testid="ask-human"]')).toBeTruthy()
+    expect(mounted.root.textContent).toMatch(/确认，出执行稿/)
+    expect(mounted.root.textContent).toMatch(/补充需求/)
+    expect(mounted.root.querySelector('.workspace.split')).toBeTruthy()
+    expect(mounted.root.textContent).toMatch(/主图：白底产品/)
+    expect(mounted.root.querySelector('.listing-hero-img')).toBeNull()
+
+    const confirm = mounted.root.querySelector(
+      '[data-testid="ask-human-confirm"]',
+    ) as HTMLButtonElement
+    confirm.click()
+    await flushUi()
+    await flushUi()
+
+    expect(resumeApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
+    const [resumeUrl, resumeInit] = resumeApiHits(fetchMock)[0] as [string, RequestInit]
+    expect(resumeUrl).toBe('/api/v1/agent/runs/r-l1/resume')
+    expect(JSON.parse(String(resumeInit.body))).toMatchObject({
+      toolCallId: 'ask-1',
+      optionId: 'confirm_execute',
+    })
+    expect(mounted.root.querySelector('[data-testid="ask-human"]')).toBeNull()
+    expect(mounted.root.textContent).toMatch(/已生成上架素材/)
+    expect(mounted.root.querySelector('.platform-switch')).toBeTruthy()
+    expect(mounted.root.querySelector('.listing-hero-plan')).toBeTruthy()
+    expect(mounted.root.textContent).toMatch(/厨房硅胶沥水垫/)
   })
 
   it('listing insufficient credit shows upgrade hint without Computer', async () => {

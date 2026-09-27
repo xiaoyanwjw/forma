@@ -9,6 +9,7 @@ export const AD4_EVENT_NAMES = [
   'tool_finished',
   'agent_ended',
   'artifact_ready',
+  'human_input_required',
   'run_failed',
   'run_settled',
 ] as const
@@ -61,6 +62,32 @@ export interface StreamAgentRunOptions {
 export interface GenerationArtifactPayload {
   artifactRef: string
   view: ComputerDocument
+}
+
+export type AskHumanOptionId = 'confirm_execute' | 'supplement'
+
+export interface AskHumanOption {
+  id: string
+  label: string
+}
+
+/** ask_human 挂起：聊天选项条 */
+export interface HumanInputRequiredPayload {
+  question: string
+  options: AskHumanOption[]
+  allowFreeText: boolean
+  toolCallId: string
+  runId?: string
+}
+
+/** Listing HITL 续跑（新 SSE） */
+export interface ResumeGenerationRunOptions {
+  runId: string
+  toolCallId: string
+  optionId?: AskHumanOptionId | string
+  freeText?: string
+  confirmRequestId?: string
+  signal?: AbortSignal
 }
 
 export function isAd4EventName(value: string): value is Ad4EventName {
