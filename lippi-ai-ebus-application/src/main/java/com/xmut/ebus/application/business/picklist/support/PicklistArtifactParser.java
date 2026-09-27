@@ -1,5 +1,6 @@
 package com.xmut.ebus.application.business.picklist.support;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xmut.ebus.application.business.picklist.command.PersistPicklistCommand;
@@ -12,11 +13,13 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 从模型终态文本解析选品 JSON；结构不合格抛业务异常（不可用成果）。
+ * 从模型终态文本解析选品 JSON；支持双轨信封 {@code {view, artifact}} 与扁平业务 JSON。
+ * 结构不合格抛业务异常（不可用成果）。
  */
 @Component
 public class PicklistArtifactParser {
@@ -29,6 +32,10 @@ public class PicklistArtifactParser {
     /** 四维须以 高|中|低 + 全角/半角竖线或冒号 开头 */
     private static final Pattern LEVEL_PREFIX = Pattern.compile("^[高中低][｜|：:]");
 
+    private static final TypeReference<Map<String, Object>> MAP_TYPE =
+            new TypeReference<Map<String, Object>>() {
+            };
+
     private final ObjectMapper objectMapper;
 
     public PicklistArtifactParser(ObjectMapper objectMapper) {
@@ -40,7 +47,7 @@ public class PicklistArtifactParser {
      * @param userId  操作者
      * @param runId   当前 GenerationRun
      */
-    public PersistPicklistCommand parse(String rawText, String userId, String runId) {
+    public PicklistParseResult parse(String rawText, String userId, String runId) {
         StringUtils.requireHasText(userId, "用户 ID 不能为空");
         StringUtils.requireHasText(runId, "Run ID 不能为空");
         if (!StringUtils.hasText(rawText)) {
@@ -58,10 +65,13 @@ public class PicklistArtifactParser {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
         }
 
-        String templateId = resolveTemplateId(root);
-        String disclaimer = requiredDisclaimer(root);
-        String assumptions = optionalText(root, "assumptions");
-        JsonNode itemsNode = root.get("items");
+        JsonNode businessRoot = resolveBusinessRoot(root);
+        Map<String, Object> rawView = extractRawView(root, businessRoot);
+
+        String templateId = resolveTemplateId(businessRoot);
+        String disclaimer = requiredDisclaimer(businessRoot);
+        String assumptions = optionalText(businessRoot, "assumptions");
+        JsonNode itemsNode = businessRoot.get("items");
         if (itemsNode == null || !itemsNode.isArray()) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
         }
@@ -111,7 +121,7 @@ public class PicklistArtifactParser {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
         }
 
-        return PersistPicklistCommand.builder()
+        PersistPicklistCommand command = PersistPicklistCommand.builder()
                 .userId(userId)
                 .runId(runId)
                 .templateId(templateId)
@@ -119,6 +129,37 @@ public class PicklistArtifactParser {
                 .assumptions(assumptions)
                 .items(items)
                 .build();
+        return new PicklistParseResult(command, rawView);
+    }
+
+    /**
+     * Dual-track: business fields live under {@code artifact}. Flat JSON keeps fields at root.
+     */
+    private static JsonNode resolveBusinessRoot(JsonNode root) {
+        JsonNode artifact = root.get("artifact");
+        if (artifact != null && artifact.isObject()) {
+            return artifact;
+        }
+        return root;
+    }
+
+    /**
+     * Only accept Skill {@code view} when dual-track envelope is used ({@code artifact} present),
+     * so flat legacy payloads never confuse Computer with a stray top-level view.
+     */
+    private Map<String, Object> extractRawView(JsonNode root, JsonNode businessRoot) {
+        if (businessRoot == root) {
+            return null;
+        }
+        JsonNode viewNode = root.get("view");
+        if (viewNode == null || viewNode.isNull() || !viewNode.isObject()) {
+            return null;
+        }
+        try {
+            return objectMapper.convertValue(viewNode, MAP_TYPE);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
+        }
     }
 
     private static String requiredLevelField(JsonNode itemNode, String field) {

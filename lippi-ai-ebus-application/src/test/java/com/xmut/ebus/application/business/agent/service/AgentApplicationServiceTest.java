@@ -11,6 +11,7 @@ import com.xmut.ebus.application.business.picklist.command.PersistPicklistComman
 import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
 import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
+import com.xmut.ebus.application.business.picklist.support.PicklistParseResult;
 import com.xmut.ebus.application.business.computer.LegacyPicklistFallbackProjector;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
@@ -48,6 +49,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -613,7 +615,8 @@ class AgentApplicationServiceTest {
                 .disclaimer("基于通用电商知识推断，非实时平台数据")
                 .items(Collections.emptyList())
                 .build();
-        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-ok")).thenReturn(persistCmd);
+        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-ok"))
+                .thenReturn(new PicklistParseResult(persistCmd, null));
         PicklistArtifactDTO artifact = sampleArtifact("pl-1", "run-pl-ok");
         when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class))).thenReturn(artifact);
         when(generationRunRepository.findById("run-pl-ok")).thenReturn(Optional.of(
@@ -658,6 +661,58 @@ class AgentApplicationServiceTest {
     }
 
     @Test
+    void streamPicklistRunPrefersSkillViewOverLegacyProjection() {
+        PicklistRunContext ctx = picklistCtx("run-pl-view", "session-pl-view");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-pl-view", "session-pl-view", VALID_PICKLIST_JSON,
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
+                .userId(USER_ID)
+                .runId("run-pl-view")
+                .templateId("domestic-generic-default")
+                .disclaimer("基于通用电商知识推断，非实时平台数据")
+                .items(Collections.emptyList())
+                .build();
+        Map<String, Object> skillView = new LinkedHashMap<String, Object>();
+        skillView.put("version", 1);
+        skillView.put("title", "report");
+        skillView.put("status", "ready");
+        List<Map<String, Object>> blocks = new ArrayList<Map<String, Object>>();
+        Map<String, Object> note = new LinkedHashMap<String, Object>();
+        note.put("type", "note");
+        note.put("tone", "mute");
+        note.put("text", "skill-owned note");
+        blocks.add(note);
+        skillView.put("blocks", blocks);
+        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-view"))
+                .thenReturn(new PicklistParseResult(persistCmd, skillView));
+        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
+                .thenReturn(sampleArtifact("pl-view", "run-pl-view"));
+        when(generationRunRepository.findById("run-pl-view")).thenReturn(Optional.of(
+                GenerationRun.start("run-pl-view", USER_ID, HOLD_ID, "session-pl-view",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamPicklistRun(ctx, events::add);
+
+        Ad4SseEvent ready = events.stream()
+                .filter(e -> e.getName() == Ad4EventName.artifact_ready)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("missing artifact_ready"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> view = (Map<String, Object>) ready.getData().get("view");
+        assertEquals("report", view.get("title"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> outBlocks = (List<Map<String, Object>>) view.get("blocks");
+        assertEquals(1, outBlocks.size());
+        assertEquals("note", outBlocks.get(0).get("type"));
+        assertEquals("skill-owned note", outBlocks.get(0).get("text"));
+    }
+
+    @Test
     void streamPicklistRunSettleFailureDoesNotReleaseOrEmitArtifact() {
         PicklistRunContext ctx = picklistCtx("run-pl-settle", "session-pl-settle");
         stubEcommercePack();
@@ -673,7 +728,8 @@ class AgentApplicationServiceTest {
                 .disclaimer("基于通用电商知识推断，非实时平台数据")
                 .items(Collections.emptyList())
                 .build();
-        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-settle")).thenReturn(persistCmd);
+        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-settle"))
+                .thenReturn(new PicklistParseResult(persistCmd, null));
         when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
                 .thenReturn(sampleArtifact("pl-s", "run-pl-settle"));
         org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
@@ -713,7 +769,8 @@ class AgentApplicationServiceTest {
                 .disclaimer("基于通用电商知识推断，非实时平台数据")
                 .items(Collections.emptyList())
                 .build();
-        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-emit")).thenReturn(persistCmd);
+        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-emit"))
+                .thenReturn(new PicklistParseResult(persistCmd, null));
         when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
                 .thenReturn(sampleArtifact("pl-e", "run-pl-emit"));
         when(generationRunRepository.findById("run-pl-emit")).thenReturn(Optional.of(

@@ -361,7 +361,7 @@ FE 若登记了 `painPoint → 痛点` 词典则显示标签；未登记则只�
 ## 7. 成功标准
 
 - [ ] §1 五组件 + Document 成为 FE/解析的唯一渲染合同；测试不含「必须出现 picklist 字符串」。  
-- [ ] Skill 输出示例以 `view` 为首；`artifact` 可选且不进 Renderer。（近端：SKILL.md 已注明双轨；运行时仍接 flat JSON + Legacy）  
+- [x] Skill 输出示例以 `view` 为首；`artifact` 可选且不进 Renderer。（选品计费仍必填 `artifact`；parser 已认信封，扁平 JSON 兼容）  
 - [x] 存在 `ComputerViewProjector` + Chain；单测覆盖 Normalize / NoSkillMarkdown 的 `supports` 分流。  
 - [x] 无 Skill → 仅经 NoSkillMarkdown 得到一个 `markdown` block。  
 - [x] 业务枚举只出现在 Skill 元数据 / persist 插件，不出现在 ComputerBlock.type。
@@ -390,3 +390,4 @@ FE 若登记了 `painPoint → 痛点` 词典则显示标签；未登记则只�
 | 2026-09-27 | 通用组件升为 §1；去掉合同里的 `artifactType: picklist` |
 | 2026-09-27 | **Projector = 策略模式**：Normalize + NoSkillMarkdown（`supports`/`project`）；弱化「从业务数据生成 list」为主路径 |
 | 2026-09-27 | **落地**：Chain（Normalize → LegacyPicklist → NoSkillMarkdown）接入 `artifact_ready.view`；FE `markdown` block；SKILL 双轨说明。信封解析 / 去 Legacy / CreditHold 拆分仍属后续 |
+| 2026-09-27 | **信封落地**：`PicklistArtifactParser` 解析 `{view,artifact}`；`rawView` 走 Normalize；SKILL 主契约改为 view 优先；扁平 JSON 仍兼容 Legacy |

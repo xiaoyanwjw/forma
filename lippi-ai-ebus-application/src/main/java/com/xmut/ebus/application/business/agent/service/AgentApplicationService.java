@@ -14,6 +14,7 @@ import com.xmut.ebus.application.business.picklist.command.PersistPicklistComman
 import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
 import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
+import com.xmut.ebus.application.business.picklist.support.PicklistParseResult;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -437,9 +438,12 @@ public class AgentApplicationService {
             }
 
             final PersistPicklistCommand persistCommand;
+            final Map<String, Object> skillRawView;
             try {
-                PersistPicklistCommand parsed = picklistArtifactParser.parse(
+                PicklistParseResult parsedResult = picklistArtifactParser.parse(
                         result.getFinalResponse(), context.getUserId(), context.getRunId());
+                PersistPicklistCommand parsed = parsedResult.getCommand();
+                skillRawView = parsedResult.getRawView();
                 persistCommand = PersistPicklistCommand.builder()
                         .userId(parsed.getUserId())
                         .username(parsed.getUsername())
@@ -476,7 +480,7 @@ public class AgentApplicationService {
             holdClosed = true;
 
             try {
-                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, toArtifactReady(artifact)));
+                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, toArtifactReady(artifact, skillRawView)));
                 emit(sink, Ad4SseEvent.of(Ad4EventName.run_settled, toRunSettled(context, artifact.getPicklistId())));
             } catch (RuntimeException emitEx) {
                 LoggerUtils.error(log, AgentApplicationService.class, "streamPicklistRun",
@@ -601,7 +605,7 @@ public class AgentApplicationService {
         return data;
     }
 
-    private Map<String, Object> toArtifactReady(PicklistArtifactDTO artifact) {
+    private Map<String, Object> toArtifactReady(PicklistArtifactDTO artifact, Map<String, Object> skillRawView) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("artifactType", "picklist");
         data.put("artifactRef", artifact.getPicklistId());
@@ -631,6 +635,7 @@ public class AgentApplicationService {
         ViewProjectContext viewCtx = ViewProjectContext.builder()
                 .skillBound(true)
                 .artifact(artifact)
+                .rawView(skillRawView)
                 .build();
         Optional<Map<String, Object>> projected = viewProjectorChain.project(viewCtx);
         data.put("view", projected.isPresent()

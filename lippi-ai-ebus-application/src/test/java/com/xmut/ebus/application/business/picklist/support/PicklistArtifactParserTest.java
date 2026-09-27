@@ -6,7 +6,12 @@ import com.xmut.ebus.common.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,7 +26,9 @@ class PicklistArtifactParserTest {
 
     @Test
     void parsesFencedJsonWithStructuredReasonFields() {
-        PersistPicklistCommand cmd = parser.parse(sampleJson(8), "u1", "r1");
+        PicklistParseResult result = parser.parse(sampleJson(8), "u1", "r1");
+        PersistPicklistCommand cmd = result.getCommand();
+        assertNull(result.getRawView());
         assertEquals("domestic-generic-default", cmd.getTemplateId());
         assertTrue(cmd.getDisclaimer().contains("非实时"));
         assertEquals(8, cmd.getItems().size());
@@ -31,6 +38,46 @@ class PicklistArtifactParserTest {
         assertEquals("多色套装", cmd.getItems().get(0).getDiff());
         assertEquals("细分0", cmd.getItems().get(0).getNiche());
         assertTrue(cmd.getItems().get(0).getDemand().startsWith("高"));
+    }
+
+    @Test
+    void parsesDualTrackEnvelopeWithViewAndArtifact() {
+        String json = "{"
+                + "\"view\":{"
+                + "\"version\":1,\"title\":\"report\",\"status\":\"ready\","
+                + "\"blocks\":[{\"type\":\"note\",\"tone\":\"mute\",\"text\":\"免责声明\"}]"
+                + "},"
+                + "\"artifact\":{"
+                + "\"templateId\":\"domestic-generic-default\","
+                + "\"disclaimer\":\"基于通用电商知识推断，非实时平台数据\","
+                + "\"assumptions\":\"默认\","
+                + "\"items\":[" + itemsCsv(8) + "]"
+                + "}"
+                + "}";
+        PicklistParseResult result = parser.parse(json, "u1", "r1");
+        assertEquals(8, result.getCommand().getItems().size());
+        assertEquals("台面积水", result.getCommand().getItems().get(0).getPainPoint());
+        Map<String, Object> view = result.getRawView();
+        assertNotNull(view);
+        assertEquals(1, ((Number) view.get("version")).intValue());
+        assertEquals("report", view.get("title"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> blocks = (List<Map<String, Object>>) view.get("blocks");
+        assertEquals(1, blocks.size());
+        assertEquals("note", blocks.get(0).get("type"));
+    }
+
+    @Test
+    void parsesEnvelopeArtifactWithoutViewForLegacyFallback() {
+        String json = "{"
+                + "\"artifact\":{"
+                + "\"disclaimer\":\"基于通用电商知识推断，非实时平台数据\","
+                + "\"items\":[" + itemsCsv(8) + "]"
+                + "}"
+                + "}";
+        PicklistParseResult result = parser.parse(json, "u1", "r1");
+        assertNull(result.getRawView());
+        assertEquals(8, result.getCommand().getItems().size());
     }
 
     @Test
@@ -64,8 +111,8 @@ class PicklistArtifactParserTest {
                 + "\"disclaimer\":\"基于通用知识推断，非实时平台数据\","
                 + "\"items\":[" + itemsCsv(8) + "]"
                 + "}";
-        PersistPicklistCommand cmd = parser.parse(json, "u1", "r1");
-        assertEquals("domestic-generic-default", cmd.getTemplateId());
+        PicklistParseResult result = parser.parse(json, "u1", "r1");
+        assertEquals("domestic-generic-default", result.getCommand().getTemplateId());
     }
 
     @Test
