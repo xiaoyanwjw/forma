@@ -57,7 +57,7 @@ import java.util.function.Consumer;
  * 空跑只 {@code reserveOne} + 结束 {@code release}；禁止 {@code settle}；
  * 不发 {@code artifact_ready}/{@code run_settled}。
  * 通用 Generation 管道：{@link #streamGenerationRun}；dry 永不 settle；
- * 无 Skill：view 门禁后 settle；计费 Skill：persist 插件 → {@link ComputerViewResolver} → settle。
+ * 非 dry 统一 {@code streamBilledRun}（无 Skill 跳过 persist；计费 Skill 走插件落库）→ view → settle。
  * 计费生成必须绑定 AVAILABLE 场景（AD-15）。
  */
 @Slf4j
@@ -269,7 +269,7 @@ public class AgentApplicationService {
     }
 
     /**
-     * 通用 Generation SSE：dry → run_failed；无 Skill → markdown view + settle；计费 → persist → settle。
+     * 通用 Generation SSE：dry → run_failed；否则 settle 路径（无 Skill / 计费 Skill）。
      */
     public void streamGenerationRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         ObjectUtils.requireNonNull(context, "生成上下文不能为空");
@@ -280,125 +280,7 @@ public class AgentApplicationService {
             streamDryRun(context, sink);
             return;
         }
-        if (!context.getProfile().isSkillBound()) {
-            streamNoSkillRun(context, sink);
-            return;
-        }
         streamBilledRun(context, sink);
-    }
-
-    /**
-     * 无 Skill：prompt(none) → NoSkillMarkdown → settle → artifact_ready(view) + run_settled。
-     */
-    private void streamNoSkillRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
-        AtomicBoolean hasMessageDelta = new AtomicBoolean(false);
-        AtomicBoolean aborted = new AtomicBoolean(false);
-        AutoCloseable subscription = null;
-        boolean holdClosed = false;
-        boolean settledOk = false;
-        try {
-            emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context.getRunId(),
-                    context.getSessionId(), context.getHoldId())));
-
-            try {
-                sceneCapabilityPackLoader.load(context.getSceneCode());
-            } catch (BusinessException ex) {
-                holdClosed = finishFailed(context, sink, StringUtils.hasText(ex.getMessage())
-                        ? ex.getMessage()
-                        : SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
-                return;
-            }
-
-            subscription = agentSession.subscribe(progressListener(
-                    context.getRunId(), hasMessageDelta, aborted, sink, "streamGenerationRun"));
-
-            TurnResult result = agentSession.prompt(PromptRequest.builder()
-                    .runId(context.getRunId())
-                    .sessionId(context.getSessionId())
-                    .text(context.getPromptText())
-                    .skillId(null)
-                    .build());
-
-            logModelUsagePlaceholder(context, result);
-
-            if (aborted.get()) {
-                holdClosed = finishFailed(context, sink, SSE_SEND_FAILED_RELEASED);
-                return;
-            }
-
-            if (result == null || result.getStatus() != TurnResult.Status.OK) {
-                String reason = result != null && StringUtils.hasText(result.getFinalResponse())
-                        ? result.getFinalResponse()
-                        : PICKLIST_MODEL_FAILED;
-                holdClosed = finishFailed(context, sink, reason);
-                return;
-            }
-
-            String finalText = result.getFinalResponse();
-            if (!hasMessageDelta.get() && StringUtils.hasText(finalText)) {
-                Map<String, Object> delta = new LinkedHashMap<String, Object>();
-                delta.put("text", finalText);
-                emit(sink, Ad4SseEvent.of(Ad4EventName.message_delta, delta));
-            }
-
-            final Map<String, Object> projectedView;
-            try {
-                projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
-                        .skillBound(false)
-                        .finalResponse(finalText)
-                        .build());
-            } catch (BusinessException ex) {
-                holdClosed = finishFailed(context, sink,
-                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : ComputerViewResolver.MSG_VIEW_UNAVAILABLE);
-                return;
-            }
-
-            try {
-                creditHoldSupport.settle(context.getUserId(), context.getHoldId());
-            } catch (BusinessException ex) {
-                LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
-                        ex.getMessage() != null ? ex.getMessage() : "settle failed",
-                        NameValue.create("runId", context.getRunId()),
-                        NameValue.create("holdId", context.getHoldId()));
-                markRunFailed(context.getRunId());
-                emitRunFailed(sink, PICKLIST_SETTLE_FAILED, false);
-                holdClosed = true;
-                return;
-            }
-
-            markRunSettled(context.getRunId(), null);
-            settledOk = true;
-            holdClosed = true;
-
-            try {
-                Map<String, Object> ready = new LinkedHashMap<String, Object>();
-                ready.put("view", projectedView);
-                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, ready));
-                emit(sink, Ad4SseEvent.of(Ad4EventName.run_settled, toRunSettled(context, null)));
-            } catch (RuntimeException emitEx) {
-                LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
-                        emitEx.getMessage() != null ? emitEx.getMessage() : "SSE emit after settle failed",
-                        NameValue.create("runId", context.getRunId()));
-            }
-
-            LoggerUtils.success(log, AgentApplicationService.class, "streamGenerationRun",
-                    NameValue.create("userId", context.getUserId()),
-                    NameValue.create("runId", context.getRunId()),
-                    NameValue.create("skillBound", false));
-        } catch (RuntimeException ex) {
-            LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
-                    ex.getMessage() != null ? ex.getMessage() : "stream failed",
-                    NameValue.create("runId", context.getRunId()));
-            if (settledOk) {
-                return;
-            }
-            if (!holdClosed) {
-                finishFailed(context, sink,
-                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PICKLIST_MODEL_FAILED);
-            }
-        } finally {
-            closeQuietly(subscription);
-        }
     }
 
     private void streamDryRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
@@ -486,6 +368,10 @@ public class AgentApplicationService {
         }
     }
 
+    /**
+     * Settle 路径：prompt →（可选 persist）→ view 门禁 → settle → artifact_ready + run_settled。
+     * 无 Skill（persistAs=none）跳过落库；计费 Skill 走对应 {@link ArtifactPersistPlugin}。
+     */
     private void streamBilledRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         AtomicBoolean hasMessageDelta = new AtomicBoolean(false);
         AtomicBoolean aborted = new AtomicBoolean(false);
@@ -506,7 +392,7 @@ public class AgentApplicationService {
                         : SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
                 return;
             }
-            if (!pack.hasSkill(profile.getSkillId())) {
+            if (profile.isSkillBound() && !pack.hasSkill(profile.getSkillId())) {
                 holdClosed = finishFailed(context, sink, SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
                 return;
             }
@@ -543,9 +429,7 @@ public class AgentApplicationService {
 
             final PersistedGenerationArtifact persisted;
             try {
-                ArtifactPersistPlugin plugin = requirePersistPlugin(profile.getPersistAs());
-                persisted = plugin.persist(
-                        context.getUserId(), context.getRunId(), context.getSceneCode(), result.getFinalResponse());
+                persisted = persistIfNeeded(profile, context, result.getFinalResponse());
             } catch (BusinessException ex) {
                 holdClosed = finishFailed(context, sink,
                         StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PicklistArtifactParser.MSG_UNUSABLE);
@@ -555,7 +439,7 @@ public class AgentApplicationService {
             final Map<String, Object> projectedView;
             try {
                 projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
-                        .skillBound(true)
+                        .skillBound(profile.isSkillBound())
                         .finalResponse(result.getFinalResponse())
                         .rawView(persisted.getRawView())
                         .artifact(persisted.getArtifact())
@@ -599,7 +483,8 @@ public class AgentApplicationService {
                     NameValue.create("userId", context.getUserId()),
                     NameValue.create("runId", context.getRunId()),
                     NameValue.create("artifactRef", persisted.getArtifactRef()),
-                    NameValue.create("skillId", profile.getSkillId()));
+                    NameValue.create("skillId", profile.getSkillId()),
+                    NameValue.create("skillBound", profile.isSkillBound()));
         } catch (RuntimeException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
                     ex.getMessage() != null ? ex.getMessage() : "stream failed",
@@ -618,6 +503,16 @@ public class AgentApplicationService {
         } finally {
             closeQuietly(subscription);
         }
+    }
+
+    private PersistedGenerationArtifact persistIfNeeded(SkillRunProfile profile,
+                                                        GenerationRunContext context,
+                                                        String finalResponse) {
+        if (SkillRunProfile.PERSIST_NONE.equals(profile.getPersistAs())) {
+            return new PersistedGenerationArtifact(null, null, null, null);
+        }
+        return requirePersistPlugin(profile.getPersistAs()).persist(
+                context.getUserId(), context.getRunId(), context.getSceneCode(), finalResponse);
     }
 
     /**
@@ -729,7 +624,9 @@ public class AgentApplicationService {
     private static Map<String, Object> toArtifactReady(PersistedGenerationArtifact persisted,
                                                        Map<String, Object> projectedView) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
-        data.put("artifactRef", persisted.getArtifactRef());
+        if (StringUtils.hasText(persisted.getArtifactRef())) {
+            data.put("artifactRef", persisted.getArtifactRef());
+        }
         data.put("view", projectedView);
         data.putAll(persisted.getReadyExtras());
         return data;
@@ -739,7 +636,9 @@ public class AgentApplicationService {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("runId", context.getRunId());
         data.put("holdId", context.getHoldId());
-        data.put("artifactRef", artifactRef);
+        if (StringUtils.hasText(artifactRef)) {
+            data.put("artifactRef", artifactRef);
+        }
         data.put("amount", 1);
         return data;
     }
