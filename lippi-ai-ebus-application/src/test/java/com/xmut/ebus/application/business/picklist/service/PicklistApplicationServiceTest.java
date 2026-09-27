@@ -51,13 +51,14 @@ class PicklistApplicationServiceTest {
                 .items(items(8)).build();
         PicklistArtifactDTO dto = service.persistUsable(cmd);
         assertEquals(8, dto.getItems().size());
+        assertEquals("台面积水", dto.getItems().get(0).getPainPoint());
         ArgumentCaptor<Artifact> captor = ArgumentCaptor.forClass(Artifact.class);
         verify(artifactRepository).save(captor.capture());
         Artifact saved = captor.getValue();
         assertEquals(ArtifactType.PICKLIST, saved.getType());
         assertEquals("ecommerce", saved.getSceneCode());
         assertEquals("选品清单", saved.getTitle());
-        assertTrue(saved.getPayloadJson().contains("\"items\""));
+        assertTrue(saved.getPayloadJson().contains("\"painPoint\""));
         assertEquals(saved.getId(), dto.getPicklistId());
     }
 
@@ -83,8 +84,10 @@ class PicklistApplicationServiceTest {
         list.set(0, PersistPicklistItemCommand.builder()
                 .title(sb.toString())
                 .priceBand("19-39")
-                .reason("理由")
-                .differentiation("差异")
+                .painPoint("痛点")
+                .angle("切入")
+                .diff("差异")
+                .niche("细分")
                 .demand("需求")
                 .competition("竞争")
                 .margin("利润")
@@ -106,8 +109,10 @@ class PicklistApplicationServiceTest {
             list.add(PersistPicklistItemCommand.builder()
                     .title("品" + i)
                     .priceBand("19-39")
-                    .reason("理由")
-                    .differentiation("差异")
+                    .painPoint("台面积水")
+                    .angle("租房刚需")
+                    .diff("多色套装")
+                    .niche("细分" + (i % 3))
                     .demand("需求")
                     .competition("竞争")
                     .margin("利润")

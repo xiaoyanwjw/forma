@@ -12,8 +12,10 @@ public class PersistPicklistItemCommand {
 
     private final String title;
     private final String priceBand;
-    private final String reason;
-    private final String differentiation;
+    private final String painPoint;
+    private final String angle;
+    private final String diff;
+    private final String niche;
     private final String demand;
     private final String competition;
     private final String margin;

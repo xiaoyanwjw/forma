@@ -633,7 +633,7 @@ class AgentApplicationServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> view = (Map<String, Object>) ready.getData().get("view");
         assertEquals(Integer.valueOf(1), view.get("version"));
-        assertEquals("选品清单", view.get("title"));
+        assertEquals("picklist", view.get("title"));
         assertEquals(Ad4EventName.run_settled, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
@@ -815,8 +815,10 @@ class AgentApplicationServiceTest {
             items.add(new PicklistArtifactDTO.PicklistItemDTO(
                     (i == 0 ? "【优先试】" : "") + "品" + i,
                     "19-39",
-                    "痛点：台面；切入：刚需；差异：多色" + i,
-                    "细分：细分" + (i % 3) + "；差异" + i,
+                    "台面积水",
+                    "租房刚需",
+                    "多色" + i,
+                    "细分" + (i % 3),
                     "高｜需求", "中｜竞争", "中｜利润", "低｜风险"));
         }
         return new PicklistArtifactDTO(

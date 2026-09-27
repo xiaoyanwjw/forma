@@ -40,13 +40,15 @@ Adam's Computer 内选品 / Listing 预览写死在工作台页面；选品 `art
 ```ts
 interface ComputerDocument {
   version: 1
-  title: string           // 「选品清单」|「上架素材预览」
-  status?: string         // 「已结算」|「演示」
+  /** 语义 key（picklist / listingPreview）或旧版中文标题；FE 映射文案 */
+  title: string
+  /** 语义 key（settled / demo）或旧版中文状态 */
+  status?: string
   blocks: ComputerBlock[]
 }
 
 type ComputerBlock =
-  | { type: 'note'; text: string; tone?: 'mute' | 'default' }
+  | { type: 'note'; text: string; tone?: 'mute' | 'default'; kind?: 'assumptions' | string }
   | {
       type: 'list'
       ordered?: boolean    // 默认 true
@@ -69,10 +71,34 @@ type ComputerBlock =
     }
 
 interface ComputerListItem {
-  badge?: string          // 如「优先试」
+  /** 语义 key（priority）或旧版中文 badge；FE 映射文案 */
+  badge?: string
   title: string
-  lines?: string[]
-  tags?: string[]
+  /**
+   * 正文行。投影器用 kind（priceBand/painPoint/angle/diff/niche）+ text + 可选 emphasis。
+   * 旧版 label 中文或纯 string 仍可解析；FE 负责 locale，不拆业务字符串。
+   */
+  lines?: Array<
+    | string
+    | {
+        text: string
+        kind?: 'priceBand' | 'painPoint' | 'angle' | 'diff' | 'niche' | string
+        label?: string
+        emphasis?: 'default' | 'price'
+      }
+  >
+  /**
+   * 标签。投影器用 kind（demand/competition/margin/risk）+ 原始 text + tone。
+   * FE 拼前缀文案；旧版纯 string / 已拼好的 text → 原样展示。
+   */
+  tags?: Array<
+    | string
+    | {
+        text: string
+        kind?: 'demand' | 'competition' | 'margin' | 'risk' | string
+        tone?: 'neutral' | 'positive' | 'caution' | 'danger' | 'info' | 'safe'
+      }
+  >
 }
 ```
 
@@ -83,10 +109,10 @@ interface ComputerListItem {
 
 ### 两种成果的块配方（约定）
 
-| 成果 | document.title | 典型 blocks |
-|------|----------------|-------------|
-| 选品 | 选品清单 | `note`* → `list` |
-| 素材 | 上架素材预览 | `media`(hero) → `section`(详情标题) → `section`(详情正文) → 可选 `note` |
+| 成果 | document.title（语义 key） | FE 文案 | 典型 blocks |
+|------|---------------------------|---------|-------------|
+| 选品 | `picklist` | 选品清单 | `note`* → `list` |
+| 素材 | `listingPreview` | 上架素材预览 | `media`(hero) → `section`(详情标题) → `section`(详情正文) → 可选 `note` |
 
 ### artifact_ready（选品，本轮）
 
@@ -102,7 +128,7 @@ interface ComputerListItem {
   "disclaimer": "...",
   "assumptions": "...",
   "items": [ /* 业务条目，供兼容/调试 */ ],
-  "view": { "version": 1, "title": "选品清单", "status": "已结算", "blocks": [ ... ] }
+  "view": { "version": 1, "title": "picklist", "status": "settled", "blocks": [ ... ] }
 }
 ```
 
@@ -115,18 +141,18 @@ interface ComputerListItem {
 
 ## 选品投影规则（PicklistViewProjector）
 
-输入：`PicklistArtifactDTO`。
+输入：`PicklistArtifactDTO`。投影器**只写语义 key / kind + 原始字段值**，不写中文展示文案。
 
 `blocks` 顺序：
 
-1. 若有 `disclaimer` → `note`（tone=mute）
-2. 若有 `assumptions` → `note`，前缀 `假设：`
+1. 若有 `disclaimer` → `note`（tone=mute，text=原文）
+2. 若有 `assumptions` → `note`（`kind: "assumptions"`，text=原文；FE 拼「假设：」）
 3. 一条 `list`（ordered=true）：
-   - title 以 `【优先试】` 开头 → `badge: "优先试"`，展示时去掉前缀
-   - `lines`：`价格带：{priceBand}`；`reason`；`differentiation`（若有）
-   - `tags`：`需求 {demand}` 等四维（有则加入）
+   - title 以 `【优先试】` 开头 → `badge: "priority"`，title 去掉前缀（FE 映射「优先试」）
+   - `lines`：`priceBand` / `painPoint` / `angle` / `diff` / `niche`（有则；均为 kind + 原始 text）
+   - `tags`：`{ kind: "demand"|"competition"|"margin"|"risk", text: 原始四维值, tone }`（有则）
 
-`title` = `选品清单`；`status` = `已结算`。
+`title` = `picklist`；`status` = `settled`（FE →「选品清单」/「已结算」）。
 
 ## 素材演示 document（本轮 FE fixture）
 

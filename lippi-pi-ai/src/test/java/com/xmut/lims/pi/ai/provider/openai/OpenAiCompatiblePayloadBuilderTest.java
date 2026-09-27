@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xmut.lims.pi.ai.message.ContentPart;
 import com.xmut.lims.pi.ai.message.Message;
-import com.xmut.lims.pi.ai.model.InMemoryModelCatalog;
 import com.xmut.lims.pi.ai.model.ModelDescriptor;
+import com.xmut.lims.pi.ai.model.ModelModality;
 import com.xmut.lims.pi.ai.model.ModelRequest;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import org.junit.jupiter.api.Test;
@@ -38,13 +38,20 @@ class OpenAiCompatiblePayloadBuilderTest {
 
     @Test
     void image_parts_use_content_array() throws Exception {
+        ModelDescriptor desc = ModelDescriptor.builder()
+                .useCase("vision-demo")
+                .provider("dashscope")
+                .model("qwen-vl")
+                .modalities(Collections.singleton(ModelModality.MULTIMODAL))
+                .supportsNativeToolCalling(false)
+                .build();
         Message user = Message.user(Arrays.asList(
                 ContentPart.text("ocr"),
                 ContentPart.imageUrl("https://example/a.png", "high")));
         String json = builder.build(ModelRequest.builder()
                 .messages(Collections.singletonList(user))
-                .useCase(InMemoryModelCatalog.CERTIFICATE_OCR_USE_CASE)
-                .build(), InMemoryModelCatalog.certificateOcrDescriptor(), false);
+                .useCase("vision-demo")
+                .build(), desc, false);
         JsonNode content = new ObjectMapper().readTree(json).path("messages").get(0).path("content");
         assertThat(content.isArray()).isTrue();
         assertThat(content.get(1).path("type").asText()).isEqualTo("image_url");
@@ -72,10 +79,16 @@ class OpenAiCompatiblePayloadBuilderTest {
 
     @Test
     void includes_thinking_mode_when_descriptor_sets_it() throws Exception {
-        ModelDescriptor desc = InMemoryModelCatalog.testStandardSchemaDescriptor();
+        ModelDescriptor desc = ModelDescriptor.builder()
+                .useCase("pi.default")
+                .provider("deepseek")
+                .model("deepseek-v4-flash")
+                .thinkingMode("disabled")
+                .maxTokens(16_000)
+                .build();
         String json = builder.build(ModelRequest.builder()
                 .messages(Collections.singletonList(Message.user("hi")))
-                .useCase(InMemoryModelCatalog.TEST_STANDARD_SCHEMA_USE_CASE)
+                .useCase("pi.default")
                 .build(), desc, false);
         JsonNode root = new ObjectMapper().readTree(json);
         assertThat(root.path("thinking").path("type").asText()).isEqualTo("disabled");

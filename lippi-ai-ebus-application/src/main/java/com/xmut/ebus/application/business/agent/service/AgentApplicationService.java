@@ -616,8 +616,10 @@ public class AgentApplicationService {
             Map<String, Object> row = new LinkedHashMap<String, Object>();
             row.put("title", item.getTitle());
             row.put("priceBand", item.getPriceBand());
-            row.put("reason", item.getReason());
-            row.put("differentiation", item.getDifferentiation());
+            row.put("painPoint", item.getPainPoint());
+            row.put("angle", item.getAngle());
+            row.put("diff", item.getDiff());
+            row.put("niche", item.getNiche());
             row.put("demand", item.getDemand());
             row.put("competition", item.getCompetition());
             row.put("margin", item.getMargin());

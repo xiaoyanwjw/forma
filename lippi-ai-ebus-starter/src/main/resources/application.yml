@@ -44,6 +44,15 @@ credit:
   admin:
     user-ids: ${CREDIT_ADMIN_USER_IDS:}
 
+# 大模型厂商 Key（空 = Stub，不调真模型）
+ai:
+  providers:
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY:}
+      # base-url: https://api.deepseek.com
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
+
 logging:
   level:
     root: INFO

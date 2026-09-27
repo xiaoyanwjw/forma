@@ -80,7 +80,7 @@ flowchart LR
 
 - **Binds:** UJ-1, UJ-2, FR-7, FR-9, AgentRuntime
 - **Prevents:** 同步长请求超时 vs 轮询任务两套客户端协议并存
-- **Rule:** 选品清单 / Listing 套装的生成回合经 SSE 流式下发。浏览器用 **fetch + ReadableStream**（带 `Authorization`），不用原生 `EventSource`。闭合事件类型名（payload 细表可后钉）：`run_started` | `message_delta` | `tool_started` | `tool_finished` | `human_input_required` | `artifact_ready` | `run_failed` | `run_settled`。禁止另造同义事件名。`human_input_required` 用于 `ask_human` 挂起（见 feature spine `architecture-pi-agent-slim-2026-09-25` AD-S12）；等待期间不结算积分。
+- **Rule:** 选品清单 / Listing 套装的生成回合经 SSE 流式下发。浏览器用 **fetch + ReadableStream**（带 `Authorization`），不用原生 `EventSource`。闭合事件类型名（payload 细表可后钉）：`run_started` | `agent_started` | `message_delta` | `tool_started` | `tool_finished` | `agent_ended` | `human_input_required` | `artifact_ready` | `run_failed` | `run_settled`。禁止另造同义事件名。`agent_started`/`agent_ended` 对应 Pi `AGENT_START`/`AGENT_END`（UI 展示 `agent.start`/`agent.end`）。`human_input_required` 用于 `ask_human` 挂起（见 feature spine `architecture-pi-agent-slim-2026-09-25` AD-S12）；等待期间不结算积分。
 
 ### AD-5 — 积分唯一写入者与预占结算 [ADOPTED]
 

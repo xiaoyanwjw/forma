@@ -9,10 +9,12 @@ import type {
 } from '@/types/business/agent'
 import { parseComputerDocument } from '@/types/business/computerView'
 import {
+  applyAgentEnded,
+  applyAgentStarted,
+  applyMessageDelta,
   applyToolFinished,
   applyToolStarted,
-  appendMessageDelta,
-  type ProgressStep,
+  type ProcessEvent,
 } from '@/composables/agent/agentProgress'
 
 const CREDITS_CHANGED_EVENT = 'ebus:credits-changed'
@@ -27,8 +29,7 @@ export function useAgentPicklistRun() {
   const eventNames = ref<Ad4EventName[]>([])
   const artifact = ref<PicklistArtifactPayload | null>(null)
   const sessionId = ref<string | null>(null)
-  const progressSteps = ref<ProgressStep[]>([])
-  const streamText = ref('')
+  const processEvents = ref<ProcessEvent[]>([])
   let abortController: AbortController | null = null
   /** Bumped on reset/newTask so late SSE events are ignored. */
   let runGeneration = 0
@@ -48,8 +49,7 @@ export function useAgentPicklistRun() {
     eventNames.value = []
     artifact.value = null
     sessionId.value = null
-    progressSteps.value = []
-    streamText.value = ''
+    processEvents.value = []
   }
 
   onUnmounted(() => {
@@ -75,8 +75,7 @@ export function useAgentPicklistRun() {
     events.value = []
     eventNames.value = []
     artifact.value = null
-    progressSteps.value = []
-    streamText.value = ''
+    processEvents.value = []
 
     try {
       for await (const event of streamPicklistRun({
@@ -91,14 +90,20 @@ export function useAgentPicklistRun() {
         events.value = [...events.value, event]
         eventNames.value = [...eventNames.value, event.name]
 
+        if (event.name === 'agent_started') {
+          processEvents.value = applyAgentStarted(processEvents.value, event.data)
+        }
+        if (event.name === 'agent_ended') {
+          processEvents.value = applyAgentEnded(processEvents.value, event.data)
+        }
         if (event.name === 'tool_started') {
-          progressSteps.value = applyToolStarted(progressSteps.value, event.data)
+          processEvents.value = applyToolStarted(processEvents.value, event.data)
         }
         if (event.name === 'tool_finished') {
-          progressSteps.value = applyToolFinished(progressSteps.value, event.data)
+          processEvents.value = applyToolFinished(processEvents.value, event.data)
         }
         if (event.name === 'message_delta') {
-          streamText.value = appendMessageDelta(streamText.value, event.data)
+          processEvents.value = applyMessageDelta(processEvents.value, event.data)
         }
         if (event.name === 'run_started') {
           const sid = event.data.sessionId
@@ -138,8 +143,7 @@ export function useAgentPicklistRun() {
     eventNames,
     artifact,
     sessionId,
-    progressSteps,
-    streamText,
+    processEvents,
     startPicklistRun,
     abort,
     reset,
@@ -162,8 +166,10 @@ function toPicklistArtifact(data: Record<string, unknown>): PicklistArtifactPayl
       return {
         title: str(o.title),
         priceBand: str(o.priceBand),
-        reason: str(o.reason),
-        differentiation: str(o.differentiation),
+        painPoint: str(o.painPoint),
+        angle: str(o.angle),
+        diff: str(o.diff),
+        niche: str(o.niche),
         demand: str(o.demand),
         competition: str(o.competition),
         margin: str(o.margin),

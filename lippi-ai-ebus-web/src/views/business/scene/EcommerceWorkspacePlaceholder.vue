@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
 import { getScenes } from '@/api/business/scene/scene'
-import { foldPreview, processStreamText, toolDisplayLabel, type ProgressStep } from '@/composables/agent/agentProgress'
+import { formatEventTime, processEventDisplayLabel, type ProcessEvent } from '@/composables/agent/agentProgress'
 import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
 import {
   DEMO_LISTING_VIEW,
@@ -31,8 +31,8 @@ interface ChatMessage {
   id: string
   role: 'user' | 'agent'
   text: string
-  steps?: ProgressStep[]
-  streamText?: string
+  /** Ordered AGENT / LLM / TOOL rows from SSE */
+  processEvents?: ProcessEvent[]
 }
 
 const sessionPrompt = ref('')
@@ -52,8 +52,7 @@ const {
   error: picklistError,
   artifact: picklistArtifact,
   sessionId,
-  progressSteps,
-  streamText,
+  processEvents,
   startPicklistRun,
   reset: resetPicklistRun,
 } = useAgentPicklistRun()
@@ -70,8 +69,10 @@ const displayPicks = computed(() => {
   return DEMO_PICKS.map((p) => ({
     title: p.title,
     priceBand: '',
-    reason: p.reason,
-    differentiation: '',
+    painPoint: p.painPoint,
+    angle: p.angle,
+    diff: p.diff,
+    niche: p.niche,
     demand: '',
     competition: '',
     margin: '',
@@ -167,10 +168,7 @@ async function sendFromSession() {
   })
 
   const idx = messages.value.findIndex((m) => m.id === thinkingId)
-  const progressSnapshot = {
-    steps: progressSteps.value.length ? [...progressSteps.value] : undefined,
-    streamText: streamText.value.trim() || undefined,
-  }
+  const processSnapshot = processEvents.value.length ? [...processEvents.value] : undefined
   if (picklistError.value) {
     const reason = picklistError.value
     const soft =
@@ -178,9 +176,19 @@ async function sendFromSession() {
         ? `${reason}。可前往套餐页升级后再试。`
         : reason
     if (idx >= 0) {
-      messages.value[idx] = { id: thinkingId, role: 'agent', text: soft, ...progressSnapshot }
+      messages.value[idx] = {
+        id: thinkingId,
+        role: 'agent',
+        text: soft,
+        processEvents: processSnapshot,
+      }
     } else {
-      messages.value.push({ id: nextMsgId(), role: 'agent', text: soft, ...progressSnapshot })
+      messages.value.push({
+        id: nextMsgId(),
+        role: 'agent',
+        text: soft,
+        processEvents: processSnapshot,
+      })
     }
     thinkingMessageId.value = null
     scrollChatToBottom()
@@ -194,16 +202,36 @@ async function sendFromSession() {
     const n = picklistArtifact.value.items.length
     const reply = `已生成 ${n} 条选品候选，右侧 Computer 可查看四维简评与可卖理由。`
     if (idx >= 0) {
-      messages.value[idx] = { id: thinkingId, role: 'agent', text: reply, ...progressSnapshot }
+      messages.value[idx] = {
+        id: thinkingId,
+        role: 'agent',
+        text: reply,
+        processEvents: processSnapshot,
+      }
     } else {
-      messages.value.push({ id: nextMsgId(), role: 'agent', text: reply, ...progressSnapshot })
+      messages.value.push({
+        id: nextMsgId(),
+        role: 'agent',
+        text: reply,
+        processEvents: processSnapshot,
+      })
     }
   } else {
     const fallback = '选品已结束，但未收到可用清单，请重试。'
     if (idx >= 0) {
-      messages.value[idx] = { id: thinkingId, role: 'agent', text: fallback, ...progressSnapshot }
+      messages.value[idx] = {
+        id: thinkingId,
+        role: 'agent',
+        text: fallback,
+        processEvents: processSnapshot,
+      }
     } else {
-      messages.value.push({ id: nextMsgId(), role: 'agent', text: fallback, ...progressSnapshot })
+      messages.value.push({
+        id: nextMsgId(),
+        role: 'agent',
+        text: fallback,
+        processEvents: processSnapshot,
+      })
     }
   }
   thinkingMessageId.value = null
@@ -224,6 +252,21 @@ function openPicksComputer() {
 function openListingComputer() {
   computerKind.value = 'listing'
   revealComputer()
+}
+
+function canPreviewFromStatus(m: ChatMessage): boolean {
+  return Boolean(livePicklist.value?.items?.length) || /已生成/.test(m.text)
+}
+
+function onStatusCardClick(m: ChatMessage) {
+  if (!canPreviewFromStatus(m)) return
+  openPicksComputer()
+}
+
+function onProcessEventClick(e: ProcessEvent) {
+  if (e.kind === 'llm') {
+    toggleStreamExpand(e.id)
+  }
 }
 
 function closeComputer() {
@@ -251,16 +294,18 @@ function toggleStreamExpand(id: string) {
   expandedStreamIds.value = next
 }
 
-function streamProcessFor(m: ChatMessage): string {
-  return processStreamText(m.streamText || '')
-}
-
-function streamFoldFor(m: ChatMessage) {
-  return foldPreview(streamProcessFor(m))
-}
-
 function padIndex(i: number) {
   return String(i + 1).padStart(2, '0')
+}
+
+function eventTag(kind: ProcessEvent['kind']): string {
+  if (kind === 'agent') return 'AGENT'
+  if (kind === 'llm') return 'LLM'
+  return 'TOOL'
+}
+
+function eventTitle(e: ProcessEvent): string {
+  return processEventDisplayLabel(e.title)
 }
 
 watch(picklistArtifact, (value) => {
@@ -269,15 +314,14 @@ watch(picklistArtifact, (value) => {
   }
 })
 
-watch([progressSteps, streamText], () => {
+watch(processEvents, () => {
   if (!picklistRunning.value || !thinkingMessageId.value) return
   const idx = messages.value.findIndex((m) => m.id === thinkingMessageId.value)
   if (idx < 0) return
   const cur = messages.value[idx]
   messages.value[idx] = {
     ...cur,
-    steps: progressSteps.value.length ? [...progressSteps.value] : undefined,
-    streamText: streamText.value.trim() || undefined,
+    processEvents: processEvents.value.length ? [...processEvents.value] : undefined,
   }
 })
 
@@ -333,40 +377,94 @@ onMounted(async () => {
             >
               <div class="role">{{ m.role === 'user' ? '你' : 'Adam' }}</div>
               <div class="body">
-                <ul v-if="m.steps?.length" class="chat-steps" aria-label="工作步骤">
-                  <li v-for="s in m.steps" :key="s.id" :class="{ running: !s.done }">
-                    <span v-if="s.done" class="ok">✓</span>
-                    <span v-else class="pending" aria-label="进行中">…</span>
-                    <span class="step-label">{{ toolDisplayLabel(s.label) }}</span>
-                  </li>
-                </ul>
-                <div v-if="m.streamText && streamProcessFor(m)" class="chat-stream">
-                  <button
-                    v-if="streamFoldFor(m).needsFold"
-                    type="button"
-                    class="chat-stream-head"
-                    :aria-expanded="expandedStreamIds.has(m.id)"
-                    @click="toggleStreamExpand(m.id)"
+                <div
+                  v-if="m.processEvents?.length"
+                  class="chat-events"
+                  aria-label="过程事件"
+                >
+                  <div
+                    v-for="e in m.processEvents"
+                    :key="e.id"
+                    class="chat-event"
+                    :class="{
+                      active: e.kind === 'tool' && !e.done,
+                      'chat-event-llm': e.kind === 'llm',
+                      open: e.kind === 'llm' && expandedStreamIds.has(e.id),
+                    }"
+                    role="button"
+                    tabindex="0"
+                    @click="onProcessEventClick(e)"
+                    @keydown.enter.prevent="onProcessEventClick(e)"
                   >
-                    <span class="chat-stream-chevron" aria-hidden="true">{{
-                      expandedStreamIds.has(m.id) ? '▾' : '▸'
-                    }}</span>
-                    <span class="chat-stream-title">工作过程</span>
-                    <span class="chat-stream-toggle">
-                      {{ expandedStreamIds.has(m.id) ? '收起' : '展开' }}
-                    </span>
-                  </button>
-                  <div v-else class="chat-stream-head">
-                    <span class="chat-stream-chevron" aria-hidden="true">▾</span>
-                    <span class="chat-stream-title">工作过程</span>
+                    <span class="chat-event-time">{{ formatEventTime(e.at) }}</span>
+                    <span
+                      class="chat-event-tag"
+                      :class="{
+                        'tag-agent': e.kind === 'agent',
+                        'tag-llm': e.kind === 'llm',
+                        'tag-tool': e.kind === 'tool',
+                      }"
+                    >{{ eventTag(e.kind) }}</span>
+                    <div class="chat-event-main">
+                      <template v-if="e.kind === 'llm'">
+                        <div class="chat-event-head" :aria-expanded="expandedStreamIds.has(e.id)">
+                          <span class="chat-event-title">{{ eventTitle(e) }}</span>
+                          <span class="chat-stream-toggle">{{
+                            expandedStreamIds.has(e.id) ? '收起' : '展开'
+                          }}</span>
+                        </div>
+                        <pre v-if="expandedStreamIds.has(e.id)" class="chat-stream-body">{{
+                          e.body || ''
+                        }}</pre>
+                      </template>
+                      <span v-else class="chat-event-title">{{ eventTitle(e) }}</span>
+                    </div>
+                    <span
+                      v-if="e.kind === 'llm'"
+                      class="chat-event-chevron"
+                      aria-hidden="true"
+                    >{{ expandedStreamIds.has(e.id) ? '▾' : '▸' }}</span>
+                    <span
+                      v-else-if="e.kind === 'tool'"
+                      class="chat-event-mark"
+                      aria-hidden="true"
+                    >{{ e.done ? '✓' : '…' }}</span>
+                    <span v-else class="chat-event-mark" aria-hidden="true" />
                   </div>
-                  <pre class="chat-stream-body">{{
-                    expandedStreamIds.has(m.id) || !streamFoldFor(m).needsFold
-                      ? streamProcessFor(m)
-                      : streamFoldFor(m).preview
-                  }}</pre>
                 </div>
-                <p>{{ m.text }}</p>
+                <p v-if="m.role === 'user'">{{ m.text }}</p>
+                <button
+                  v-else-if="m.text"
+                  type="button"
+                  class="chat-event chat-event-status"
+                  :class="{
+                    active: picklistRunning && m.id === thinkingMessageId,
+                    'is-preview': canPreviewFromStatus(m),
+                  }"
+                  :disabled="!canPreviewFromStatus(m)"
+                  @click="onStatusCardClick(m)"
+                >
+                  <span class="chat-event-time">{{
+                    formatEventTime(m.processEvents?.[m.processEvents.length - 1]?.at ?? Date.now())
+                  }}</span>
+                  <span class="chat-event-tag tag-status">STATUS</span>
+                  <div class="chat-event-main">
+                    <div class="chat-event-head">
+                      <span class="chat-event-title chat-result-text">{{ m.text }}</span>
+                      <span v-if="canPreviewFromStatus(m)" class="chat-stream-toggle">查看</span>
+                    </div>
+                  </div>
+                  <span
+                    v-if="canPreviewFromStatus(m)"
+                    class="chat-event-chevron"
+                    aria-hidden="true"
+                  >▸</span>
+                  <span
+                    v-else
+                    class="chat-event-mark"
+                    aria-hidden="true"
+                  >{{ picklistRunning && m.id === thinkingMessageId ? '…' : '✓' }}</span>
+                </button>
                 <div v-if="m.role === 'agent' && !picksIsLive" class="demo-actions">
                   <button
                     type="button"
@@ -462,7 +560,7 @@ onMounted(async () => {
               <div class="comp-card-body">
                 <p v-if="livePicklist?.disclaimer" class="pick-disclaimer">{{ livePicklist.disclaimer }}</p>
                 <p v-if="livePicklist?.assumptions" class="pick-assumptions">假设：{{ livePicklist.assumptions }}</p>
-                <ol class="pick-list">
+                <ol class="pick-list pick-list--legacy">
                   <li v-for="(item, i) in displayPicks" :key="item.title + '-' + i">
                     <span class="n">{{ padIndex(i) }}</span>
                     <div>
@@ -474,8 +572,10 @@ onMounted(async () => {
                         {{ item.title.replace(/^【优先试】/, '') }}
                       </div>
                       <div v-if="item.priceBand" class="r">价格带：{{ item.priceBand }}</div>
-                      <div class="r">{{ item.reason }}</div>
-                      <div v-if="item.differentiation" class="r dim">{{ item.differentiation }}</div>
+                      <div v-if="item.painPoint" class="r">痛点：{{ item.painPoint }}</div>
+                      <div v-if="item.angle" class="r">切入：{{ item.angle }}</div>
+                      <div v-if="item.diff" class="r">差异：{{ item.diff }}</div>
+                      <div v-if="item.niche" class="r dim">细分：{{ item.niche }}</div>
                       <div v-if="item.demand" class="dims">
                         <span>需求 {{ item.demand }}</span>
                         <span>竞争 {{ item.competition }}</span>
@@ -631,12 +731,14 @@ onMounted(async () => {
   display: inline-block;
   margin-right: 6px;
   padding: 1px 6px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--accent, #c45c26) 18%, transparent);
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #7c4a1e;
+  background: #f3e8d8;
   border-radius: 4px;
+  border: 0;
   vertical-align: 1px;
+  line-height: 1.35;
 }
 
 .r.dim {

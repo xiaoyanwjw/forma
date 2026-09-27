@@ -14,27 +14,31 @@ import org.springframework.stereotype.Component;
 
 /**
  * Projects persisted picklist artifact into a {@link ComputerDocument} map for SSE view.
+ * Emits semantic keys/kinds only — display copy (Chinese labels) belongs to the renderer.
  */
 @Component
 public class PicklistViewProjector {
 
-    private static final String TITLE = "选品清单";
-    private static final String STATUS = "已结算";
-    private static final String PRIORITY_BADGE = "优先试";
+    /** Document title key; FE maps to locale copy. */
+    static final String TITLE_KEY = "picklist";
+    /** Document status key; FE maps to locale copy. */
+    static final String STATUS_KEY = "settled";
+    /** List item badge key; FE maps to locale copy. */
+    static final String BADGE_PRIORITY = "priority";
 
     public Map<String, Object> project(PicklistArtifactDTO dto) {
         List<Map<String, Object>> blocks = new ArrayList<Map<String, Object>>();
         if (dto == null) {
-            return new ComputerDocument(1, TITLE, STATUS, blocks).toMap();
+            return new ComputerDocument(1, TITLE_KEY, STATUS_KEY, blocks).toMap();
         }
         if (StringUtils.hasText(dto.getDisclaimer())) {
-            blocks.add(ComputerBlock.note(dto.getDisclaimer(), "mute"));
+            blocks.add(ComputerBlock.note(dto.getDisclaimer(), "mute", null));
         }
         if (StringUtils.hasText(dto.getAssumptions())) {
-            blocks.add(ComputerBlock.note("假设：" + dto.getAssumptions(), null));
+            blocks.add(ComputerBlock.note(dto.getAssumptions(), null, "assumptions"));
         }
         blocks.add(ComputerBlock.list(true, projectItems(dto.getItems())));
-        return new ComputerDocument(1, TITLE, STATUS, blocks).toMap();
+        return new ComputerDocument(1, TITLE_KEY, STATUS_KEY, blocks).toMap();
     }
 
     private static List<Map<String, Object>> projectItems(List<PicklistArtifactDTO.PicklistItemDTO> items) {
@@ -52,38 +56,106 @@ public class PicklistViewProjector {
         Map<String, Object> row = new LinkedHashMap<String, Object>();
         String rawTitle = item.getTitle() == null ? "" : item.getTitle();
         if (rawTitle.startsWith(PicklistArtifactParser.PRIORITY_MARK)) {
-            row.put("badge", PRIORITY_BADGE);
+            row.put("badge", BADGE_PRIORITY);
             row.put("title", rawTitle.substring(PicklistArtifactParser.PRIORITY_MARK.length()));
         } else {
             row.put("title", rawTitle);
         }
-        List<String> lines = new ArrayList<String>();
-        if (StringUtils.hasText(item.getPriceBand())) {
-            lines.add("价格带：" + item.getPriceBand());
-        }
-        if (StringUtils.hasText(item.getReason())) {
-            lines.add(item.getReason());
-        }
-        if (StringUtils.hasText(item.getDifferentiation())) {
-            lines.add(item.getDifferentiation());
-        }
+        List<Map<String, Object>> lines = new ArrayList<Map<String, Object>>();
+        appendLine(lines, "priceBand", item.getPriceBand(), "price");
+        appendLine(lines, "painPoint", item.getPainPoint(), null);
+        appendLine(lines, "angle", item.getAngle(), null);
+        appendLine(lines, "diff", item.getDiff(), null);
+        appendLine(lines, "niche", item.getNiche(), null);
         if (!lines.isEmpty()) {
             row.put("lines", lines);
         }
-        List<String> tags = new ArrayList<String>();
-        appendTag(tags, "需求 ", item.getDemand());
-        appendTag(tags, "竞争 ", item.getCompetition());
-        appendTag(tags, "利润 ", item.getMargin());
-        appendTag(tags, "风险 ", item.getRisk());
+        List<Map<String, Object>> tags = new ArrayList<Map<String, Object>>();
+        appendDimTag(tags, "demand", item.getDemand(), DimKind.DEMAND);
+        appendDimTag(tags, "competition", item.getCompetition(), DimKind.COMPETITION);
+        appendDimTag(tags, "margin", item.getMargin(), DimKind.MARGIN);
+        appendDimTag(tags, "risk", item.getRisk(), DimKind.RISK);
         if (!tags.isEmpty()) {
             row.put("tags", tags);
         }
         return row;
     }
 
-    private static void appendTag(List<String> tags, String prefix, String value) {
-        if (StringUtils.hasText(value)) {
-            tags.add(prefix + value);
+    private static void appendLine(List<Map<String, Object>> lines, String kind, String text, String emphasis) {
+        if (!StringUtils.hasText(text)) {
+            return;
         }
+        Map<String, Object> line = new LinkedHashMap<String, Object>();
+        line.put("kind", kind);
+        line.put("text", text.trim());
+        if (StringUtils.hasText(emphasis)) {
+            line.put("emphasis", emphasis);
+        }
+        lines.add(line);
+    }
+
+    private enum DimKind {
+        DEMAND,
+        COMPETITION,
+        MARGIN,
+        RISK
+    }
+
+    private static void appendDimTag(List<Map<String, Object>> tags, String kind, String value, DimKind dimKind) {
+        if (!StringUtils.hasText(value)) {
+            return;
+        }
+        Map<String, Object> tag = new LinkedHashMap<String, Object>();
+        tag.put("kind", kind);
+        tag.put("text", value.trim());
+        tag.put("tone", toneForDim(dimKind, value));
+        tags.add(tag);
+    }
+
+    /**
+     * Map picklist dim level token (高/中/低…) to closed Computer tag tones.
+     */
+    static String toneForDim(DimKind kind, String value) {
+        String level = levelToken(value);
+        boolean high = level.startsWith("高");
+        boolean low = level.startsWith("低");
+        switch (kind) {
+            case DEMAND:
+            case MARGIN:
+                if (high) {
+                    return "positive";
+                }
+                if (low) {
+                    return "caution";
+                }
+                return "info";
+            case COMPETITION:
+                if (high) {
+                    return "danger";
+                }
+                if (low) {
+                    return "positive";
+                }
+                return "caution";
+            case RISK:
+                if (high) {
+                    return "danger";
+                }
+                if (low) {
+                    return "safe";
+                }
+                return "caution";
+            default:
+                return "neutral";
+        }
+    }
+
+    private static String levelToken(String value) {
+        String trimmed = value.trim();
+        int cut = trimmed.indexOf('｜');
+        if (cut < 0) {
+            cut = trimmed.indexOf('|');
+        }
+        return cut >= 0 ? trimmed.substring(0, cut).trim() : trimmed;
     }
 }

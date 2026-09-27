@@ -66,8 +66,10 @@ CREATE TABLE ebus_artifact (
     {
       "title": "…",
       "priceBand": "…",
-      "reason": "…",
-      "differentiation": "…",
+      "painPoint": "…",
+      "angle": "…",
+      "diff": "…",
+      "niche": "…",
       "demand": "…",
       "competition": "…",
       "margin": "…",

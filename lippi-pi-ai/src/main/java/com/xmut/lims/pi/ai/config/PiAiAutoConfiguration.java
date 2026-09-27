@@ -35,7 +35,7 @@ public class PiAiAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(ModelCatalog.class)
     public ModelCatalog piAiModelCatalog() {
-        return InMemoryModelCatalog.defaultsWithCertificateOcr();
+        return InMemoryModelCatalog.defaults();
     }
 
     @Bean

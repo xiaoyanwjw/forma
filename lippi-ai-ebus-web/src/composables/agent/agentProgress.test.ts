@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
   MESSAGE_FOLD_THRESHOLD,
   appendMessageDelta,
+  applyAgentEnded,
+  applyAgentStarted,
+  applyMessageDelta,
   applyToolFinished,
   applyToolStarted,
   foldPreview,
+  formatEventTime,
   processStreamText,
+  processEventDisplayLabel,
   toolDisplayLabel,
   toolEventLabel,
 } from './agentProgress'
@@ -25,13 +30,38 @@ describe('agentProgress', () => {
     expect(toolDisplayLabel('custom_foo')).toBe('custom_foo')
   })
 
-  it('applyToolStarted appends running step; finished marks matching label done', () => {
-    let steps = applyToolStarted([], { toolName: 'read_skill' })
-    expect(steps).toHaveLength(1)
-    expect(steps[0].done).toBe(false)
-    expect(steps[0].label).toBe('read_skill')
-    steps = applyToolFinished(steps, { toolName: 'read_skill' })
-    expect(steps[0].done).toBe(true)
+  it('processEventDisplayLabel translates agent/message wire titles', () => {
+    expect(processEventDisplayLabel('agent.start')).toBe('开始执行')
+    expect(processEventDisplayLabel('message')).toBe('模型输出')
+    expect(processEventDisplayLabel('agent.end')).toBe('执行结束')
+    expect(processEventDisplayLabel('read_skill')).toBe('读取技能说明')
+  })
+
+  it('builds agent.start → tool → message → agent.end in order', () => {
+    let events = applyAgentStarted([], { label: 'agent.start' })
+    expect(events).toHaveLength(1)
+    expect(events[0].kind).toBe('agent')
+    expect(events[0].title).toBe('agent.start')
+
+    events = applyToolStarted(events, { toolName: 'read_skill', toolCallId: 'c1' })
+    expect(events[1].kind).toBe('tool')
+    expect(events[1].title).toBe('read_skill')
+    expect(events[1].done).toBe(false)
+    expect(formatEventTime(events[1].at)).toMatch(/^\d{2}:\d{2}:\d{2}$/)
+
+    events = applyToolFinished(events, { toolName: 'read_skill', toolCallId: 'c1' })
+    expect(events[1].done).toBe(true)
+
+    events = applyMessageDelta(events, { text: 'hello' })
+    events = applyMessageDelta(events, { text: ' world' })
+    expect(events[2].kind).toBe('llm')
+    expect(events[2].title).toBe('message')
+    expect(events[2].body).toBe('hello world')
+
+    events = applyAgentEnded(events, { label: 'agent.end' })
+    expect(events[3].kind).toBe('agent')
+    expect(events[3].title).toBe('agent.end')
+    expect(events.map((e) => e.kind)).toEqual(['agent', 'tool', 'llm', 'agent'])
   })
 
   it('appendMessageDelta concatenates text or delta fields', () => {
@@ -69,5 +99,12 @@ describe('agentProgress', () => {
 
   it('processStreamText keeps truncated mid-stream brace instead of wiping prose', () => {
     expect(processStreamText('我先整理{')).toBe('我先整理{')
+  })
+
+  it('processStreamText strips unclosed ```json fence to EOS', () => {
+    const prose = "I'll load the skill instructions first."
+    const open =
+      prose + ' ```json {"templateId":"domestic-generic-default","items":[{"title":"a"}]}'
+    expect(processStreamText(open)).toBe(prose)
   })
 })

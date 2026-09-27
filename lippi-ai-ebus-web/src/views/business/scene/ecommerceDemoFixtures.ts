@@ -4,7 +4,10 @@ import type { ComputerDocument } from '@/types/business/computerView'
 
 export interface DemoPickItem {
   title: string
-  reason: string
+  painPoint: string
+  angle: string
+  diff: string
+  niche: string
 }
 
 export interface DemoListingPreview {
@@ -14,14 +17,62 @@ export interface DemoListingPreview {
 }
 
 export const DEMO_PICKS: DemoPickItem[] = [
-  { title: '硅胶沥水垫（多色）', reason: '厨房刚需，图文好做差异化。' },
-  { title: '免打孔置物架', reason: '租房搜索稳，包装轻。' },
-  { title: '透明收纳盒套装', reason: '适合空间对比主图。' },
-  { title: '触摸调光小夜灯', reason: '夜间氛围图好拍。' },
-  { title: '磁吸理线器', reason: '客单低，适合测款。' },
-  { title: '可水洗短毛地垫', reason: '评价点集中在清洗。' },
-  { title: '显示器增高架', reason: '桌面刚需，写清承重。' },
-  { title: '香薰蜡烛礼盒', reason: '礼赠场景多，勿夸大功效。' },
+  {
+    title: '硅胶沥水垫（多色）',
+    painPoint: '水槽边易积水难打理',
+    angle: '租房厨房刚需',
+    diff: '多色套装好出图',
+    niche: '厨房沥水',
+  },
+  {
+    title: '免打孔置物架',
+    painPoint: '墙面无处挂',
+    angle: '租房搜索稳',
+    diff: '免打孔轻包装',
+    niche: '墙面收纳',
+  },
+  {
+    title: '透明收纳盒套装',
+    painPoint: '抽屉杂乱',
+    angle: '空间对比主图好拍',
+    diff: '透明可视分层',
+    niche: '桌面收纳',
+  },
+  {
+    title: '触摸调光小夜灯',
+    painPoint: '夜间起夜晃眼',
+    angle: '氛围图好拍',
+    diff: '触摸调光',
+    niche: '照明小件',
+  },
+  {
+    title: '磁吸理线器',
+    painPoint: '线材缠绕',
+    angle: '客单低适合测款',
+    diff: '磁吸可复用',
+    niche: '桌面理线',
+  },
+  {
+    title: '可水洗短毛地垫',
+    painPoint: '门口易脏',
+    angle: '评价点集中清洗',
+    diff: '可机洗短毛',
+    niche: '地垫',
+  },
+  {
+    title: '显示器增高架',
+    painPoint: '桌面拥挤',
+    angle: '办公刚需',
+    diff: '承重写清',
+    niche: '桌面支架',
+  },
+  {
+    title: '香薰蜡烛礼盒',
+    painPoint: '礼赠缺场景感',
+    angle: '礼赠场景多',
+    diff: '礼盒包装',
+    niche: '礼赠香氛',
+  },
 ]
 
 export const DEMO_LISTING: DemoListingPreview = {
@@ -32,8 +83,8 @@ export const DEMO_LISTING: DemoListingPreview = {
 
 export const DEMO_LISTING_VIEW: ComputerDocument = {
   version: 1,
-  title: '上架素材预览',
-  status: '演示',
+  title: 'listingPreview',
+  status: 'demo',
   blocks: [
     { type: 'media', role: 'hero', placeholder: '主图方案预览', alt: '主图方案' },
     { type: 'section', heading: '详情标题', body: DEMO_LISTING.title },

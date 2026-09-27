@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ComputerBlock, ComputerDocument } from '@/types/business/computerView'
+import type {
+  ComputerBlock,
+  ComputerDocument,
+  ComputerListLine,
+  ComputerNoteBlock,
+  ComputerTag,
+} from '@/types/business/computerView'
+import {
+  resolveComputerBadge,
+  resolveComputerStatus,
+  resolveComputerTitle,
+  resolveLineLabel,
+  resolveNoteText,
+  resolveTagDisplay,
+} from '@/types/business/computerView'
 
 const props = defineProps<{
   document: ComputerDocument
@@ -27,20 +41,79 @@ const visibleBlocks = computed(() => {
   return blocks
 })
 
-function padIndex(index: number): string {
-  return String(index + 1).padStart(2, '0')
-}
+const documentTitle = computed(() => resolveComputerTitle(props.document.title))
+const documentStatus = computed(() =>
+  props.document.status ? resolveComputerStatus(props.document.status) : undefined,
+)
 
 function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean {
   return block.ordered !== false
+}
+
+function tagPillClass(tag: ComputerTag): string[] {
+  return ['dim-pill', `tone-${tag.tone || 'neutral'}`]
+}
+
+function isPriceLine(line: ComputerListLine): boolean {
+  return line.emphasis === 'price' || line.kind === 'priceBand' || resolveLineLabel(line) === '价格带'
+}
+
+/** Resolve locale labels for protocol lines; no domain string parsing. */
+function displayLines(lines: ComputerListLine[] | undefined): ComputerListLine[] {
+  if (!lines?.length) return []
+  return lines.map((line) => {
+    const resolvedLabel = resolveLineLabel(line)
+    return resolvedLabel ? { ...line, label: resolvedLabel } : { ...line }
+  })
+}
+
+function lineClass(line: ComputerListLine): string[] {
+  const classes = ['item-line']
+  if (line.label) {
+    classes.push('has-label')
+  }
+  return classes
+}
+
+function priceLine(lines: ComputerListLine[] | undefined): ComputerListLine | undefined {
+  return displayLines(lines).find((l) => isPriceLine(l))
+}
+
+function factLines(lines: ComputerListLine[] | undefined): ComputerListLine[] {
+  return displayLines(lines).filter((l) => !isPriceLine(l))
+}
+
+function noteText(block: ComputerNoteBlock): string {
+  return resolveNoteText(block)
+}
+
+const PRIORITY_MARK = '【优先试】'
+
+function itemBadge(item: { badge?: string; title: string }): string | undefined {
+  if (item.badge) {
+    return resolveComputerBadge(item.badge)
+  }
+  if (item.title.startsWith(PRIORITY_MARK)) {
+    return resolveComputerBadge('priority')
+  }
+  return undefined
+}
+
+function itemTitle(item: { badge?: string; title: string }): string {
+  if (item.badge || item.title.startsWith(PRIORITY_MARK)) {
+    return item.title.startsWith(PRIORITY_MARK)
+      ? item.title.slice(PRIORITY_MARK.length)
+      : item.title
+  }
+  return item.title
 }
 </script>
 
 <template>
   <article class="comp-card">
     <div class="comp-card-head">
-      <span>{{ document.title }}</span>
-      <span v-if="document.status" class="status">{{ document.status }}</span>
+      <span>{{ documentTitle }}</span>
+      <span v-if="documentStatus" class="status">{{ documentStatus }}</span>
     </div>
     <div class="comp-card-body">
       <template v-for="(block, index) in visibleBlocks" :key="index">
@@ -49,7 +122,7 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
           class="cv-note"
           :class="{ mute: block.tone === 'mute' }"
         >
-          {{ block.text }}
+          {{ noteText(block) }}
         </p>
 
         <component
@@ -58,22 +131,30 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
           class="pick-list"
         >
           <li v-for="(item, itemIndex) in block.items" :key="item.title + '-' + itemIndex">
-            <span class="n">{{ padIndex(itemIndex) }}</span>
-            <div>
-              <div class="t">
-                <span v-if="item.badge" class="priority-tag">{{ item.badge }}</span>
-                {{ item.title }}
+            <div class="item-body">
+              <div class="item-top">
+                <div class="t">
+                  <span v-if="itemBadge(item)" class="priority-tag">{{ itemBadge(item) }}</span>
+                  {{ itemTitle(item) }}
+                </div>
+                <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
               </div>
-              <div
-                v-for="(line, lineIndex) in item.lines || []"
-                :key="lineIndex"
-                class="r"
-                :class="{ price: line.startsWith('价格带') }"
-              >
-                {{ line }}
+              <div v-if="factLines(item.lines).length" class="item-lines">
+                <div
+                  v-for="(line, lineIndex) in factLines(item.lines)"
+                  :key="lineIndex"
+                  :class="lineClass(line)"
+                >
+                  <span class="item-line-label">{{ line.label || '说明' }}</span>
+                  <span class="item-line-text">{{ line.text }}</span>
+                </div>
               </div>
               <div v-if="item.tags?.length" class="dims">
-                <span v-for="(tag, tagIndex) in item.tags" :key="tagIndex" class="dim-pill">{{ tag }}</span>
+                <span
+                  v-for="(tag, tagIndex) in item.tags"
+                  :key="tagIndex"
+                  :class="tagPillClass(tag)"
+                >{{ resolveTagDisplay(tag) }}</span>
               </div>
             </div>
           </li>
@@ -152,68 +233,143 @@ function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean
 }
 
 .pick-list li {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 10px;
-  padding: 12px 0;
+  /* Override any page-level legacy grid (28px index column) */
+  display: block;
+  padding: 14px 0;
   border-bottom: 1px solid var(--line-2);
-  align-items: start;
 }
 
 .pick-list li:last-child {
+  padding-bottom: 0;
   border-bottom: 0;
 }
 
-.pick-list .n {
-  font-size: 0.75rem;
-  color: var(--mute);
-  font-variant-numeric: tabular-nums;
-  padding-top: 2px;
+.item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
 }
 
 .pick-list .t {
   font-size: 0.875rem;
   font-weight: 600;
-}
-
-.pick-list .r {
-  font-size: 0.8rem;
-  color: var(--mute);
-  margin-top: 2px;
-}
-
-.pick-list .r.price {
+  line-height: 1.35;
   color: var(--ink);
-  font-weight: 500;
+  min-width: 0;
+}
+
+.item-price {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.item-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-line {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.item-line.is-reason {
+  align-items: start;
+}
+
+.item-line-label {
+  font-size: 0.7rem;
+  color: var(--mute-2, #a3a3a3);
+}
+
+.item-line-text {
+  color: var(--mute);
+  word-break: break-word;
+}
+
+.item-line.is-reason .item-line-text {
+  color: var(--ink);
+  opacity: 0.82;
 }
 
 .priority-tag {
   display: inline-block;
   margin-right: 6px;
   padding: 1px 6px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--accent, #c45c26) 18%, transparent);
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #7c4a1e;
+  background: #f3e8d8;
   border-radius: 4px;
+  border: 0;
   vertical-align: 1px;
+  line-height: 1.35;
 }
 
 .dims {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 6px;
-  font-size: 0.72rem;
-  color: var(--mute);
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.68rem;
   line-height: 1.4;
 }
 
 .dim-pill {
-  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  border: 0;
   border-radius: 999px;
   padding: 2px 8px;
-  background: var(--chip, var(--line-2));
+  font-weight: 600;
+}
+
+.dim-pill.tone-neutral {
+  color: #57534e;
+  background: #f5f5f4;
+}
+
+.dim-pill.tone-positive {
+  color: #166534;
+  background: #ecfdf3;
+}
+
+.dim-pill.tone-caution {
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.dim-pill.tone-danger {
+  color: #9f1239;
+  background: #fff1f2;
+}
+
+.dim-pill.tone-info {
+  color: #1e3a8a;
+  background: #eff6ff;
+}
+
+.dim-pill.tone-safe {
+  color: #115e59;
+  background: #ecfdf5;
 }
 
 .cv-media {

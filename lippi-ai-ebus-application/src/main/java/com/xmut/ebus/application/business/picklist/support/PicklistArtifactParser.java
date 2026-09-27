@@ -22,12 +22,12 @@ import java.util.regex.Pattern;
 public class PicklistArtifactParser {
 
     public static final String MSG_UNUSABLE = "选品成果不合格，请重试";
-
-    /** Title prefix for priority trial items; shared with {@link PicklistViewProjector}. */
     public static final String PRIORITY_MARK = "【优先试】";
 
     private static final Pattern FENCED_JSON = Pattern.compile(
             "```(?:json)?\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
+    /** 四维须以 高|中|低 + 全角/半角竖线或冒号 开头 */
+    private static final Pattern LEVEL_PREFIX = Pattern.compile("^[高中低][｜|：:]");
 
     private final ObjectMapper objectMapper;
 
@@ -72,20 +72,43 @@ public class PicklistArtifactParser {
         }
 
         List<PersistPicklistItemCommand> items = new ArrayList<PersistPicklistItemCommand>(size);
+        List<String> niches = new ArrayList<String>();
+        int priorityCount = 0;
         for (JsonNode itemNode : itemsNode) {
             if (itemNode == null || !itemNode.isObject()) {
                 throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
             }
+            String title = requiredText(itemNode, "title");
+            String painPoint = requiredText(itemNode, "painPoint");
+            String angle = requiredText(itemNode, "angle");
+            String diff = requiredText(itemNode, "diff");
+            String niche = requiredText(itemNode, "niche");
+            String demand = requiredLevelField(itemNode, "demand");
+            String competition = requiredLevelField(itemNode, "competition");
+            String margin = requiredLevelField(itemNode, "margin");
+            String risk = requiredLevelField(itemNode, "risk");
+            if (title.startsWith(PRIORITY_MARK)) {
+                priorityCount++;
+            }
+            niches.add(niche);
             items.add(PersistPicklistItemCommand.builder()
-                    .title(requiredText(itemNode, "title"))
+                    .title(title)
                     .priceBand(requiredText(itemNode, "priceBand"))
-                    .reason(requiredText(itemNode, "reason"))
-                    .differentiation(requiredText(itemNode, "differentiation"))
-                    .demand(requiredText(itemNode, "demand"))
-                    .competition(requiredText(itemNode, "competition"))
-                    .margin(requiredText(itemNode, "margin"))
-                    .risk(requiredText(itemNode, "risk"))
+                    .painPoint(painPoint)
+                    .angle(angle)
+                    .diff(diff)
+                    .niche(niche)
+                    .demand(demand)
+                    .competition(competition)
+                    .margin(margin)
+                    .risk(risk)
                     .build());
+        }
+        if (priorityCount < 1 || priorityCount > 2) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
+        }
+        if (distinctCount(niches) < 3) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
         }
 
         return PersistPicklistCommand.builder()
@@ -96,6 +119,27 @@ public class PicklistArtifactParser {
                 .assumptions(assumptions)
                 .items(items)
                 .build();
+    }
+
+    private static String requiredLevelField(JsonNode itemNode, String field) {
+        String text = requiredText(itemNode, field);
+        if (!LEVEL_PREFIX.matcher(text).find()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_UNUSABLE);
+        }
+        return text;
+    }
+
+    private static int distinctCount(List<String> values) {
+        List<String> unique = new ArrayList<String>();
+        for (String value : values) {
+            if (value == null) {
+                continue;
+            }
+            if (!unique.contains(value)) {
+                unique.add(value);
+            }
+        }
+        return unique.size();
     }
 
     private static String resolveTemplateId(JsonNode root) {

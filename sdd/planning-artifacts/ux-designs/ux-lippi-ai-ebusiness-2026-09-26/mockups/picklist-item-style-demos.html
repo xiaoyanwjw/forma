@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>选品条目样式 Demo · 4 版</title>
+  <style>
+    :root {
+      --canvas: #fafafa;
+      --dot: #e8e8e8;
+      --surface: #fff;
+      --ink: #171717;
+      --mute: #737373;
+      --mute-2: #a3a3a3;
+      --line: #e5e5e5;
+      --line-2: #f0f0f0;
+      --chip: #f5f5f5;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+      --r-md: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.5 "Instrument Sans", "Noto Sans SC", -apple-system, sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+      background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    .page { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+    h1 { font-size: 1.25rem; margin: 0 0 6px; }
+    .lead { color: var(--mute); margin: 0 0 22px; font-size: .875rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .pane {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .pane-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line-2);
+      display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    }
+    .pane-head b { font-size: .8125rem; }
+    .pane-head span { font-size: .72rem; color: var(--mute); }
+    .pane-body { padding: 14px 16px 16px; }
+    .note { font-size: .75rem; color: var(--mute); margin: 0 0 12px; }
+    .badge {
+      display: inline-block; margin-right: 6px; padding: 1px 6px;
+      font-size: .68rem; font-weight: 650; border-radius: 4px;
+      background: #f3e8d8; color: #7c4a1e;
+    }
+    .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: .68rem; font-weight: 600; }
+    .p-ok { color: #166534; background: #ecfdf3; }
+    .p-warn { color: #9a3412; background: #fff7ed; }
+    .p-info { color: #1e3a8a; background: #eff6ff; }
+    .p-safe { color: #115e59; background: #ecfdf5; }
+
+    /* A — Manus 清单 */
+    .a-item { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line-2); }
+    .a-item:last-child { border-bottom: 0; padding-bottom: 0; }
+    .a-n { font-size: .72rem; color: var(--mute-2); padding-top: 3px; font-variant-numeric: tabular-nums; }
+    .a-t { font-size: .875rem; font-weight: 600; }
+    .a-price { margin-top: 3px; font-size: .8rem; font-weight: 550; }
+    .a-r { margin-top: 2px; font-size: .78rem; color: var(--mute); }
+    .a-dims { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* B — 标题价同一行 */
+    .b-item { padding: 14px 0; border-bottom: 1px solid var(--line-2); }
+    .b-item:last-child { border-bottom: 0; padding-bottom: 0; }
+    .b-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .b-t { font-size: .875rem; font-weight: 600; }
+    .b-price { font-size: .8rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
+    .b-facts { margin-top: 8px; display: grid; gap: 4px; }
+    .b-fact { display: grid; grid-template-columns: 36px 1fr; gap: 8px; font-size: .78rem; }
+    .b-k { color: var(--mute-2); font-size: .7rem; padding-top: 2px; }
+    .b-v { color: var(--mute); }
+    .b-dims { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* C — 一句理由 + 轻标签 */
+    .c-item { padding: 14px 0; border-bottom: 1px solid var(--line-2); }
+    .c-item:last-child { border-bottom: 0; padding-bottom: 0; }
+    .c-top { display: flex; align-items: baseline; gap: 8px; }
+    .c-n { font-size: .72rem; color: var(--mute-2); font-variant-numeric: tabular-nums; }
+    .c-t { font-size: .9rem; font-weight: 600; flex: 1; }
+    .c-price { font-size: .75rem; color: var(--mute); }
+    .c-why { margin: 8px 0 0; font-size: .8rem; color: var(--mute); line-height: 1.55; }
+    .c-meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .c-chip { font-size: .68rem; color: var(--mute); background: var(--chip); padding: 2px 7px; border-radius: 6px; }
+
+    /* D — 极简 Manus + 弱四维 */
+    .d-item { display: grid; grid-template-columns: 28px 1fr; gap: 8px; padding: 11px 0; border-bottom: 1px solid var(--line-2); }
+    .d-item:last-child { border-bottom: 0; padding-bottom: 0; }
+    .d-n { font-size: .7rem; color: var(--mute-2); padding-top: 4px; }
+    .d-t { font-size: .86rem; font-weight: 600; }
+    .d-sub { margin-top: 3px; font-size: .76rem; color: var(--mute); }
+    .d-bar { margin-top: 8px; height: 3px; border-radius: 99px; background: var(--line-2); overflow: hidden; display: flex; }
+    .d-bar i { height: 100%; }
+    .d-bar .g { width: 28%; background: #86efac; }
+    .d-bar .o { width: 22%; background: #fdba74; }
+    .d-bar .b { width: 22%; background: #93c5fd; }
+    .d-bar .t { width: 28%; background: #5eead4; }
+    .d-cap { margin-top: 5px; font-size: .65rem; color: var(--mute-2); letter-spacing: .02em; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>选品条目 · 4 版静态 Demo</h1>
+    <p class="lead">同一份内容，四种读法。当前线上偏「套娃卡片 + 彩色药丸」，这四版都更克制。看完回复 A / B / C / D。</p>
+
+    <div class="grid">
+      <section class="pane">
+        <div class="pane-head">
+          <b>A · Manus 清单</b>
+          <span>最像原型：分隔线、少框、正文灰</span>
+        </div>
+        <div class="pane-body">
+          <p class="note">基于通用电商知识推断，非实时平台数据</p>
+          <div class="a-item">
+            <span class="a-n">01</span>
+            <div>
+              <div class="a-t"><span class="badge">优先试</span>硅胶折叠沥水架</div>
+              <div class="a-price">¥19–39</div>
+              <div class="a-r">水槽旁易积水，折叠后不占台面。</div>
+              <div class="a-r">主图用「收起前后」对比即可讲清差异。</div>
+              <div class="a-dims">
+                <span class="pill p-ok">需求 高</span>
+                <span class="pill p-warn">竞争 中</span>
+                <span class="pill p-info">利润 中</span>
+                <span class="pill p-safe">风险 低</span>
+              </div>
+            </div>
+          </div>
+          <div class="a-item">
+            <span class="a-n">02</span>
+            <div>
+              <div class="a-t">冰箱侧收纳架（免打孔）</div>
+              <div class="a-price">¥19–39</div>
+              <div class="a-r">台面瓶罐散落，侧吸后腾出操作区。</div>
+              <div class="a-dims">
+                <span class="pill p-ok">需求 高</span>
+                <span class="pill p-warn">竞争 中</span>
+                <span class="pill p-info">利润 中</span>
+                <span class="pill p-safe">风险 低</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane">
+        <div class="pane-head">
+          <b>B · 标题 + 价格同行</b>
+          <span>扫一眼先看价，再读短行</span>
+        </div>
+        <div class="pane-body">
+          <p class="note">基于通用电商知识推断，非实时平台数据</p>
+          <div class="b-item">
+            <div class="b-top">
+              <div class="b-t"><span class="badge">优先试</span>硅胶折叠沥水架</div>
+              <div class="b-price">19–39 元</div>
+            </div>
+            <div class="b-facts">
+              <div class="b-fact"><span class="b-k">痛点</span><span class="b-v">水槽旁积水、沥水架占地</span></div>
+              <div class="b-fact"><span class="b-k">切入</span><span class="b-v">折叠收纳，主图做开合对比</span></div>
+              <div class="b-fact"><span class="b-k">差异</span><span class="b-v">多色硅胶，不伤锅底</span></div>
+            </div>
+            <div class="b-dims">
+              <span class="pill p-ok">需求 高</span>
+              <span class="pill p-warn">竞争 中</span>
+              <span class="pill p-info">利润 中</span>
+              <span class="pill p-safe">风险 低</span>
+            </div>
+          </div>
+          <div class="b-item">
+            <div class="b-top">
+              <div class="b-t">冰箱侧收纳架（免打孔）</div>
+              <div class="b-price">19–39 元</div>
+            </div>
+            <div class="b-facts">
+              <div class="b-fact"><span class="b-k">痛点</span><span class="b-v">调料瓶占台面、墙上不愿打孔</span></div>
+              <div class="b-fact"><span class="b-k">切入</span><span class="b-v">侧吸即装，强调「不伤冰箱」</span></div>
+            </div>
+            <div class="b-dims">
+              <span class="pill p-ok">需求 高</span>
+              <span class="pill p-warn">竞争 中</span>
+              <span class="pill p-info">利润 中</span>
+              <span class="pill p-safe">风险 低</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane">
+        <div class="pane-head">
+          <b>C · 一句可卖理由</b>
+          <span>少标签，正文当故事读</span>
+        </div>
+        <div class="pane-body">
+          <p class="note">基于通用电商知识推断，非实时平台数据</p>
+          <div class="c-item">
+            <div class="c-top">
+              <span class="c-n">01</span>
+              <div class="c-t"><span class="badge">优先试</span>硅胶折叠沥水架</div>
+              <span class="c-price">19–39 元</span>
+            </div>
+            <p class="c-why">水槽旁最容易积水，折叠后几乎不占台面；主图拍「展开沥水 / 收起收纳」就能讲清为什么值得试。</p>
+            <div class="c-meta">
+              <span class="c-chip">需求高</span>
+              <span class="c-chip">竞争中</span>
+              <span class="c-chip">利润中</span>
+              <span class="c-chip">风险低</span>
+            </div>
+          </div>
+          <div class="c-item">
+            <div class="c-top">
+              <span class="c-n">02</span>
+              <div class="c-t">冰箱侧收纳架（免打孔）</div>
+              <span class="c-price">19–39 元</span>
+            </div>
+            <p class="c-why">调料瓶占操作台，又不想在墙上打孔；侧吸即装，卖点落在「不伤冰箱、随时挪」。</p>
+            <div class="c-meta">
+              <span class="c-chip">需求高</span>
+              <span class="c-chip">竞争中</span>
+              <span class="c-chip">利润中</span>
+              <span class="c-chip">风险低</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane">
+        <div class="pane-head">
+          <b>D · 极简 + 四维色条</b>
+          <span>几乎不写字段名，用一条色条代替药丸</span>
+        </div>
+        <div class="pane-body">
+          <p class="note">基于通用电商知识推断，非实时平台数据</p>
+          <div class="d-item">
+            <span class="d-n">01</span>
+            <div>
+              <div class="d-t"><span class="badge">优先试</span>硅胶折叠沥水架 · 19–39 元</div>
+              <div class="d-sub">折叠不占地，主图用开合对比讲差异。</div>
+              <div class="d-bar" aria-hidden="true"><i class="g"></i><i class="o"></i><i class="b"></i><i class="t"></i></div>
+              <div class="d-cap">需求 · 竞争 · 利润 · 风险</div>
+            </div>
+          </div>
+          <div class="d-item">
+            <span class="d-n">02</span>
+            <div>
+              <div class="d-t">冰箱侧收纳架 · 19–39 元</div>
+              <div class="d-sub">免打孔侧吸，把瓶罐从台面挪走。</div>
+              <div class="d-bar" aria-hidden="true"><i class="g"></i><i class="o"></i><i class="b"></i><i class="t"></i></div>
+              <div class="d-cap">需求 · 竞争 · 利润 · 风险</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

@@ -32,8 +32,10 @@ const ECOMMERCE = {
 const SAMPLE_ITEMS = Array.from({ length: 8 }, (_, i) => ({
   title: `${i === 0 ? '【优先试】' : ''}候选${i + 1}`,
   priceBand: '19–39 元',
-  reason: `痛点：场景不便；切入：刚需测款；差异：视觉点${i + 1}`,
-  differentiation: `细分：细分${i % 3}；差异动作${i + 1}`,
+  painPoint: `场景不便${i + 1}`,
+  angle: '刚需测款',
+  diff: `视觉点${i + 1}`,
+  niche: `细分${i % 3}`,
   demand: '高｜需求稳',
   competition: '中｜可切入',
   margin: '中｜测款友好',
@@ -90,9 +92,11 @@ function mockCatalogAndCredits(opts?: {
       return new Response(
         sseBody([
           'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+          'event: agent_started\ndata: {"label":"agent.start"}\n\n',
           'event: tool_started\ndata: {"toolName":"read_skill"}\n\n',
           'event: tool_finished\ndata: {"toolName":"read_skill"}\n\n',
           `event: message_delta\ndata: {"text":"${'x'.repeat(130)}"}\n\n`,
+          'event: agent_ended\ndata: {"label":"agent.end"}\n\n',
           `event: artifact_ready\ndata: ${JSON.stringify({
             artifactType: 'picklist',
             picklistId: 'pl-1',
@@ -102,8 +106,8 @@ function mockCatalogAndCredits(opts?: {
             items: SAMPLE_ITEMS,
             view: {
               version: 1,
-              title: '选品清单',
-              status: '已结算',
+              title: 'picklist',
+              status: 'settled',
               blocks: [
                 {
                   type: 'note',
@@ -114,14 +118,20 @@ function mockCatalogAndCredits(opts?: {
                   type: 'list',
                   ordered: true,
                   items: SAMPLE_ITEMS.map((it) => ({
-                    badge: it.title.startsWith('【优先试】') ? '优先试' : undefined,
+                    badge: it.title.startsWith('【优先试】') ? 'priority' : undefined,
                     title: it.title.replace(/^【优先试】/, ''),
-                    lines: [`价格带：${it.priceBand}`, it.reason, it.differentiation],
+                    lines: [
+                      { kind: 'priceBand', text: it.priceBand, emphasis: 'price' },
+                      { kind: 'painPoint', text: it.painPoint },
+                      { kind: 'angle', text: it.angle },
+                      { kind: 'diff', text: it.diff },
+                      { kind: 'niche', text: it.niche },
+                    ],
                     tags: [
-                      `需求 ${it.demand}`,
-                      `竞争 ${it.competition}`,
-                      `利润 ${it.margin}`,
-                      `风险 ${it.risk}`,
+                      { kind: 'demand', text: it.demand, tone: 'positive' },
+                      { kind: 'competition', text: it.competition, tone: 'caution' },
+                      { kind: 'margin', text: it.margin, tone: 'info' },
+                      { kind: 'risk', text: it.risk, tone: 'safe' },
                     ],
                   })),
                 },
@@ -418,42 +428,53 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(computer?.textContent).toMatch(/优先试/)
       expect(computer?.querySelector('.priority-tag')).toBeTruthy()
       expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/已生成/)
-      expect(mounted.root.querySelector('.chat-steps')?.textContent).toContain('读取技能说明')
-      expect(mounted.root.querySelector('.chat-steps')?.textContent).not.toContain('read_skill')
-      expect(mounted.root.querySelector('.chat-steps')?.textContent).toContain('✓')
-      expect(mounted.root.querySelector('.chat-steps')?.textContent).not.toMatch(/进行中/)
-      expect(mounted.root.querySelector('.chat-steps .step-status')).toBeNull()
-      expect(mounted.root.querySelector('.chat-stream-head .chat-stream-chevron')).toBeTruthy()
-      expect(mounted.root.querySelector('.chat-stream-chevron')).toBeTruthy()
-      expect(mounted.root.querySelector('.chat-stream-title')?.textContent).toContain('工作过程')
-      const streamBody = mounted.root.querySelector('.chat-stream-body')
-      expect(streamBody?.textContent?.endsWith('…')).toBe(true)
-      expect(streamBody?.textContent).toBe(`${'x'.repeat(120)}…`)
-      const streamHead = mounted.root.querySelector('button.chat-stream-head') as HTMLButtonElement
-      expect(streamHead).toBeTruthy()
-      expect(streamHead.getAttribute('aria-expanded')).toBe('false')
+      expect(mounted.root.querySelector('.chat-event-status')?.textContent).toMatch(/已生成/)
+      expect(mounted.root.querySelector('.chat-events')).toBeTruthy()
+      const eventTexts = [...mounted.root.querySelectorAll('.chat-event')].map((el) => el.textContent || '')
+      expect(eventTexts.some((t) => t.includes('AGENT') && t.includes('开始执行'))).toBe(true)
+      expect(eventTexts.some((t) => t.includes('TOOL') && t.includes('读取技能说明'))).toBe(true)
+      expect(eventTexts.some((t) => t.includes('agent.start'))).toBe(false)
+      expect(eventTexts.some((t) => t.includes('read_skill'))).toBe(false)
+      expect(eventTexts.some((t) => /完成/.test(t))).toBe(false)
+      expect(eventTexts.some((t) => t.includes('✓'))).toBe(true)
+      expect(eventTexts.some((t) => t.includes('LLM') && t.includes('模型输出'))).toBe(true)
+      expect(eventTexts.some((t) => t.includes('AGENT') && t.includes('执行结束'))).toBe(true)
+      // LLM body hidden until expand; expanded shows full raw stream
+      expect(mounted.root.querySelector('.chat-stream-body')).toBeNull()
+      const llmCard = mounted.root.querySelector('.chat-event-llm') as HTMLElement
+      expect(llmCard).toBeTruthy()
       expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('展开')
-      streamHead.click()
+      llmCard.click()
       await flushUi()
-      expect(streamHead.getAttribute('aria-expanded')).toBe('true')
       expect(mounted.root.querySelector('.chat-stream-body')?.textContent).toBe('x'.repeat(130))
       expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('收起')
+      // STATUS click opens Computer preview
+      const status = mounted.root.querySelector('button.chat-event-status') as HTMLButtonElement
+      expect(status?.disabled).toBe(false)
+      expect(status?.textContent).toMatch(/查看/)
+      expect(status?.textContent).not.toMatch(/点击查看预览/)
+      status.click()
+      await flushUi()
+      expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(true)
       expect(creditEvents.length).toBeGreaterThanOrEqual(1)
     } finally {
       window.removeEventListener('ebus:credits-changed', onCredits)
     }
   })
 
-  it('hides artifact JSON from process stream and keeps prose', async () => {
+  it('keeps LLM collapsed by default; expand shows full stream including JSON', async () => {
     const prose = '我先加载技能说明。'
     const artifactJson =
       '{"templateId":"domestic-generic-default","disclaimer":"x","items":[{"title":"a"}]}'
+    const fullStream = `${prose} ${artifactJson}`
     fetchMock = mockCatalogAndCredits({
       onPicklist: () =>
         new Response(
           sseBody([
             'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
-            `event: message_delta\ndata: ${JSON.stringify({ text: `${prose} ${artifactJson}` })}\n\n`,
+            'event: agent_started\ndata: {"label":"agent.start"}\n\n',
+            `event: message_delta\ndata: ${JSON.stringify({ text: fullStream })}\n\n`,
+            'event: agent_ended\ndata: {"label":"agent.end"}\n\n',
             `event: artifact_ready\ndata: ${JSON.stringify({
               artifactType: 'picklist',
               picklistId: 'pl-1',
@@ -463,8 +484,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
               items: SAMPLE_ITEMS,
               view: {
                 version: 1,
-                title: '选品清单',
-                status: '已结算',
+                title: 'picklist',
+                status: 'settled',
                 blocks: [
                   { type: 'note', text: '基于通用电商知识推断，非实时平台数据', tone: 'mute' },
                   {
@@ -472,8 +493,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
                     ordered: true,
                     items: SAMPLE_ITEMS.slice(0, 2).map((it) => ({
                       title: it.title.replace(/^【优先试】/, ''),
-                      lines: [`价格带：${it.priceBand}`],
-                      tags: [`需求 ${it.demand}`],
+                      lines: [{ kind: 'priceBand', text: it.priceBand, emphasis: 'price' }],
+                      tags: [{ kind: 'demand', text: it.demand, tone: 'positive' }],
                     })),
                   },
                 ],
@@ -493,22 +514,27 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     }
 
     expect(mounted.root.textContent).toMatch(/已生成/)
-    expect(processStreamText(`${prose} ${artifactJson}`)).toBe(prose)
-    const stream = mounted.root.querySelector('.chat-stream')
+    expect(processStreamText(fullStream)).toBe(prose)
+    const stream = mounted.root.querySelector('.chat-event-llm')
     expect(stream).toBeTruthy()
+    expect(stream?.querySelector('.chat-stream-body')).toBeNull()
+    ;(stream as HTMLElement).click()
+    await flushUi()
     const body = stream?.querySelector('.chat-stream-body')?.textContent || ''
-    expect(body).toBe(prose)
-    expect(body).not.toMatch(/templateId/)
+    expect(body).toBe(fullStream)
+    expect(body).toContain('templateId')
   })
 
-  it('short message_delta has no fold toggle', async () => {
+  it('short message_delta stays collapsed until expand', async () => {
     const shortText = 'x'.repeat(120)
     fetchMock = mockCatalogAndCredits({
       onPicklist: () =>
         new Response(
           sseBody([
             'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+            'event: agent_started\ndata: {"label":"agent.start"}\n\n',
             `event: message_delta\ndata: {"text":"${shortText}"}\n\n`,
+            'event: agent_ended\ndata: {"label":"agent.end"}\n\n',
             `event: artifact_ready\ndata: ${JSON.stringify({
               artifactType: 'picklist',
               picklistId: 'pl-1',
@@ -526,9 +552,11 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     unmount = mounted.unmount
     await enterViaSend(mounted.root)
 
-    expect(mounted.root.querySelector('.chat-stream-toggle')).toBeNull()
-    expect(mounted.root.querySelector('button.chat-stream-head')).toBeNull()
-    expect(mounted.root.querySelector('div.chat-stream-head')).toBeTruthy()
+    expect(mounted.root.querySelector('.chat-stream-body')).toBeNull()
+    expect(mounted.root.querySelector('.chat-event-llm')).toBeTruthy()
+    expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('展开')
+    ;(mounted.root.querySelector('.chat-event-llm') as HTMLElement).click()
+    await flushUi()
     expect(mounted.root.querySelector('.chat-stream-body')?.textContent).toBe(shortText)
   })
 
@@ -538,6 +566,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       'utf8',
     )
     expect(vueSrc).not.toMatch(/step-status/)
+    expect(vueSrc).toMatch(/chat-events/)
+    expect(vueSrc).toMatch(/tag-tool/)
     const runSrc = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), '../../../composables/agent/useAgentPicklistRun.ts'),
       'utf8',

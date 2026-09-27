@@ -79,19 +79,23 @@ public class PicklistApplicationService {
             ObjectUtils.requireNonNull(raw, MSG_UNUSABLE);
             String title = requireMaxLen(requireItemField(raw.getTitle()), PicklistDefaults.MAX_TITLE);
             String priceBand = requireMaxLen(requireItemField(raw.getPriceBand()), PicklistDefaults.MAX_PRICE_BAND);
-            String reason = requireMaxLen(requireItemField(raw.getReason()), PicklistDefaults.MAX_REASON);
-            String differentiation = requireMaxLen(requireItemField(raw.getDifferentiation()), PicklistDefaults.MAX_DIM);
+            String painPoint = requireMaxLen(requireItemField(raw.getPainPoint()), PicklistDefaults.MAX_REASON);
+            String angle = requireMaxLen(requireItemField(raw.getAngle()), PicklistDefaults.MAX_REASON);
+            String diff = requireMaxLen(requireItemField(raw.getDiff()), PicklistDefaults.MAX_REASON);
+            String niche = requireMaxLen(requireItemField(raw.getNiche()), PicklistDefaults.MAX_DIM);
             String demand = requireMaxLen(requireItemField(raw.getDemand()), PicklistDefaults.MAX_DIM);
             String competition = requireMaxLen(requireItemField(raw.getCompetition()), PicklistDefaults.MAX_DIM);
             String margin = requireMaxLen(requireItemField(raw.getMargin()), PicklistDefaults.MAX_DIM);
             String risk = requireMaxLen(requireItemField(raw.getRisk()), PicklistDefaults.MAX_DIM);
             dtoItems.add(new PicklistArtifactDTO.PicklistItemDTO(
-                    title, priceBand, reason, differentiation, demand, competition, margin, risk));
+                    title, priceBand, painPoint, angle, diff, niche, demand, competition, margin, risk));
             Map<String, Object> itemMap = new LinkedHashMap<String, Object>();
             itemMap.put("title", title);
             itemMap.put("priceBand", priceBand);
-            itemMap.put("reason", reason);
-            itemMap.put("differentiation", differentiation);
+            itemMap.put("painPoint", painPoint);
+            itemMap.put("angle", angle);
+            itemMap.put("diff", diff);
+            itemMap.put("niche", niche);
             itemMap.put("demand", demand);
             itemMap.put("competition", competition);
             itemMap.put("margin", margin);

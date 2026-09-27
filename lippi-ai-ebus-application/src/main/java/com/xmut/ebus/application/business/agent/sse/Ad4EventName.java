@@ -6,9 +6,11 @@ package com.xmut.ebus.application.business.agent.sse;
 public enum Ad4EventName {
 
     run_started,
+    agent_started,
     message_delta,
     tool_started,
     tool_finished,
+    agent_ended,
     artifact_ready,
     run_failed,
     run_settled;

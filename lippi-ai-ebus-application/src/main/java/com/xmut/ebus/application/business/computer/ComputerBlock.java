@@ -16,11 +16,21 @@ public final class ComputerBlock {
     }
 
     public static Map<String, Object> note(String text, String tone) {
+        return note(text, tone, null);
+    }
+
+    /**
+     * @param kind optional semantic key (e.g. assumptions); FE maps to locale prefix
+     */
+    public static Map<String, Object> note(String text, String tone, String kind) {
         Map<String, Object> block = new LinkedHashMap<String, Object>();
         block.put("type", "note");
         block.put("text", text);
         if (StringUtils.hasText(tone)) {
             block.put("tone", tone);
+        }
+        if (StringUtils.hasText(kind)) {
+            block.put("kind", kind);
         }
         return block;
     }

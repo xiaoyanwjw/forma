@@ -59,8 +59,10 @@ public final class PicklistArtifactDTO {
     public static final class PicklistItemDTO {
         private final String title;
         private final String priceBand;
-        private final String reason;
-        private final String differentiation;
+        private final String painPoint;
+        private final String angle;
+        private final String diff;
+        private final String niche;
         private final String demand;
         private final String competition;
         private final String margin;
@@ -68,16 +70,20 @@ public final class PicklistArtifactDTO {
 
         public PicklistItemDTO(String title,
                                String priceBand,
-                               String reason,
-                               String differentiation,
+                               String painPoint,
+                               String angle,
+                               String diff,
+                               String niche,
                                String demand,
                                String competition,
                                String margin,
                                String risk) {
             this.title = title;
             this.priceBand = priceBand;
-            this.reason = reason;
-            this.differentiation = differentiation;
+            this.painPoint = painPoint;
+            this.angle = angle;
+            this.diff = diff;
+            this.niche = niche;
             this.demand = demand;
             this.competition = competition;
             this.margin = margin;
@@ -92,12 +98,20 @@ public final class PicklistArtifactDTO {
             return priceBand;
         }
 
-        public String getReason() {
-            return reason;
+        public String getPainPoint() {
+            return painPoint;
         }
 
-        public String getDifferentiation() {
-            return differentiation;
+        public String getAngle() {
+            return angle;
+        }
+
+        public String getDiff() {
+            return diff;
+        }
+
+        public String getNiche() {
+            return niche;
         }
 
         public String getDemand() {
