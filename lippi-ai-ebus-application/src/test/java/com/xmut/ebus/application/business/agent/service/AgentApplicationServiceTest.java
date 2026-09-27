@@ -21,7 +21,7 @@ import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.LegacyPicklistFallbackProjector;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
-import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
+import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -121,8 +121,11 @@ class AgentApplicationServiceTest {
                 sceneRepository,
                 sceneCapabilityPackLoader,
                 agentSession,
-                java.util.Collections.<com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin>singletonList(
-                        new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService)),
+                new com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin(
+                        org.mockito.Mockito.mock(com.xmut.ebus.domain.business.artifact.repository.ArtifactRepository.class),
+                        new com.fasterxml.jackson.databind.ObjectMapper(),
+                        Clock.fixed(NOW, ZoneOffset.UTC)),
+                new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService),
                 viewResolver,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
@@ -939,8 +942,11 @@ class AgentApplicationServiceTest {
                 sceneRepository,
                 sceneCapabilityPackLoader,
                 agentSession,
-                java.util.Collections.<com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin>singletonList(
-                        new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService)),
+                new com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin(
+                        org.mockito.Mockito.mock(com.xmut.ebus.domain.business.artifact.repository.ArtifactRepository.class),
+                        new com.fasterxml.jackson.databind.ObjectMapper(),
+                        Clock.fixed(NOW, ZoneOffset.UTC)),
+                new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService),
                 emptyResolver,
                 Clock.fixed(NOW, ZoneOffset.UTC));
 

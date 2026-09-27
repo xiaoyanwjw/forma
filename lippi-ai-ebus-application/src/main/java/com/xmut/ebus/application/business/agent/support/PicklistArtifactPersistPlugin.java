@@ -14,10 +14,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * persistAs=picklist plugin: dual-track parse + usable persist.
+ * Legacy picklist persist (Task 3/4 replace with {@link ArtifactPersistPlugin} + parser pipeline).
  */
 @Component
-public class PicklistArtifactPersistPlugin implements ArtifactPersistPlugin {
+public class PicklistArtifactPersistPlugin {
 
     private final PicklistArtifactParser picklistArtifactParser;
     private final PicklistApplicationService picklistApplicationService;
@@ -28,13 +28,10 @@ public class PicklistArtifactPersistPlugin implements ArtifactPersistPlugin {
         this.picklistApplicationService = picklistApplicationService;
     }
 
-    @Override
-    public String persistAs() {
-        return SkillRunProfile.PERSIST_PICKLIST;
-    }
-
-    @Override
-    public PersistedGenerationArtifact persist(String userId, String runId, String sceneCode, String finalResponse) {
+    public PersistedGenerationArtifact persistFromFinalResponse(String userId,
+                                                                String runId,
+                                                                String sceneCode,
+                                                                String finalResponse) {
         PicklistParseResult parsedResult = picklistArtifactParser.parse(finalResponse, userId, runId);
         PersistPicklistCommand parsed = parsedResult.getCommand();
         PersistPicklistCommand persistCommand = PersistPicklistCommand.builder()

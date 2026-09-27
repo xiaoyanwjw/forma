@@ -15,7 +15,7 @@ import com.xmut.ebus.application.business.agent.support.PersistedGenerationArtif
 import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.ViewProjectContext;
-import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
+import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -46,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +93,8 @@ public class AgentApplicationService {
     private final SceneRepository sceneRepository;
     private final SceneCapabilityPackLoader sceneCapabilityPackLoader;
     private final AgentSession agentSession;
-    private final List<ArtifactPersistPlugin> artifactPersistPlugins;
+    private final ArtifactPersistPlugin artifactPersistPlugin;
+    private final com.xmut.ebus.application.business.agent.support.PicklistArtifactPersistPlugin picklistArtifactPersistPlugin;
     private final ComputerViewResolver computerViewResolver;
     private final Clock clock;
 
@@ -522,11 +524,15 @@ public class AgentApplicationService {
                                                         GenerationRunContext context,
                                                         String finalResponse) {
         if (SkillRunProfile.PERSIST_NONE.equals(profile.getPersistAs())) {
-            return new PersistedGenerationArtifact(null, null, null, null);
+            return new PersistedGenerationArtifact(null, Collections.<String, Object>emptyMap());
         }
 
-        return requirePersistPlugin(profile.getPersistAs()).persist(
-                context.getUserId(), context.getRunId(), context.getSceneCode(), finalResponse);
+        if (SkillRunProfile.PERSIST_PICKLIST.equals(profile.getPersistAs())) {
+            return picklistArtifactPersistPlugin.persistFromFinalResponse(
+                    context.getUserId(), context.getRunId(), context.getSceneCode(), finalResponse);
+        }
+
+        throw new BusinessException(ErrorCode.PARAM_INVALID, "未注册成果落库路径: " + profile.getPersistAs());
     }
 
     /**
@@ -575,17 +581,6 @@ public class AgentApplicationService {
         markRunFailed(context.getRunId());
         emitRunFailed(sink, releaseOk ? reason : PICKLIST_RELEASE_FAILED, false);
         return true;
-    }
-
-    private ArtifactPersistPlugin requirePersistPlugin(String persistAs) {
-        if (artifactPersistPlugins != null) {
-            for (ArtifactPersistPlugin plugin : artifactPersistPlugins) {
-                if (plugin != null && persistAs.equals(plugin.persistAs())) {
-                    return plugin;
-                }
-            }
-        }
-        throw new BusinessException(ErrorCode.PARAM_INVALID, "未注册成果落库插件: " + persistAs);
     }
 
     private Consumer<PiEvent> progressListener(final String runId,
