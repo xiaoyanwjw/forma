@@ -511,6 +511,7 @@ public class AgentApplicationService {
         if (SkillRunProfile.PERSIST_NONE.equals(profile.getPersistAs())) {
             return new PersistedGenerationArtifact(null, null, null, null);
         }
+
         return requirePersistPlugin(profile.getPersistAs()).persist(
                 context.getUserId(), context.getRunId(), context.getSceneCode(), finalResponse);
     }

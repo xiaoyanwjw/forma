@@ -6,16 +6,16 @@ import org.springframework.context.annotation.Configuration;
 import java.util.Arrays;
 
 /**
- * Registers the Computer view strategy chain in fixed order.
+ * Registers {@link ComputerViewResolver} with a fixed projector order.
  */
 @Configuration
 public class ComputerViewConfiguration {
 
     @Bean
-    public ViewProjectorChain viewProjectorChain(NormalizeViewProjector normalizeViewProjector,
-                                                 LegacyPicklistFallbackProjector legacyPicklistFallbackProjector,
-                                                 NoSkillMarkdownProjector noSkillMarkdownProjector) {
-        return new ViewProjectorChain(Arrays.asList(
+    public ComputerViewResolver computerViewResolver(NormalizeViewProjector normalizeViewProjector,
+                                                     LegacyPicklistFallbackProjector legacyPicklistFallbackProjector,
+                                                     NoSkillMarkdownProjector noSkillMarkdownProjector) {
+        return new ComputerViewResolver(Arrays.asList(
                 normalizeViewProjector,
                 legacyPicklistFallbackProjector,
                 noSkillMarkdownProjector));

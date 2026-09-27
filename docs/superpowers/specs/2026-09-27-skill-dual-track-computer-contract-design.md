@@ -232,7 +232,7 @@ output:
 ```
 reserve? → prompt(skill|none) → final
   → 组装 ViewProjectContext
-  → ViewProjectorChain.project(ctx)   // 策略：Normalize | NoSkillMarkdown | …
+  → ComputerViewResolver.resolve(ctx)   // 策略：Normalize | NoSkillMarkdown | …
   → 若 billing + persistAs：artifact 校验 → persist → settle → artifact_ready(view + artifactRef)
   → 若无 Skill：view 门禁 → settle → artifact_ready(view) + run_settled
   → 若失败：release + run_failed
@@ -280,11 +280,12 @@ public final class ViewProjectContext {
 ### 5.2 链（顺序固定）
 
 ```text
-ViewProjectorChain:
+ComputerViewResolver:
   for (p : projectors) if (p.supports(ctx)) return p.project(ctx);
-  → 计费且仍无 view：失败（不 settle）
-  → 非计费：可再兜底空 document 或失败（产品定；默认失败更清晰）
+  → 仍无 view：失败（不 settle）
 ```
+
+策略列表内嵌在 Resolver；无独立 Chain 类型。
 
 ### 5.3 内置策略（v1）
 
@@ -396,3 +397,4 @@ FE 若登记了 `painPoint → 痛点` 词典则显示标签；未登记则只�
 | 2026-09-27 | **通用 Run**：`streamGenerationRun` + `SkillRunProfile` + `ArtifactPersistPlugin`；`POST /api/v1/agent/runs`；empty/picklist 为别名 |
 | 2026-09-27 | **无 Skill 路径**：blank `skillId` → `NoSkillMarkdown` → `artifact_ready(view)` → release；不 settle、成功不发 `run_failed` |
 | 2026-09-27 | **无 Skill 计费**：可用 markdown `view` 门禁后 settle + `run_settled`；失败仍 release |
+| 2026-09-27 | **合并**：`ViewProjectorChain` 内嵌进 `ComputerViewResolver` |

@@ -21,7 +21,6 @@ import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.LegacyPicklistFallbackProjector;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
-import com.xmut.ebus.application.business.computer.ViewProjectorChain;
 import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -109,7 +108,7 @@ class AgentApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        ViewProjectorChain chain = new ViewProjectorChain(java.util.Arrays.asList(
+        ComputerViewResolver viewResolver = new ComputerViewResolver(java.util.Arrays.asList(
                 new NormalizeViewProjector(),
                 new LegacyPicklistFallbackProjector(new PicklistViewProjector()),
                 new NoSkillMarkdownProjector()));
@@ -122,7 +121,7 @@ class AgentApplicationServiceTest {
                 agentSession,
                 java.util.Collections.<com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin>singletonList(
                         new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService)),
-                new ComputerViewResolver(chain),
+                viewResolver,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -859,7 +858,8 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamPicklistRunReleasesWithoutSettleWhenViewGateFails() {
-        ViewProjectorChain emptyChain = new ViewProjectorChain(Collections.<com.xmut.ebus.application.business.computer.ComputerViewProjector>emptyList());
+        ComputerViewResolver emptyResolver = new ComputerViewResolver(
+                Collections.<com.xmut.ebus.application.business.computer.ComputerViewProjector>emptyList());
         AgentApplicationService gated = new AgentApplicationService(
                 new CreditHoldSupport(creditApplicationService),
                 generationRunRepository,
@@ -869,7 +869,7 @@ class AgentApplicationServiceTest {
                 agentSession,
                 java.util.Collections.<com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin>singletonList(
                         new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService)),
-                new ComputerViewResolver(emptyChain),
+                emptyResolver,
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         PicklistRunContext ctx = picklistCtx("run-pl-noview", "session-pl-noview");

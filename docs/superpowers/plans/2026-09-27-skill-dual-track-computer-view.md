@@ -22,7 +22,7 @@
 |------|----------------|
 | `.../computer/ComputerViewProjector.java` | Strategy interface |
 | `.../computer/ViewProjectContext.java` | Context DTO |
-| `.../computer/ViewProjectorChain.java` | Ordered `supports` → `project` |
+| `.../computer/ComputerViewResolver.java` | Ordered `supports` → `project` + fail-closed |
 | `.../computer/NormalizeViewProjector.java` | Sanitize raw view |
 | `.../computer/NoSkillMarkdownProjector.java` | No-skill → markdown doc |
 | `.../computer/LegacyPicklistFallbackProjector.java` | Transition: DTO → view via existing projector |
@@ -38,8 +38,8 @@
 **Files:** new under `lippi-ai-ebus-application/.../computer/` + tests
 
 - [x] Write failing tests: Normalize drops unknown block types; NoSkillMarkdown wraps text when `!skillBound`; chain picks first `supports`.
-- [x] Implement `ComputerViewProjector`, `ViewProjectContext`, `ViewProjectorChain`, `NormalizeViewProjector`, `NoSkillMarkdownProjector`.
-- [x] Run `mvn -pl lippi-ai-ebus-application -am -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest,ViewProjectorChainTest test`.
+- [x] Implement `ComputerViewProjector`, `ViewProjectContext`, `ComputerViewResolver`, `NormalizeViewProjector`, `NoSkillMarkdownProjector`.
+- [x] Run `mvn -pl lippi-ai-ebus-application -am -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest,ComputerViewResolverTest test`.
 
 ### Task 2: Legacy picklist fallback + wire AgentApplicationService
 
