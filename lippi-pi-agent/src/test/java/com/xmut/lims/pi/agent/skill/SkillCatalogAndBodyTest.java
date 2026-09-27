@@ -23,7 +23,7 @@ class SkillCatalogAndBodyTest {
         assertThat(text).contains("Extract fields");
         assertThat(text).contains("Active skill: ecommerce-picklist");
         assertThat(text).contains("read_skill");
-        assertThat(text).doesNotContain("非实时平台数据");
+        assertThat(text).doesNotContain("非实时平台全站行情");
     }
 
     @Test

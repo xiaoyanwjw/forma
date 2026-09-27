@@ -153,8 +153,8 @@ describe('ComputerRenderer', () => {
     await nextTick()
     const links = host.querySelectorAll('a[target="_blank"]')
     expect(links.length).toBe(1)
-    expect(links[0].getAttribute('href')).toBe('https://item.example/1')
-    expect(links[0].getAttribute('rel')).toBe('noopener noreferrer')
+    expect(links[0]?.getAttribute('href')).toBe('https://item.example/1')
+    expect(links[0]?.getAttribute('rel')).toBe('noopener noreferrer')
     expect(host.textContent).toMatch(/商品A/)
     expect(host.textContent).toMatch(/商品B/)
     expect(host.textContent).not.toMatch(/http:\/\/item/)
@@ -200,8 +200,8 @@ describe('parseComputerDocument', () => {
     expect(parsed?.title).toBe('picklist')
     expect(parsed?.blocks.map((b) => b.type)).toEqual(['note', 'list', 'media', 'section', 'section'])
     const list = parsed?.blocks.find((b) => b.type === 'list')
-    expect(list && list.type === 'list' && list.items[0].lines?.[0].kind).toBe('priceBand')
-    expect(list && list.type === 'list' && list.items[0].tags?.[0].kind).toBe('demand')
+    expect(list && list.type === 'list' && list.items[0]?.lines?.[0]?.kind).toBe('priceBand')
+    expect(list && list.type === 'list' && list.items[0]?.tags?.[0]?.kind).toBe('demand')
     const bodySection = parsed?.blocks.find(
       (b) => b.type === 'section' && b.heading === '详情正文',
     )
@@ -225,8 +225,8 @@ describe('parseComputerDocument', () => {
       ],
     })
     const list = parsed?.blocks.find((b) => b.type === 'list')
-    expect(list && list.type === 'list' && list.items[0].href).toBe('https://item.example/1')
-    expect(list && list.type === 'list' && list.items[1].href).toBeUndefined()
+    expect(list && list.type === 'list' && list.items[0]?.href).toBe('https://item.example/1')
+    expect(list && list.type === 'list' && list.items[1]?.href).toBeUndefined()
   })
 
   it('returns null when version or title is invalid', () => {

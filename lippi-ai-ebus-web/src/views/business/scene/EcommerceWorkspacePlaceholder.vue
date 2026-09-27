@@ -299,8 +299,11 @@ watch(processEvents, () => {
   const idx = messages.value.findIndex((m) => m.id === thinkingMessageId.value)
   if (idx < 0) return
   const cur = messages.value[idx]
+  if (!cur) return
   messages.value[idx] = {
-    ...cur,
+    id: cur.id,
+    role: cur.role,
+    text: cur.text,
     processEvents: processEvents.value.length ? [...processEvents.value] : undefined,
   }
 })

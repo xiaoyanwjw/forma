@@ -77,7 +77,7 @@ class SkillLoadPromptIntegrationTest {
         String system = captured.get().get(0).getContent();
         assertThat(system).contains("ecommerce-picklist");
         assertThat(system).contains("read_skill");
-        assertThat(system).doesNotContain("非实时平台数据");
+        assertThat(system).doesNotContain("非实时平台全站行情");
         assertThat(capturedTools.get()).extracting(ToolSchema::getName).containsExactly("read_skill");
         assertThat(sample.getPromptRef()).contains("scenes/ecommerce/ecommerce-picklist/SKILL.md");
     }

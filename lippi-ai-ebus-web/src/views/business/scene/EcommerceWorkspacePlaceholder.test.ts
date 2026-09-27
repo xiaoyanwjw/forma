@@ -196,7 +196,9 @@ function setTextareaValue(el: HTMLTextAreaElement, value: string) {
   el.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
-function picklistApiHits(fetchMock: ReturnType<typeof vi.spyOn>) {
+type FetchSpy = { mock: { calls: ReadonlyArray<unknown[]> } }
+
+function picklistApiHits(fetchMock: FetchSpy) {
   return fetchMock.mock.calls.filter(([input, init]) => {
     const u = String(input)
     if (!u.includes('/api/v1/agent/runs') || u.includes('/runs/empty')) {
@@ -207,7 +209,7 @@ function picklistApiHits(fetchMock: ReturnType<typeof vi.spyOn>) {
   })
 }
 
-function emptyRunApiHits(fetchMock: ReturnType<typeof vi.spyOn>) {
+function emptyRunApiHits(fetchMock: FetchSpy) {
   return fetchMock.mock.calls.filter(([input, init]) => {
     const u = String(input)
     if (!u.includes('/api/v1/agent/runs')) {
