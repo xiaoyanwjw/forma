@@ -32,6 +32,8 @@ public class ArtifactPersistPlugin {
     private static final String DEFAULT_TITLE = "成果";
     private static final String TEMPLATE_DOMESTIC_DEFAULT = "domestic-generic-default";
     public static final String MSG_SKU_UNUSABLE = "上架素材不合格：需含详情文案、展示说明与主图位（mediaObjectId）";
+    public static final String MSG_LISTING_PLAN_UNUSABLE =
+            "策划分镜不合格：需含 templateId、成交方向、3～5 条分镜与详情大纲、标题草稿";
 
     private final ArtifactRepository artifactRepository;
     private final ObjectMapper objectMapper;
@@ -58,7 +60,9 @@ public class ArtifactPersistPlugin {
         Map<String, Object> data = businessPayload != null
                 ? businessPayload
                 : Collections.<String, Object>emptyMap();
-        if (type == ArtifactType.SKU) {
+        if (type == ArtifactType.LISTING_PLAN) {
+            requireUsableListingPlanPayload(data);
+        } else if (type == ArtifactType.SKU) {
             requireUsableSkuPayload(data);
         }
         String id = UUID.randomUUID().toString();
@@ -90,7 +94,31 @@ public class ArtifactPersistPlugin {
         if (SkillRunProfile.PERSIST_SKU.equals(persistAs)) {
             return ArtifactType.SKU;
         }
+        if (SkillRunProfile.PERSIST_LISTING_PLAN.equals(persistAs)) {
+            return ArtifactType.LISTING_PLAN;
+        }
         throw new BusinessException(ErrorCode.PARAM_INVALID, "未支持的成果类型: " + persistAs);
+    }
+
+    /**
+     * 可用策划分镜：templateId 固定国内通用默认；driver、titleDraft；frames/modules 各 3～5 条非空短句。
+     */
+    static void requireUsableListingPlanPayload(Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
+        }
+        String templateId = text(data.get("templateId"));
+        if (!TEMPLATE_DOMESTIC_DEFAULT.equals(templateId)) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
+        }
+        if (!StringUtils.hasText(text(data.get("driver")))) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
+        }
+        if (!StringUtils.hasText(text(data.get("titleDraft")))) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
+        }
+        requireNonEmptyStringList(data.get("frames"), 3, 5);
+        requireNonEmptyStringList(data.get("modules"), 3, 5);
     }
 
     /**
@@ -136,6 +164,21 @@ public class ArtifactPersistPlugin {
             }
         }
         return out;
+    }
+
+    private static void requireNonEmptyStringList(Object raw, int minSize, int maxSize) {
+        if (!(raw instanceof List)) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
+        }
+        List<?> list = (List<?>) raw;
+        if (list.size() < minSize || list.size() > maxSize) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
+        }
+        for (Object item : list) {
+            if (!StringUtils.hasText(text(item))) {
+                throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
+            }
+        }
     }
 
     static String resolveTitle(Map<String, Object> projectedView) {

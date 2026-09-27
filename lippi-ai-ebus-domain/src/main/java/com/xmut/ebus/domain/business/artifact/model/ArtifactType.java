@@ -7,6 +7,7 @@ public enum ArtifactType {
 
     PICKLIST("picklist"),
     SKU("sku"),
+    LISTING_PLAN("listing_plan"),
     CHAT("chat");
 
     private final String code;

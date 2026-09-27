@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -123,6 +124,46 @@ class ArtifactPersistPluginTest {
         payload.put("assumptions", "用户提到优先淘宝；仍输出跨平台公共底稿");
         plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_SKU, listViewMap(), payload);
         verify(artifactRepository).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_listingPlan_rejectsFewerThanThreeFrames() {
+        Map<String, Object> p = new LinkedHashMap<String, Object>();
+        p.put("templateId", "domestic-generic-default");
+        p.put("driver", "痛点");
+        p.put("frames", Collections.singletonList("只有一张"));
+        p.put("modules", Arrays.asList("a", "b", "c"));
+        p.put("titleDraft", "标题");
+        assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_LISTING_PLAN, planView(), p));
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_listingPlan_acceptsMinimalPlan() {
+        PersistedGenerationArtifact out = plugin.persist(
+                "u1", "r1", "ecommerce", SkillRunProfile.PERSIST_LISTING_PLAN, planView(), usablePlanPayload());
+        assertNotNull(out.getArtifactRef());
+        ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
+        verify(artifactRepository).save(cap.capture());
+        assertEquals(ArtifactType.LISTING_PLAN, cap.getValue().getType());
+    }
+
+    private static Map<String, Object> usablePlanPayload() {
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("templateId", "domestic-generic-default");
+        payload.put("driver", "厨房沥水痛点");
+        payload.put("frames", Arrays.asList("主图：白底俯拍", "场景：水槽旁", "细节：导流槽"));
+        payload.put("modules", Arrays.asList("材质说明", "尺寸规格", "使用场景"));
+        payload.put("titleDraft", "硅胶沥水垫 厨房必备");
+        return payload;
+    }
+
+    private static Map<String, Object> planView() {
+        Map<String, Object> view = new LinkedHashMap<String, Object>();
+        view.put("version", 1);
+        view.put("title", "策划分镜");
+        return view;
     }
 
     private static Map<String, Object> usableSkuPayload() {

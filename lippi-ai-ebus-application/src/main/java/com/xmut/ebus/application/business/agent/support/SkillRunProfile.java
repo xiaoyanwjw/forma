@@ -13,6 +13,7 @@ public final class SkillRunProfile {
     public static final String PERSIST_NONE = "none";
     public static final String PERSIST_PICKLIST = "picklist";
     public static final String PERSIST_SKU = "sku";
+    public static final String PERSIST_LISTING_PLAN = "listing_plan";
 
     private final String skillId;
     private final boolean settleEnabled;

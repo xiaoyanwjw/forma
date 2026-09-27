@@ -19,4 +19,10 @@ class ArtifactTypeTest {
         assertEquals("chat", ArtifactType.CHAT.getCode());
         assertEquals(ArtifactType.CHAT, ArtifactType.fromCode("chat"));
     }
+
+    @Test
+    void codes_include_listing_plan() {
+        assertEquals("listing_plan", ArtifactType.LISTING_PLAN.getCode());
+        assertEquals(ArtifactType.LISTING_PLAN, ArtifactType.fromCode("listing_plan"));
+    }
 }
