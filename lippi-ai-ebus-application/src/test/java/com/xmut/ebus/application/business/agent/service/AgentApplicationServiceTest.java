@@ -772,6 +772,29 @@ class AgentApplicationServiceTest {
     }
 
     @Test
+    void streamPicklistRunReleasesWithoutSettleWhenSearchSkuFailed() {
+        PicklistRunContext ctx = picklistCtx("run-pl-searchfail", "session-pl-searchfail");
+        stubEcommercePack();
+        stubSubscribeEmittingSearchSkuFailed("run-pl-searchfail", "session-pl-searchfail", VALID_PICKLIST_JSON);
+        when(generationRunRepository.findById("run-pl-searchfail")).thenReturn(Optional.of(
+                GenerationRun.start("run-pl-searchfail", USER_ID, HOLD_ID, "session-pl-searchfail",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamPicklistRun(ctx, events::add);
+
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.run_failed, failed.getName());
+        assertEquals(AgentApplicationService.SEARCH_SKU_REQUIRED_REASON, failed.getData().get("reason"));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(picklistApplicationService, never()).persistUsable(any());
+        verify(picklistArtifactParser, never()).parse(anyString(), anyString(), anyString());
+    }
+
+    @Test
     void streamPicklistRunSettlesWhenSearchSkuSucceeded() {
         PicklistRunContext ctx = picklistCtx("run-pl-searchok", "session-pl-searchok");
         stubEcommercePack();
@@ -1121,6 +1144,17 @@ class AgentApplicationServiceTest {
     }
 
     private void stubSubscribeEmittingSearchSkuOk(String runId, String sessionId, String finalText) {
+        stubSubscribeEmittingSearchSkuEnd(runId, sessionId, finalText,
+                ToolResult.ok("call-sku", SearchSkuToolHandler.TOOL_NAME, "[{}]"));
+    }
+
+    private void stubSubscribeEmittingSearchSkuFailed(String runId, String sessionId, String finalText) {
+        stubSubscribeEmittingSearchSkuEnd(runId, sessionId, finalText,
+                ToolResult.failed("call-sku-fail", SearchSkuToolHandler.TOOL_NAME, "search_sku failed: timeout"));
+    }
+
+    private void stubSubscribeEmittingSearchSkuEnd(String runId, String sessionId, String finalText,
+                                                   ToolResult toolEnd) {
         AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
         when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
             subscriber.set(invocation.getArgument(0));
@@ -1128,8 +1162,7 @@ class AgentApplicationServiceTest {
             };
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenAnswer(invocation -> {
-            subscriber.get().accept(PiEvent.of(PiEventType.TOOL_EXECUTION_END,
-                    ToolResult.ok("call-sku", SearchSkuToolHandler.TOOL_NAME, "[{}]")));
+            subscriber.get().accept(PiEvent.of(PiEventType.TOOL_EXECUTION_END, toolEnd));
             return TurnResult.ok(runId, sessionId, finalText,
                     Collections.<com.xmut.lims.pi.ai.message.Message>emptyList());
         });
