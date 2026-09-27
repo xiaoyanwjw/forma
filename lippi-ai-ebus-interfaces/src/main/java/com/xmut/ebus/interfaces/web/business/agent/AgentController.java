@@ -48,7 +48,8 @@ public class AgentController {
     });
 
     /**
-     * 通用 Generation Run：dryRun=true 永不 settle；否则按 skillId 计费（近端仅 ecommerce-picklist）。
+     * 通用 Generation Run：dryRun=true 永不 settle；blank skillId → 无 Skill markdown；
+     * 已知 skillId → 计费（近端仅 ecommerce-picklist）。
      */
     @PostMapping(value = "/runs")
     public Object startGenerationRun(@RequestBody(required = false) StartGenerationRunRequest request) {

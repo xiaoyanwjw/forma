@@ -6,7 +6,7 @@ import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.util.StringUtils;
 
 /**
- * Per-skill run policy for the generic Generation pipeline (not Computer protocol).
+ * Per-run policy for the generic Generation pipeline (not Computer protocol).
  */
 public final class SkillRunProfile {
 
@@ -18,37 +18,54 @@ public final class SkillRunProfile {
     private final String persistAs;
     private final boolean requireUserText;
     private final boolean dryRun;
+    private final boolean skillBound;
 
     private SkillRunProfile(String skillId,
                             boolean settleEnabled,
                             String persistAs,
                             boolean requireUserText,
-                            boolean dryRun) {
+                            boolean dryRun,
+                            boolean skillBound) {
         this.skillId = skillId;
         this.settleEnabled = settleEnabled;
         this.persistAs = persistAs;
         this.requireUserText = requireUserText;
         this.dryRun = dryRun;
+        this.skillBound = skillBound;
     }
 
+    /** Probe / empty-run: bind a skill, never settle, end as run_failed. */
     public static SkillRunProfile dry(String skillId) {
         String id = StringUtils.hasText(skillId) ? skillId.trim() : SceneCapabilityPackLoader.DEFAULT_EMPTY_RUN_SKILL_ID;
-        return new SkillRunProfile(id, false, PERSIST_NONE, false, true);
+        return new SkillRunProfile(id, false, PERSIST_NONE, false, true, true);
+    }
+
+    /** Chat / draft without Skill: markdown Computer view, never settle. */
+    public static SkillRunProfile noSkill() {
+        return new SkillRunProfile(null, false, PERSIST_NONE, true, false, false);
     }
 
     public static SkillRunProfile billedPicklist() {
         return new SkillRunProfile(
-                SceneCapabilityPackLoader.SKILL_PICKLIST, true, PERSIST_PICKLIST, true, false);
+                SceneCapabilityPackLoader.SKILL_PICKLIST, true, PERSIST_PICKLIST, true, false, true);
     }
 
     /**
-     * Resolve profile from API flags. Unknown billed skills are rejected until a plugin exists.
+     * Resolve profile from API flags.
+     * <ul>
+     *   <li>{@code dryRun} → dry probe</li>
+     *   <li>blank {@code skillId} → no-skill markdown path</li>
+     *   <li>known billed skill → settle path</li>
+     * </ul>
      */
     public static SkillRunProfile resolve(String skillId, boolean dryRun) {
         if (dryRun) {
             return dry(skillId);
         }
-        String id = StringUtils.hasText(skillId) ? skillId.trim() : SceneCapabilityPackLoader.SKILL_PICKLIST;
+        if (!StringUtils.hasText(skillId)) {
+            return noSkill();
+        }
+        String id = skillId.trim();
         if (SceneCapabilityPackLoader.SKILL_PICKLIST.equals(id)) {
             return billedPicklist();
         }
@@ -73,5 +90,9 @@ public final class SkillRunProfile {
 
     public boolean isDryRun() {
         return dryRun;
+    }
+
+    public boolean isSkillBound() {
+        return skillBound;
     }
 }

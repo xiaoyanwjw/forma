@@ -79,7 +79,7 @@ public class AgentApplicationService {
     static final String MSG_SCENE_NOT_OPEN = "该场景尚未开放";
     static final String MSG_SCENE_MISMATCH = "场景编号与场景码不一致";
     static final String MSG_SESSION_SCENE_MISMATCH = "当前会话已绑定其他场景";
-    static final String MSG_PROMPT_REQUIRED = "请先描述选品需求";
+    static final String MSG_PROMPT_REQUIRED = "请先输入内容";
 
     private final CreditHoldSupport creditHoldSupport;
     private final GenerationRunRepository generationRunRepository;
@@ -147,6 +147,7 @@ public class AgentApplicationService {
                 NameValue.create("sceneId", scene.getId()),
                 NameValue.create("sceneCode", scene.getSceneCode()),
                 NameValue.create("skillId", profile.getSkillId()),
+                NameValue.create("skillBound", profile.isSkillBound()),
                 NameValue.create("dryRun", profile.isDryRun()));
         return new GenerationRunContext(runId, userId, holdId, sessionId, scene.getSceneCode(), promptText, profile);
     }
@@ -268,7 +269,7 @@ public class AgentApplicationService {
     }
 
     /**
-     * 通用 Generation SSE：dry → release + run_failed；计费 → persist → view → settle → artifact_ready。
+     * 通用 Generation SSE：dry → run_failed；无 Skill → markdown view + release；计费 → persist → settle。
      */
     public void streamGenerationRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         ObjectUtils.requireNonNull(context, "生成上下文不能为空");
@@ -279,7 +280,110 @@ public class AgentApplicationService {
             streamDryRun(context, sink);
             return;
         }
+        if (!context.getProfile().isSkillBound()) {
+            streamNoSkillRun(context, sink);
+            return;
+        }
         streamBilledRun(context, sink);
+    }
+
+    /**
+     * 无 Skill：prompt(none) → NoSkillMarkdown → artifact_ready(view) → release（不 settle、不 run_failed）。
+     */
+    private void streamNoSkillRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
+        AtomicBoolean hasMessageDelta = new AtomicBoolean(false);
+        AtomicBoolean aborted = new AtomicBoolean(false);
+        AutoCloseable subscription = null;
+        boolean holdClosed = false;
+        try {
+            emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context.getRunId(),
+                    context.getSessionId(), context.getHoldId())));
+
+            try {
+                sceneCapabilityPackLoader.load(context.getSceneCode());
+            } catch (BusinessException ex) {
+                holdClosed = finishFailed(context, sink, StringUtils.hasText(ex.getMessage())
+                        ? ex.getMessage()
+                        : SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
+                return;
+            }
+
+            subscription = agentSession.subscribe(progressListener(
+                    context.getRunId(), hasMessageDelta, aborted, sink, "streamGenerationRun"));
+
+            TurnResult result = agentSession.prompt(PromptRequest.builder()
+                    .runId(context.getRunId())
+                    .sessionId(context.getSessionId())
+                    .text(context.getPromptText())
+                    .skillId(null)
+                    .build());
+
+            logModelUsagePlaceholder(context, result);
+
+            if (aborted.get()) {
+                holdClosed = finishFailed(context, sink, SSE_SEND_FAILED_RELEASED);
+                return;
+            }
+
+            if (result == null || result.getStatus() != TurnResult.Status.OK) {
+                String reason = result != null && StringUtils.hasText(result.getFinalResponse())
+                        ? result.getFinalResponse()
+                        : PICKLIST_MODEL_FAILED;
+                holdClosed = finishFailed(context, sink, reason);
+                return;
+            }
+
+            String finalText = result.getFinalResponse();
+            if (!hasMessageDelta.get() && StringUtils.hasText(finalText)) {
+                Map<String, Object> delta = new LinkedHashMap<String, Object>();
+                delta.put("text", finalText);
+                emit(sink, Ad4SseEvent.of(Ad4EventName.message_delta, delta));
+            }
+
+            final Map<String, Object> projectedView;
+            try {
+                projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
+                        .skillBound(false)
+                        .finalResponse(finalText)
+                        .build());
+            } catch (BusinessException ex) {
+                holdClosed = finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : ComputerViewResolver.MSG_VIEW_UNAVAILABLE);
+                return;
+            }
+
+            Map<String, Object> ready = new LinkedHashMap<String, Object>();
+            ready.put("view", projectedView);
+            try {
+                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, ready));
+            } catch (RuntimeException emitEx) {
+                LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
+                        emitEx.getMessage() != null ? emitEx.getMessage() : "SSE emit artifact_ready failed",
+                        NameValue.create("runId", context.getRunId()));
+            }
+
+            boolean releaseOk = creditHoldSupport.release(context.getUserId(), context.getHoldId(), context.getRunId());
+            holdClosed = true;
+            markRunFailed(context.getRunId());
+            if (!releaseOk) {
+                emitRunFailed(sink, PICKLIST_RELEASE_FAILED, false);
+            }
+
+            LoggerUtils.success(log, AgentApplicationService.class, "streamGenerationRun",
+                    NameValue.create("userId", context.getUserId()),
+                    NameValue.create("runId", context.getRunId()),
+                    NameValue.create("skillBound", false));
+        } catch (RuntimeException ex) {
+            LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
+                    ex.getMessage() != null ? ex.getMessage() : "stream failed",
+                    NameValue.create("runId", context.getRunId()));
+            if (!holdClosed) {
+                finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PICKLIST_MODEL_FAILED);
+            }
+        } finally {
+            closeQuietly(subscription);
+        }
     }
 
     private void streamDryRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {

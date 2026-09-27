@@ -4,7 +4,7 @@
 
 **Goal:** One Generation Run pipeline for all Agent SSE interactions; picklist/empty become profiles + thin HTTP aliases.
 
-**Architecture:** `GenerationRunContext` + `SkillRunProfile` (skillId, settle, persistAs). `streamGenerationRun` owns prompt → (persist plugin?) → `ComputerViewResolver` → settle?/release. `ArtifactPersistPlugin` for `persistAs=picklist`. FE calls `POST /api/v1/agent/runs`; `/runs/empty` and `/runs/picklist` stay as aliases.
+**Architecture:** `GenerationRunContext` + `SkillRunProfile` (dry / noSkill / billedPicklist). `streamGenerationRun` owns prompt → (persist plugin?) → `ComputerViewResolver` → settle?/release. `ArtifactPersistPlugin` for `persistAs=picklist`. FE calls `POST /api/v1/agent/runs`; `/runs/empty` and `/runs/picklist` stay as aliases.
 
 **Tech Stack:** Java 8 / Spring Boot 2.7, Vue3
 
@@ -12,6 +12,7 @@
 
 - AD-5: settle only after usable persist + resolved view (when settleEnabled).
 - Dry / empty: never settle; emit `run_failed` with `emptyRun=true`.
+- No-skill: never settle; emit `artifact_ready(view)` then release; mark FAILED in DB; **no** `run_failed` on success.
 - Computer render field remains `view`; transitional picklist fields OK on `artifact_ready`.
 - Do not parse full Skill YAML `output:` block yet — registry maps known skill ids.
 
@@ -50,6 +51,12 @@
 
 - [x] Update dual-track revision note.
 - [x] Commit rename leftovers + this feature.
+
+### Task 5: No-skill path
+
+- [x] `SkillRunProfile.noSkill()` + blank `skillId` resolve (non-dry).
+- [x] `streamNoSkillRun`: prompt(null skill) → NoSkillMarkdown → `artifact_ready(view)` → release; no settle / no success `run_failed`.
+- [x] Tests: prepare rejects blank text; stream emits markdown view without settle.
 
 ## Out of scope
 

@@ -3,7 +3,7 @@ package com.xmut.ebus.application.business.agent.dto;
 import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
 
 /**
- * Unified GenerationRun context for SSE streaming (dry or billed skill).
+ * Unified GenerationRun context for SSE streaming (dry / no-skill / billed).
  */
 public final class GenerationRunContext {
 

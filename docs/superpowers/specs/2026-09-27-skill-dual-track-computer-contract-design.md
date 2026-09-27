@@ -393,3 +393,4 @@ FE 若登记了 `painPoint → 痛点` 词典则显示标签；未登记则只�
 | 2026-09-27 | **信封落地**：`PicklistArtifactParser` 解析 `{view,artifact}`；`rawView` 走 Normalize；SKILL 主契约改为 view 优先；扁平 JSON 仍兼容 Legacy |
 | 2026-09-27 | **管道分层**：`CreditHoldSupport` + `ComputerViewResolver`；`streamPicklistRun` 顺序改为 parse→persist→**project 门禁**→settle→emit |
 | 2026-09-27 | **通用 Run**：`streamGenerationRun` + `SkillRunProfile` + `ArtifactPersistPlugin`；`POST /api/v1/agent/runs`；empty/picklist 为别名 |
+| 2026-09-27 | **无 Skill 路径**：blank `skillId` → `NoSkillMarkdown` → `artifact_ready(view)` → release；不 settle、成功不发 `run_failed` |

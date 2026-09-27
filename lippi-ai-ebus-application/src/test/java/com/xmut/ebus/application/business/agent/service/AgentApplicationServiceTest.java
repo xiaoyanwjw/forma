@@ -1,9 +1,12 @@
 package com.xmut.ebus.application.business.agent.service;
 
 import com.xmut.ebus.application.business.agent.command.StartEmptyRunCommand;
+import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.command.StartPicklistRunCommand;
 import com.xmut.ebus.application.business.agent.dto.EmptyRunContext;
+import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
 import com.xmut.ebus.application.business.agent.dto.PicklistRunContext;
+import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
@@ -583,6 +586,114 @@ class AgentApplicationServiceTest {
                         .text("  ")
                         .build()));
         verify(creditApplicationService, never()).reserveOne(anyString());
+    }
+
+    @Test
+    void prepareGenerationRunNoSkillRejectsBlankText() {
+        assertThrows(BusinessException.class, () -> service.prepareGenerationRun(
+                StartGenerationRunCommand.builder()
+                        .userId(USER_ID)
+                        .sceneCode(ECOM_SCENE_CODE)
+                        .text("  ")
+                        .dryRun(false)
+                        .build()));
+        verify(creditApplicationService, never()).reserveOne(anyString());
+    }
+
+    @Test
+    void prepareGenerationRunBlankSkillIdUsesNoSkillProfile() {
+        stubEcommerceByCode();
+        when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
+        when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
+
+        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder()
+                .userId(USER_ID)
+                .sceneCode(ECOM_SCENE_CODE)
+                .text("随便聊聊")
+                .dryRun(false)
+                .build());
+
+        assertFalse(ctx.getProfile().isSkillBound());
+        assertFalse(ctx.getProfile().isDryRun());
+        assertEquals("随便聊聊", ctx.getPromptText());
+        verify(creditApplicationService).reserveOne(USER_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+    }
+
+    @Test
+    void streamGenerationRunNoSkillEmitsMarkdownViewWithoutSettleOrRunFailed() {
+        GenerationRunContext ctx = new GenerationRunContext(
+                "run-ns-ok", USER_ID, HOLD_ID, "session-ns-ok", ECOM_SCENE_CODE,
+                "你好", SkillRunProfile.noSkill());
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(ecommercePack());
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-ns-ok", "session-ns-ok", "  这是一段草稿回复  ",
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-ns-ok")).thenReturn(Optional.of(
+                GenerationRun.start("run-ns-ok", USER_ID, HOLD_ID, "session-ns-ok",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        assertEquals(Ad4EventName.run_started, events.get(0).getName());
+        Ad4SseEvent ready = events.stream()
+                .filter(e -> e.getName() == Ad4EventName.artifact_ready)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("missing artifact_ready"));
+        assertNotNull(ready.getData().get("view"));
+        assertFalse(ready.getData().containsKey("artifactRef"));
+        assertFalse(ready.getData().containsKey("artifactType"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> view = (Map<String, Object>) ready.getData().get("view");
+        assertEquals(Integer.valueOf(1), view.get("version"));
+        assertEquals("draft", view.get("title"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> blocks = (List<Map<String, Object>>) view.get("blocks");
+        assertEquals(1, blocks.size());
+        assertEquals("markdown", blocks.get(0).get("type"));
+        assertEquals("这是一段草稿回复", blocks.get(0).get("text"));
+
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_failed));
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(picklistApplicationService, never()).persistUsable(any());
+        ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
+        verify(agentSession).prompt(promptCaptor.capture());
+        assertEquals(null, promptCaptor.getValue().getSkillId());
+        assertEquals("你好", promptCaptor.getValue().getText());
+        ArgumentCaptor<GenerationRun> runCaptor = ArgumentCaptor.forClass(GenerationRun.class);
+        verify(generationRunRepository).update(runCaptor.capture());
+        assertEquals(GenerationRunStatus.FAILED, runCaptor.getValue().getStatus());
+    }
+
+    @Test
+    void streamGenerationRunNoSkillReleasesWithRunFailedWhenModelFails() {
+        GenerationRunContext ctx = new GenerationRunContext(
+                "run-ns-fail", USER_ID, HOLD_ID, "session-ns-fail", ECOM_SCENE_CODE,
+                "你好", SkillRunProfile.noSkill());
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(ecommercePack());
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class)))
+                .thenReturn(TurnResult.failed("run-ns-fail", "模型超时"));
+        when(generationRunRepository.findById("run-ns-fail")).thenReturn(Optional.of(
+                GenerationRun.start("run-ns-fail", USER_ID, HOLD_ID, "session-ns-fail",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.run_failed, failed.getName());
+        assertEquals("模型超时", failed.getData().get("reason"));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
 
     @Test
