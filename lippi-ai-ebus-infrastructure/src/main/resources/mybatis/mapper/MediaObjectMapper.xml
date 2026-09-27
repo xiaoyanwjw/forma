@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.ebus.infrastructure.persistence.mybatis.mapper.MediaObjectMapper">
+
+    <resultMap id="MediaObjectResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.MediaObjectPO">
+        <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="objectKey" column="object_key"/>
+        <result property="contentType" column="content_type"/>
+        <result property="sizeBytes" column="size_bytes"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO ebus_media_object
+            (biz_id, user_id, object_key, content_type, size_bytes, created_at)
+        VALUES
+            (#{bizId}, #{userId}, #{objectKey}, #{contentType}, #{sizeBytes}, #{createdAt})
+    </insert>
+
+    <select id="selectByBizId" resultMap="MediaObjectResultMap">
+        SELECT id, biz_id, user_id, object_key, content_type, size_bytes, created_at
+        FROM ebus_media_object
+        WHERE biz_id = #{bizId}
+    </select>
+
+    <delete id="deleteByBizId">
+        DELETE FROM ebus_media_object WHERE biz_id = #{bizId}
+    </delete>
+</mapper>

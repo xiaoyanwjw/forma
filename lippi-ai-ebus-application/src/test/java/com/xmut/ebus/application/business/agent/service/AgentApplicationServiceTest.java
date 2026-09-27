@@ -15,6 +15,9 @@ import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
 import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
+import com.xmut.ebus.application.business.media.support.ListingMediaMountSupport;
+import com.xmut.ebus.domain.business.media.model.MediaObject;
+import com.xmut.ebus.domain.business.media.store.MediaStore;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -97,6 +100,8 @@ class AgentApplicationServiceTest {
     @Mock
     private ArtifactPersistPlugin artifactPersistPlugin;
 
+    private MediaStore mediaStore;
+    private ListingMediaMountSupport listingMediaMountSupport;
     private AgentApplicationService service;
 
     @BeforeEach
@@ -104,6 +109,8 @@ class AgentApplicationServiceTest {
         org.mockito.Mockito.lenient().when(artifactPersistPlugin.persist(
                         anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap()))
                 .thenReturn(new PersistedGenerationArtifact("art-1", Collections.<String, Object>emptyMap()));
+        mediaStore = new FakeMediaStore();
+        listingMediaMountSupport = new ListingMediaMountSupport(mediaStore);
         service = newService(defaultViewResolver());
     }
 
@@ -118,6 +125,7 @@ class AgentApplicationServiceTest {
                 new GenerationOutputParser(new com.fasterxml.jackson.databind.ObjectMapper()),
                 artifactPersistPlugin,
                 viewResolver,
+                listingMediaMountSupport,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -996,6 +1004,144 @@ class AgentApplicationServiceTest {
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
 
+    @Test
+    void streamListingRunMountsPlaceholderAndSettles() {
+        GenerationRunContext ctx = listingCtx("run-listing-ok", "session-listing-ok");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-listing-ok", "session-listing-ok", VALID_LISTING_JSON,
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-listing-ok")).thenReturn(Optional.of(
+                GenerationRun.start("run-listing-ok", USER_ID, HOLD_ID, "session-listing-ok",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(creditApplicationService).settle(USER_ID, HOLD_ID);
+        verify(artifactPersistPlugin).persist(
+                eq(USER_ID), eq("run-listing-ok"), eq(ECOM_SCENE_CODE),
+                eq(SkillRunProfile.PERSIST_SKU), anyMap(),
+                argThat(payload -> {
+                    Object ids = payload.get("mediaObjectIds");
+                    return ids instanceof List && !((List<?>) ids).isEmpty();
+                }));
+        Ad4SseEvent ready = events.stream()
+                .filter(e -> e.getName() == Ad4EventName.artifact_ready)
+                .findFirst()
+                .orElseThrow(IllegalStateException::new);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> view = (Map<String, Object>) ready.getData().get("view");
+        assertNotNull(view);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> blocks = (List<Map<String, Object>>) view.get("blocks");
+        assertTrue(blocks.stream().anyMatch(b ->
+                "media".equals(b.get("type"))
+                        && b.get("mediaObjectId") != null
+                        && b.get("src") != null));
+    }
+
+    @Test
+    void streamListingRunReleasesWhenMediaStoreFails() {
+        ((FakeMediaStore) mediaStore).failPuts = true;
+        GenerationRunContext ctx = listingCtx("run-listing-media-fail", "session-listing-media-fail");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-listing-media-fail", "session-listing-media-fail", VALID_LISTING_JSON,
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-listing-media-fail")).thenReturn(Optional.of(
+                GenerationRun.start("run-listing-media-fail", USER_ID, HOLD_ID, "session-listing-media-fail",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        assertEquals(Ad4EventName.run_failed, events.get(events.size() - 1).getName());
+        assertTrue(String.valueOf(events.get(events.size() - 1).getData().get("reason")).contains("服务繁忙"));
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
+    }
+
+    @Test
+    void streamListingRunReleasesWhenSkuPayloadUnusable() {
+        when(artifactPersistPlugin.persist(anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap()))
+                .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_SKU_UNUSABLE));
+        GenerationRunContext ctx = listingCtx("run-listing-bad", "session-listing-bad");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-listing-bad", "session-listing-bad", VALID_LISTING_JSON,
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-listing-bad")).thenReturn(Optional.of(
+                GenerationRun.start("run-listing-bad", USER_ID, HOLD_ID, "session-listing-bad",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        assertEquals(Ad4EventName.run_failed, events.get(events.size() - 1).getName());
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+    }
+
+    @Test
+    void streamListingRunSettleFailureEmitsListingSettleFailed() {
+        GenerationRunContext ctx = listingCtx("run-listing-settle", "session-listing-settle");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-listing-settle", "session-listing-settle", VALID_LISTING_JSON,
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
+                .when(creditApplicationService).settle(USER_ID, HOLD_ID);
+        when(generationRunRepository.findById("run-listing-settle")).thenReturn(Optional.of(
+                GenerationRun.start("run-listing-settle", USER_ID, HOLD_ID, "session-listing-settle",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.run_failed, failed.getName());
+        assertEquals(AgentApplicationService.LISTING_SETTLE_FAILED, failed.getData().get("reason"));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(creditApplicationService).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).release(anyString(), anyString());
+    }
+
+    @Test
+    void streamListingRunReleasesWhenPromptFails() {
+        GenerationRunContext ctx = listingCtx("run-listing-fail", "session-listing-fail");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class)))
+                .thenThrow(new BusinessException(ErrorCode.SYSTEM_ERROR, "model down"));
+        when(generationRunRepository.findById("run-listing-fail")).thenReturn(Optional.of(
+                GenerationRun.start("run-listing-fail", USER_ID, HOLD_ID, "session-listing-fail",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        assertEquals(Ad4EventName.run_failed, events.get(events.size() - 1).getName());
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
+    }
+
     private static final String VALID_PICKLIST_JSON =
             "{\"view\":{\"version\":1,\"title\":\"picklist\",\"status\":\"ready\","
                     + "\"blocks\":[{\"type\":\"note\",\"tone\":\"mute\",\"text\":\"ok\"}]},"
@@ -1006,14 +1152,71 @@ class AgentApplicationServiceTest {
                     + "\"blocks\":[{\"type\":\"note\",\"tone\":\"mute\",\"text\":\"skill-owned note\"}]},"
                     + "\"artifact\":{\"ok\":true}}";
 
+    private static final String VALID_LISTING_JSON =
+            "{\"view\":{\"version\":1,\"title\":\"硅胶沥水垫 · 上架素材\",\"status\":\"ready\","
+                    + "\"blocks\":["
+                    + "{\"type\":\"media\",\"role\":\"hero\",\"placeholder\":\"白底主图方案\",\"alt\":\"主图\"},"
+                    + "{\"type\":\"section\",\"heading\":\"详情标题\",\"body\":\"厨房硅胶沥水垫\"},"
+                    + "{\"type\":\"section\",\"heading\":\"详情正文\",\"body\":\"易清洗防滑\"},"
+                    + "{\"type\":\"section\",\"heading\":\"展示说明\",\"body\":\"主图突出颜色\",\"tone\":\"mute\"}"
+                    + "]},"
+                    + "\"artifact\":{\"title\":\"硅胶沥水垫 · 上架素材\","
+                    + "\"templateId\":\"domestic-generic-default\","
+                    + "\"heroPlan\":\"白底俯拍\",\"detailTitle\":\"厨房硅胶沥水垫\","
+                    + "\"detailBody\":\"易清洗防滑\",\"displayNotes\":\"主图突出颜色\","
+                    + "\"mediaObjectIds\":[]}}";
+
     private GenerationRunContext picklistCtx(String runId, String sessionId) {
         return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
                 "帮我选品", SkillRunProfile.billedPicklist());
     }
 
+    private GenerationRunContext listingCtx(String runId, String sessionId) {
+        return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
+                "请为硅胶沥水垫生成上架素材", SkillRunProfile.billedListing());
+    }
+
     private GenerationRunContext emptyCtx(String runId, String sessionId) {
         return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
                 "empty-run", SkillRunProfile.dry(null));
+    }
+
+    private static final class FakeMediaStore implements MediaStore {
+        boolean failPuts;
+        private final java.util.concurrent.ConcurrentHashMap<String, MediaObject> byId =
+                new java.util.concurrent.ConcurrentHashMap<String, MediaObject>();
+
+        @Override
+        public MediaObject put(String userId, String contentType, byte[] bytes) {
+            if (failPuts) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, ListingMediaMountSupport.MSG_MEDIA_BUSY);
+            }
+            String id = java.util.UUID.randomUUID().toString();
+            MediaObject media = MediaObject.create(
+                    id, userId, "memory/" + id, contentType, bytes == null ? 0 : bytes.length, NOW);
+            byId.put(id, media);
+            return media;
+        }
+
+        @Override
+        public String issueReadUrl(String mediaObjectId) {
+            if (!byId.containsKey(mediaObjectId)) {
+                throw new BusinessException(ErrorCode.PARAM_INVALID, "媒体不存在");
+            }
+            return "data:image/png;base64,AAAA";
+        }
+
+        @Override
+        public Optional<MediaObject> findById(String mediaObjectId) {
+            return Optional.ofNullable(byId.get(mediaObjectId));
+        }
+
+        @Override
+        public void delete(String mediaObjectId) {
+            if (mediaObjectId != null) {
+                byId.remove(mediaObjectId);
+            }
+        }
     }
 
     private void stubSubscribeEmittingSearchSkuOk(String runId, String sessionId, String finalText) {

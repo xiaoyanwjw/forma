@@ -11,6 +11,7 @@ import {
   processEventDisplayLabel,
   type ProcessEvent,
 } from '@/composables/agent/agentProgress'
+import { useAgentListingRun } from '@/composables/agent/useAgentListingRun'
 import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
 import {
   DEMO_LISTING_VIEW,
@@ -52,6 +53,7 @@ const messages = ref<ChatMessage[]>([])
 const sessionTitle = ref(DEMO_SESSION_TITLE)
 const computerKind = ref<ComputerKind>(null)
 const livePicklist = ref<GenerationArtifactPayload | null>(null)
+const liveListing = ref<GenerationArtifactPayload | null>(null)
 const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
 const thinkingMessageId = ref<string | null>(null)
@@ -62,21 +64,44 @@ const {
   running: picklistRunning,
   error: picklistError,
   artifact: picklistArtifact,
-  sessionId,
-  processEvents,
+  sessionId: picklistSessionId,
+  processEvents: picklistProcessEvents,
   startPicklistRun,
   reset: resetPicklistRun,
 } = useAgentPicklistRun()
 
+const {
+  running: listingRunning,
+  error: listingError,
+  artifact: listingArtifact,
+  sessionId: listingSessionId,
+  processEvents: listingProcessEvents,
+  startListingRun,
+  reset: resetListingRun,
+} = useAgentListingRun()
+
+const generationRunning = computed(() => picklistRunning.value || listingRunning.value)
+const sessionId = computed(() => picklistSessionId.value ?? listingSessionId.value)
+const processEvents = computed(() =>
+  listingRunning.value ||
+  (listingProcessEvents.value.length > 0 && !picklistRunning.value)
+    ? listingProcessEvents.value
+    : picklistProcessEvents.value,
+)
+
 const computerOpen = computed(() => computerKind.value != null)
 const sessionSendEnabled = computed(
-  () => sessionPrompt.value.trim().length > 0 && !picklistRunning.value,
+  () => sessionPrompt.value.trim().length > 0 && !generationRunning.value,
 )
 
 const picksIsLive = computed(() => Boolean(livePicklist.value?.view))
+const listingIsLive = computed(() => Boolean(liveListing.value?.view))
 
 const activeComputerDoc = computed(() => {
-  if (computerKind.value === 'listing') return DEMO_LISTING_VIEW
+  if (computerKind.value === 'listing') {
+    if (liveListing.value?.view) return liveListing.value.view
+    return DEMO_LISTING_VIEW
+  }
   if (computerKind.value === 'picks') {
     if (livePicklist.value?.view) return livePicklist.value.view
     return DEMO_PICKS_VIEW
@@ -105,18 +130,108 @@ function fillListingSession() {
   sessionPrompt.value = LISTING_TEMPLATE
 }
 
+function isListingIntent(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (/选品|测款|候选清单/.test(t) && !/上架|listing|主图|详情文案/i.test(t)) {
+    return false
+  }
+  return /上架|listing|主图|详情文案|上架素材/i.test(t)
+}
+
 function isPicklistIntent(text: string): boolean {
   const t = text.trim()
   if (!t) return false
-  if (/上架|listing|主图|详情文案/i.test(t) && !/选品/.test(t)) {
+  if (isListingIntent(t) && !/选品/.test(t)) {
     return false
   }
   return /选品|测款|品类|候选|可卖|帮我选/.test(t) || t.includes('选品清单')
 }
 
+function applySoftCreditHint(reason: string): string {
+  return /积分不足|额度不足|不足/.test(reason)
+    ? `${reason}。可前往套餐页升级后再试。`
+    : reason
+}
+
+async function finishGenerationMessage(opts: {
+  thinkingId: string
+  error: string
+  artifact: GenerationArtifactPayload | null
+  kind: ComputerKind
+  successFallback: string
+  emptyFallback: string
+  processSnapshot: ProcessEvent[] | undefined
+}) {
+  const idx = messages.value.findIndex((m) => m.id === opts.thinkingId)
+  if (opts.error) {
+    const soft = applySoftCreditHint(opts.error)
+    const statusDetail = buildFailureDetail(soft, opts.processSnapshot || [])
+    const failedMsg = {
+      id: opts.thinkingId,
+      role: 'agent' as const,
+      text: soft,
+      processEvents: opts.processSnapshot,
+      failed: true,
+      statusDetail,
+    }
+    if (idx >= 0) {
+      messages.value[idx] = failedMsg
+    } else {
+      messages.value.push({ ...failedMsg, id: nextMsgId() })
+    }
+    thinkingMessageId.value = null
+    scrollChatToBottom()
+    return
+  }
+
+  if (opts.artifact?.view) {
+    if (opts.kind === 'picks') {
+      livePicklist.value = opts.artifact
+    } else if (opts.kind === 'listing') {
+      liveListing.value = opts.artifact
+    }
+    computerKind.value = opts.kind
+    revealComputer()
+    const reply = opts.successFallback
+    if (idx >= 0) {
+      messages.value[idx] = {
+        id: opts.thinkingId,
+        role: 'agent',
+        text: reply,
+        processEvents: opts.processSnapshot,
+      }
+    } else {
+      messages.value.push({
+        id: nextMsgId(),
+        role: 'agent',
+        text: reply,
+        processEvents: opts.processSnapshot,
+      })
+    }
+  } else {
+    const statusDetail = buildFailureDetail(opts.emptyFallback, opts.processSnapshot || [])
+    const failedMsg = {
+      id: opts.thinkingId,
+      role: 'agent' as const,
+      text: opts.emptyFallback,
+      processEvents: opts.processSnapshot,
+      failed: true,
+      statusDetail,
+    }
+    if (idx >= 0) {
+      messages.value[idx] = failedMsg
+    } else {
+      messages.value.push({ ...failedMsg, id: nextMsgId() })
+    }
+  }
+  thinkingMessageId.value = null
+  scrollChatToBottom()
+}
+
 async function sendFromSession() {
   const text = sessionPrompt.value.trim()
-  if (!text || picklistRunning.value) return
+  if (!text || generationRunning.value) return
 
   if (TEMPLATE_SLOT_MARK.test(text)) {
     messages.value.push({ id: nextMsgId(), role: 'user', text })
@@ -134,11 +249,13 @@ async function sendFromSession() {
   sessionPrompt.value = ''
   scrollChatToBottom()
 
-  if (!isPicklistIntent(text)) {
+  const listing = isListingIntent(text)
+  const picklist = isPicklistIntent(text)
+  if (!listing && !picklist) {
     messages.value.push({
       id: nextMsgId(),
       role: 'agent',
-      text: '近端可生成「选品清单」。请用上方选品胶囊，或直接描述品类与客单价。上架素材将在后续故事接入。',
+      text: '近端可生成「选品清单」或「上架素材」。请用上方胶囊，或直接描述品类/客单价，或说明要上架的商品。',
     })
     scrollChatToBottom()
     return
@@ -149,98 +266,47 @@ async function sendFromSession() {
   messages.value.push({
     id: thinkingId,
     role: 'agent',
-    text: '正在生成选品清单…',
+    text: listing ? '正在生成上架素材…' : '正在生成选品清单…',
   })
   scrollChatToBottom()
 
-  await startPicklistRun({
+  const shared = {
     text,
     sceneCode: SCENE_CODE,
     sceneId: sceneBizId.value ?? undefined,
     sessionId: sessionId.value ?? undefined,
-  })
+  }
 
-  const idx = messages.value.findIndex((m) => m.id === thinkingId)
-  const processSnapshot = processEvents.value.length ? [...processEvents.value] : undefined
-  if (picklistError.value) {
-    const reason = picklistError.value
-    const soft =
-      /积分不足|额度不足|不足/.test(reason)
-        ? `${reason}。可前往套餐页升级后再试。`
-        : reason
-    const statusDetail = buildFailureDetail(soft, processSnapshot || [])
-    if (idx >= 0) {
-      messages.value[idx] = {
-        id: thinkingId,
-        role: 'agent',
-        text: soft,
-        processEvents: processSnapshot,
-        failed: true,
-        statusDetail,
-      }
-    } else {
-      messages.value.push({
-        id: nextMsgId(),
-        role: 'agent',
-        text: soft,
-        processEvents: processSnapshot,
-        failed: true,
-        statusDetail,
-      })
-    }
-    thinkingMessageId.value = null
-    scrollChatToBottom()
+  if (listing) {
+    await startListingRun(shared)
+    await finishGenerationMessage({
+      thinkingId,
+      error: listingError.value,
+      artifact: listingArtifact.value,
+      kind: 'listing',
+      successFallback: '已生成上架素材，右侧 Computer 可查看主图位与文案。',
+      emptyFallback: '上架素材已结束，但未收到可用成果，请重试。',
+      processSnapshot: listingProcessEvents.value.length
+        ? [...listingProcessEvents.value]
+        : undefined,
+    })
     return
   }
 
-  if (picklistArtifact.value?.view) {
-    livePicklist.value = picklistArtifact.value
-    computerKind.value = 'picks'
-    revealComputer()
-    const n = picklistArtifact.value.view.blocks?.length || 0
-    const reply = n > 0
-      ? `已生成选品候选，右侧 Computer 可查看详情。`
-      : `已生成选品成果，右侧 Computer 可查看。`
-    if (idx >= 0) {
-      messages.value[idx] = {
-        id: thinkingId,
-        role: 'agent',
-        text: reply,
-        processEvents: processSnapshot,
-      }
-    } else {
-      messages.value.push({
-        id: nextMsgId(),
-        role: 'agent',
-        text: reply,
-        processEvents: processSnapshot,
-      })
-    }
-  } else {
-    const fallback = '选品已结束，但未收到可用清单，请重试。'
-    const statusDetail = buildFailureDetail(fallback, processSnapshot || [])
-    if (idx >= 0) {
-      messages.value[idx] = {
-        id: thinkingId,
-        role: 'agent',
-        text: fallback,
-        processEvents: processSnapshot,
-        failed: true,
-        statusDetail,
-      }
-    } else {
-      messages.value.push({
-        id: nextMsgId(),
-        role: 'agent',
-        text: fallback,
-        processEvents: processSnapshot,
-        failed: true,
-        statusDetail,
-      })
-    }
-  }
-  thinkingMessageId.value = null
-  scrollChatToBottom()
+  await startPicklistRun(shared)
+  const n = picklistArtifact.value?.view?.blocks?.length || 0
+  await finishGenerationMessage({
+    thinkingId,
+    error: picklistError.value,
+    artifact: picklistArtifact.value,
+    kind: 'picks',
+    successFallback:
+      n > 0 ? '已生成选品候选，右侧 Computer 可查看详情。' : '已生成选品成果，右侧 Computer 可查看。',
+    emptyFallback: '选品已结束，但未收到可用清单，请重试。',
+    processSnapshot: picklistProcessEvents.value.length
+      ? [...picklistProcessEvents.value]
+      : undefined,
+  })
 }
 
 function revealComputer() {
@@ -259,14 +325,25 @@ function openListingComputer() {
   revealComputer()
 }
 
-function canPreviewFromStatus(m: ChatMessage): boolean {
-  if (m.failed) return false
-  return /已生成/.test(m.text) && Boolean(livePicklist.value?.view)
+function previewKindFromStatus(m: ChatMessage): ComputerKind {
+  if (/上架素材|主图位/.test(m.text)) return 'listing'
+  if (/选品/.test(m.text)) return 'picks'
+  return null
 }
 
-/** Preview is showing when Computer is open on the live picks view. */
+function canPreviewFromStatus(m: ChatMessage): boolean {
+  if (m.failed) return false
+  if (!/已生成/.test(m.text)) return false
+  const kind = previewKindFromStatus(m)
+  if (kind === 'listing') return Boolean(liveListing.value?.view)
+  if (kind === 'picks') return Boolean(livePicklist.value?.view)
+  return Boolean(livePicklist.value?.view || liveListing.value?.view)
+}
+
+/** Preview is showing when Computer is open on the matching live view. */
 function isPreviewOpenFromStatus(m: ChatMessage): boolean {
-  return canPreviewFromStatus(m) && computerKind.value === 'picks'
+  const kind = previewKindFromStatus(m) || (livePicklist.value?.view ? 'picks' : 'listing')
+  return canPreviewFromStatus(m) && computerKind.value === kind
 }
 
 function canExpandStatus(m: ChatMessage): boolean {
@@ -278,7 +355,12 @@ function onStatusCardClick(m: ChatMessage) {
     if (isPreviewOpenFromStatus(m)) {
       closeComputer()
     } else {
-      openPicksComputer()
+      const kind = previewKindFromStatus(m)
+      if (kind === 'listing') {
+        openListingComputer()
+      } else {
+        openPicksComputer()
+      }
     }
     return
   }
@@ -299,12 +381,14 @@ function closeComputer() {
 
 function newTask() {
   resetPicklistRun()
+  resetListingRun()
   thinkingMessageId.value = null
   expandedStreamIds.value = new Set()
   expandedStatusIds.value = new Set()
   messages.value = []
   computerKind.value = null
   livePicklist.value = null
+  liveListing.value = null
   sessionPrompt.value = ''
   sessionTitle.value = DEMO_SESSION_TITLE
 }
@@ -345,8 +429,14 @@ watch(picklistArtifact, (value) => {
   }
 })
 
+watch(listingArtifact, (value) => {
+  if (value?.view) {
+    liveListing.value = value
+  }
+})
+
 watch(processEvents, () => {
-  if (!picklistRunning.value || !thinkingMessageId.value) return
+  if (!generationRunning.value || !thinkingMessageId.value) return
   const idx = messages.value.findIndex((m) => m.id === thinkingMessageId.value)
   if (idx < 0) return
   const cur = messages.value[idx]
@@ -433,10 +523,10 @@ onMounted(async () => {
                   v-else-if="m.processEvents?.length || m.text"
                   class="chat-console"
                   :class="{
-                    'is-running': picklistRunning && m.id === thinkingMessageId,
+                    'is-running': generationRunning && m.id === thinkingMessageId,
                   }"
                   aria-label="运行日志"
-                  :aria-busy="picklistRunning && m.id === thinkingMessageId ? 'true' : undefined"
+                  :aria-busy="generationRunning && m.id === thinkingMessageId ? 'true' : undefined"
                 >
                   <div
                     v-if="m.processEvents?.length"
@@ -493,7 +583,7 @@ onMounted(async () => {
                     </div>
                   </div>
                   <div
-                    v-if="m.text && !(picklistRunning && m.id === thinkingMessageId)"
+                    v-if="m.text && !(generationRunning && m.id === thinkingMessageId)"
                     class="chat-event chat-event-status"
                     :class="{
                       'is-preview': canPreviewFromStatus(m),
@@ -542,7 +632,7 @@ onMounted(async () => {
                     >{{ formatStreamBodyForDisplay(m.statusDetail || m.text) }}</pre>
                   </div>
                 </div>
-                <div v-if="m.role === 'agent' && !picksIsLive" class="demo-actions">
+                <div v-if="m.role === 'agent' && !picksIsLive && !listingIsLive" class="demo-actions">
                   <button
                     type="button"
                     class="pill"
@@ -567,10 +657,10 @@ onMounted(async () => {
           <div class="chat-input-wrap">
             <div class="chat-composer">
               <div class="quick-row" role="group" aria-label="快捷任务">
-                <button type="button" class="pill" :disabled="picklistRunning" @click="fillPicksSession">
+                <button type="button" class="pill" :disabled="generationRunning" @click="fillPicksSession">
                   选品清单
                 </button>
-                <button type="button" class="pill" :disabled="picklistRunning" @click="fillListingSession">
+                <button type="button" class="pill" :disabled="generationRunning" @click="fillListingSession">
                   生成上架素材
                 </button>
               </div>
@@ -581,7 +671,7 @@ onMounted(async () => {
                   rows="2"
                   placeholder="分配一个任务或提问任何问题"
                   aria-label="继续提问"
-                  :disabled="picklistRunning"
+                  :disabled="generationRunning"
                 />
                 <div class="prompt-toolbar">
                   <button

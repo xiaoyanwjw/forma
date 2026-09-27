@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,6 +30,8 @@ public class ArtifactPersistPlugin {
 
     private static final int TITLE_MAX_LEN = 256;
     private static final String DEFAULT_TITLE = "成果";
+    private static final String TEMPLATE_DOMESTIC_DEFAULT = "domestic-generic-default";
+    public static final String MSG_SKU_UNUSABLE = "上架素材不合格：需含详情文案、展示说明与主图位（mediaObjectId）";
 
     private final ArtifactRepository artifactRepository;
     private final ObjectMapper objectMapper;
@@ -52,11 +55,17 @@ public class ArtifactPersistPlugin {
                                                Map<String, Object> projectedView,
                                                Map<String, Object> businessPayload) {
         ArtifactType type = resolveType(persistAs);
+        Map<String, Object> data = businessPayload != null
+                ? businessPayload
+                : Collections.<String, Object>emptyMap();
+        if (type == ArtifactType.SKU) {
+            requireUsableSkuPayload(data);
+        }
         String id = UUID.randomUUID().toString();
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         Map<String, Object> view = projectedView != null ? projectedView : Collections.<String, Object>emptyMap();
         payload.put(PAYLOAD_VIEW, view);
-        payload.put(PAYLOAD_DATA, businessPayload != null ? businessPayload : Collections.<String, Object>emptyMap());
+        payload.put(PAYLOAD_DATA, data);
         String json;
         try {
             json = objectMapper.writeValueAsString(payload);
@@ -78,10 +87,55 @@ public class ArtifactPersistPlugin {
         if (SkillRunProfile.PERSIST_PICKLIST.equals(persistAs)) {
             return ArtifactType.PICKLIST;
         }
-        if ("sku".equals(persistAs)) {
+        if (SkillRunProfile.PERSIST_SKU.equals(persistAs)) {
             return ArtifactType.SKU;
         }
         throw new BusinessException(ErrorCode.PARAM_INVALID, "未支持的成果类型: " + persistAs);
+    }
+
+    /**
+     * 可用 Listing：详情文案 + 展示说明 + ≥1 mediaObjectId；templateId 固定国内通用默认。
+     */
+    static void requireUsableSkuPayload(Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SKU_UNUSABLE);
+        }
+        String templateId = text(data.get("templateId"));
+        if (!TEMPLATE_DOMESTIC_DEFAULT.equals(templateId)) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SKU_UNUSABLE);
+        }
+        if (!StringUtils.hasText(text(data.get("detailTitle")))
+                || !StringUtils.hasText(text(data.get("detailBody")))
+                || !StringUtils.hasText(text(data.get("displayNotes")))
+                || !StringUtils.hasText(text(data.get("heroPlan")))) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SKU_UNUSABLE);
+        }
+        List<String> mediaIds = mediaObjectIds(data.get("mediaObjectIds"));
+        if (mediaIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SKU_UNUSABLE);
+        }
+    }
+
+    private static String text(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String s = String.valueOf(value).trim();
+        return s.isEmpty() ? null : s;
+    }
+
+    private static List<String> mediaObjectIds(Object raw) {
+        if (!(raw instanceof List)) {
+            return Collections.emptyList();
+        }
+        List<String> out = new ArrayList<String>();
+        for (Object item : (List<?>) raw) {
+            String id = text(item);
+            if (id != null) {
+                out.add(id);
+            }
+        }
+        return out;
     }
 
     static String resolveTitle(Map<String, Object> projectedView) {

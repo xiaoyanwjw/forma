@@ -20,10 +20,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.xmut.ebus.common.exception.BusinessException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,6 +69,72 @@ class ArtifactPersistPluginTest {
         plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_PICKLIST,
                 listViewMap(), singletonArtifactWithOneItem());
         verify(artifactRepository).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_skuType_requiresUsablePayload() {
+        plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_SKU,
+                listViewMap(), usableSkuPayload());
+        ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
+        verify(artifactRepository).save(cap.capture());
+        assertEquals(ArtifactType.SKU, cap.getValue().getType());
+    }
+
+    @Test
+    void persist_skuType_rejectsMissingMediaAndCopy() {
+        Map<String, Object> bad = usableSkuPayload();
+        bad.put("mediaObjectIds", Collections.emptyList());
+        assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_SKU, listViewMap(), bad));
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_skuType_rejectsBadTemplateId() {
+        Map<String, Object> bad = usableSkuPayload();
+        bad.put("templateId", "other-template");
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_SKU, listViewMap(), bad));
+        assertEquals(ArtifactPersistPlugin.MSG_SKU_UNUSABLE, ex.getMessage());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_skuType_rejectsMissingDetailBody() {
+        Map<String, Object> bad = usableSkuPayload();
+        bad.put("detailBody", "  ");
+        assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_SKU, listViewMap(), bad));
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_skuType_rejectsMissingDisplayNotes() {
+        Map<String, Object> bad = usableSkuPayload();
+        bad.remove("displayNotes");
+        assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_SKU, listViewMap(), bad));
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_skuType_acceptsAssumptionsWhenUserInfoSparse() {
+        Map<String, Object> payload = usableSkuPayload();
+        payload.put("assumptions", "未指定平台时按国内淘宝通用详情结构默认");
+        plugin.persist("u1", "r1", "ecommerce", SkillRunProfile.PERSIST_SKU, listViewMap(), payload);
+        verify(artifactRepository).save(any(Artifact.class));
+    }
+
+    private static Map<String, Object> usableSkuPayload() {
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("title", "硅胶沥水垫 · 上架素材");
+        payload.put("templateId", "domestic-generic-default");
+        payload.put("heroPlan", "白底俯拍");
+        payload.put("detailTitle", "厨房硅胶沥水垫");
+        payload.put("detailBody", "易清洗");
+        payload.put("displayNotes", "主图突出颜色");
+        payload.put("mediaObjectIds", Collections.singletonList("media-1"));
+        return payload;
     }
 
     private static Map<String, Object> markdownViewMap() {

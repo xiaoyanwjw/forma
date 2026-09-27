@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
  * Agent 计费生成 SSE：JWT 鉴权后直接返回 {@code text/event-stream}。
  * <p>
  * 预占失败（如积分不足）在打开流之前以 JSON 业务错误返回，避免 SSE produces 干扰统一异常出口。
- * 通用入口 {@code POST /runs}；{@code /runs/empty}、{@code /runs/picklist} 为兼容别名。
+ * 通用入口 {@code POST /runs}；{@code /runs/empty}、{@code /runs/picklist}、{@code /runs/listing} 为兼容别名。
  */
 @Slf4j
 @RestController
@@ -49,7 +49,7 @@ public class AgentController {
 
     /**
      * 通用 Generation Run：dryRun=true 永不 settle；blank skillId → 无 Skill markdown；
-     * 已知 skillId → 计费（近端仅 ecommerce-picklist）。
+     * 已知 skillId → 计费（ecommerce-picklist / ecommerce-skulist）。
      */
     @PostMapping(value = "/runs")
     public Object startGenerationRun(@RequestBody(required = false) StartGenerationRunRequest request) {
@@ -124,6 +124,22 @@ public class AgentController {
         body.setSceneId(src.getSceneId());
         body.setSceneCode(src.getSceneCode());
         body.setSkillId("ecommerce-picklist");
+        body.setDryRun(false);
+        return startGenerationRun(body);
+    }
+
+    /**
+     * 计费 Listing 别名：预占失败返回 JSON；成功则 SSE（artifact_ready / run_settled 或 run_failed）。
+     */
+    @PostMapping(value = "/runs/listing")
+    public Object startListingRun(@RequestBody StartPicklistRunRequest request) {
+        StartPicklistRunRequest src = request != null ? request : new StartPicklistRunRequest();
+        StartGenerationRunRequest body = new StartGenerationRunRequest();
+        body.setText(src.getText());
+        body.setSessionId(src.getSessionId());
+        body.setSceneId(src.getSceneId());
+        body.setSceneCode(src.getSceneCode());
+        body.setSkillId("ecommerce-skulist");
         body.setDryRun(false);
         return startGenerationRun(body);
     }

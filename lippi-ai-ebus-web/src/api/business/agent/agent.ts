@@ -5,6 +5,7 @@ import type {
   Ad4SseEvent,
   StreamAgentRunOptions,
   StreamEmptyRunOptions,
+  StreamListingRunOptions,
   StreamPicklistRunOptions,
 } from '@/types/business/agent'
 import { isAd4EventName } from '@/types/business/agent'
@@ -80,6 +81,19 @@ export async function* streamPicklistRun(
   yield* streamAgentRun({
     ...options,
     skillId: 'ecommerce-picklist',
+    dryRun: false,
+  })
+}
+
+/**
+ * 计费 Listing：走通用 /runs（ecommerce-skulist）。
+ */
+export async function* streamListingRun(
+  options: StreamListingRunOptions,
+): AsyncGenerator<Ad4SseEvent, void, undefined> {
+  yield* streamAgentRun({
+    ...options,
+    skillId: 'ecommerce-skulist',
     dryRun: false,
   })
 }

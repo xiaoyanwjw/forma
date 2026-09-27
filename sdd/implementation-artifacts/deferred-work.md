@@ -183,3 +183,11 @@
 - source_spec: `docs/superpowers/specs/2026-09-26-generic-artifact-store-design.md`
   summary: 本地 compose 若仍挂载含 `ebus_picklist*` 的旧 MySQL volume，bootstrap 不会自动删表；需 `docker compose … down -v` 后重建，让 `010_ebus_artifact.sql` 在空库生效。
   evidence: 设计决策「开发库丢弃重建、无迁移脚本」；与 1.1 改密后 volume 不 re-init 同类。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-6-生成-listing-套装并结算-1-积分.md`
+  summary: epic-3-context 仍写 Listing 媒体「只进阿里云 OSS」，近端已用 MinIO/MediaStore；生产换 OSS 时需同步编译上下文。
+  evidence: 评审确认；本故事冻结意图为 B′ MinIO，未改生产 OSS 决策。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-6-生成-listing-套装并结算-1-积分.md`
+  summary: 客户端取消/SSE 断流时服务端 Listing 仍可能跑完并 settle（与 3.4 同构）。
+  evidence: FE abort 只停本地流；AgentSession.prompt 无中断端口。

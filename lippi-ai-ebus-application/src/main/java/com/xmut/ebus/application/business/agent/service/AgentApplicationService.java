@@ -13,6 +13,7 @@ import com.xmut.ebus.application.business.agent.support.PersistedGenerationArtif
 import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.ViewProjectContext;
+import com.xmut.ebus.application.business.media.support.ListingMediaMountSupport;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -68,6 +69,8 @@ public class AgentApplicationService {
     static final String PICKLIST_RELEASE_FAILED = "选品结束但预占释放失败";
     static final String PICKLIST_MODEL_FAILED = "选品生成失败，请稍后重试";
     static final String PICKLIST_SETTLE_FAILED = "选品成果已生成但结算失败，请联系支持";
+    static final String LISTING_MODEL_FAILED = "上架素材生成失败，请稍后重试";
+    public static final String LISTING_SETTLE_FAILED = "上架素材已生成但结算失败，请联系支持";
 
     static final String MSG_SCENE_REQUIRED = "请先选择场景";
     static final String MSG_SCENE_NOT_FOUND = "场景不存在";
@@ -85,6 +88,7 @@ public class AgentApplicationService {
     private final GenerationOutputParser generationOutputParser;
     private final ArtifactPersistPlugin artifactPersistPlugin;
     private final ComputerViewResolver computerViewResolver;
+    private final ListingMediaMountSupport listingMediaMountSupport;
     private final Clock clock;
 
     /**
@@ -380,7 +384,7 @@ public class AgentApplicationService {
             if (!TurnResult.Status.OK.equals(result.getStatus())) {
                 String reason = StringUtils.hasText(result.getFinalResponse())
                         ? result.getFinalResponse()
-                        : PICKLIST_MODEL_FAILED;
+                        : (profile.isBilledListing() ? LISTING_MODEL_FAILED : PICKLIST_MODEL_FAILED);
                 holdClosed = finishFailed(context, sink, reason);
                 return;
             }
@@ -392,7 +396,7 @@ public class AgentApplicationService {
             }
 
             ParsedGenerationOutput parsed = generationOutputParser.parse(result.getFinalResponse());
-            final Map<String, Object> projectedView;
+            Map<String, Object> projectedView;
             try {
                 projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                         .skillBound(profile.isSkillBound())
@@ -406,11 +410,28 @@ public class AgentApplicationService {
                 return;
             }
 
+            Map<String, Object> businessPayload = parsed.getBusinessPayload();
+            if (profile.isBilledListing()) {
+                try {
+                    ListingMediaMountSupport.MountedListingMedia mounted =
+                            listingMediaMountSupport.mountSystemPlaceholder(
+                                    context.getUserId(), projectedView, businessPayload);
+                    projectedView = mounted.getView();
+                    businessPayload = mounted.getBusinessPayload();
+                } catch (BusinessException ex) {
+                    holdClosed = finishFailed(context, sink,
+                            StringUtils.hasText(ex.getMessage())
+                                    ? ex.getMessage()
+                                    : ListingMediaMountSupport.MSG_MEDIA_BUSY);
+                    return;
+                }
+            }
+
             final PersistedGenerationArtifact persisted;
             try {
                 persisted = artifactPersistPlugin.persist(
                         context.getUserId(), context.getRunId(), context.getSceneCode(),
-                        profile.getPersistAs(), projectedView, parsed.getBusinessPayload());
+                        profile.getPersistAs(), projectedView, businessPayload);
             } catch (BusinessException ex) {
                 holdClosed = finishFailed(context, sink,
                         StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果落库失败");
@@ -428,7 +449,8 @@ public class AgentApplicationService {
                         NameValue.create("runId", context.getRunId()),
                         NameValue.create("holdId", context.getHoldId()));
                 markRunFailed(context.getRunId());
-                emitRunFailed(sink, PICKLIST_SETTLE_FAILED, false);
+                emitRunFailed(sink,
+                        profile.isBilledListing() ? LISTING_SETTLE_FAILED : PICKLIST_SETTLE_FAILED, false);
                 holdClosed = true;
                 return;
             }
@@ -462,13 +484,14 @@ public class AgentApplicationService {
             if (settledOk) {
                 return;
             }
+            String fallback = profile.isBilledListing() ? LISTING_MODEL_FAILED : PICKLIST_MODEL_FAILED;
             if (!holdClosed) {
                 holdClosed = finishFailed(context, sink,
-                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PICKLIST_MODEL_FAILED);
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : fallback);
             } else {
                 markRunFailed(context.getRunId());
                 emitRunFailed(sink,
-                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PICKLIST_MODEL_FAILED, false);
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : fallback, false);
             }
         } finally {
             closeQuietly(subscription);

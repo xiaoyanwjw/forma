@@ -116,8 +116,37 @@ function sseBody(chunks: string[]) {
   })
 }
 
+function sampleListingView() {
+  return {
+    version: 1,
+    title: '硅胶沥水垫 · 上架素材',
+    status: 'ready',
+    blocks: [
+      {
+        type: 'media',
+        role: 'hero',
+        mediaObjectId: 'media-1',
+        src: 'data:image/png;base64,AAAA',
+        placeholder: '白底主图方案',
+        alt: '主图',
+      },
+      { type: 'section', heading: '详情标题', body: '厨房硅胶沥水垫' },
+      { type: 'section', heading: '详情正文', body: '易清洗防滑' },
+      { type: 'section', heading: '展示说明', body: '主图突出颜色', tone: 'mute' },
+    ],
+  }
+}
+
+function listingArtifactReadyData(view = sampleListingView()) {
+  return {
+    artifactRef: 'sku-1',
+    view,
+  }
+}
+
 function mockCatalogAndCredits(opts?: {
   onPicklist?: () => Response
+  onListing?: () => Response
   available?: number
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -129,6 +158,21 @@ function mockCatalogAndCredits(opts?: {
       return creditsResponse(opts?.available ?? 14)
     }
     if (url.includes('/api/v1/agent/runs') && !url.includes('/runs/empty')) {
+      const body = typeof init?.body === 'string' ? init.body : ''
+      if (body.includes('ecommerce-skulist')) {
+        if (opts?.onListing) {
+          return opts.onListing()
+        }
+        return new Response(
+          sseBody([
+            'event: run_started\ndata: {"runId":"r-l1","sessionId":"s1","holdId":"h1"}\n\n',
+            'event: agent_started\ndata: {"label":"agent.start"}\n\n',
+            `event: artifact_ready\ndata: ${JSON.stringify(listingArtifactReadyData())}\n\n`,
+            'event: run_settled\ndata: {"runId":"r-l1","holdId":"h1","artifactRef":"sku-1","amount":1}\n\n',
+          ]),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        )
+      }
       if (opts?.onPicklist) {
         return opts.onPicklist()
       }
@@ -198,15 +242,25 @@ function setTextareaValue(el: HTMLTextAreaElement, value: string) {
 
 type FetchSpy = { mock: { calls: ReadonlyArray<unknown[]> } }
 
-function picklistApiHits(fetchMock: FetchSpy) {
+function billedRunApiHits(fetchMock: FetchSpy, skillId?: string) {
   return fetchMock.mock.calls.filter(([input, init]) => {
     const u = String(input)
     if (!u.includes('/api/v1/agent/runs') || u.includes('/runs/empty')) {
       return false
     }
     const body = typeof (init as RequestInit | undefined)?.body === 'string' ? String((init as RequestInit).body) : ''
-    return !body.includes('"dryRun":true')
+    if (body.includes('"dryRun":true')) return false
+    if (skillId) return body.includes(`"skillId":"${skillId}"`)
+    return true
   })
+}
+
+function picklistApiHits(fetchMock: FetchSpy) {
+  return billedRunApiHits(fetchMock, 'ecommerce-picklist')
+}
+
+function listingApiHits(fetchMock: FetchSpy) {
+  return billedRunApiHits(fetchMock, 'ecommerce-skulist')
 }
 
 function emptyRunApiHits(fetchMock: FetchSpy) {
@@ -414,6 +468,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(area.value).not.toMatch(/【/)
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
+    expect(listingApiHits(fetchMock)).toHaveLength(0)
   })
 
   it('send picklist intent streams billing SSE and opens Computer with live list', async () => {
@@ -708,6 +763,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     await enterViaSend(mounted.root, '随便聊聊天气')
 
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
+    expect(listingApiHits(fetchMock)).toHaveLength(0)
     const openListing = mounted.root.querySelector(
       '[data-demo="open-listing"]',
     ) as HTMLButtonElement
@@ -725,6 +781,39 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.textContent).toMatch(DEMO_LISTING.title)
     expect(body?.querySelectorAll('.comp-card').length).toBe(1)
     expect(body?.querySelector('.section-body.mute')?.textContent).toContain(DEMO_LISTING.body)
+  })
+
+  it('listing intent streams billed skulist and shows live Computer (not demo)', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。')
+
+    expect(listingApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
+    const body = listingApiHits(fetchMock)[0]?.[1] as RequestInit | undefined
+    expect(String(body?.body || '')).toContain('ecommerce-skulist')
+    expect(mounted.root.querySelector('.workspace.split')).toBeTruthy()
+    expect(mounted.root.textContent).toMatch(/已生成上架素材/)
+    expect(mounted.root.textContent).toMatch(/厨房硅胶沥水垫/)
+    expect(mounted.root.textContent).toMatch(/易清洗防滑/)
+    expect(mounted.root.querySelector('.listing-hero-img')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-demo="open-listing"]')).toBeNull()
+  })
+
+  it('listing insufficient credit shows upgrade hint without Computer', async () => {
+    fetchMock = mockCatalogAndCredits({
+      onListing: () =>
+        new Response(JSON.stringify({ success: false, code: 402, message: '积分不足，请升级套餐' }), {
+          status: 402,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '帮我写上架素材')
+
+    expect(listingApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
+    expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/积分不足|升级/)
+    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
   })
 
   it('new task clears thread and Computer but stays on session shell', async () => {

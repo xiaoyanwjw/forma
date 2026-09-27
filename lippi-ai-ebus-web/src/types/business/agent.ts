@@ -37,6 +37,15 @@ export interface StreamPicklistRunOptions {
   signal?: AbortSignal
 }
 
+/** 计费 Listing 请求 */
+export interface StreamListingRunOptions {
+  text: string
+  sceneId?: string
+  sceneCode?: string
+  sessionId?: string
+  signal?: AbortSignal
+}
+
 /** 通用 Generation Run（FE 主入口） */
 export interface StreamAgentRunOptions {
   text?: string

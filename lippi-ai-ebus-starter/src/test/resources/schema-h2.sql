@@ -90,6 +90,19 @@ CREATE TABLE IF NOT EXISTS ebus_artifact (
 CREATE INDEX IF NOT EXISTS idx_ebus_artifact_user_time ON ebus_artifact (user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_ebus_artifact_user_type ON ebus_artifact (user_id, artifact_type);
 
+CREATE TABLE IF NOT EXISTS ebus_media_object (
+    id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    biz_id       VARCHAR(36)  NOT NULL,
+    user_id      VARCHAR(36)  NOT NULL,
+    object_key   VARCHAR(512) NOT NULL,
+    content_type VARCHAR(128) NOT NULL,
+    size_bytes   BIGINT       NOT NULL DEFAULT 0,
+    created_at   TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_ebus_media_object_biz UNIQUE (biz_id),
+    CONSTRAINT uk_ebus_media_object_key UNIQUE (object_key)
+);
+CREATE INDEX IF NOT EXISTS idx_ebus_media_object_user ON ebus_media_object (user_id);
+
 CREATE TABLE IF NOT EXISTS pi_session (
     id                  BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     session_id          VARCHAR(64)  NOT NULL,

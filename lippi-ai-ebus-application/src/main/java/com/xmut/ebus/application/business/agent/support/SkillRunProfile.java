@@ -12,6 +12,7 @@ public final class SkillRunProfile {
 
     public static final String PERSIST_NONE = "none";
     public static final String PERSIST_PICKLIST = "picklist";
+    public static final String PERSIST_SKU = "sku";
 
     private final String skillId;
     private final boolean settleEnabled;
@@ -50,6 +51,11 @@ public final class SkillRunProfile {
                 SceneCapabilityPackLoader.SKILL_PICKLIST, true, PERSIST_PICKLIST, true, false, true);
     }
 
+    public static SkillRunProfile billedListing() {
+        return new SkillRunProfile(
+                SceneCapabilityPackLoader.SKILL_SKULIST, true, PERSIST_SKU, true, false, true);
+    }
+
     /**
      * Resolve profile from API flags.
      * <ul>
@@ -68,6 +74,9 @@ public final class SkillRunProfile {
         String id = skillId.trim();
         if (SceneCapabilityPackLoader.SKILL_PICKLIST.equals(id)) {
             return billedPicklist();
+        }
+        if (SceneCapabilityPackLoader.SKILL_SKULIST.equals(id)) {
+            return billedListing();
         }
         throw new BusinessException(ErrorCode.PARAM_INVALID, "暂不支持该 Skill 计费生成: " + id);
     }
@@ -96,8 +105,13 @@ public final class SkillRunProfile {
         return skillBound;
     }
 
-    /** Billed picklist: persist picklist artifact and require ≥1 successful {@code search_sku}. */
+    /** Billed picklist: persist picklist artifact（search_sku 为 skill 软约束，非本方法门禁）. */
     public boolean isBilledPicklist() {
         return settleEnabled && PERSIST_PICKLIST.equals(persistAs);
+    }
+
+    /** Billed Listing：persist sku；系统挂载占位主图后再 settle. */
+    public boolean isBilledListing() {
+        return settleEnabled && PERSIST_SKU.equals(persistAs);
     }
 }

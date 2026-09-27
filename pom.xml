@@ -34,6 +34,7 @@
         <junit-jupiter.version>5.9.3</junit-jupiter.version>
         <mockito.version>4.11.0</mockito.version>
         <aliyun-oss.version>3.18.1</aliyun-oss.version>
+        <minio.version>8.5.17</minio.version>
         <okhttp.version>4.12.0</okhttp.version>
     </properties>
 
@@ -102,6 +103,11 @@
                 <groupId>com.aliyun.oss</groupId>
                 <artifactId>aliyun-sdk-oss</artifactId>
                 <version>${aliyun-oss.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
