@@ -42,6 +42,49 @@ const SAMPLE_ITEMS = Array.from({ length: 8 }, (_, i) => ({
   risk: '低｜勿夸大',
 }))
 
+function sampleComputerView(items = SAMPLE_ITEMS) {
+  return {
+    version: 1,
+    title: 'picklist',
+    status: 'settled',
+    blocks: [
+      {
+        type: 'note',
+        text: '基于通用电商知识推断，非实时平台数据',
+        tone: 'mute',
+      },
+      {
+        type: 'list',
+        ordered: true,
+        items: items.map((it) => ({
+          badge: it.title.startsWith('【优先试】') ? 'priority' : undefined,
+          title: it.title.replace(/^【优先试】/, ''),
+          lines: [
+            { kind: 'priceBand', text: it.priceBand, emphasis: 'price' },
+            { kind: 'painPoint', text: it.painPoint },
+            { kind: 'angle', text: it.angle },
+            { kind: 'diff', text: it.diff },
+            { kind: 'niche', text: it.niche },
+          ],
+          tags: [
+            { kind: 'demand', text: it.demand, tone: 'positive' },
+            { kind: 'competition', text: it.competition, tone: 'caution' },
+            { kind: 'margin', text: it.margin, tone: 'info' },
+            { kind: 'risk', text: it.risk, tone: 'safe' },
+          ],
+        })),
+      },
+    ],
+  }
+}
+
+function artifactReadyData(view = sampleComputerView()) {
+  return {
+    artifactRef: 'pl-1',
+    view,
+  }
+}
+
 function okScenes(data: unknown) {
   return new Response(JSON.stringify({ success: true, code: 0, message: 'ok', data }), {
     status: 200,
@@ -97,47 +140,7 @@ function mockCatalogAndCredits(opts?: {
           'event: tool_finished\ndata: {"toolName":"read_skill"}\n\n',
           `event: message_delta\ndata: {"text":"${'x'.repeat(130)}"}\n\n`,
           'event: agent_ended\ndata: {"label":"agent.end"}\n\n',
-          `event: artifact_ready\ndata: ${JSON.stringify({
-            artifactType: 'picklist',
-            picklistId: 'pl-1',
-            runId: 'r1',
-            templateId: 'domestic-generic-default',
-            disclaimer: '基于通用电商知识推断，非实时平台数据',
-            items: SAMPLE_ITEMS,
-            view: {
-              version: 1,
-              title: 'picklist',
-              status: 'settled',
-              blocks: [
-                {
-                  type: 'note',
-                  text: '基于通用电商知识推断，非实时平台数据',
-                  tone: 'mute',
-                },
-                {
-                  type: 'list',
-                  ordered: true,
-                  items: SAMPLE_ITEMS.map((it) => ({
-                    badge: it.title.startsWith('【优先试】') ? 'priority' : undefined,
-                    title: it.title.replace(/^【优先试】/, ''),
-                    lines: [
-                      { kind: 'priceBand', text: it.priceBand, emphasis: 'price' },
-                      { kind: 'painPoint', text: it.painPoint },
-                      { kind: 'angle', text: it.angle },
-                      { kind: 'diff', text: it.diff },
-                      { kind: 'niche', text: it.niche },
-                    ],
-                    tags: [
-                      { kind: 'demand', text: it.demand, tone: 'positive' },
-                      { kind: 'competition', text: it.competition, tone: 'caution' },
-                      { kind: 'margin', text: it.margin, tone: 'info' },
-                      { kind: 'risk', text: it.risk, tone: 'safe' },
-                    ],
-                  })),
-                },
-              ],
-            },
-          })}\n\n`,
+          `event: artifact_ready\ndata: ${JSON.stringify(artifactReadyData())}\n\n`,
           'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
         ]),
         { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
@@ -433,6 +436,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       const computer = mounted.root.querySelector('.computer')
       expect(computer?.textContent).toContain("Adam's Computer")
       expect(computer?.textContent).toMatch(/选品清单/)
+      expect(JSON.stringify(artifactReadyData())).toContain('"artifactRef":"pl-1"')
       expect(computer?.querySelector('article.comp-card')).toBeTruthy()
       expect(computer?.querySelectorAll('.comp-card').length).toBe(1)
       expect(computer?.querySelector('.cv-note')?.textContent).toMatch(/非实时/)
@@ -489,31 +493,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
             'event: agent_started\ndata: {"label":"agent.start"}\n\n',
             `event: message_delta\ndata: ${JSON.stringify({ text: fullStream })}\n\n`,
             'event: agent_ended\ndata: {"label":"agent.end"}\n\n',
-            `event: artifact_ready\ndata: ${JSON.stringify({
-              artifactType: 'picklist',
-              picklistId: 'pl-1',
-              runId: 'r1',
-              templateId: 'domestic-generic-default',
-              disclaimer: '基于通用电商知识推断，非实时平台数据',
-              items: SAMPLE_ITEMS,
-              view: {
-                version: 1,
-                title: 'picklist',
-                status: 'settled',
-                blocks: [
-                  { type: 'note', text: '基于通用电商知识推断，非实时平台数据', tone: 'mute' },
-                  {
-                    type: 'list',
-                    ordered: true,
-                    items: SAMPLE_ITEMS.slice(0, 2).map((it) => ({
-                      title: it.title.replace(/^【优先试】/, ''),
-                      lines: [{ kind: 'priceBand', text: it.priceBand, emphasis: 'price' }],
-                      tags: [{ kind: 'demand', text: it.demand, tone: 'positive' }],
-                    })),
-                  },
-                ],
-              },
-            })}\n\n`,
+            `event: artifact_ready\ndata: ${JSON.stringify(artifactReadyData())}\n\n`,
             'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
           ]),
           { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
@@ -549,14 +529,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
             'event: agent_started\ndata: {"label":"agent.start"}\n\n',
             `event: message_delta\ndata: {"text":"${shortText}"}\n\n`,
             'event: agent_ended\ndata: {"label":"agent.end"}\n\n',
-            `event: artifact_ready\ndata: ${JSON.stringify({
-              artifactType: 'picklist',
-              picklistId: 'pl-1',
-              runId: 'r1',
-              templateId: 'domestic-generic-default',
-              disclaimer: '基于通用电商知识推断，非实时平台数据',
-              items: SAMPLE_ITEMS,
-            })}\n\n`,
+            `event: artifact_ready\ndata: ${JSON.stringify(artifactReadyData())}\n\n`,
             'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
           ]),
           { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
@@ -588,9 +561,12 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     )
     const src = `${vueSrc}\n${runSrc}`
     expect(src).not.toMatch(/正在读取技能|解析选品|生成候选清单|调用选品工具/)
+    expect(vueSrc).not.toMatch(/FallbackPicklistCard|pick-list--legacy/)
+    expect(runSrc).toMatch(/toGenerationArtifact/)
+    expect(runSrc).toMatch(/artifactRef/)
   })
 
-  it('falls back to old pick-list layout when artifact has items but no view', async () => {
+  it('ignores items-only artifact_ready without view and artifactRef', async () => {
     fetchMock = mockCatalogAndCredits({
       onPicklist: () =>
         new Response(
@@ -599,9 +575,6 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
             `event: artifact_ready\ndata: ${JSON.stringify({
               artifactType: 'picklist',
               picklistId: 'pl-1',
-              runId: 'r1',
-              templateId: 'domestic-generic-default',
-              disclaimer: '基于通用电商知识推断，非实时平台数据',
               items: SAMPLE_ITEMS,
             })}\n\n`,
             'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
@@ -613,11 +586,10 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     unmount = mounted.unmount
     await enterViaSend(mounted.root)
 
-    const computer = mounted.root.querySelector('.computer')
-    expect(computer?.querySelector('.cv-note')).toBeNull()
-    expect(computer?.querySelector('.pick-disclaimer')?.textContent).toMatch(/非实时/)
-    expect(computer?.querySelectorAll('.pick-list li').length).toBe(8)
-    expect(computer?.textContent).toMatch(/优先试/)
+    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
+    expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/未收到可用清单/)
+    expect(mounted.root.querySelector('.pick-list--legacy')).toBeNull()
+    expect(mounted.root.querySelector('.pick-disclaimer')).toBeNull()
   })
 
   it('run_failed also dispatches credits-changed', async () => {

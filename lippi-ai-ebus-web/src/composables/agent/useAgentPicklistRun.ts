@@ -4,7 +4,7 @@ import { streamPicklistRun } from '@/api/business/agent/agent'
 import type {
   Ad4EventName,
   Ad4SseEvent,
-  PicklistArtifactPayload,
+  GenerationArtifactPayload,
   StreamPicklistRunOptions,
 } from '@/types/business/agent'
 import { parseComputerDocument } from '@/types/business/computerView'
@@ -27,7 +27,7 @@ export function useAgentPicklistRun() {
   const error = ref('')
   const events = ref<Ad4SseEvent[]>([])
   const eventNames = ref<Ad4EventName[]>([])
-  const artifact = ref<PicklistArtifactPayload | null>(null)
+  const artifact = ref<GenerationArtifactPayload | null>(null)
   const sessionId = ref<string | null>(null)
   const processEvents = ref<ProcessEvent[]>([])
   let abortController: AbortController | null = null
@@ -112,7 +112,7 @@ export function useAgentPicklistRun() {
           }
         }
         if (event.name === 'artifact_ready') {
-          artifact.value = toPicklistArtifact(event.data)
+          artifact.value = toGenerationArtifact(event.data)
         }
         if (event.name === 'run_failed') {
           const reason = event.data.reason
@@ -152,48 +152,9 @@ export function useAgentPicklistRun() {
 
 export { CREDITS_CHANGED_EVENT }
 
-function toPicklistArtifact(data: Record<string, unknown>): PicklistArtifactPayload | null {
-  const view = parseComputerDocument(data.view) ?? undefined
-  const itemsRaw = data.items
-  const items = Array.isArray(itemsRaw)
-    ? itemsRaw
-        .map((row) => {
-          if (!row || typeof row !== 'object') {
-            return null
-          }
-          const o = row as Record<string, unknown>
-          return {
-            title: str(o.title),
-            priceBand: str(o.priceBand),
-            painPoint: str(o.painPoint),
-            angle: str(o.angle),
-            diff: str(o.diff),
-            niche: str(o.niche),
-            demand: str(o.demand),
-            competition: str(o.competition),
-            margin: str(o.margin),
-            risk: str(o.risk),
-          }
-        })
-        .filter((x): x is NonNullable<typeof x> => x != null && Boolean(x.title))
-    : []
-
-  // Prefer Computer view; items remain optional transitional payload for legacy card.
-  if (!view && items.length === 0) {
-    return null
-  }
-
-  return {
-    picklistId: str(data.picklistId) || str(data.artifactRef),
-    runId: str(data.runId),
-    templateId: str(data.templateId),
-    disclaimer: str(data.disclaimer),
-    assumptions: str(data.assumptions) || undefined,
-    items,
-    view,
-  }
-}
-
-function str(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
+function toGenerationArtifact(data: Record<string, unknown>): GenerationArtifactPayload | null {
+  const view = parseComputerDocument(data.view)
+  const artifactRef = typeof data.artifactRef === 'string' ? data.artifactRef.trim() : ''
+  if (!view || !artifactRef) return null
+  return { artifactRef, view }
 }

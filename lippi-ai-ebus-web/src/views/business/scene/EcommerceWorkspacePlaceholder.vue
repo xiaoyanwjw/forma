@@ -7,10 +7,10 @@ import { formatEventTime, processEventDisplayLabel, type ProcessEvent } from '@/
 import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
 import {
   DEMO_LISTING_VIEW,
-  DEMO_PICKS,
+  DEMO_PICKS_VIEW,
   DEMO_SESSION_TITLE,
 } from '@/views/business/scene/ecommerceDemoFixtures'
-import type { PicklistArtifactPayload } from '@/types/business/agent'
+import type { GenerationArtifactPayload } from '@/types/business/agent'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
 /** Stable scene binding for this workbench — Epic 3 session create must carry it */
@@ -41,7 +41,7 @@ const sceneBizId = ref<string | null>(null)
 const messages = ref<ChatMessage[]>([])
 const sessionTitle = ref(DEMO_SESSION_TITLE)
 const computerKind = ref<ComputerKind>(null)
-const livePicklist = ref<PicklistArtifactPayload | null>(null)
+const livePicklist = ref<GenerationArtifactPayload | null>(null)
 const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
 const thinkingMessageId = ref<string | null>(null)
@@ -62,31 +62,13 @@ const sessionSendEnabled = computed(
   () => sessionPrompt.value.trim().length > 0 && !picklistRunning.value,
 )
 
-const displayPicks = computed(() => {
-  if (livePicklist.value?.items?.length) {
-    return livePicklist.value.items
-  }
-  return DEMO_PICKS.map((p) => ({
-    title: p.title,
-    priceBand: '',
-    painPoint: p.painPoint,
-    angle: p.angle,
-    diff: p.diff,
-    niche: p.niche,
-    demand: '',
-    competition: '',
-    margin: '',
-    risk: '',
-  }))
-})
-
-const picksIsLive = computed(() => Boolean(livePicklist.value?.view || livePicklist.value?.items?.length))
+const picksIsLive = computed(() => Boolean(livePicklist.value?.view))
 
 const activeComputerDoc = computed(() => {
   if (computerKind.value === 'listing') return DEMO_LISTING_VIEW
   if (computerKind.value === 'picks') {
     if (livePicklist.value?.view) return livePicklist.value.view
-    return null
+    return DEMO_PICKS_VIEW
   }
   return null
 })
@@ -195,13 +177,11 @@ async function sendFromSession() {
     return
   }
 
-  if (picklistArtifact.value?.view || picklistArtifact.value?.items?.length) {
+  if (picklistArtifact.value?.view) {
     livePicklist.value = picklistArtifact.value
     computerKind.value = 'picks'
     revealComputer()
-    const n = picklistArtifact.value.items?.length
-      ? picklistArtifact.value.items.length
-      : picklistArtifact.value.view?.blocks?.length || 0
+    const n = picklistArtifact.value.view.blocks?.length || 0
     const reply = n > 0
       ? `已生成选品候选，右侧 Computer 可查看详情。`
       : `已生成选品成果，右侧 Computer 可查看。`
@@ -259,7 +239,7 @@ function openListingComputer() {
 }
 
 function canPreviewFromStatus(m: ChatMessage): boolean {
-  return Boolean(livePicklist.value?.items?.length) || /已生成/.test(m.text)
+  return Boolean(livePicklist.value?.view) || /已生成/.test(m.text)
 }
 
 function onStatusCardClick(m: ChatMessage) {
@@ -298,10 +278,6 @@ function toggleStreamExpand(id: string) {
   expandedStreamIds.value = next
 }
 
-function padIndex(i: number) {
-  return String(i + 1).padStart(2, '0')
-}
-
 function eventTag(kind: ProcessEvent['kind']): string {
   if (kind === 'agent') return 'AGENT'
   if (kind === 'llm') return 'LLM'
@@ -313,7 +289,7 @@ function eventTitle(e: ProcessEvent): string {
 }
 
 watch(picklistArtifact, (value) => {
-  if (value?.view || value?.items?.length) {
+  if (value?.view) {
     livePicklist.value = value
   }
 })
@@ -555,42 +531,6 @@ onMounted(async () => {
           </div>
           <div class="computer-body">
             <ComputerRenderer v-if="activeComputerDoc" :document="activeComputerDoc" />
-            <!-- FallbackPicklistCard：无 view 时用旧字段，禁止 FE project() -->
-            <div v-else-if="computerKind === 'picks'" class="comp-card">
-              <div class="comp-card-head">
-                <span>选品清单</span>
-                <span class="status">{{ picksIsLive ? '已结算' : '演示' }}</span>
-              </div>
-              <div class="comp-card-body">
-                <p v-if="livePicklist?.disclaimer" class="pick-disclaimer">{{ livePicklist.disclaimer }}</p>
-                <p v-if="livePicklist?.assumptions" class="pick-assumptions">假设：{{ livePicklist.assumptions }}</p>
-                <ol class="pick-list pick-list--legacy">
-                  <li v-for="(item, i) in displayPicks" :key="item.title + '-' + i">
-                    <span class="n">{{ padIndex(i) }}</span>
-                    <div>
-                      <div class="t">
-                        <span
-                          v-if="item.title.startsWith('【优先试】')"
-                          class="priority-tag"
-                        >优先试</span>
-                        {{ item.title.replace(/^【优先试】/, '') }}
-                      </div>
-                      <div v-if="item.priceBand" class="r">价格带：{{ item.priceBand }}</div>
-                      <div v-if="item.painPoint" class="r">痛点：{{ item.painPoint }}</div>
-                      <div v-if="item.angle" class="r">切入：{{ item.angle }}</div>
-                      <div v-if="item.diff" class="r">差异：{{ item.diff }}</div>
-                      <div v-if="item.niche" class="r dim">细分：{{ item.niche }}</div>
-                      <div v-if="item.demand" class="dims">
-                        <span>需求 {{ item.demand }}</span>
-                        <span>竞争 {{ item.competition }}</span>
-                        <span>利润 {{ item.margin }}</span>
-                        <span>风险 {{ item.risk }}</span>
-                      </div>
-                    </div>
-                  </li>
-                </ol>
-              </div>
-            </div>
           </div>
         </aside>
       </div>
@@ -711,42 +651,6 @@ onMounted(async () => {
 
 .icon-btn:disabled {
   opacity: 0.7;
-}
-
-.pick-disclaimer,
-.pick-assumptions {
-  margin: 0 0 10px;
-  font-size: 0.75rem;
-  color: var(--mute);
-  line-height: 1.5;
-}
-
-.dims {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 6px;
-  font-size: 0.72rem;
-  color: var(--mute);
-  line-height: 1.4;
-}
-
-.priority-tag {
-  display: inline-block;
-  margin-right: 6px;
-  padding: 1px 6px;
-  font-size: 0.68rem;
-  font-weight: 650;
-  color: #7c4a1e;
-  background: #f3e8d8;
-  border-radius: 4px;
-  border: 0;
-  vertical-align: 1px;
-  line-height: 1.35;
-}
-
-.r.dim {
-  opacity: 0.85;
 }
 
 .sr-only {

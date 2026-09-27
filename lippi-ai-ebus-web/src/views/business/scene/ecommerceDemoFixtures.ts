@@ -81,6 +81,28 @@ export const DEMO_LISTING: DemoListingPreview = {
   body: '水槽边总积水？软硅胶垫贴合台面，洗完随手一垫。可卷收纳。',
 }
 
+export const DEMO_PICKS_VIEW: ComputerDocument = {
+  version: 1,
+  title: 'picklist',
+  status: 'demo',
+  blocks: [
+    { type: 'note', text: '演示选品清单，非实时平台数据', tone: 'mute' },
+    {
+      type: 'list',
+      ordered: true,
+      items: DEMO_PICKS.map((it) => ({
+        title: it.title,
+        lines: [
+          { kind: 'painPoint', text: it.painPoint },
+          { kind: 'angle', text: it.angle },
+          { kind: 'diff', text: it.diff },
+          { kind: 'niche', text: it.niche },
+        ],
+      })),
+    },
+  ],
+}
+
 export const DEMO_LISTING_VIEW: ComputerDocument = {
   version: 1,
   title: 'listingPreview',

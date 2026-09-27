@@ -48,28 +48,10 @@ export interface StreamAgentRunOptions {
   signal?: AbortSignal
 }
 
-/** artifact_ready 选品成果（Computer 展示） */
-export interface PicklistArtifactItem {
-  title: string
-  priceBand: string
-  painPoint: string
-  angle: string
-  diff: string
-  niche: string
-  demand: string
-  competition: string
-  margin: string
-  risk: string
-}
-
-export interface PicklistArtifactPayload {
-  picklistId: string
-  runId: string
-  templateId: string
-  disclaimer: string
-  assumptions?: string
-  items: PicklistArtifactItem[]
-  view?: ComputerDocument
+/** artifact_ready：仅 view + artifactRef */
+export interface GenerationArtifactPayload {
+  artifactRef: string
+  view: ComputerDocument
 }
 
 export function isAd4EventName(value: string): value is Ad4EventName {
