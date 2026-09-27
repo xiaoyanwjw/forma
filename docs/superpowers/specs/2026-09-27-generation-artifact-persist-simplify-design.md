@@ -232,3 +232,4 @@ CreditLedger 仍是唯一积分写入者；预占 / 失败 release 不变。
 | 2026-09-27 | 落库定名具体类 `ArtifactPersistPlugin`；删除同名 SPI 接口与多实现注册 |
 | 2026-09-27 | **回显对齐**：凡 settle 成功都写 `ebus_artifact`（含无 Skill→`artifact_type=chat`）；`persistAs` 只作类型标签；顺序改为 project → persist → settle；废「none 跳过落库 / 无 artifactRef」 |
 | 2026-09-27 | Status → **accepted**；§9 验收勾选（Tasks 1–5 落地 + Task 6 规约修订） |
+| 2026-09-27 | **终审**：已知边界 persist 成功后 settle 失败可留 artifact 行且 run 未 settled；hold release 在 settle 异常路径处理 |

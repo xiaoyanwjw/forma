@@ -18,7 +18,7 @@
 
 1. **先定义并冻结 Computer 通用组件白名单**（与业务名无关）。  
 2. Skill 终态**首先**产出合法 `view`（blocks 只用白名单）。  
-3. 计费场景**另外**带可校验的业务包（下文称 `artifact`）；类型名由业务插件解释，**不进入 Computer 渲染协议**。  
+3. 计费场景**另外**带业务包（下文称 `artifact`），**宽进历史回显**；settle 门禁只看可投影 `view`。类型名由 persist 插件映射，**不进入 Computer 渲染协议**。  
 4. **Projector 策略模式**（`supports` + `project`）：对已有 `view` 做**规范化**；**无 Skill** 时把终态文本**包成 markdown**。
 5. **Settle**：门禁 = **可投影 Computer `view`**（AD-5 操作化）；**落库 = 回显**（凡 settle 成功都写 `ebus_artifact` 并带 `artifactRef`）。`persistAs` 只映射 `artifact_type`（无 Skill：`none` → `chat`），不再表示「不写表」。
 
@@ -36,7 +36,7 @@
 |----|------|
 | 平台核心 | **通用组件**（§1），Computer 只渲染它们 |
 | Skill 主输出 | `view: ComputerDocument` |
-| Skill 次输出 | 可选 `artifact`（不透明，供校验落库） |
+| Skill 次输出 | 可选 `artifact`（不透明，宽进 `ebus_artifact` 历史；非 settle 门禁） |
 | 业务类型 | 仅 Skill 元数据 / persist 插件，不进 view |
 | 无 Skill | **NoSkillMarkdown** 策略：终态文本 → 单个 `markdown` block |
 | Projector | **策略模式**（`supports` + `project`）：规范化已有 view；无 Skill 包 markdown（§5） |
@@ -184,22 +184,24 @@ interface ListTag {
 | 字段 | 含义 | 谁消费 |
 |------|------|--------|
 | `view` | **唯一**给 Computer 的数据；blocks ∈ §1 白名单 | FE Renderer；所有 Skill 宜填 |
-| `artifact` | 业务不透明包；形状由**该 Skill 的落库校验器**解释 | Persist / settle 插件；Computer **忽略** |
+| `artifact` | 业务不透明包；Skill 侧写作约定，**应用层宽进落库** | `ArtifactPersistPlugin` 历史回显；Computer **忽略** |
 
 **不要**把 `artifactType: "picklist"` 写进「通用输出合同」示例当必填顶栏字段。  
 若计费需要类型：放在 **Skill 包配置 / front matter**（§2.3），或放在 `artifact` 内部由插件读取——**渲染路径看不见它**。
 
 | 场景 | `view` | `artifact` |
 |------|--------|------------|
-| 计费 Skill | **宜填**；经 **Normalize** 策略后上屏 | **必填**且过插件校验 |
+| 计费 Skill | **宜填**；经 **Normalize** 策略后上屏（**settle 门禁**） | **宜填**（历史宽进；**不过**业务插件硬校验挡 settle） |
 | 非计费 Skill | **宜填**；Normalize | 可选 |
-| 无 Skill | **NoSkillMarkdown** 策略合成 | 无 |
+| 无 Skill | **NoSkillMarkdown** 策略合成 | 无（落库 payload 以投影 `view` 为主） |
+
+Skill 专属软约束（如选品 `search_sku` ≥1、`sourceUrl`/`href` 对齐）写在 **SKILL 正文**，应用层不因缺字段单独挡 settle；见 picklist-marketplace-search 设计。
 
 ### 2.2 Skill 正文「分步」（通用写法）
 
-1. 若本 Skill 要计费：先写出满足校验器的 `artifact`。  
-2. 再把同一事实编成 `view.blocks`，**只使用 §1 组件**。  
-3. 自检：结算相关事实以 `artifact` 为准；`view` 不得编造 artifact 没有的关键结论。
+1. 若本 Skill 要计费：**先保证可投影 `view`**（§1 组件；经 Normalize / NoSkillMarkdown）。  
+2. **宜**写出 `artifact` 供历史回显（宽进；形状由 Skill 指引，非 Runtime 硬门禁）。  
+3. 自检：`view` 与 `artifact` 关键事实一致；`view` 不得编造 artifact 没有的关键结论（写作质量，非落库校验器）。
 
 ### 2.3 Skill 包侧配置（业务类型待在这里）
 
@@ -321,7 +323,7 @@ ComputerViewResolver:
 
 以下仅说明「选品 Skill 可以这样编 view」，**不**把字段升格为平台类型。
 
-`view` 仍只用 `note` + `list`；`artifact` 内可以是选品 JSON（校验器私有）：
+`view` 仍只用 `note` + `list`；`artifact` 内可以是选品 JSON（Skill 侧约定，宽进落库）：
 
 ```json
 {
@@ -363,14 +365,14 @@ ComputerViewResolver:
 
 FE 若登记了 `painPoint → 痛点` 词典则显示标签；未登记则只显示 `text` 或回退 `kind` 原文——**组件仍然通用**。
 
-素材类 Skill：同一 `view` 合同，blocks 改为 `media` + `section`，`artifact` 换另一校验器。
+素材类 Skill：同一 `view` 合同，blocks 改为 `media` + `section`，`artifact` 换另一 Skill 侧形状约定。
 
 ---
 
 ## 7. 成功标准
 
 - [ ] §1 五组件 + Document 成为 FE/解析的唯一渲染合同；测试不含「必须出现 picklist 字符串」。  
-- [x] Skill 输出示例以 `view` 为首；`artifact` 可选且不进 Renderer。（选品计费仍必填 `artifact`；parser 已认信封，扁平 JSON 兼容）  
+- [x] Skill 输出示例以 `view` 为首；`artifact` 宜填、宽进历史且不进 Renderer。（settle 门禁 = 可投影 view；parser 已认信封，扁平 JSON 兼容）  
 - [x] 存在 `ComputerViewProjector` + Chain；单测覆盖 Normalize / NoSkillMarkdown 的 `supports` 分流。  
 - [x] 无 Skill → 仅经 NoSkillMarkdown 得到一个 `markdown` block。  
 - [x] 业务枚举只出现在 Skill 元数据 / persist 插件，不出现在 ComputerBlock.type。
@@ -408,3 +410,4 @@ FE 若登记了 `painPoint → 痛点` 词典则显示标签；未登记则只�
 | 2026-09-27 | `ListItem.href`：选品等原链跳转；仅 https；见 picklist-marketplace-search 设计 |
 | 2026-09-27 | **落库简化 A**：settle 门禁 = 可投影 view；artifact 宽进历史；删除 Legacy/Picklist 硬校验栈。见 [`2026-09-27-generation-artifact-persist-simplify-design.md`](./2026-09-27-generation-artifact-persist-simplify-design.md) |
 | 2026-09-27 | **修订对齐 A**：废「无 Skill：`artifact_ready(view)` 无 `artifactRef`」——成功路径一律带 `artifactRef`，`artifact_type=chat`；settle = 可投影 view；落库 = 回显 |
+| 2026-09-27 | **终审对齐 A**：§2 去掉「artifact 过插件校验 / 落库校验器挡 settle」；settle = 可投影 view，artifact = 历史宽进；保留 search_sku 等 Skill 软约束 |

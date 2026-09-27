@@ -468,6 +468,9 @@ public class AgentApplicationService {
                 return;
             }
 
+            // Known edge (no redesign): persist may succeed before settle; if settle throws,
+            // ebus_artifact row can exist while run stays unsettled (common on no-skill chat path).
+            // CreditHoldSupport settle failure path releases the hold; client sees run_failed, not run_settled.
             try {
                 creditHoldSupport.settle(context.getUserId(), context.getHoldId());
             } catch (BusinessException ex) {
