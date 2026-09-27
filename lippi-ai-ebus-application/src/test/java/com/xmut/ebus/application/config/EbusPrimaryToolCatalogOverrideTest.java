@@ -1,0 +1,38 @@
+package com.xmut.ebus.application.config;
+
+import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
+import com.xmut.lims.pi.agent.tool.ToolCatalog;
+import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
+import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Proves Adam's {@link EbusPiToolCatalogConfiguration} wins over pi {@code AgentConfiguration.toolConfig}
+ * ({@code @ConditionalOnMissingBean(ToolCatalog)} + ebus {@code @Primary} catalog).
+ */
+class EbusPrimaryToolCatalogOverrideTest {
+
+    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+            .withUserConfiguration(EbusPiToolCatalogConfiguration.class)
+            .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class));
+
+    @Test
+    void singleToolCatalogResolvesReadSkillAndSearchSku() {
+        runner.run(context -> {
+            assertThat(context).hasSingleBean(ToolCatalog.class);
+            assertThat(context).doesNotHaveBean("toolConfig");
+
+            ToolCatalog catalog = context.getBean(ToolCatalog.class);
+            assertThat(catalog.resolve("read_skill")).isPresent();
+            assertThat(catalog.resolve("search_sku")).isPresent();
+            assertThat(catalog.handlerOf("read_skill")).isPresent();
+            assertThat(catalog.handlerOf("read_skill").get()).isInstanceOf(ReadSkill.class);
+            assertThat(catalog.handlerOf("search_sku")).isPresent();
+            assertThat(catalog.handlerOf("search_sku").get()).isInstanceOf(SearchSkuToolHandler.class);
+        });
+    }
+}
