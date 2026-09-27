@@ -27,7 +27,7 @@ Adam 电商开店助手的**选品清单**路径（国内通用默认风格，�
 2. 调用 `search_sku`（**至少 1 次成功**）；零次成功搜索不得输出 8–12 条完整候选。
 3. 基于工具返回筛选 / 排名（可再搜 1～2 次换词）；**只收录带有效 `detailUrl` 的条目**。
 4. 写出合格 `artifact`（每条含 `sourceUrl` = 对应工具条目的 `detailUrl`）。
-5. 用同一事实编 `view.blocks`：list 每项填 `href` = 同条 `sourceUrl`（仅白名单块类型）。
+5. 用同一事实编 `view.blocks`：list **每一项必须**填 `href` = 同条 `artifact` 的 `sourceUrl`（仅白名单块类型）。
 6. **只输出一个**双轨 JSON 对象（可包在 ```json 代码块中）。
 
 计费与落库：`metadata.output` 表示本 skill 需可用 `artifact` 落库且 `view` 门禁通过后才 settle；不可用成果不得假装合格。
@@ -79,7 +79,7 @@ Adam 电商开店助手的**选品清单**路径（国内通用默认风格，�
       {
         "type": "note",
         "tone": "mute",
-        "text": "候选基于淘宝客/多多客推广池抽样检索与助手排序，非平台全站实时行情。点击可打开平台商品页核对。"
+        "text": "候选基于淘宝客/多多客推广池抽样检索与助手排序，非实时平台全站行情。点击可打开平台商品页核对。"
       },
       {
         "type": "list",
@@ -109,7 +109,7 @@ Adam 电商开店助手的**选品清单**路径（国内通用默认风格，�
   },
   "artifact": {
     "templateId": "domestic-generic-default",
-    "disclaimer": "候选基于淘宝客/多多客推广池抽样检索与助手排序，非平台全站实时行情。点击可打开平台商品页核对。",
+    "disclaimer": "候选基于淘宝客/多多客推广池抽样检索与助手排序，非实时平台全站行情。点击可打开平台商品页核对。",
     "assumptions": "未指定品类时按国内小件家居日用测款默认",
     "items": [
       {
@@ -130,10 +130,10 @@ Adam 电商开店助手的**选品清单**路径（国内通用默认风格，�
 }
 ```
 
-`view.title` 用语义 key（如 `report`），不要写中文标题。`badge` 仅用 `priority` 或省略。`tone` 仅用 `mute` / `positive` / `warning` / `neutral`。禁止在 `view` 里写业务类型名（如 `picklist`）。预览验收：每条候选须可跳转原商品（`href` 与 `sourceUrl` 对齐）。
+`view.title` 用语义 key（如 `report`），不要写中文标题。`badge` 仅用 `priority` 或省略。`tone` 仅用 `mute` / `positive` / `warning` / `neutral`。禁止在 `view` 里写业务类型名（如 `picklist`）。预览验收：list 每项必须有 `href`（= 同条 `sourceUrl`），候选须可跳转原商品。
 
 ## Failures
 
-- **工具错误 / 无结果**：用人话说明原因，不编造全站蓝海清单；不输出假合格 artifact。
+- **工具错误 / 无结果**：`search_sku` 空 hits 视为失败（不算成功搜索）；用人话说明原因，不编造全站蓝海清单；不输出假合格 artifact。
 - **工具结果缺 `detailUrl`**：该条不得进入 8–12；合格条数不足则整单失败、不 settle。
 - **零次成功 `search_sku`**：不得交付完整选品 artifact。

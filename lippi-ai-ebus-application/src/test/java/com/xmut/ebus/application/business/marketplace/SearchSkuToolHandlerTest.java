@@ -14,6 +14,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
+import java.util.Collections;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,6 +51,18 @@ class SearchSkuToolHandlerTest {
             assertTrue(hit.get("detailUrl").asText().startsWith("https://"));
             assertTrue(hit.get("title").asText().contains("香薰"));
         }
+    }
+
+    @Test
+    void emptyHitsReturnsFailedResult() {
+        handler = new SearchSkuToolHandler((query, platform, pageSize) -> Collections.emptyList());
+        ObjectNode args = JsonNodeFactory.instance.objectNode();
+        args.put("query", "无货关键词");
+        ToolResult result = handler.handle(
+                new ToolCallEntry("c-empty", "search_sku", args),
+                new ToolContext("r1", "t1"));
+        assertFalse(result.isSuccess());
+        assertTrue(result.getErrorMessage() != null && result.getErrorMessage().contains("empty"));
     }
 
     @Test

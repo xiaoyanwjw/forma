@@ -49,6 +49,9 @@ public final class SearchSkuToolHandler implements ToolHandler {
             String platform = extractPlatform(call);
             int pageSize = extractPageSize(call);
             List<SkuSearchHit> hits = skuSearchPort.search(query.trim(), platform, pageSize);
+            if (hits == null || hits.isEmpty()) {
+                return ToolResult.failed(callId, TOOL_NAME, "search_sku empty hits");
+            }
             return ToolResult.ok(callId, TOOL_NAME, writeHits(hits));
         } catch (Exception ex) {
             log.warn("search_sku failed: {}", ex.toString());
