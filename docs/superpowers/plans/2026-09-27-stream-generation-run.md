@@ -1,6 +1,6 @@
 # Generic streamGenerationRun — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** One Generation Run pipeline for all Agent SSE interactions; picklist/empty become profiles + thin HTTP aliases.
 
@@ -31,25 +31,25 @@
 
 ### Task 1: Profile + persist plugin + GenerationRunContext
 
-- [ ] Add types + Picklist plugin (parse → persist → rawView + DTO).
-- [ ] Unit test plugin happy path with fixtures.
+- [x] Add types + Picklist plugin (parse → persist → rawView + DTO).
+- [x] Unit test plugin happy path with fixtures.
 
 ### Task 2: streamGenerationRun
 
-- [ ] Implement unified stream; dry branch = current empty behavior; billed = current picklist order.
-- [ ] `streamEmptyRun` / `streamPicklistRun` delegate.
-- [ ] Green `AgentApplicationServiceTest`.
+- [x] Implement unified stream; dry branch = current empty behavior; billed = current picklist order.
+- [x] `streamEmptyRun` / `streamPicklistRun` delegate.
+- [x] Green `AgentApplicationServiceTest`.
 
 ### Task 3: HTTP + FE
 
-- [ ] `POST /api/v1/agent/runs` body: sceneId/sceneCode, sessionId, text, skillId, dryRun.
-- [ ] FE `streamAgentRun`; picklist/empty call it (or keep old URLs as BE aliases only).
-- [ ] Workspace still works via picklist alias or new path.
+- [x] `POST /api/v1/agent/runs` body: sceneId/sceneCode, sessionId, text, skillId, dryRun.
+- [x] FE `streamAgentRun`; picklist/empty call it (or keep old URLs as BE aliases only).
+- [x] Workspace still works via picklist alias or new path.
 
 ### Task 4: Docs + commit
 
-- [ ] Update dual-track revision note.
-- [ ] Commit rename leftovers + this feature.
+- [x] Update dual-track revision note.
+- [x] Commit rename leftovers + this feature.
 
 ## Out of scope
 
