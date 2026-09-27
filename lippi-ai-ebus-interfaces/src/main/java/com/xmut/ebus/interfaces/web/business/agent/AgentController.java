@@ -1,5 +1,6 @@
 package com.xmut.ebus.interfaces.web.business.agent;
 
+import com.xmut.ebus.application.business.agent.command.ResumeGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
 import com.xmut.ebus.application.business.agent.service.AgentApplicationService;
@@ -7,12 +8,14 @@ import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.response.ApiResponse;
 import com.xmut.ebus.interfaces.security.SecuritySupport;
+import com.xmut.ebus.interfaces.vo.business.agent.ResumeGenerationRunRequest;
 import com.xmut.ebus.interfaces.vo.business.agent.StartGenerationRunRequest;
 import com.xmut.ebus.interfaces.vo.business.agent.StartPicklistRunRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -142,6 +145,51 @@ public class AgentController {
         body.setSkillId("ecommerce-skulist");
         body.setDryRun(false);
         return startGenerationRun(body);
+    }
+
+    /**
+     * ask_human 续跑：返回新 SSE 续流（首段流在 {@code human_input_required} 后由 FE 停读）。
+     * Body: {@code toolCallId} + {@code optionId}({@code confirm_execute}|{@code supplement}) + 可选 {@code freeText}。
+     */
+    @PostMapping(value = "/runs/{runId}/resume")
+    public Object resumeGenerationRun(@PathVariable("runId") String runId,
+                                      @RequestBody(required = false) ResumeGenerationRunRequest request) {
+        String userId = SecuritySupport.requireUserId();
+        ResumeGenerationRunRequest body = request != null ? request : new ResumeGenerationRunRequest();
+        ResumeGenerationRunCommand command = ResumeGenerationRunCommand.builder()
+                .userId(userId)
+                .username(SecuritySupport.currentUsername())
+                .runId(runId)
+                .toolCallId(body.getToolCallId())
+                .optionId(body.getOptionId())
+                .freeText(body.getFreeText())
+                .confirmRequestId(body.getConfirmRequestId())
+                .build();
+
+        try {
+            agentService.requireAwaitingResume(command);
+        } catch (BusinessException ex) {
+            int status = ex.getErrorCode().getHttpStatus();
+            return ResponseEntity.status(status)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.error(status, ex.getMessage()));
+        }
+
+        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
+        sseExecutor.execute(() -> {
+            try {
+                agentService.streamResumeGenerationRun(command, event -> sendEvent(emitter, event));
+                emitter.complete();
+            } catch (Exception ex) {
+                log.warn("resume run sse failed runId={}: {}", runId, ex.toString());
+                try {
+                    emitter.completeWithError(ex);
+                } catch (Exception ignored) {
+                    // already completed
+                }
+            }
+        });
+        return emitter;
     }
 
     @PreDestroy

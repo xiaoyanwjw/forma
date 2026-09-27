@@ -1,0 +1,27 @@
+package com.xmut.ebus.application.business.agent.command;
+
+import com.xmut.ebus.common.command.BaseCommand;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.experimental.SuperBuilder;
+
+/**
+ * Listing / ask_human HITL 续跑：把选项写入挂起 toolCallId 的 tool-result。
+ */
+@Getter
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true)
+public class ResumeGenerationRunCommand extends BaseCommand {
+
+    private final String runId;
+
+    private final String toolCallId;
+
+    /** {@code confirm_execute} | {@code supplement}；可空（仅自由文本时视为补充）。 */
+    private final String optionId;
+
+    private final String freeText;
+
+    /** 可选幂等键，透传 {@code ResumeRequest.confirmRequestId}。 */
+    private final String confirmRequestId;
+}

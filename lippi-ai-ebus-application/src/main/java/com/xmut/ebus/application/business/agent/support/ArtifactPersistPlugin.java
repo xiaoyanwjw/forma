@@ -101,6 +101,18 @@ public class ArtifactPersistPlugin {
     }
 
     /**
+     * @return true when payload passes listing-plan gate (no throw).
+     */
+    public static boolean isUsableListingPlanPayload(Map<String, Object> data) {
+        try {
+            requireUsableListingPlanPayload(data);
+            return true;
+        } catch (BusinessException ex) {
+            return false;
+        }
+    }
+
+    /**
      * 可用策划分镜：templateId 固定国内通用默认；driver、titleDraft；frames/modules 各 3～5 条非空短句。
      */
     static void requireUsableListingPlanPayload(Map<String, Object> data) {

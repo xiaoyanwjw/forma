@@ -1,10 +1,12 @@
 package com.xmut.ebus.application.business.agent.service;
 
+import com.xmut.ebus.application.business.agent.command.ResumeGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
 import com.xmut.ebus.application.business.agent.support.*;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
+import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandlerTest;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
 import com.xmut.ebus.application.business.computer.ComputerViewProjector;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
@@ -27,8 +29,10 @@ import com.xmut.ebus.domain.business.agent.repository.PiSessionSceneRepository;
 import com.xmut.ebus.domain.business.scene.constant.SceneStatus;
 import com.xmut.ebus.domain.business.scene.model.Scene;
 import com.xmut.ebus.domain.business.scene.repository.SceneRepository;
+import com.xmut.lims.pi.agent.ResumeRequest;
 import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventType;
+import com.xmut.lims.pi.agent.event.ToolSuspendPayload;
 import com.xmut.lims.pi.agent.session.AgentSession;
 import com.xmut.lims.pi.agent.session.PromptRequest;
 import com.xmut.lims.pi.agent.session.TurnResult;
@@ -67,6 +71,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -76,6 +81,8 @@ class AgentApplicationServiceTest {
     private static final Instant NOW = Instant.parse("2026-09-25T05:00:00Z");
     private static final String USER_ID = "11111111-1111-1111-1111-111111111111";
     private static final String HOLD_ID = "22222222-2222-2222-2222-222222222222";
+    private static final String EXEC_HOLD_ID = "33333333-3333-3333-3333-333333333333";
+    private static final String ASK_CALL_ID = "call-ask-1";
     private static final String ECOM_SCENE_ID = "a1000001-0001-4000-8000-000000000001";
     private static final String ECOM_SCENE_CODE = "ecommerce";
     private static final String GRAY_SCENE_ID = "a1000001-0001-4000-8000-000000000002";
@@ -1140,6 +1147,152 @@ class AgentApplicationServiceTest {
                 anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
     }
 
+    @Test
+    void listing_planGate_settlesOnce_thenHumanInputRequired() {
+        GenerationRunContext ctx = listingCtx("run-listing-plan", "session-listing-plan");
+        stubEcommercePack();
+        stubListingAskHumanSuspend("run-listing-plan", "session-listing-plan", VALID_PLAN_JSON, ASK_CALL_ID);
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.human_input_required));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_failed));
+        verify(creditApplicationService, times(1)).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).release(anyString(), anyString());
+        verify(artifactPersistPlugin).persist(
+                eq(USER_ID), eq("run-listing-plan"), eq(ECOM_SCENE_CODE),
+                eq(SkillRunProfile.PERSIST_LISTING_PLAN), anyMap(), anyMap());
+        assertTrue(ctx.isPlanSettled());
+    }
+
+    @Test
+    void listing_confirm_reservesExec_andSettlesSku() {
+        GenerationRunContext ctx = listingCtx("run-listing-confirm", "session-listing-confirm");
+        GenerationRun run = GenerationRun.start("run-listing-confirm", USER_ID, HOLD_ID,
+                "session-listing-confirm", ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW);
+        when(generationRunRepository.findById("run-listing-confirm")).thenReturn(Optional.of(run));
+        stubEcommercePack();
+        stubListingAskHumanSuspend("run-listing-confirm", "session-listing-confirm",
+                VALID_PLAN_JSON, ASK_CALL_ID);
+
+        List<Ad4SseEvent> first = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, first::add);
+        assertTrue(ctx.isPlanSettled());
+
+        when(creditApplicationService.reserveOne(USER_ID)).thenReturn(EXEC_HOLD_ID);
+        AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
+        when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
+            subscriber.set(invocation.getArgument(0));
+            return () -> {
+            };
+        });
+        when(agentSession.resume(any(ResumeRequest.class))).thenAnswer(invocation -> {
+            ResumeRequest req = invocation.getArgument(0);
+            assertEquals(ASK_CALL_ID, req.getToolCallId());
+            assertTrue(req.getHumanInput().contains(AgentApplicationService.OPTION_CONFIRM_EXECUTE));
+            return TurnResult.ok("run-listing-confirm", "session-listing-confirm", VALID_LISTING_JSON,
+                    Collections.<com.xmut.lims.pi.ai.message.Message>emptyList());
+        });
+
+        List<Ad4SseEvent> second = new ArrayList<Ad4SseEvent>();
+        service.streamResumeGenerationRun(ResumeGenerationRunCommand.builder()
+                .userId(USER_ID)
+                .runId("run-listing-confirm")
+                .toolCallId(ASK_CALL_ID)
+                .optionId(AgentApplicationService.OPTION_CONFIRM_EXECUTE)
+                .build(), second::add);
+
+        assertTrue(second.stream().anyMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(second.stream().anyMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(creditApplicationService).reserveOne(USER_ID);
+        verify(creditApplicationService).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService).settle(USER_ID, EXEC_HOLD_ID);
+        verify(artifactPersistPlugin).persist(
+                eq(USER_ID), eq("run-listing-confirm"), eq(ECOM_SCENE_CODE),
+                eq(SkillRunProfile.PERSIST_SKU), anyMap(), anyMap());
+        assertEquals(GenerationRunStatus.SETTLED, run.getStatus());
+    }
+
+    @Test
+    void listing_supplement_doesNotSettleExec() {
+        GenerationRunContext ctx = listingCtx("run-listing-supp", "session-listing-supp");
+        GenerationRun run = GenerationRun.start("run-listing-supp", USER_ID, HOLD_ID,
+                "session-listing-supp", ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW);
+        when(generationRunRepository.findById("run-listing-supp")).thenReturn(Optional.of(run));
+        stubEcommercePack();
+        stubListingAskHumanSuspend("run-listing-supp", "session-listing-supp",
+                VALID_PLAN_JSON, ASK_CALL_ID);
+
+        List<Ad4SseEvent> first = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, first::add);
+
+        AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
+        when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
+            subscriber.set(invocation.getArgument(0));
+            return () -> {
+            };
+        });
+        when(agentSession.resume(any(ResumeRequest.class))).thenAnswer(invocation -> {
+            Consumer<PiEvent> listener = subscriber.get();
+            listener.accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, VALID_PLAN_JSON_SUPPLEMENT));
+            listener.accept(PiEvent.of(PiEventType.SUSPENDED,
+                    ToolSuspendPayload.of(AskHumanToolHandlerTest.listingAskCall("call-ask-2"),
+                            "run-listing-supp", "ask_human")));
+            return TurnResult.builder()
+                    .runId("run-listing-supp")
+                    .sessionId("session-listing-supp")
+                    .status(TurnResult.Status.SUSPENDED)
+                    .finalResponse("suspended at node: tools")
+                    .messages(Collections.<com.xmut.lims.pi.ai.message.Message>emptyList())
+                    .build();
+        });
+
+        List<Ad4SseEvent> second = new ArrayList<Ad4SseEvent>();
+        service.streamResumeGenerationRun(ResumeGenerationRunCommand.builder()
+                .userId(USER_ID)
+                .runId("run-listing-supp")
+                .toolCallId(ASK_CALL_ID)
+                .optionId(AgentApplicationService.OPTION_SUPPLEMENT)
+                .freeText("主图再突出颜色")
+                .build(), second::add);
+
+        assertTrue(second.stream().anyMatch(e -> e.getName() == Ad4EventName.human_input_required));
+        assertTrue(second.stream().anyMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(second.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(creditApplicationService, times(1)).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).reserveOne(anyString());
+        verify(creditApplicationService, never()).settle(eq(USER_ID), eq(EXEC_HOLD_ID));
+        verify(artifactPersistPlugin, times(1)).persist(
+                eq(USER_ID), eq("run-listing-supp"), eq(ECOM_SCENE_CODE),
+                eq(SkillRunProfile.PERSIST_LISTING_PLAN), anyMap(), anyMap());
+        assertEquals(GenerationRunStatus.RUNNING, run.getStatus());
+    }
+
+    private void stubListingAskHumanSuspend(String runId, String sessionId, String planJson, String callId) {
+        AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
+        when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
+            subscriber.set(invocation.getArgument(0));
+            return () -> {
+            };
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenAnswer(invocation -> {
+            Consumer<PiEvent> listener = subscriber.get();
+            listener.accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, planJson));
+            listener.accept(PiEvent.of(PiEventType.SUSPENDED,
+                    ToolSuspendPayload.of(AskHumanToolHandlerTest.listingAskCall(callId), runId, "ask_human")));
+            return TurnResult.builder()
+                    .runId(runId)
+                    .sessionId(sessionId)
+                    .status(TurnResult.Status.SUSPENDED)
+                    .finalResponse("suspended at node: tools")
+                    .messages(Collections.<com.xmut.lims.pi.ai.message.Message>emptyList())
+                    .build();
+        });
+    }
+
     private static final String VALID_PICKLIST_JSON =
             "{\"view\":{\"version\":1,\"title\":\"picklist\",\"status\":\"ready\","
                     + "\"blocks\":[{\"type\":\"note\",\"tone\":\"mute\",\"text\":\"ok\"}]},"
@@ -1163,6 +1316,37 @@ class AgentApplicationServiceTest {
                     + "\"heroPlan\":\"白底俯拍\",\"detailTitle\":\"厨房硅胶沥水垫\","
                     + "\"detailBody\":\"易清洗防滑\",\"displayNotes\":\"主图突出颜色\","
                     + "\"mediaObjectIds\":[]}}";
+
+    private static final String VALID_PLAN_JSON =
+            "{\"view\":{\"version\":1,\"title\":\"硅胶沥水垫 · 策划分镜\",\"status\":\"ready\","
+                    + "\"blocks\":["
+                    + "{\"type\":\"note\",\"tone\":\"mute\",\"text\":\"痛点驱动\"},"
+                    + "{\"type\":\"media\",\"role\":\"hero\",\"placeholder\":\"白底主图\",\"alt\":\"主图\"},"
+                    + "{\"type\":\"list\",\"ordered\":true,\"items\":["
+                    + "{\"title\":\"分镜1\"},{\"title\":\"分镜2\"},{\"title\":\"分镜3\"}]},"
+                    + "{\"type\":\"section\",\"heading\":\"标题草稿\",\"body\":\"厨房硅胶沥水垫\"},"
+                    + "{\"type\":\"section\",\"heading\":\"详情大纲\",\"body\":\"清洗;防滑;场景\"}"
+                    + "]},"
+                    + "\"artifact\":{\"title\":\"硅胶沥水垫 · 策划分镜\","
+                    + "\"templateId\":\"domestic-generic-default\","
+                    + "\"driver\":\"痛点驱动成交\","
+                    + "\"frames\":[\"白底主图\",\"使用场景\",\"细节特写\"],"
+                    + "\"modules\":[\"卖点清洗\",\"防滑结构\",\"场景搭配\"],"
+                    + "\"titleDraft\":\"厨房硅胶沥水垫\"}}";
+
+    private static final String VALID_PLAN_JSON_SUPPLEMENT =
+            "{\"view\":{\"version\":1,\"title\":\"硅胶沥水垫 · 策划分镜\",\"status\":\"ready\","
+                    + "\"blocks\":["
+                    + "{\"type\":\"note\",\"tone\":\"mute\",\"text\":\"颜色优先\"},"
+                    + "{\"type\":\"list\",\"ordered\":true,\"items\":["
+                    + "{\"title\":\"色块主图\"},{\"title\":\"对比图\"},{\"title\":\"场景图\"}]}"
+                    + "]},"
+                    + "\"artifact\":{\"title\":\"硅胶沥水垫 · 策划分镜\","
+                    + "\"templateId\":\"domestic-generic-default\","
+                    + "\"driver\":\"颜色优先成交\","
+                    + "\"frames\":[\"色块主图\",\"对比图\",\"场景图\"],"
+                    + "\"modules\":[\"卖点清洗\",\"防滑结构\",\"场景搭配\"],"
+                    + "\"titleDraft\":\"厨房硅胶沥水垫 高颜值\"}}";
 
     private GenerationRunContext picklistCtx(String runId, String sessionId) {
         return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,

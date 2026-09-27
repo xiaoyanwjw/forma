@@ -1,5 +1,6 @@
 package com.xmut.ebus.application.business.agent.service;
 
+import com.xmut.ebus.application.business.agent.command.ResumeGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
@@ -24,6 +25,7 @@ import com.xmut.ebus.common.logging.LoggerUtils;
 import com.xmut.ebus.common.logging.NameValue;
 import com.xmut.ebus.common.util.ObjectUtils;
 import com.xmut.ebus.common.util.StringUtils;
+import com.xmut.ebus.domain.business.agent.constant.GenerationRunStatus;
 import com.xmut.ebus.domain.business.agent.model.GenerationRun;
 import com.xmut.ebus.domain.business.agent.model.SessionSceneBinding;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
@@ -31,6 +33,7 @@ import com.xmut.ebus.domain.business.agent.repository.PiSessionSceneRepository;
 import com.xmut.ebus.domain.business.scene.constant.SceneStatus;
 import com.xmut.ebus.domain.business.scene.model.Scene;
 import com.xmut.ebus.domain.business.scene.repository.SceneRepository;
+import com.xmut.lims.pi.agent.ResumeRequest;
 import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.session.AgentSession;
 import com.xmut.lims.pi.agent.session.PromptRequest;
@@ -48,7 +51,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -75,6 +80,13 @@ public class AgentApplicationService {
     static final String PICKLIST_SETTLE_FAILED = "选品成果已生成但结算失败，请联系支持";
     static final String LISTING_MODEL_FAILED = "上架素材生成失败，请稍后重试";
     public static final String LISTING_SETTLE_FAILED = "上架素材已生成但结算失败，请联系支持";
+    public static final String LISTING_PLAN_SETTLE_FAILED = "策划分镜已生成但结算失败，请联系支持";
+    public static final String MSG_RESUME_NOT_AWAITING = "当前回合未在等待确认，无法续跑";
+    public static final String MSG_RESUME_TOOL_CALL_REQUIRED = "请提供 toolCallId";
+    public static final String MSG_RESUME_OPTION_REQUIRED = "请选择确认出执行稿或补充需求";
+
+    public static final String OPTION_CONFIRM_EXECUTE = "confirm_execute";
+    public static final String OPTION_SUPPLEMENT = "supplement";
 
     static final String MSG_SCENE_REQUIRED = "请先选择场景";
     static final String MSG_SCENE_NOT_FOUND = "场景不存在";
@@ -94,6 +106,14 @@ public class AgentApplicationService {
     private final ComputerViewResolver computerViewResolver;
     private final List<BilledRunInterceptor> billedRunInterceptors;
     private final Clock clock;
+
+    /**
+     * Listing HITL：门闩 A 后、终态前的进程内续跑上下文。
+     * <p>
+     * Tradeoff：重启丢登记（图 checkpoint 仍在 MySQL）；多实例需粘性或后续落库。
+     */
+    private final ConcurrentHashMap<String, GenerationRunContext> awaitingHumanByRunId =
+            new ConcurrentHashMap<String, GenerationRunContext>();
 
     /**
      * 通用：场景绑定 + 预占 + GenerationRun。
@@ -319,14 +339,18 @@ public class AgentApplicationService {
 
     /**
      * Settle 路径：pre → prompt → parse → view → post → persist → settle → artifact_ready + run_settled。
+     * Listing：{@code SUSPENDED}+可用策划 → 门闩 A（settle 策划、不 run_settled）→ 登记 resume。
      * 投影失败不落库、不 settle；{@code persistAs=none} 仍写 chat artifact。
      */
     private void streamBilledRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         AtomicBoolean aborted = new AtomicBoolean(false);
+        AtomicReference<String> planTextCandidate = new AtomicReference<String>();
+        AtomicReference<String> pendingToolCallId = new AtomicReference<String>();
 
         AutoCloseable subscription = null;
         boolean holdClosed = false;
         boolean settledOk = false;
+        boolean awaitingHuman = false;
         SkillRunProfile profile = context.getProfile();
         BilledRunContext runContext = new BilledRunContext(context);
         try {
@@ -358,27 +382,9 @@ public class AgentApplicationService {
             }
 
             final String runId = context.getRunId();
-            final Consumer<PiEvent> listener = new Consumer<PiEvent>() {
-                @Override
-                public void accept(PiEvent event) {
-                    if (aborted.get()) {
-                        return;
-                    }
-                    PiEventToAd4Mapper.mapEvent(event).ifPresent(mapped -> {
-                        if (aborted.get()) {
-                            return;
-                        }
-                        try {
-                            emit(sink, mapped);
-                        } catch (RuntimeException ex) {
-                            aborted.set(true);
-                            LoggerUtils.error(log, AgentApplicationService.class, "accept",
-                                    ex.getMessage() != null ? ex.getMessage() : "SSE send failed",
-                                    NameValue.create("runId", runId));
-                        }
-                    });
-                }
-            };
+            final boolean captureListingPlan = profile.isBilledListing();
+            final Consumer<PiEvent> listener = newPiEventListener(
+                    runId, aborted, sink, captureListingPlan, planTextCandidate, pendingToolCallId);
 
             subscription = agentSession.subscribe(listener);
 
@@ -396,6 +402,14 @@ public class AgentApplicationService {
                 return;
             }
 
+            if (profile.isBilledListing() && TurnResult.Status.SUSPENDED.equals(result.getStatus())) {
+                holdClosed = handleListingSuspended(context, sink, planTextCandidate.get(),
+                        pendingToolCallId.get(), false);
+                awaitingHuman = context.isPlanSettled()
+                        && awaitingHumanByRunId.containsKey(context.getRunId());
+                return;
+            }
+
             if (!TurnResult.Status.OK.equals(result.getStatus())) {
                 String reason = StringUtils.hasText(result.getFinalResponse())
                         ? result.getFinalResponse()
@@ -404,98 +418,14 @@ public class AgentApplicationService {
                 return;
             }
 
-            if (StringUtils.hasText(result.getFinalResponse())) {
-                Map<String, Object> delta = new LinkedHashMap<>();
-                delta.put("text", result.getFinalResponse());
-                emit(sink, Ad4SseEvent.of(Ad4EventName.message_delta, delta));
-            }
-
-            ParsedGenerationOutput parsed = generationOutputParser.parse(result.getFinalResponse());
-            Map<String, Object> projectedView;
-            try {
-                projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
-                        .skillBound(profile.isSkillBound())
-                        .finalResponse(result.getFinalResponse())
-                        .rawView(parsed.getRawView())
-                        .artifact(parsed.getBusinessPayload())
-                        .build());
-            } catch (BusinessException ex) {
-                holdClosed = finishFailed(context, sink,
-                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : ComputerViewResolver.MSG_VIEW_UNAVAILABLE);
-                return;
-            }
-
-            runContext.setProjectedView(projectedView);
-            runContext.setBusinessPayload(parsed.getBusinessPayload());
-            try {
-                for (BilledRunInterceptor interceptor : billedRunInterceptors) {
-                    interceptor.after(runContext);
-                }
-            } catch (BusinessException ex) {
-                holdClosed = finishFailed(context, sink,
-                        StringUtils.hasText(ex.getMessage())
-                                ? ex.getMessage()
-                                : ListingMediaMountSupport.MSG_MEDIA_BUSY);
-                return;
-            }
-            projectedView = runContext.getProjectedView();
-            Map<String, Object> businessPayload = runContext.getBusinessPayload();
-
-            final PersistedGenerationArtifact persisted;
-            try {
-                persisted = artifactPersistPlugin.persist(
-                        context.getUserId(), context.getRunId(), context.getSceneCode(),
-                        profile.getPersistAs(), projectedView, businessPayload);
-            } catch (BusinessException ex) {
-                holdClosed = finishFailed(context, sink,
-                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果落库失败");
-                return;
-            }
-
-            // Known edge (no redesign): persist may succeed before settle; if settle throws,
-            // ebus_artifact row can exist while run stays unsettled (common on no-skill chat path).
-            // CreditHoldSupport settle failure path releases the hold; client sees run_failed, not run_settled.
-            try {
-                creditHoldSupport.settle(context.getUserId(), context.getHoldId());
-            } catch (BusinessException ex) {
-                LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
-                        ex.getMessage() != null ? ex.getMessage() : "settle failed",
-                        NameValue.create("runId", context.getRunId()),
-                        NameValue.create("holdId", context.getHoldId()));
-                markRunFailed(context.getRunId());
-                emitRunFailed(sink,
-                        profile.isBilledListing() ? LISTING_SETTLE_FAILED : PICKLIST_SETTLE_FAILED, false);
-                holdClosed = true;
-                return;
-            }
-
-            markRunSettled(context.getRunId(), persisted.getArtifactRef());
-            settledOk = true;
-            holdClosed = true;
-
-            try {
-                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready,
-                        toArtifactReady(persisted, projectedView)));
-                emit(sink, Ad4SseEvent.of(Ad4EventName.run_settled,
-                        toRunSettled(context, persisted.getArtifactRef())));
-            } catch (RuntimeException emitEx) {
-                LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
-                        emitEx.getMessage() != null ? emitEx.getMessage() : "SSE emit after settle failed",
-                        NameValue.create("runId", context.getRunId()),
-                        NameValue.create("artifactRef", persisted.getArtifactRef()));
-            }
-
-            LoggerUtils.success(log, AgentApplicationService.class, "streamGenerationRun",
-                    NameValue.create("userId", context.getUserId()),
-                    NameValue.create("runId", context.getRunId()),
-                    NameValue.create("artifactRef", persisted.getArtifactRef()),
-                    NameValue.create("skillId", profile.getSkillId()),
-                    NameValue.create("skillBound", profile.isSkillBound()));
+            holdClosed = completeBilledSuccess(context, runContext, sink, result.getFinalResponse(),
+                    profile.getPersistAs(), true);
+            settledOk = holdClosed && generationRunLooksSettled(context.getRunId());
         } catch (RuntimeException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
                     ex.getMessage() != null ? ex.getMessage() : "stream failed",
                     NameValue.create("runId", context.getRunId()));
-            if (settledOk) {
+            if (settledOk || awaitingHuman) {
                 return;
             }
             String fallback = profile.isBilledListing() ? LISTING_MODEL_FAILED : PICKLIST_MODEL_FAILED;
@@ -510,6 +440,408 @@ public class AgentApplicationService {
         } finally {
             closeQuietly(subscription);
         }
+    }
+
+    /**
+     * Sync gate for resume API：校验归属 / RUNNING / 进程内 awaiting；非法时抛业务错（勿开 SSE）。
+     */
+    public GenerationRunContext requireAwaitingResume(ResumeGenerationRunCommand command) {
+        ObjectUtils.requireNonNull(command, "续跑命令不能为空");
+        String userId = StringUtils.requireHasText(command.getUserId(), "用户 ID 不能为空");
+        String runId = StringUtils.requireHasText(command.getRunId(), "runId 不能为空");
+        StringUtils.requireHasText(command.getToolCallId(), MSG_RESUME_TOOL_CALL_REQUIRED);
+        normalizeResumeOption(command.getOptionId(), command.getFreeText());
+
+        GenerationRun run = generationRunRepository.findById(runId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_INVALID, MSG_RESUME_NOT_AWAITING));
+        if (!userId.equals(run.getUserId())) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_RESUME_NOT_AWAITING);
+        }
+        if (run.getStatus() != GenerationRunStatus.RUNNING) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_RESUME_NOT_AWAITING);
+        }
+        GenerationRunContext context = awaitingHumanByRunId.get(runId);
+        if (context == null || !userId.equals(context.getUserId())) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_RESUME_NOT_AWAITING);
+        }
+        return context;
+    }
+
+    /**
+     * ask_human 续跑：{@code confirm_execute} 再 {@code reserveOne} 执行 hold；{@code supplement} 不预占。
+     * Resume 端点返回<strong>新 SSE 续流</strong>（FE 在 human_input_required 后停读首段流）。
+     */
+    public void streamResumeGenerationRun(ResumeGenerationRunCommand command, Consumer<Ad4SseEvent> sink) {
+        ObjectUtils.requireNonNull(sink, "SSE sink 不能为空");
+        GenerationRunContext context = requireAwaitingResume(command);
+        String userId = context.getUserId();
+        String runId = context.getRunId();
+        String toolCallId = command.getToolCallId().trim();
+
+        String optionId = normalizeResumeOption(command.getOptionId(), command.getFreeText());
+        boolean confirm = OPTION_CONFIRM_EXECUTE.equals(optionId);
+        String humanInput = formatAskHumanAnswer(optionId, command.getFreeText());
+
+        AtomicBoolean aborted = new AtomicBoolean(false);
+        AtomicReference<String> planTextCandidate = new AtomicReference<String>();
+        AtomicReference<String> pendingToolCallId = new AtomicReference<String>();
+        AutoCloseable subscription = null;
+        boolean holdClosed = false;
+        boolean settledOk = false;
+
+        try {
+            if (confirm) {
+                String execHoldId = reserveOne(userId);
+                context.bindExecHold(execHoldId);
+            }
+
+            emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context.getRunId(),
+                    context.getSessionId(), context.getHoldId())));
+
+            BilledRunContext runContext = new BilledRunContext(context);
+            subscription = agentSession.subscribe(newPiEventListener(
+                    runId, aborted, sink, true, planTextCandidate, pendingToolCallId));
+
+            TurnResult result = agentSession.resume(ResumeRequest.builder()
+                    .runId(runId)
+                    .sessionId(context.getSessionId())
+                    .toolCallId(toolCallId)
+                    .humanInput(humanInput)
+                    .confirmRequestId(command.getConfirmRequestId())
+                    .build());
+
+            loggingAgentUsage(context, result);
+
+            if (aborted.get()) {
+                holdClosed = finishFailed(context, sink, SSE_SEND_FAILED_RELEASED);
+                awaitingHumanByRunId.remove(runId);
+                return;
+            }
+
+            if (TurnResult.Status.SUSPENDED.equals(result.getStatus())) {
+                holdClosed = handleListingSuspended(context, sink, planTextCandidate.get(),
+                        pendingToolCallId.get(), true);
+                return;
+            }
+
+            if (!TurnResult.Status.OK.equals(result.getStatus())) {
+                String reason = StringUtils.hasText(result.getFinalResponse())
+                        ? result.getFinalResponse()
+                        : LISTING_MODEL_FAILED;
+                holdClosed = finishFailed(context, sink, reason);
+                awaitingHumanByRunId.remove(runId);
+                return;
+            }
+
+            if (!confirm) {
+                // supplement should re-ask; OK without suspend is unexpected — release nothing new
+                holdClosed = finishFailed(context, sink, LISTING_MODEL_FAILED);
+                awaitingHumanByRunId.remove(runId);
+                return;
+            }
+
+            holdClosed = completeBilledSuccess(context, runContext, sink, result.getFinalResponse(),
+                    SkillRunProfile.PERSIST_SKU, true);
+            settledOk = holdClosed && generationRunLooksSettled(runId);
+            if (settledOk) {
+                awaitingHumanByRunId.remove(runId);
+            } else if (holdClosed) {
+                awaitingHumanByRunId.remove(runId);
+            }
+        } catch (RuntimeException ex) {
+            LoggerUtils.error(log, AgentApplicationService.class, "streamResumeGenerationRun",
+                    ex.getMessage() != null ? ex.getMessage() : "resume failed",
+                    NameValue.create("runId", runId));
+            if (settledOk) {
+                return;
+            }
+            if (!holdClosed) {
+                finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : LISTING_MODEL_FAILED);
+            }
+            awaitingHumanByRunId.remove(runId);
+        } finally {
+            closeQuietly(subscription);
+        }
+    }
+
+    private Consumer<PiEvent> newPiEventListener(final String runId,
+                                                 final AtomicBoolean aborted,
+                                                 final Consumer<Ad4SseEvent> sink,
+                                                 final boolean captureListingPlan,
+                                                 final AtomicReference<String> planTextCandidate,
+                                                 final AtomicReference<String> pendingToolCallId) {
+        return new Consumer<PiEvent>() {
+            @Override
+            public void accept(PiEvent event) {
+                if (aborted.get()) {
+                    return;
+                }
+                PiEventToAd4Mapper.mapEvent(event).ifPresent(mapped -> {
+                    if (aborted.get()) {
+                        return;
+                    }
+                    if (captureListingPlan && mapped.getName() == Ad4EventName.message_delta) {
+                        Object text = mapped.getData().get("text");
+                        if (text != null) {
+                            noteListingPlanCandidate(String.valueOf(text), planTextCandidate);
+                        }
+                    }
+                    if (mapped.getName() == Ad4EventName.human_input_required) {
+                        Object callId = mapped.getData().get("toolCallId");
+                        if (callId != null && StringUtils.hasText(String.valueOf(callId))) {
+                            pendingToolCallId.set(String.valueOf(callId).trim());
+                        }
+                    }
+                    try {
+                        emit(sink, mapped);
+                    } catch (RuntimeException ex) {
+                        aborted.set(true);
+                        LoggerUtils.error(log, AgentApplicationService.class, "accept",
+                                ex.getMessage() != null ? ex.getMessage() : "SSE send failed",
+                                NameValue.create("runId", runId));
+                    }
+                });
+            }
+        };
+    }
+
+    private void noteListingPlanCandidate(String text, AtomicReference<String> planTextCandidate) {
+        if (!StringUtils.hasText(text)) {
+            return;
+        }
+        ParsedGenerationOutput parsed = generationOutputParser.parse(text);
+        if (parsed.getRawView() == null || parsed.getRawView().isEmpty()) {
+            return;
+        }
+        if (ArtifactPersistPlugin.isUsableListingPlanPayload(parsed.getBusinessPayload())) {
+            planTextCandidate.set(text.trim());
+        }
+    }
+
+    /**
+     * @param afterResume true when called from resume（补充后再次挂起：可刷新策划 view，不重复 settle）
+     * @return true if hold path closed (plan settled or failed)
+     */
+    private boolean handleListingSuspended(GenerationRunContext context,
+                                           Consumer<Ad4SseEvent> sink,
+                                           String planText,
+                                           String toolCallId,
+                                           boolean afterResume) {
+        if (!StringUtils.hasText(planText)) {
+            return finishFailed(context, sink, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
+        }
+        ParsedGenerationOutput parsed = generationOutputParser.parse(planText);
+        if (parsed.getRawView() == null
+                || !ArtifactPersistPlugin.isUsableListingPlanPayload(parsed.getBusinessPayload())) {
+            return finishFailed(context, sink, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
+        }
+
+        Map<String, Object> projectedView;
+        try {
+            projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
+                    .skillBound(true)
+                    .finalResponse(planText)
+                    .rawView(parsed.getRawView())
+                    .artifact(parsed.getBusinessPayload())
+                    .build());
+        } catch (BusinessException ex) {
+            return finishFailed(context, sink,
+                    StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : ComputerViewResolver.MSG_VIEW_UNAVAILABLE);
+        }
+
+        if (!context.isPlanSettled()) {
+            final PersistedGenerationArtifact persisted;
+            try {
+                persisted = artifactPersistPlugin.persist(
+                        context.getUserId(), context.getRunId(), context.getSceneCode(),
+                        SkillRunProfile.PERSIST_LISTING_PLAN, projectedView, parsed.getBusinessPayload());
+            } catch (BusinessException ex) {
+                return finishFailed(context, sink,
+                        StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果落库失败");
+            }
+
+            String planHoldId = context.getHoldId();
+            try {
+                creditHoldSupport.settle(context.getUserId(), planHoldId);
+            } catch (BusinessException ex) {
+                LoggerUtils.error(log, AgentApplicationService.class, "handleListingSuspended",
+                        ex.getMessage() != null ? ex.getMessage() : "plan settle failed",
+                        NameValue.create("runId", context.getRunId()),
+                        NameValue.create("holdId", planHoldId));
+                markRunFailed(context.getRunId());
+                emitRunFailed(sink, LISTING_PLAN_SETTLE_FAILED, false);
+                awaitingHumanByRunId.remove(context.getRunId());
+                return true;
+            }
+            context.markPlanSettled(persisted.getArtifactRef());
+            try {
+                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready,
+                        toArtifactReady(persisted, projectedView)));
+            } catch (RuntimeException emitEx) {
+                LoggerUtils.error(log, AgentApplicationService.class, "handleListingSuspended",
+                        emitEx.getMessage() != null ? emitEx.getMessage() : "artifact_ready emit failed",
+                        NameValue.create("runId", context.getRunId()));
+            }
+        } else if (afterResume) {
+            // 补充需求：刷新 Computer，不 settle、不 run_settled
+            try {
+                PersistedGenerationArtifact echo = new PersistedGenerationArtifact(
+                        context.getPlanArtifactRef(), Collections.<String, Object>emptyMap());
+                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, toArtifactReady(echo, projectedView)));
+            } catch (RuntimeException ignored) {
+                // keep awaiting
+            }
+            if (StringUtils.hasText(context.getExecHoldId())) {
+                creditHoldSupport.release(context.getUserId(), context.getExecHoldId(), context.getRunId());
+                context.clearExecHold();
+            }
+        }
+
+        if (StringUtils.hasText(toolCallId)) {
+            context.setPendingToolCallId(toolCallId);
+        }
+        awaitingHumanByRunId.put(context.getRunId(), context);
+        LoggerUtils.success(log, AgentApplicationService.class, "handleListingSuspended",
+                NameValue.create("runId", context.getRunId()),
+                NameValue.create("planSettled", Boolean.valueOf(context.isPlanSettled())),
+                NameValue.create("planArtifactRef", context.getPlanArtifactRef()),
+                NameValue.create("afterResume", Boolean.valueOf(afterResume)));
+        return true;
+    }
+
+    /**
+     * @param emitRunSettled false unused; always emit run_settled on final SKU settle
+     * @return true when hold closed (settled or failed)
+     */
+    private boolean completeBilledSuccess(GenerationRunContext context,
+                                          BilledRunContext runContext,
+                                          Consumer<Ad4SseEvent> sink,
+                                          String finalResponse,
+                                          String persistAs,
+                                          boolean emitRunSettled) {
+        SkillRunProfile profile = context.getProfile();
+        if (StringUtils.hasText(finalResponse)) {
+            Map<String, Object> delta = new LinkedHashMap<String, Object>();
+            delta.put("text", finalResponse);
+            emit(sink, Ad4SseEvent.of(Ad4EventName.message_delta, delta));
+        }
+
+        ParsedGenerationOutput parsed = generationOutputParser.parse(finalResponse);
+        Map<String, Object> projectedView;
+        try {
+            projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
+                    .skillBound(profile.isSkillBound())
+                    .finalResponse(finalResponse)
+                    .rawView(parsed.getRawView())
+                    .artifact(parsed.getBusinessPayload())
+                    .build());
+        } catch (BusinessException ex) {
+            return finishFailed(context, sink,
+                    StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : ComputerViewResolver.MSG_VIEW_UNAVAILABLE);
+        }
+
+        runContext.setProjectedView(projectedView);
+        runContext.setBusinessPayload(parsed.getBusinessPayload());
+        try {
+            for (BilledRunInterceptor interceptor : billedRunInterceptors) {
+                interceptor.after(runContext);
+            }
+        } catch (BusinessException ex) {
+            return finishFailed(context, sink,
+                    StringUtils.hasText(ex.getMessage())
+                            ? ex.getMessage()
+                            : ListingMediaMountSupport.MSG_MEDIA_BUSY);
+        }
+        projectedView = runContext.getProjectedView();
+        Map<String, Object> businessPayload = runContext.getBusinessPayload();
+
+        final PersistedGenerationArtifact persisted;
+        try {
+            persisted = artifactPersistPlugin.persist(
+                    context.getUserId(), context.getRunId(), context.getSceneCode(),
+                    persistAs, projectedView, businessPayload);
+        } catch (BusinessException ex) {
+            return finishFailed(context, sink,
+                    StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果落库失败");
+        }
+
+        String settleHoldId = context.getHoldId();
+        try {
+            creditHoldSupport.settle(context.getUserId(), settleHoldId);
+        } catch (BusinessException ex) {
+            LoggerUtils.error(log, AgentApplicationService.class, "completeBilledSuccess",
+                    ex.getMessage() != null ? ex.getMessage() : "settle failed",
+                    NameValue.create("runId", context.getRunId()),
+                    NameValue.create("holdId", settleHoldId));
+            markRunFailed(context.getRunId());
+            emitRunFailed(sink,
+                    profile.isBilledListing() ? LISTING_SETTLE_FAILED : PICKLIST_SETTLE_FAILED, false);
+            return true;
+        }
+
+        markRunSettled(context.getRunId(), persisted.getArtifactRef());
+        if (StringUtils.hasText(context.getExecHoldId())) {
+            context.clearExecHold();
+        }
+
+        try {
+            emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready,
+                    toArtifactReady(persisted, projectedView)));
+            if (emitRunSettled) {
+                emit(sink, Ad4SseEvent.of(Ad4EventName.run_settled,
+                        toRunSettled(context, settleHoldId, persisted.getArtifactRef())));
+            }
+        } catch (RuntimeException emitEx) {
+            LoggerUtils.error(log, AgentApplicationService.class, "completeBilledSuccess",
+                    emitEx.getMessage() != null ? emitEx.getMessage() : "SSE emit after settle failed",
+                    NameValue.create("runId", context.getRunId()),
+                    NameValue.create("artifactRef", persisted.getArtifactRef()));
+        }
+
+        LoggerUtils.success(log, AgentApplicationService.class, "streamGenerationRun",
+                NameValue.create("userId", context.getUserId()),
+                NameValue.create("runId", context.getRunId()),
+                NameValue.create("artifactRef", persisted.getArtifactRef()),
+                NameValue.create("skillId", profile.getSkillId()),
+                NameValue.create("skillBound", profile.isSkillBound()));
+        return true;
+    }
+
+    private static String normalizeResumeOption(String optionId, String freeText) {
+        if (StringUtils.hasText(optionId)) {
+            String id = optionId.trim();
+            if (OPTION_CONFIRM_EXECUTE.equals(id) || OPTION_SUPPLEMENT.equals(id)) {
+                return id;
+            }
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_RESUME_OPTION_REQUIRED);
+        }
+        if (StringUtils.hasText(freeText)) {
+            return OPTION_SUPPLEMENT;
+        }
+        throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_RESUME_OPTION_REQUIRED);
+    }
+
+    private static String formatAskHumanAnswer(String optionId, String freeText) {
+        StringBuilder sb = new StringBuilder(128);
+        sb.append("{\"optionId\":\"").append(jsonEscape(optionId)).append('"');
+        if (StringUtils.hasText(freeText)) {
+            sb.append(",\"freeText\":\"").append(jsonEscape(freeText.trim())).append('"');
+        }
+        sb.append('}');
+        return sb.toString();
+    }
+
+    private static String jsonEscape(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private boolean generationRunLooksSettled(String runId) {
+        GenerationRun run = generationRunRepository.findById(runId).orElse(null);
+        return run != null && run.getStatus() == GenerationRunStatus.SETTLED;
     }
 
     /**
@@ -535,8 +867,12 @@ public class AgentApplicationService {
     }
 
     private boolean finishFailed(GenerationRunContext context, Consumer<Ad4SseEvent> sink, String reason) {
-        boolean releaseOk = creditHoldSupport.release(context.getUserId(), context.getHoldId(), context.getRunId());
+        boolean releaseOk = true;
+        if (StringUtils.hasText(context.getHoldId())) {
+            releaseOk = creditHoldSupport.release(context.getUserId(), context.getHoldId(), context.getRunId());
+        }
         markRunFailed(context.getRunId());
+        awaitingHumanByRunId.remove(context.getRunId());
         emitRunFailed(sink, releaseOk ? reason : PICKLIST_RELEASE_FAILED, false);
         return true;
     }
@@ -587,10 +923,12 @@ public class AgentApplicationService {
         return data;
     }
 
-    private static Map<String, Object> toRunSettled(GenerationRunContext context, String artifactRef) {
+    private static Map<String, Object> toRunSettled(GenerationRunContext context, String holdId, String artifactRef) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("runId", context.getRunId());
-        data.put("holdId", context.getHoldId());
+        if (StringUtils.hasText(holdId)) {
+            data.put("holdId", holdId);
+        }
         if (StringUtils.hasText(artifactRef)) {
             data.put("artifactRef", artifactRef);
         }
