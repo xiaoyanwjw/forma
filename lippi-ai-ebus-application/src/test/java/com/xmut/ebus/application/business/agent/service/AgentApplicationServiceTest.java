@@ -21,6 +21,7 @@ import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.LegacyPicklistFallbackProjector;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
+import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -40,6 +41,7 @@ import com.xmut.lims.pi.agent.session.AgentSession;
 import com.xmut.lims.pi.agent.session.PromptRequest;
 import com.xmut.lims.pi.agent.session.TurnResult;
 import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.lims.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -744,14 +746,65 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void streamPicklistRunSettlesOnUsableArtifact() {
-        PicklistRunContext ctx = picklistCtx("run-pl-ok", "session-pl-ok");
+    void streamPicklistRunReleasesWithoutSettleWhenSearchSkuMissing() {
+        PicklistRunContext ctx = picklistCtx("run-pl-nosearch", "session-pl-nosearch");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-pl-ok", "session-pl-ok", VALID_PICKLIST_JSON,
+                TurnResult.ok("run-pl-nosearch", "session-pl-nosearch", VALID_PICKLIST_JSON,
                         Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-pl-nosearch")).thenReturn(Optional.of(
+                GenerationRun.start("run-pl-nosearch", USER_ID, HOLD_ID, "session-pl-nosearch",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamPicklistRun(ctx, events::add);
+
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.run_failed, failed.getName());
+        assertEquals(AgentApplicationService.SEARCH_SKU_REQUIRED_REASON, failed.getData().get("reason"));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(picklistApplicationService, never()).persistUsable(any());
+    }
+
+    @Test
+    void streamPicklistRunSettlesWhenSearchSkuSucceeded() {
+        PicklistRunContext ctx = picklistCtx("run-pl-searchok", "session-pl-searchok");
+        stubEcommercePack();
+        stubSubscribeEmittingSearchSkuOk("run-pl-searchok", "session-pl-searchok", VALID_PICKLIST_JSON);
+        PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
+                .userId(USER_ID)
+                .runId("run-pl-searchok")
+                .templateId("domestic-generic-default")
+                .disclaimer("基于通用电商知识推断，非实时平台数据")
+                .items(Collections.emptyList())
+                .build();
+        when(picklistArtifactParser.parse(VALID_PICKLIST_JSON, USER_ID, "run-pl-searchok"))
+                .thenReturn(new PicklistParseResult(persistCmd, null));
+        when(picklistApplicationService.persistUsable(any(PersistPicklistCommand.class)))
+                .thenReturn(sampleArtifact("pl-search", "run-pl-searchok"));
+        when(generationRunRepository.findById("run-pl-searchok")).thenReturn(Optional.of(
+                GenerationRun.start("run-pl-searchok", USER_ID, HOLD_ID, "session-pl-searchok",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamPicklistRun(ctx, events::add);
+
+        assertEquals(Ad4EventName.run_settled, events.get(events.size() - 1).getName());
+        verify(creditApplicationService).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).release(anyString(), anyString());
+        verify(picklistApplicationService).persistUsable(any(PersistPicklistCommand.class));
+    }
+
+    @Test
+    void streamPicklistRunSettlesOnUsableArtifact() {
+        PicklistRunContext ctx = picklistCtx("run-pl-ok", "session-pl-ok");
+        stubEcommercePack();
+        stubSubscribeEmittingSearchSkuOk("run-pl-ok", "session-pl-ok", VALID_PICKLIST_JSON);
         PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
                 .userId(USER_ID)
                 .runId("run-pl-ok")
@@ -808,11 +861,7 @@ class AgentApplicationServiceTest {
     void streamPicklistRunPrefersSkillViewOverLegacyProjection() {
         PicklistRunContext ctx = picklistCtx("run-pl-view", "session-pl-view");
         stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-pl-view", "session-pl-view", VALID_PICKLIST_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        stubSubscribeEmittingSearchSkuOk("run-pl-view", "session-pl-view", VALID_PICKLIST_JSON);
         PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
                 .userId(USER_ID)
                 .runId("run-pl-view")
@@ -874,11 +923,7 @@ class AgentApplicationServiceTest {
 
         PicklistRunContext ctx = picklistCtx("run-pl-noview", "session-pl-noview");
         stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-pl-noview", "session-pl-noview", VALID_PICKLIST_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        stubSubscribeEmittingSearchSkuOk("run-pl-noview", "session-pl-noview", VALID_PICKLIST_JSON);
         PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
                 .userId(USER_ID)
                 .runId("run-pl-noview")
@@ -908,11 +953,7 @@ class AgentApplicationServiceTest {
     void streamPicklistRunSettleFailureDoesNotReleaseOrEmitArtifact() {
         PicklistRunContext ctx = picklistCtx("run-pl-settle", "session-pl-settle");
         stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-pl-settle", "session-pl-settle", VALID_PICKLIST_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        stubSubscribeEmittingSearchSkuOk("run-pl-settle", "session-pl-settle", VALID_PICKLIST_JSON);
         PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
                 .userId(USER_ID)
                 .runId("run-pl-settle")
@@ -949,11 +990,7 @@ class AgentApplicationServiceTest {
     void streamPicklistRunEmitFailureAfterSettleDoesNotMarkFailed() {
         PicklistRunContext ctx = picklistCtx("run-pl-emit", "session-pl-emit");
         stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-pl-emit", "session-pl-emit", VALID_PICKLIST_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        stubSubscribeEmittingSearchSkuOk("run-pl-emit", "session-pl-emit", VALID_PICKLIST_JSON);
         PersistPicklistCommand persistCmd = PersistPicklistCommand.builder()
                 .userId(USER_ID)
                 .runId("run-pl-emit")
@@ -990,11 +1027,7 @@ class AgentApplicationServiceTest {
     void streamPicklistRunReleasesWhenArtifactUnusable() {
         PicklistRunContext ctx = picklistCtx("run-pl-bad", "session-pl-bad");
         stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-pl-bad", "session-pl-bad", "{bad}",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        stubSubscribeEmittingSearchSkuOk("run-pl-bad", "session-pl-bad", "{bad}");
         when(picklistArtifactParser.parse("{bad}", USER_ID, "run-pl-bad"))
                 .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID, PicklistArtifactParser.MSG_UNUSABLE));
         when(generationRunRepository.findById("run-pl-bad")).thenReturn(Optional.of(
@@ -1085,6 +1118,21 @@ class AgentApplicationServiceTest {
 
     private EmptyRunContext emptyCtx(String runId, String sessionId) {
         return new EmptyRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE);
+    }
+
+    private void stubSubscribeEmittingSearchSkuOk(String runId, String sessionId, String finalText) {
+        AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
+        when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
+            subscriber.set(invocation.getArgument(0));
+            return () -> {
+            };
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenAnswer(invocation -> {
+            subscriber.get().accept(PiEvent.of(PiEventType.TOOL_EXECUTION_END,
+                    ToolResult.ok("call-sku", SearchSkuToolHandler.TOOL_NAME, "[{}]")));
+            return TurnResult.ok(runId, sessionId, finalText,
+                    Collections.<com.xmut.lims.pi.ai.message.Message>emptyList());
+        });
     }
 
     private void stubEcommercePack() {

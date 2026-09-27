@@ -15,6 +15,7 @@ import com.xmut.ebus.application.business.agent.support.PersistedGenerationArtif
 import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.ViewProjectContext;
+import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -32,7 +33,9 @@ import com.xmut.ebus.domain.business.scene.constant.SceneStatus;
 import com.xmut.ebus.domain.business.scene.model.Scene;
 import com.xmut.ebus.domain.business.scene.repository.SceneRepository;
 import com.xmut.lims.pi.agent.event.PiEvent;
+import com.xmut.lims.pi.agent.event.PiEventType;
 import com.xmut.lims.pi.agent.session.AgentSession;
+import com.xmut.lims.pi.ai.tool.ToolResult;
 import com.xmut.lims.pi.agent.session.PromptRequest;
 import com.xmut.lims.pi.agent.session.TurnResult;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +52,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -73,6 +77,7 @@ public class AgentApplicationService {
     static final String PICKLIST_RELEASE_FAILED = "选品结束但预占释放失败";
     static final String PICKLIST_MODEL_FAILED = "选品生成失败，请稍后重试";
     static final String PICKLIST_SETTLE_FAILED = "选品成果已生成但结算失败，请联系支持";
+    static final String SEARCH_SKU_REQUIRED_REASON = "需要先检索商品";
 
     static final String MSG_SCENE_REQUIRED = "请先选择场景";
     static final String MSG_SCENE_NOT_FOUND = "场景不存在";
@@ -318,7 +323,8 @@ public class AgentApplicationService {
                 return;
             }
 
-            subscription = agentSession.subscribe(progressListener(context.getRunId(), hasMessageDelta, aborted, sink, "streamGenerationRun"));
+            subscription = agentSession.subscribe(progressListener(context.getRunId(), hasMessageDelta, aborted,
+                    new AtomicInteger(0), sink, "streamGenerationRun"));
 
             TurnResult result = agentSession.prompt(PromptRequest.builder()
                     .runId(context.getRunId())
@@ -375,6 +381,7 @@ public class AgentApplicationService {
     private void streamBilledRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         AtomicBoolean hasMessageDelta = new AtomicBoolean(false);
         AtomicBoolean aborted = new AtomicBoolean(false);
+        AtomicInteger searchSkuOk = new AtomicInteger(0);
         AutoCloseable subscription = null;
         boolean holdClosed = false;
         boolean settledOk = false;
@@ -397,7 +404,8 @@ public class AgentApplicationService {
                 return;
             }
 
-            subscription = agentSession.subscribe(progressListener(context.getRunId(), hasMessageDelta, aborted, sink, "streamGenerationRun"));
+            subscription = agentSession.subscribe(progressListener(context.getRunId(), hasMessageDelta, aborted,
+                    searchSkuOk, sink, "streamGenerationRun"));
 
             TurnResult result = agentSession.prompt(PromptRequest.builder()
                     .runId(context.getRunId())
@@ -425,6 +433,11 @@ public class AgentApplicationService {
                 Map<String, Object> delta = new LinkedHashMap<String, Object>();
                 delta.put("text", result.getFinalResponse());
                 emit(sink, Ad4SseEvent.of(Ad4EventName.message_delta, delta));
+            }
+
+            if (profile.isBilledPicklist() && searchSkuOk.get() < 1) {
+                holdClosed = finishFailed(context, sink, SEARCH_SKU_REQUIRED_REASON);
+                return;
             }
 
             final PersistedGenerationArtifact persisted;
@@ -538,6 +551,25 @@ public class AgentApplicationService {
                 NameValue.create("responseChars", responseChars));
     }
 
+    /**
+     * Counts {@code TOOL_EXECUTION_END} whose payload is a successful {@link ToolResult}
+     * named {@code search_sku}. {@link ToolResult#isSuccess()} is the source of truth
+     * ({@code failed()} sets success=false); end events without a ToolResult are ignored.
+     */
+    private static void countSuccessfulSearchSku(PiEvent event, AtomicInteger searchSkuOk) {
+        if (event == null || event.getType() != PiEventType.TOOL_EXECUTION_END || searchSkuOk == null) {
+            return;
+        }
+        Object payload = event.getPayload();
+        if (!(payload instanceof ToolResult)) {
+            return;
+        }
+        ToolResult result = (ToolResult) payload;
+        if (result.isSuccess() && SearchSkuToolHandler.TOOL_NAME.equals(result.getToolName())) {
+            searchSkuOk.incrementAndGet();
+        }
+    }
+
     private boolean finishFailed(GenerationRunContext context, Consumer<Ad4SseEvent> sink, String reason) {
         boolean releaseOk = creditHoldSupport.release(context.getUserId(), context.getHoldId(), context.getRunId());
         markRunFailed(context.getRunId());
@@ -559,6 +591,7 @@ public class AgentApplicationService {
     private Consumer<PiEvent> progressListener(final String runId,
                                                final AtomicBoolean hasMessageDelta,
                                                final AtomicBoolean aborted,
+                                               final AtomicInteger searchSkuOk,
                                                final Consumer<Ad4SseEvent> sink,
                                                final String logCategory) {
         return new Consumer<PiEvent>() {
@@ -567,6 +600,7 @@ public class AgentApplicationService {
                 if (aborted.get()) {
                     return;
                 }
+                countSuccessfulSearchSku(event, searchSkuOk);
                 PiEventToAd4Mapper.mapEvent(event).ifPresent(mapped -> {
                     if (aborted.get()) {
                         return;

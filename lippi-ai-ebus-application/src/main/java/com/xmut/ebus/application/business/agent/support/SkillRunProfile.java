@@ -95,4 +95,9 @@ public final class SkillRunProfile {
     public boolean isSkillBound() {
         return skillBound;
     }
+
+    /** Billed picklist: persist picklist artifact and require ≥1 successful {@code search_sku}. */
+    public boolean isBilledPicklist() {
+        return settleEnabled && PERSIST_PICKLIST.equals(persistAs);
+    }
 }
