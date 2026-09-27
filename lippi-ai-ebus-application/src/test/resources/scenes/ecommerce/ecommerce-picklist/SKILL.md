@@ -67,6 +67,10 @@ allowed-tools: read_skill
 ```
 
 > 注意：示例只展示 1 条以说明字段；交付时 `items.length` 必须落在 8–12。
+>
+> **双轨演进（可选，近端扁平 JSON 仍可用）：** 终态也可包成  
+> `{ "view": { "version": 1, "title": "report", "blocks": [ /* note|list|… 通用组件 */ ] }, "artifact": { /* 上方业务字段 */ } }`。  
+> Computer 只渲染 `view`；结算只认 `artifact`。无 `view` 时后端用 legacy 投影兜底。
 
 ### 硬性规则
 

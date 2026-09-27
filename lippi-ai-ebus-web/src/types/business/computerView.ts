@@ -23,6 +23,11 @@ export interface ComputerTag {
   tone?: ComputerTagTone
 }
 
+export interface ComputerMarkdownBlock {
+  type: 'markdown'
+  text: string
+}
+
 export interface ComputerNoteBlock {
   type: 'note'
   text: string
@@ -72,6 +77,7 @@ export interface ComputerSectionBlock {
 }
 
 export type ComputerBlock =
+  | ComputerMarkdownBlock
   | ComputerNoteBlock
   | ComputerListBlock
   | ComputerMediaBlock
@@ -252,6 +258,13 @@ function parseBlock(raw: unknown): ComputerBlock | null {
   if (!isRecord(raw) || typeof raw.type !== 'string') {
     warnSkipBlock('malformed', 'missing or invalid type')
     return null
+  }
+  if (raw.type === 'markdown') {
+    if (typeof raw.text !== 'string') {
+      warnSkipBlock('malformed', 'markdown')
+      return null
+    }
+    return { type: 'markdown', text: raw.text }
   }
   if (raw.type === 'note') {
     if (typeof raw.text !== 'string') {

@@ -11,6 +11,10 @@ import com.xmut.ebus.application.business.picklist.command.PersistPicklistComman
 import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
 import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
+import com.xmut.ebus.application.business.computer.LegacyPicklistFallbackProjector;
+import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
+import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
+import com.xmut.ebus.application.business.computer.ViewProjectorChain;
 import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -106,7 +110,10 @@ class AgentApplicationServiceTest {
                 agentSession,
                 picklistArtifactParser,
                 picklistApplicationService,
-                new PicklistViewProjector(),
+                new ViewProjectorChain(java.util.Arrays.asList(
+                        new NormalizeViewProjector(),
+                        new LegacyPicklistFallbackProjector(new PicklistViewProjector()),
+                        new NoSkillMarkdownProjector())),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

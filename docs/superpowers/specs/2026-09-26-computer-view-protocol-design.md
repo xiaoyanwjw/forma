@@ -199,6 +199,7 @@ interface ComputerListItem {
 - 3.6：`ListingViewProjector` + 真 `artifact_ready.view`；`mediaObjectId` → 可读 URL。
 - 3.8：历史详情复用投影器。
 - 若需多图画廊 / SKU 元信息条：先修订本设计再加块（例如 `gallery` / `kv`）。
+- **平台化演进（2026-09-27）**：Skill **双轨**（`artifact` + `view`）、无 Skill 默认 `markdown`、Projector 降为 Fallback——见 [`2026-09-27-skill-dual-track-computer-contract-design.md`](./2026-09-27-skill-dual-track-computer-contract-design.md)。通过后以该规约为准，本文件「Skill 不输出 blocks」非目标作废。
 
 ## 开放风险
 

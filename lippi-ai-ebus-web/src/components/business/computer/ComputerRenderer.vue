@@ -22,6 +22,7 @@ const props = defineProps<{
 
 function isKnownBlock(block: ComputerBlock | { type: string }): block is ComputerBlock {
   return (
+    block.type === 'markdown' ||
     block.type === 'note' ||
     block.type === 'list' ||
     block.type === 'media' ||
@@ -117,8 +118,12 @@ function itemTitle(item: { badge?: string; title: string }): string {
     </div>
     <div class="comp-card-body">
       <template v-for="(block, index) in visibleBlocks" :key="index">
+        <div
+          v-if="block.type === 'markdown'"
+          class="cv-markdown"
+        >{{ block.text }}</div>
         <p
-          v-if="block.type === 'note'"
+          v-else-if="block.type === 'note'"
           class="cv-note"
           :class="{ mute: block.tone === 'mute' }"
         >
@@ -213,6 +218,15 @@ function itemTitle(item: { badge?: string; title: string }): string {
 
 .comp-card-body {
   padding: 14px;
+}
+
+.cv-markdown {
+  margin: 0 0 10px;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .cv-note {

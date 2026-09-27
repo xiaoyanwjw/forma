@@ -42,4 +42,11 @@ public final class ComputerBlock {
         block.put("items", items == null ? new ArrayList<Map<String, Object>>() : items);
         return block;
     }
+
+    public static Map<String, Object> markdown(String text) {
+        Map<String, Object> block = new LinkedHashMap<String, Object>();
+        block.put("type", "markdown");
+        block.put("text", text == null ? "" : text);
+        return block;
+    }
 }

@@ -113,6 +113,23 @@ describe('ComputerRenderer', () => {
     host.remove()
   })
 
+  it('renders markdown blocks as plain text', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: {
+        version: 1,
+        title: 'draft',
+        blocks: [{ type: 'markdown', text: 'hello **world**' }],
+      },
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelector('.cv-markdown')?.textContent).toBe('hello **world**')
+    app.unmount()
+    host.remove()
+  })
+
   it('accepts legacy string lines and tags', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)

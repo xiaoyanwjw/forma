@@ -7,12 +7,13 @@ import com.xmut.ebus.application.business.agent.dto.PicklistRunContext;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.agent.sse.PiEventToAd4Mapper;
+import com.xmut.ebus.application.business.computer.ViewProjectContext;
+import com.xmut.ebus.application.business.computer.ViewProjectorChain;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
 import com.xmut.ebus.application.business.picklist.command.PersistPicklistCommand;
 import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
 import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
-import com.xmut.ebus.application.business.picklist.support.PicklistViewProjector;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -85,7 +86,7 @@ public class AgentApplicationService {
     private final AgentSession agentSession;
     private final PicklistArtifactParser picklistArtifactParser;
     private final PicklistApplicationService picklistApplicationService;
-    private final PicklistViewProjector picklistViewProjector;
+    private final ViewProjectorChain viewProjectorChain;
     private final Clock clock;
 
     /**
@@ -627,7 +628,14 @@ public class AgentApplicationService {
             items.add(row);
         }
         data.put("items", items);
-        data.put("view", picklistViewProjector.project(artifact));
+        ViewProjectContext viewCtx = ViewProjectContext.builder()
+                .skillBound(true)
+                .artifact(artifact)
+                .build();
+        Optional<Map<String, Object>> projected = viewProjectorChain.project(viewCtx);
+        data.put("view", projected.isPresent()
+                ? projected.get()
+                : java.util.Collections.<String, Object>emptyMap());
         return data;
     }
 
