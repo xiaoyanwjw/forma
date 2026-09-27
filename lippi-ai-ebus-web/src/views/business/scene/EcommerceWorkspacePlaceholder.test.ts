@@ -136,8 +136,8 @@ function mockCatalogAndCredits(opts?: {
         sseBody([
           'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
           'event: agent_started\ndata: {"label":"agent.start"}\n\n',
-          'event: tool_started\ndata: {"toolName":"read_skill"}\n\n',
-          'event: tool_finished\ndata: {"toolName":"read_skill"}\n\n',
+          'event: tool_started\ndata: {"toolName":"read_skill","toolCallId":"c1"}\n\n',
+          'event: tool_finished\ndata: {"toolName":"read_skill","toolCallId":"c1","success":true,"output":"# Skill ecommerce-picklist"}\n\n',
           `event: message_delta\ndata: {"text":"${'x'.repeat(130)}"}\n\n`,
           'event: agent_ended\ndata: {"label":"agent.end"}\n\n',
           `event: artifact_ready\ndata: ${JSON.stringify(artifactReadyData())}\n\n`,
@@ -456,26 +456,47 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(eventTexts.some((t) => t.includes('agent.start'))).toBe(false)
       expect(eventTexts.some((t) => t.includes('read_skill'))).toBe(false)
       expect(eventTexts.some((t) => /完成/.test(t))).toBe(false)
-      expect(eventTexts.some((t) => t.includes('✓'))).toBe(true)
+      expect(eventTexts.some((t) => t.includes('读取技能说明') && t.includes('[+]'))).toBe(true)
       expect(eventTexts.some((t) => t.includes('LLM') && t.includes('模型输出'))).toBe(true)
       expect(eventTexts.some((t) => t.includes('AGENT') && t.includes('执行结束'))).toBe(true)
       // LLM body hidden until expand; expanded shows full raw stream
       expect(mounted.root.querySelector('.chat-stream-body')).toBeNull()
       const llmCard = mounted.root.querySelector('.chat-event-llm') as HTMLElement
       expect(llmCard).toBeTruthy()
-      expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('展开')
+      expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('[+]')
       llmCard.click()
       await flushUi()
-      expect(mounted.root.querySelector('.chat-stream-body')?.textContent).toBe('x'.repeat(130))
-      expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('收起')
-      // STATUS click opens Computer preview
-      const status = mounted.root.querySelector('button.chat-event-status') as HTMLButtonElement
-      expect(status?.disabled).toBe(false)
-      expect(status?.textContent).toMatch(/查看/)
+      expect(llmCard.querySelector('.chat-stream-body')?.textContent).toBe('x'.repeat(130))
+      expect(llmCard.querySelector('.chat-stream-toggle')?.textContent).toContain('[-]')
+      // TOOL expand shows tool result body
+      const toolCards = [...mounted.root.querySelectorAll('.chat-event-tool')] as HTMLElement[]
+      const readSkill = toolCards.find((el) => el.textContent?.includes('读取技能说明'))
+      expect(readSkill).toBeTruthy()
+      expect(readSkill?.querySelector('.chat-stream-toggle')?.textContent).toContain('[+]')
+      readSkill!.click()
+      await flushUi()
+      expect(readSkill?.querySelector('.chat-stream-body')?.textContent).toContain(
+        '# Skill ecommerce-picklist',
+      )
+      expect(readSkill?.querySelector('.chat-stream-toggle')?.textContent).toContain('[-]')
+
+      // STATUS toggles Computer preview: open → 关闭, close → 查看
+      const status = mounted.root.querySelector('.chat-event-status') as HTMLElement
+      const previewToggle = () => status.querySelector('.chat-stream-toggle')?.textContent || ''
+      expect(status?.getAttribute('aria-disabled')).not.toBe('true')
+      expect(status?.getAttribute('aria-expanded')).toBe('true')
+      expect(previewToggle()).toBe('关闭')
       expect(status?.textContent).not.toMatch(/点击查看预览/)
       status.click()
       await flushUi()
+      expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
+      expect(status?.getAttribute('aria-expanded')).toBe('false')
+      expect(previewToggle()).toBe('查看')
+      status.click()
+      await flushUi()
       expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(true)
+      expect(status?.getAttribute('aria-expanded')).toBe('true')
+      expect(previewToggle()).toBe('关闭')
       expect(creditEvents.length).toBeGreaterThanOrEqual(1)
     } finally {
       window.removeEventListener('ebus:credits-changed', onCredits)
@@ -517,8 +538,10 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     ;(stream as HTMLElement).click()
     await flushUi()
     const body = stream?.querySelector('.chat-stream-body')?.textContent || ''
-    expect(body).toBe(fullStream)
-    expect(body).toContain('templateId')
+    expect(body).toContain(prose)
+    expect(body).toContain('"templateId"')
+    expect(body).toContain('\n')
+    expect(body).not.toBe(fullStream)
   })
 
   it('short message_delta stays collapsed until expand', async () => {
@@ -543,7 +566,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
 
     expect(mounted.root.querySelector('.chat-stream-body')).toBeNull()
     expect(mounted.root.querySelector('.chat-event-llm')).toBeTruthy()
-    expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('展开')
+    expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('[+]')
     ;(mounted.root.querySelector('.chat-event-llm') as HTMLElement).click()
     await flushUi()
     expect(mounted.root.querySelector('.chat-stream-body')?.textContent).toBe(shortText)
@@ -592,6 +615,49 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/未收到可用清单/)
     expect(mounted.root.querySelector('.pick-list--legacy')).toBeNull()
     expect(mounted.root.querySelector('.pick-disclaimer')).toBeNull()
+  })
+
+  it('failed STATUS card expands error detail with tool and model dumps', async () => {
+    fetchMock = mockCatalogAndCredits({
+      onPicklist: () =>
+        new Response(
+          sseBody([
+            'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+            'event: agent_started\ndata: {"label":"agent.start"}\n\n',
+            'event: tool_started\ndata: {"toolName":"search_sku","toolCallId":"t1"}\n\n',
+            'event: tool_finished\ndata: {"toolName":"search_sku","toolCallId":"t1","success":true,"output":"[{\\"title\\":\\"硅胶垫\\"}]"}\n\n',
+            `event: message_delta\ndata: ${JSON.stringify({ text: '{"view":{"version":1,"title":"report","blocks":[]}}' })}\n\n`,
+            'event: agent_ended\ndata: {"label":"agent.end"}\n\n',
+            'event: run_failed\ndata: {"reason":"模型终态缺少 view 字段，无法生成成果视图。请展开「模型输出」核对 JSON。"}\n\n',
+          ]),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root)
+    for (let i = 0; i < 8; i += 1) {
+      if (mounted.root.textContent?.includes('缺少 view')) break
+      await flushUi()
+    }
+
+    const status = mounted.root.querySelector('.chat-event-status') as HTMLElement
+    expect(status).toBeTruthy()
+    expect(status.classList.contains('is-failed')).toBe(true)
+    expect(status.textContent).toMatch(/缺少 view/)
+    expect(status.textContent).toMatch(/FAIL/)
+    expect(status.textContent).toMatch(/\[\+\]/)
+    expect(status.querySelector('.chat-stream-body')).toBeNull()
+    status.click()
+    await flushUi()
+    const detail = status.querySelector('.chat-stream-body')?.textContent || ''
+    expect(detail).toContain('【失败原因】')
+    expect(detail).toContain('缺少 view')
+    expect(detail).toContain('【模型输出】')
+    expect(detail).toContain('search_sku')
+    expect(detail).toContain('硅胶垫')
+    expect(detail.indexOf('【模型输出】')).toBeLessThan(detail.indexOf('【工具'))
+    expect(status.querySelector('.chat-stream-toggle')?.textContent).toContain('[-]')
   })
 
   it('run_failed also dispatches credits-changed', async () => {

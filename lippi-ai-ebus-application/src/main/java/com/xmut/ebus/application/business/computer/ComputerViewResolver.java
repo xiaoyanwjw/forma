@@ -2,6 +2,7 @@ package com.xmut.ebus.application.business.computer;
 
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
+import com.xmut.ebus.common.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +40,27 @@ public class ComputerViewResolver {
                 }
             }
         }
-        throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_VIEW_UNAVAILABLE);
+        throw new BusinessException(ErrorCode.PARAM_INVALID, diagnoseFailure(context));
+    }
+
+    /**
+     * Human-readable failure reason for skill-bound / missing-view cases (shown on STATUS).
+     */
+    static String diagnoseFailure(ViewProjectContext context) {
+        if (context == null) {
+            return MSG_VIEW_UNAVAILABLE;
+        }
+        if (context.isSkillBound() && context.getRawView() == null) {
+            String finalResponse = context.getFinalResponse();
+            if (!StringUtils.hasText(finalResponse)) {
+                return "模型未返回终态内容，无法生成成果视图。请重试。";
+            }
+            String trimmed = finalResponse.trim();
+            if (!trimmed.contains("\"view\"")) {
+                return "模型终态缺少 view 字段，无法生成成果视图。请展开「模型输出」核对 JSON。";
+            }
+            return "模型终态未能解析出合法 view（需含 version / title / blocks 的对象）。请展开「模型输出」核对 JSON。";
+        }
+        return MSG_VIEW_UNAVAILABLE;
     }
 }

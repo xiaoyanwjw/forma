@@ -25,10 +25,10 @@
 | `lippi-ai-ebus-web/src/types/business/computerView.ts` | `ComputerListItem.href?`；parse 仅保留 `https:` |
 | `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.vue` (+test) | 标题或「查看原商品」外链 |
 | `.../computer/NormalizeViewProjector.java` (+test) | list item 透传清洗 `href` |
-| `.../marketplace/SkuSearchPort.java` | 端口：`search(query, platform, pageSize)` |
-| `.../marketplace/MockSkuSearchClient.java` | 默认返回带 `detailUrl` 的摘要 |
-| `.../marketplace/TaobaoTbkSkuSearchClient.java` | 真客户端（feature flag）；密钥 env |
-| `.../marketplace/SearchSkuToolHandler.java` | pi `ToolHandler`；名 `search_sku` |
+| `.../sku/SkuSearchPort.java` | 端口：`search(query, platform, pageSize)` |
+| `.../sku/MockSkuSearchClient.java` | 默认返回带 `detailUrl` 的摘要 |
+| `.../sku/TaobaoTbkSkuSearchClient.java` | 真客户端（feature flag）；密钥 env |
+| `.../sku/SearchSkuToolHandler.java` | pi `ToolHandler`；名 `search_sku` |
 | `.../config/EbusToolCatalogConfiguration.java`（或 starter） | `ToolCatalog` = `read_skill` + `search_sku`（覆盖 pi 默认 MissingBean） |
 | `.../picklist/dto/PicklistArtifactDTO.java` + Item/Command | 增 `sourceUrl` |
 | `.../picklist/support/PicklistArtifactParser.java` (+test) | 每条强制非空 `https` `sourceUrl` |
@@ -121,12 +121,12 @@ EOF
 ### Task 2: `search_sku` Tool（Mock + Catalog 注册）
 
 **Files:**
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/marketplace/SkuSearchPort.java`
-- Create: `.../marketplace/SkuSearchHit.java`（immutable：platform, title, price, category, detailUrl, rawRef）
-- Create: `.../marketplace/MockSkuSearchClient.java`
-- Create: `.../marketplace/SearchSkuToolHandler.java`
+- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/sku/SkuSearchPort.java`
+- Create: `.../sku/SkuSearchHit.java`（immutable：platform, title, price, category, detailUrl, rawRef）
+- Create: `.../sku/MockSkuSearchClient.java`
+- Create: `.../sku/SearchSkuToolHandler.java`
 - Create: `.../config/EbusPiToolCatalogConfiguration.java`
-- Create: `.../marketplace/SearchSkuToolHandlerTest.java`（或 Mock client test）
+- Create: `.../sku/SearchSkuToolHandlerTest.java`（或 Mock client test）
 - Modify: `APP-META/docker-config/environment/.env.example`（占位键，无真密）
 
 **Interfaces:**
@@ -318,7 +318,7 @@ EOF
 
 - [ ] **Step 1:** mode=mock 时仍走 Mock；mode=tbk 缺密钥启动失败或回退 Mock 并打 error 日志（选一种，推荐：**缺密钥 fail-fast 仅当 mode=tbk**）。
 - [ ] **Step 2:** 单测用 WireMock 或对 Port 打桩；不在 CI 打真网。
-- [ ] **Step 3:** Commit `feat(marketplace): optional taobao tbk sku search client`
+- [ ] **Step 3:** Commit `feat(sku): optional taobao tbk sku search client`
 
 若时间紧：本任务可整段挪到 follow-up，Mock 已满足规格验收 2/5。
 

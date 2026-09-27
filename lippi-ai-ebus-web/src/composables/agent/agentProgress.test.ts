@@ -7,8 +7,11 @@ import {
   applyMessageDelta,
   applyToolFinished,
   applyToolStarted,
+  buildFailureDetail,
+  canExpandProcessEvent,
   foldPreview,
   formatEventTime,
+  formatStreamBodyForDisplay,
   processStreamText,
   processEventDisplayLabel,
   toolDisplayLabel,
@@ -49,8 +52,16 @@ describe('agentProgress', () => {
     expect(events[1]?.done).toBe(false)
     expect(formatEventTime(events[1]!.at)).toMatch(/^\d{2}:\d{2}:\d{2}$/)
 
-    events = applyToolFinished(events, { toolName: 'read_skill', toolCallId: 'c1' })
+    events = applyToolFinished(events, {
+      toolName: 'read_skill',
+      toolCallId: 'c1',
+      success: true,
+      output: '# Skill body',
+    })
     expect(events[1]?.done).toBe(true)
+    expect(events[1]?.body).toBe('# Skill body')
+    expect(events[1]?.success).toBe(true)
+    expect(canExpandProcessEvent(events[1]!)).toBe(true)
 
     events = applyMessageDelta(events, { text: 'hello' })
     events = applyMessageDelta(events, { text: ' world' })
@@ -62,6 +73,24 @@ describe('agentProgress', () => {
     expect(events[3]?.kind).toBe('agent')
     expect(events[3]?.title).toBe('agent.end')
     expect(events.map((e) => e.kind)).toEqual(['agent', 'tool', 'llm', 'agent'])
+  })
+
+  it('buildFailureDetail leads with reason and model output before tools', () => {
+    let events = applyToolStarted([], { toolName: 'search_sku', toolCallId: 't1' })
+    events = applyToolFinished(events, {
+      toolName: 'search_sku',
+      toolCallId: 't1',
+      success: true,
+      output: '[{"title":"垫"}]',
+    })
+    events = applyMessageDelta(events, { text: '{"view":{"version":1}}' })
+    const detail = buildFailureDetail('模型终态缺少 view 字段，无法生成成果视图。请展开「模型输出」核对 JSON。', events)
+    expect(detail).toContain('【失败原因】')
+    expect(detail).toContain('缺少 view')
+    expect(detail.indexOf('【模型输出】')).toBeLessThan(detail.indexOf('【工具'))
+    expect(detail).toContain('search_sku')
+    expect(detail).toContain('垫')
+    expect(detail).toContain('"version"')
   })
 
   it('appendMessageDelta concatenates text or delta fields', () => {
@@ -106,5 +135,11 @@ describe('agentProgress', () => {
     const open =
       prose + ' ```json {"templateId":"domestic-generic-default","items":[{"title":"a"}]}'
     expect(processStreamText(open)).toBe(prose)
+  })
+
+  it('formatStreamBodyForDisplay pretty-prints JSON and trailing objects', () => {
+    expect(formatStreamBodyForDisplay('{"a":1,"b":[2]}')).toBe('{\n  "a": 1,\n  "b": [\n    2\n  ]\n}')
+    expect(formatStreamBodyForDisplay('先搜一下 {"a":1}')).toBe('先搜一下\n\n{\n  "a": 1\n}')
+    expect(formatStreamBodyForDisplay('plain note')).toBe('plain note')
   })
 })

@@ -72,28 +72,20 @@ metadata:
 （何时加载；与 description 一致的人话）
 
 ## Workflow（必须按序）
-1. 从用户 query 提炼搜索词（信息不足时写 assumptions，仍先搜）
+1. 提炼搜索词（assumptions 可写，仍先搜）
 2. 调用 search_sku（至少 1 次成功）
-3. 基于返回结果筛选 / 排名（可再搜 1～2 次换词）；**只收录带有效 detailUrl 的条目**
-4. 写出合格 artifact（含每条 sourceUrl）
-5. 用同一事实编 view.blocks：list 每项填 href=sourceUrl（仅白名单组件）
+3. 筛选 / 排名（细则在 SKILL 正文）
+4. 写 artifact → `references/output.md`
+5. 用同一事实编 view（list.href = sourceUrl；字段见同参考）
 6. 只输出一个双轨 JSON
 
-## Tools
-- search_sku：入参 / 出参摘要（必须含可点开的 detailUrl）；失败时怎么做
-
-## Boundaries
-- 做 / 不做；避开坑位；禁止未搜索就编完整清单
-- 禁止编造或手写假链接；href/sourceUrl 必须来自工具返回
+## Tools / Boundaries / Failures
+（短条目即可；字段表与长示例放 references）
 
 ## Output contract
-- artifact 字段表（含 sourceUrl）+ view 示例（list.item.href）+ disclaimer 必须点名「推广池抽样」
-- 预览验收：每条候选可见「查看原商品」类跳转（或标题可点），新开页打开原链
-
-## Failures
-- 无结果 / 工具错误 → 人话说明，不编造全站蓝海；不输出假合格 artifact
-- 工具结果缺 detailUrl → 该条不得进入 8–12；若合格条数不足则整单失败不 settle
+- 指向 `references/output.md`（运行时与 SKILL.md 一并注入）；预览每条可跳原链
 ```
+
 
 ### 4.3 改造验收（文档 / 评审用）
 
@@ -187,3 +179,6 @@ Computer `note` 与 artifact disclaimer 统一口径，例如：
 | 2026-09-27 | 落库简化方案 A：硬校验 `sourceUrl`/条数不再挡 settle；见 [`2026-09-27-generation-artifact-persist-simplify-design.md`](./2026-09-27-generation-artifact-persist-simplify-design.md) |
 | 2026-09-27 | Tasks 1–5 已合入：§4.3 / §8 验收勾选；Task 6（TBK 真客户端）后置 follow-up |
 | 2026-09-27 | **修订对齐 A**：正文 Goal / Runtime / §6.1 与简化规约一致——`sourceUrl`/条数硬校验不再挡 settle；指向 simplify |
+| 2026-09-27 | SKILL 瘦身：Workflow 3–4 细则迁至 `references/rank-and-artifact.md`；应用层不再硬门禁 ≥1 次 `search_sku`（Skill 软约束） |
+| 2026-09-27 | artifact/view 字段迁至 `references/output.md`；`read_skill` / slash 展开加载 `SKILL.md` 时自动附带 `references/*.md`；废弃 `rank-and-artifact.md` / `dual-track-output.md` |
+| 2026-09-27 | SKILL 重写：一次 read_skill 自洽；references 仅维护者备注；去掉 settle 泄漏 |

@@ -17,9 +17,13 @@ import java.util.Optional;
  * {@code run_started}/{@code run_failed}/{@code run_settled} 由编排层显式发送。
  * <p>
  * 进度 payload：{@code agent_started}/{@code agent_ended} 带展示用 {@code label}；
- * 工具事件带 {@code toolName}/{@code toolCallId}；文本 delta 带 {@code text}。
+ * 工具事件带 {@code toolName}/{@code toolCallId}；{@code tool_finished} 另带
+ * {@code success} 与截断后的 {@code output}/{@code error}；文本 delta 带 {@code text}。
  */
 public final class PiEventToAd4Mapper {
+
+    /** Keep SSE payloads bounded when skill bodies / search dumps are large. */
+    static final int MAX_TOOL_TEXT_CHARS = 12_000;
 
     private PiEventToAd4Mapper() {
     }
@@ -76,6 +80,12 @@ public final class PiEventToAd4Mapper {
             ToolResult result = (ToolResult) payload;
             putIfText(data, "toolName", result.getToolName());
             putIfText(data, "toolCallId", result.getCallId());
+            data.put("success", Boolean.valueOf(result.isSuccess()));
+            if (result.isSuccess()) {
+                putIfText(data, "output", truncateToolText(result.getOutput()));
+            } else {
+                putIfText(data, "error", truncateToolText(result.getErrorMessage()));
+            }
             return data.isEmpty() ? Collections.<String, Object>emptyMap() : data;
         }
         if (payload instanceof CharSequence) {
@@ -90,5 +100,16 @@ public final class PiEventToAd4Mapper {
         if (value != null && !value.trim().isEmpty()) {
             data.put(key, value.trim());
         }
+    }
+
+    static String truncateToolText(String text) {
+        if (text == null) {
+            return null;
+        }
+        String trimmed = text.trim();
+        if (trimmed.length() <= MAX_TOOL_TEXT_CHARS) {
+            return trimmed;
+        }
+        return trimmed.substring(0, MAX_TOOL_TEXT_CHARS) + "\n…(truncated)";
     }
 }

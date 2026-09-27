@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>过程卡片 · I 软环脉冲 · 颜色搭配</title>
+  <style>
+    :root {
+      --ink: #171717;
+      --mute: #737373;
+      --mute-2: #a3a3a3;
+      --line: #e5e5e5;
+      --surface: #ffffff;
+      --chip: #f5f5f5;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px 24px 56px;
+      font-family: "Instrument Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--ink);
+      background: #fafafa;
+      background-image: radial-gradient(#e8e8e8 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    h1 { font-size: 1.35rem; margin: 0 0 8px; font-weight: 650; }
+    .lead { color: var(--mute); margin: 0 0 20px; font-size: 0.95rem; line-height: 1.5; max-width: 56rem; }
+    .section-label {
+      margin: 28px 0 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--mute);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+      max-width: 980px;
+    }
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .panel { min-width: 0; }
+    .panel h2 {
+      font-size: 0.85rem;
+      font-weight: 650;
+      margin: 0 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .swatches { display: inline-flex; gap: 4px; }
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,0.08);
+    }
+    .panel p {
+      margin: 0 0 10px;
+      font-size: 0.8rem;
+      color: var(--mute);
+      line-height: 1.45;
+      min-height: 2.2em;
+    }
+
+    /* I · soft ring pulse — color via CSS vars */
+    .bd-card {
+      --ring: #16a34a;
+      --ring-soft: rgba(22, 163, 74, 0.35);
+      --ring-glow: rgba(22, 163, 74, 0.1);
+      --fill-tint: #dcfce7;
+      --fill-mix: 18%;
+
+      position: relative;
+      border-radius: 12px;
+      border: 1px solid var(--ring-soft);
+      overflow: hidden;
+      min-height: 168px;
+      animation: ring-pulse 1.8s ease-in-out infinite;
+    }
+    .bd-fill {
+      position: relative;
+      z-index: 1;
+      border-radius: 11px;
+      padding: 12px 14px;
+      background: color-mix(in srgb, var(--fill-tint) var(--fill-mix), var(--surface));
+      min-height: 166px;
+    }
+
+    .log {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--ink);
+    }
+    .log-row { display: flex; gap: 10px; }
+    .log-time { color: var(--mute-2); width: 54px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .log-kind { color: var(--mute); width: 40px; flex-shrink: 0; font-weight: 650; }
+    .log-kind.agent { color: #0f766e; }
+    .log-kind.llm { color: #1d4ed8; }
+    .log-kind.tool { color: #c2410c; }
+    .log-title { flex: 1; min-width: 0; }
+    .log-toggle { color: var(--mute-2); }
+    .log-hint { margin-top: 8px; color: var(--mute); }
+
+    @keyframes ring-pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 transparent;
+        border-color: color-mix(in srgb, var(--ring) 35%, transparent);
+      }
+      50% {
+        box-shadow: 0 0 0 4px var(--ring-glow);
+        border-color: color-mix(in srgb, var(--ring) 75%, transparent);
+      }
+    }
+
+    /* —— Color themes —— */
+    /* I1 现状绿 */
+    .c-i1 {
+      --ring: #16a34a;
+      --ring-glow: rgba(22, 163, 74, 0.1);
+      --fill-tint: #dcfce7;
+      --fill-mix: 18%;
+    }
+    /* I2 深绿更克制 */
+    .c-i2 {
+      --ring: #166534;
+      --ring-glow: rgba(22, 101, 52, 0.1);
+      --fill-tint: #dcfce7;
+      --fill-mix: 10%;
+    }
+    /* I3 青绿 / teal（贴 AGENT 色） */
+    .c-i3 {
+      --ring: #0f766e;
+      --ring-glow: rgba(15, 118, 110, 0.12);
+      --fill-tint: #ccfbf1;
+      --fill-mix: 20%;
+    }
+    /* I4 蓝（贴 LLM） */
+    .c-i4 {
+      --ring: #2563eb;
+      --ring-glow: rgba(37, 99, 235, 0.12);
+      --fill-tint: #dbeafe;
+      --fill-mix: 18%;
+    }
+    /* I5 琥珀 / 暖等待感 */
+    .c-i5 {
+      --ring: #d97706;
+      --ring-glow: rgba(217, 119, 6, 0.12);
+      --fill-tint: #ffedd5;
+      --fill-mix: 16%;
+    }
+    /* I6 中性石墨（最不抢眼） */
+    .c-i6 {
+      --ring: #525252;
+      --ring-glow: rgba(82, 82, 82, 0.1);
+      --fill-tint: #f5f5f5;
+      --fill-mix: 55%;
+    }
+    /* I7 靛紫偏产品 */
+    .c-i7 {
+      --ring: #4f46e5;
+      --ring-glow: rgba(79, 70, 229, 0.12);
+      --fill-tint: #e0e7ff;
+      --fill-mix: 16%;
+    }
+    /* I8 双色：边框绿 + 填充暖灰（不染色） */
+    .c-i8 {
+      --ring: #16a34a;
+      --ring-glow: rgba(22, 163, 74, 0.1);
+      --fill-tint: #f5f5f5;
+      --fill-mix: 40%;
+    }
+    /* I9 薄荷绿更浅 */
+    .c-i9 {
+      --ring: #34d399;
+      --ring-glow: rgba(52, 211, 153, 0.14);
+      --fill-tint: #ecfdf5;
+      --fill-mix: 28%;
+    }
+    /* I10 仅边框、几乎无底色 */
+    .c-i10 {
+      --ring: #16a34a;
+      --ring-glow: rgba(22, 163, 74, 0.08);
+      --fill-tint: #ffffff;
+      --fill-mix: 0%;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bd-card { animation: none !important; border-color: color-mix(in srgb, var(--ring) 45%, transparent); }
+    }
+
+    .pick {
+      margin-top: 28px;
+      max-width: 980px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      font-size: 0.9rem;
+      color: var(--mute);
+    }
+    .pick strong { color: var(--ink); }
+  </style>
+</head>
+<body>
+  <h1>I · 软环脉冲 · 颜色搭配</h1>
+  <p class="lead">
+    动效固定为 I（整圈边框呼吸，不转）。下面只换颜色与底色浓度。看完回字母（如 I3 / I6）。
+  </p>
+
+  <div class="section-label">偏「成功 / 运行中」</div>
+  <div class="grid">
+    <section class="panel">
+      <h2>
+        I1 · 现状绿
+        <span class="swatches">
+          <i class="swatch" style="background:#16a34a"></i>
+          <i class="swatch" style="background:#dcfce7"></i>
+        </span>
+      </h2>
+      <p>边框绿 + 淡绿底；和之前流光同一色系。</p>
+      <div class="bd-card c-i1"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+
+    <section class="panel">
+      <h2>
+        I2 · 深绿克制
+        <span class="swatches">
+          <i class="swatch" style="background:#166534"></i>
+          <i class="swatch" style="background:#ecfdf5"></i>
+        </span>
+      </h2>
+      <p>更深、更淡的底；适合不想太「亮绿」时。</p>
+      <div class="bd-card c-i2"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+
+    <section class="panel">
+      <h2>
+        I9 · 薄荷绿浅
+        <span class="swatches">
+          <i class="swatch" style="background:#34d399"></i>
+          <i class="swatch" style="background:#ecfdf5"></i>
+        </span>
+      </h2>
+      <p>更浅更嫩；年轻一点，也可能偏「糖果」。</p>
+      <div class="bd-card c-i9"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+
+    <section class="panel">
+      <h2>
+        I8 · 绿边 + 灰底
+        <span class="swatches">
+          <i class="swatch" style="background:#16a34a"></i>
+          <i class="swatch" style="background:#f5f5f5"></i>
+        </span>
+      </h2>
+      <p>只有边框带色，卡片底保持灰白；最不抢日志字。</p>
+      <div class="bd-card c-i8"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+
+    <section class="panel">
+      <h2>
+        I10 · 绿边白底
+        <span class="swatches">
+          <i class="swatch" style="background:#16a34a"></i>
+          <i class="swatch" style="background:#ffffff"></i>
+        </span>
+      </h2>
+      <p>几乎无填充染色；动效只在边框上。</p>
+      <div class="bd-card c-i10"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+  </div>
+
+  <div class="section-label">贴控制台语义色</div>
+  <div class="grid">
+    <section class="panel">
+      <h2>
+        I3 · 青绿 Teal
+        <span class="swatches">
+          <i class="swatch" style="background:#0f766e"></i>
+          <i class="swatch" style="background:#ccfbf1"></i>
+        </span>
+      </h2>
+      <p>贴近 AGENT 标签色；像「系统在跑」。</p>
+      <div class="bd-card c-i3"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+
+    <section class="panel">
+      <h2>
+        I4 · 蓝
+        <span class="swatches">
+          <i class="swatch" style="background:#2563eb"></i>
+          <i class="swatch" style="background:#dbeafe"></i>
+        </span>
+      </h2>
+      <p>贴近 LLM 标签；偏「思考中」。</p>
+      <div class="bd-card c-i4"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+
+    <section class="panel">
+      <h2>
+        I5 · 琥珀
+        <span class="swatches">
+          <i class="swatch" style="background:#d97706"></i>
+          <i class="swatch" style="background:#ffedd5"></i>
+        </span>
+      </h2>
+      <p>暖等待感；别和失败红混，更像「请稍候」。</p>
+      <div class="bd-card c-i5"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+  </div>
+
+  <div class="section-label">更克制 / 偏产品</div>
+  <div class="grid">
+    <section class="panel">
+      <h2>
+        I6 · 石墨灰
+        <span class="swatches">
+          <i class="swatch" style="background:#525252"></i>
+          <i class="swatch" style="background:#f5f5f5"></i>
+        </span>
+      </h2>
+      <p>几乎无品牌色；最安静，像终端本身。</p>
+      <div class="bd-card c-i6"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+
+    <section class="panel">
+      <h2>
+        I7 · 靛紫
+        <span class="swatches">
+          <i class="swatch" style="background:#4f46e5"></i>
+          <i class="swatch" style="background:#e0e7ff"></i>
+        </span>
+      </h2>
+      <p>偏 SaaS 产品感；和绿系差异最大。</p>
+      <div class="bd-card c-i7"><div class="bd-fill"><div class="log" data-log></div></div></div>
+    </section>
+  </div>
+
+  <p class="pick">
+    <strong>怎么回：</strong>说颜色编号即可（如 I3、I8）。也可以说「I3 边框 + I10 白底」这种组合。
+  </p>
+
+  <script>
+    const rows = [
+      ['16:26', 'AGENT', 'agent', '开始执行', false],
+      ['16:26', 'LLM', 'llm', '模型输出', true],
+      ['16:26', 'TOOL', 'tool', '读取技能说明', true],
+      ['16:27', 'TOOL', 'tool', 'search_sku', true],
+    ]
+    const html = rows.map(([t, k, cls, title, expand]) =>
+      `<div class="log-row">` +
+        `<span class="log-time">${t}</span>` +
+        `<span class="log-kind ${cls}">${k}</span>` +
+        `<span class="log-title">${title}</span>` +
+        (expand ? `<span class="log-toggle">[+]</span>` : `<span class="log-toggle"></span>`) +
+      `</div>`
+    ).join('') + `<div class="log-hint">生成中…</div>`
+
+    document.querySelectorAll('[data-log]').forEach((el) => { el.innerHTML = html })
+  </script>
+</body>
+</html>

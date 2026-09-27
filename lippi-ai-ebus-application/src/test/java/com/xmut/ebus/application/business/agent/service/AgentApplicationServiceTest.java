@@ -1,11 +1,7 @@
 package com.xmut.ebus.application.business.agent.service;
 
-import com.xmut.ebus.application.business.agent.command.StartEmptyRunCommand;
 import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
-import com.xmut.ebus.application.business.agent.command.StartPicklistRunCommand;
-import com.xmut.ebus.application.business.agent.dto.EmptyRunContext;
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
-import com.xmut.ebus.application.business.agent.dto.PicklistRunContext;
 import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
@@ -132,12 +128,12 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunReservesAndPersistsRunWithSceneByCode() {
+    void prepareDryGenerationRunReservesAndPersistsRunWithSceneByCode() {
         stubEcommerceByCode();
         when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
 
-        EmptyRunContext ctx = service.prepareEmptyRun(StartEmptyRunCommand.builder()
+        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sceneCode(ECOM_SCENE_CODE)
                 .build());
@@ -158,12 +154,12 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunSucceedsWithSceneIdOnly() {
+    void prepareDryGenerationRunSucceedsWithSceneIdOnly() {
         stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
 
-        EmptyRunContext ctx = service.prepareEmptyRun(StartEmptyRunCommand.builder()
+        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sceneId(ECOM_SCENE_ID)
                 .build());
@@ -177,14 +173,14 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunSucceedsWhenSceneIdAndCodeConsistent() {
+    void prepareDryGenerationRunSucceedsWhenSceneIdAndCodeConsistent() {
         Scene ecommerce = ecommerceScene();
         when(sceneRepository.findByBizId(ECOM_SCENE_ID)).thenReturn(Optional.of(ecommerce));
         when(sceneRepository.findBySceneCode(ECOM_SCENE_CODE)).thenReturn(Optional.of(ecommerce));
         when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
 
-        service.prepareEmptyRun(StartEmptyRunCommand.builder()
+        service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sceneId(ECOM_SCENE_ID)
                 .sceneCode(ECOM_SCENE_CODE)
@@ -195,9 +191,9 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunRejectsMissingSceneWithoutReserveOrSave() {
+    void prepareDryGenerationRunRejectsMissingSceneWithoutReserveOrSave() {
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareEmptyRun(StartEmptyRunCommand.builder().userId(USER_ID).build()));
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true).userId(USER_ID).build()));
         assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
         assertEquals(AgentApplicationService.MSG_SCENE_REQUIRED, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
@@ -207,11 +203,11 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunRejectsUnknownSceneCode() {
+    void prepareDryGenerationRunRejectsUnknownSceneCode() {
         when(sceneRepository.findBySceneCode("unknown")).thenReturn(Optional.empty());
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareEmptyRun(StartEmptyRunCommand.builder()
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
                         .sceneCode("unknown")
                         .build()));
@@ -221,11 +217,11 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunRejectsUnknownSceneId() {
+    void prepareDryGenerationRunRejectsUnknownSceneId() {
         when(sceneRepository.findByBizId("missing-id")).thenReturn(Optional.empty());
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareEmptyRun(StartEmptyRunCommand.builder()
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
                         .sceneId("missing-id")
                         .build()));
@@ -235,12 +231,12 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunRejectsConflictingSceneIdAndCode() {
+    void prepareDryGenerationRunRejectsConflictingSceneIdAndCode() {
         when(sceneRepository.findByBizId(ECOM_SCENE_ID)).thenReturn(Optional.of(ecommerceScene()));
         when(sceneRepository.findBySceneCode(GRAY_SCENE_CODE)).thenReturn(Optional.of(grayScene()));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareEmptyRun(StartEmptyRunCommand.builder()
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
                         .sceneId(ECOM_SCENE_ID)
                         .sceneCode(GRAY_SCENE_CODE)
@@ -251,11 +247,11 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunRejectsComingSoonScene() {
+    void prepareDryGenerationRunRejectsComingSoonScene() {
         when(sceneRepository.findBySceneCode(GRAY_SCENE_CODE)).thenReturn(Optional.of(grayScene()));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareEmptyRun(StartEmptyRunCommand.builder()
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
                         .sceneCode(GRAY_SCENE_CODE)
                         .build()));
@@ -265,14 +261,14 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunRejectsSessionBoundToOtherScene() {
+    void prepareDryGenerationRunRejectsSessionBoundToOtherScene() {
         stubEcommerceByCode();
         when(piSessionSceneRepository.findBySessionId("fixed-session"))
                 .thenReturn(Optional.of(new SessionSceneBinding(
                         "fixed-session", GRAY_SCENE_ID, GRAY_SCENE_CODE)));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareEmptyRun(StartEmptyRunCommand.builder()
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
                         .sessionId("fixed-session")
                         .sceneCode(ECOM_SCENE_CODE)
@@ -284,13 +280,13 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunWritesSceneWhenSessionHasNoneYet() {
+    void prepareDryGenerationRunWritesSceneWhenSessionHasNoneYet() {
         stubEcommerceByCode();
         when(piSessionSceneRepository.findBySessionId("legacy-session"))
                 .thenReturn(Optional.of(new SessionSceneBinding("legacy-session", null, null)));
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
 
-        service.prepareEmptyRun(StartEmptyRunCommand.builder()
+        service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sessionId("legacy-session")
                 .sceneCode(ECOM_SCENE_CODE)
@@ -300,7 +296,7 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunStoresFixedSessionIdAndNewHoldEachTime() {
+    void prepareDryGenerationRunStoresFixedSessionIdAndNewHoldEachTime() {
         stubEcommerceByCode();
         when(piSessionSceneRepository.findBySessionId("fixed-session-id"))
                 .thenReturn(Optional.empty())
@@ -309,12 +305,12 @@ class AgentApplicationServiceTest {
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn("hold-a", "hold-b");
         String sessionId = "fixed-session-id";
 
-        EmptyRunContext first = service.prepareEmptyRun(StartEmptyRunCommand.builder()
+        GenerationRunContext first = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sessionId(sessionId)
                 .sceneCode(ECOM_SCENE_CODE)
                 .build());
-        EmptyRunContext second = service.prepareEmptyRun(StartEmptyRunCommand.builder()
+        GenerationRunContext second = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sessionId(sessionId)
                 .sceneCode(ECOM_SCENE_CODE)
@@ -336,14 +332,14 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareEmptyRunDoesNotCreateRunWhenInsufficient() {
+    void prepareDryGenerationRunDoesNotCreateRunWhenInsufficient() {
         stubEcommerceByCode();
         when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
         when(creditApplicationService.reserveOne(USER_ID))
                 .thenThrow(new BusinessException(ErrorCode.CREDIT_INSUFFICIENT));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareEmptyRun(StartEmptyRunCommand.builder()
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
                         .sceneCode(ECOM_SCENE_CODE)
                         .build()));
@@ -354,7 +350,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunEmitsStartedDeltaToRunFailedAndReleasesWithoutSettle() {
-        EmptyRunContext ctx = emptyCtx("run-1", "session-1");
+        GenerationRunContext ctx = emptyCtx("run-1", "session-1");
         stubEcommercePack();
         AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
         when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
@@ -373,7 +369,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamEmptyRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         Ad4SseEvent started = events.get(0);
         assertEquals(Ad4EventName.run_started, started.getName());
@@ -398,8 +394,8 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void streamEmptyRunSynthesizesMessageDeltaWhenNoPiUpdate() {
-        EmptyRunContext ctx = emptyCtx("run-3", "session-3");
+    void streamEmptyRunEndsFailedWithoutSynthesizingMessageDelta() {
+        GenerationRunContext ctx = emptyCtx("run-3", "session-3");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
@@ -411,17 +407,9 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamEmptyRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent delta = null;
-        for (Ad4SseEvent event : events) {
-            if (event.getName() == Ad4EventName.message_delta) {
-                delta = event;
-                break;
-            }
-        }
-        assertTrue(delta != null);
-        assertEquals("stub-final", delta.getData().get("text"));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.message_delta));
         Ad4SseEvent failed = events.get(events.size() - 1);
         assertEquals(Ad4EventName.run_failed, failed.getName());
         assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
@@ -430,7 +418,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunReleasesOnAgentFailureAndStillDoesNotSettle() {
-        EmptyRunContext ctx = emptyCtx("run-2", "session-2");
+        GenerationRunContext ctx = emptyCtx("run-2", "session-2");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
@@ -441,7 +429,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamEmptyRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         assertEquals(Ad4EventName.run_started, events.get(0).getName());
         assertEquals(Ad4EventName.run_failed, events.get(events.size() - 1).getName());
@@ -451,7 +439,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunReportsReleaseFailureReasonAndDoesNotClaimReleased() {
-        EmptyRunContext ctx = emptyCtx("run-4", "session-4");
+        GenerationRunContext ctx = emptyCtx("run-4", "session-4");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
@@ -465,7 +453,7 @@ class AgentApplicationServiceTest {
                 .when(creditApplicationService).release(USER_ID, HOLD_ID);
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamEmptyRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         Ad4SseEvent failed = events.get(events.size() - 1);
         assertEquals(Ad4EventName.run_failed, failed.getName());
@@ -477,7 +465,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunAbortsOnSinkFailureThenReleasesAndEmitsRunToRunFailed() {
-        EmptyRunContext ctx = emptyCtx("run-5", "session-5");
+        GenerationRunContext ctx = emptyCtx("run-5", "session-5");
         stubEcommercePack();
         AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
         when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
@@ -496,7 +484,7 @@ class AgentApplicationServiceTest {
 
         AtomicInteger accepts = new AtomicInteger();
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamEmptyRun(ctx, event -> {
+        service.streamGenerationRun(ctx, event -> {
             int n = accepts.incrementAndGet();
             if (n == 2) {
                 throw new IllegalStateException("sse broken");
@@ -513,7 +501,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunFailsHumanWithoutPromptWhenPackMissing() {
-        EmptyRunContext ctx = emptyCtx("run-pack-miss", "session-pack-miss");
+        GenerationRunContext ctx = emptyCtx("run-pack-miss", "session-pack-miss");
         when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE))
                 .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID,
                         SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE));
@@ -522,7 +510,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamEmptyRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         assertEquals(Ad4EventName.run_started, events.get(0).getName());
         Ad4SseEvent failed = events.get(events.size() - 1);
@@ -537,7 +525,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunFailsHumanWithoutPromptWhenDefaultSkillMissing() {
-        EmptyRunContext ctx = emptyCtx("run-default-miss", "session-default-miss");
+        GenerationRunContext ctx = emptyCtx("run-default-miss", "session-default-miss");
         when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(
                 new SceneCapabilityPack(ECOM_SCENE_CODE, Collections.singletonList(
                         skill(SceneCapabilityPackLoader.SKILL_SKULIST,
@@ -547,7 +535,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamEmptyRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         Ad4SseEvent failed = events.get(events.size() - 1);
         assertEquals(Ad4EventName.run_failed, failed.getName());
@@ -561,7 +549,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunReportsReleaseFailureWhenPackMissing() {
-        EmptyRunContext ctx = emptyCtx("run-pack-miss-release", "session-pack-miss-release");
+        GenerationRunContext ctx = emptyCtx("run-pack-miss-release", "session-pack-miss-release");
         when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE))
                 .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID,
                         SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE));
@@ -572,7 +560,7 @@ class AgentApplicationServiceTest {
                 .when(creditApplicationService).release(USER_ID, HOLD_ID);
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamEmptyRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         Ad4SseEvent failed = events.get(events.size() - 1);
         assertEquals(Ad4EventName.run_failed, failed.getName());
@@ -580,17 +568,6 @@ class AgentApplicationServiceTest {
         assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
         verify(agentSession, never()).prompt(any(PromptRequest.class));
         verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void preparePicklistRunRejectsBlankText() {
-        assertThrows(BusinessException.class, () -> service.preparePicklistRun(
-                StartPicklistRunCommand.builder()
-                        .userId(USER_ID)
-                        .sceneCode(ECOM_SCENE_CODE)
-                        .text("  ")
-                        .build()));
-        verify(creditApplicationService, never()).reserveOne(anyString());
     }
 
     @Test
@@ -762,26 +739,9 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void preparePicklistRunRejectsInsufficientCredit() {
-        stubEcommerceByCode();
-        when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
-        when(creditApplicationService.reserveOne(USER_ID))
-                .thenThrow(new BusinessException(ErrorCode.CREDIT_INSUFFICIENT, "积分不足，请升级套餐"));
-
-        BusinessException ex = assertThrows(BusinessException.class, () -> service.preparePicklistRun(
-                StartPicklistRunCommand.builder()
-                        .userId(USER_ID)
-                        .sceneCode(ECOM_SCENE_CODE)
-                        .text("帮我选品")
-                        .build()));
-        assertEquals(ErrorCode.CREDIT_INSUFFICIENT, ex.getErrorCode());
-        verify(generationRunRepository, never()).save(any(GenerationRun.class));
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void streamPicklistRunReleasesWithoutSettleWhenSearchSkuMissing() {
-        PicklistRunContext ctx = picklistCtx("run-pl-nosearch", "session-pl-nosearch");
+    void streamPicklistRunSettlesWithoutSearchSkuToolEvent_skillSoftConstraintOnly() {
+        // App layer no longer hard-gates ≥1 search_sku; Skill soft rules remain in SKILL.md.
+        GenerationRunContext ctx = picklistCtx("run-pl-nosearch", "session-pl-nosearch");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
@@ -793,45 +753,18 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamPicklistRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.run_failed, failed.getName());
-        assertEquals(AgentApplicationService.SEARCH_SKU_REQUIRED_REASON, failed.getData().get("reason"));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
-        verify(creditApplicationService).release(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-        verify(artifactPersistPlugin, never()).persist(
-                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
-    }
-
-    @Test
-    void streamPicklistRunReleasesWithoutSettleWhenSearchSkuFailed() {
-        PicklistRunContext ctx = picklistCtx("run-pl-searchfail", "session-pl-searchfail");
-        stubEcommercePack();
-        stubSubscribeEmittingSearchSkuFailed("run-pl-searchfail", "session-pl-searchfail", VALID_PICKLIST_JSON);
-        when(generationRunRepository.findById("run-pl-searchfail")).thenReturn(Optional.of(
-                GenerationRun.start("run-pl-searchfail", USER_ID, HOLD_ID, "session-pl-searchfail",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamPicklistRun(ctx, events::add);
-
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.run_failed, failed.getName());
-        assertEquals(AgentApplicationService.SEARCH_SKU_REQUIRED_REASON, failed.getData().get("reason"));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
-        verify(creditApplicationService).release(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-        verify(artifactPersistPlugin, never()).persist(
-                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
+        assertEquals(Ad4EventName.run_settled, events.get(events.size() - 1).getName());
+        verify(creditApplicationService).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).release(anyString(), anyString());
+        verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-nosearch"), eq(ECOM_SCENE_CODE),
+                eq(SkillRunProfile.PERSIST_PICKLIST), anyMap(), anyMap());
     }
 
     @Test
     void streamPicklistRunSettlesWhenSearchSkuSucceeded() {
-        PicklistRunContext ctx = picklistCtx("run-pl-searchok", "session-pl-searchok");
+        GenerationRunContext ctx = picklistCtx("run-pl-searchok", "session-pl-searchok");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-searchok", "session-pl-searchok", VALID_PICKLIST_JSON);
         when(generationRunRepository.findById("run-pl-searchok")).thenReturn(Optional.of(
@@ -839,7 +772,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamPicklistRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         assertEquals(Ad4EventName.run_settled, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
@@ -850,7 +783,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamPicklistRunSettlesOnUsableArtifact() {
-        PicklistRunContext ctx = picklistCtx("run-pl-ok", "session-pl-ok");
+        GenerationRunContext ctx = picklistCtx("run-pl-ok", "session-pl-ok");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-ok", "session-pl-ok", VALID_PICKLIST_JSON);
         when(generationRunRepository.findById("run-pl-ok")).thenReturn(Optional.of(
@@ -858,7 +791,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamPicklistRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         assertEquals(Ad4EventName.run_started, events.get(0).getName());
         Ad4SseEvent ready = events.stream()
@@ -889,7 +822,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamPicklistRunPrefersSkillViewOverLegacyProjection() {
-        PicklistRunContext ctx = picklistCtx("run-pl-view", "session-pl-view");
+        GenerationRunContext ctx = picklistCtx("run-pl-view", "session-pl-view");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-view", "session-pl-view", SKILL_OWNED_VIEW_JSON);
         when(generationRunRepository.findById("run-pl-view")).thenReturn(Optional.of(
@@ -897,7 +830,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamPicklistRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         Ad4SseEvent ready = events.stream()
                 .filter(e -> e.getName() == Ad4EventName.artifact_ready)
@@ -918,7 +851,7 @@ class AgentApplicationServiceTest {
         AgentApplicationService gated = newService(new ComputerViewResolver(
                 Collections.<ComputerViewProjector>emptyList()));
 
-        PicklistRunContext ctx = picklistCtx("run-pl-noview", "session-pl-noview");
+        GenerationRunContext ctx = picklistCtx("run-pl-noview", "session-pl-noview");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-noview", "session-pl-noview", VALID_PICKLIST_JSON);
         when(generationRunRepository.findById("run-pl-noview")).thenReturn(Optional.of(
@@ -926,7 +859,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        gated.streamPicklistRun(ctx, events::add);
+        gated.streamGenerationRun(ctx, events::add);
 
         assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.run_failed));
         assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
@@ -939,7 +872,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamPicklistRunSettleFailureDoesNotReleaseOrEmitArtifact() {
-        PicklistRunContext ctx = picklistCtx("run-pl-settle", "session-pl-settle");
+        GenerationRunContext ctx = picklistCtx("run-pl-settle", "session-pl-settle");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-settle", "session-pl-settle", VALID_PICKLIST_JSON);
         org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
@@ -949,7 +882,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamPicklistRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         Ad4SseEvent failed = events.get(events.size() - 1);
         assertEquals(Ad4EventName.run_failed, failed.getName());
@@ -965,7 +898,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamPicklistRunEmitFailureAfterSettleDoesNotMarkFailed() {
-        PicklistRunContext ctx = picklistCtx("run-pl-emit", "session-pl-emit");
+        GenerationRunContext ctx = picklistCtx("run-pl-emit", "session-pl-emit");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-emit", "session-pl-emit", VALID_PICKLIST_JSON);
         when(generationRunRepository.findById("run-pl-emit")).thenReturn(Optional.of(
@@ -973,7 +906,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamPicklistRun(ctx, event -> {
+        service.streamGenerationRun(ctx, event -> {
             if (Ad4EventName.artifact_ready.equals(event.getName())) {
                 throw new IllegalStateException("sse broken after settle");
             }
@@ -996,7 +929,7 @@ class AgentApplicationServiceTest {
                 new BusinessException(ErrorCode.PARAM_INVALID, ComputerViewResolver.MSG_VIEW_UNAVAILABLE));
         AgentApplicationService gated = newService(failingView);
 
-        PicklistRunContext ctx = picklistCtx("run-pl-bad", "session-pl-bad");
+        GenerationRunContext ctx = picklistCtx("run-pl-bad", "session-pl-bad");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-bad", "session-pl-bad", VALID_PICKLIST_JSON);
         when(generationRunRepository.findById("run-pl-bad")).thenReturn(Optional.of(
@@ -1004,7 +937,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        gated.streamPicklistRun(ctx, events::add);
+        gated.streamGenerationRun(ctx, events::add);
 
         Ad4SseEvent failed = events.get(events.size() - 1);
         assertEquals(Ad4EventName.run_failed, failed.getName());
@@ -1018,7 +951,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamPicklistRunReleasesWhenModelFails() {
-        PicklistRunContext ctx = picklistCtx("run-pl-fail", "session-pl-fail");
+        GenerationRunContext ctx = picklistCtx("run-pl-fail", "session-pl-fail");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
@@ -1029,7 +962,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamPicklistRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         Ad4SseEvent failed = events.get(events.size() - 1);
         assertEquals(Ad4EventName.run_failed, failed.getName());
@@ -1042,7 +975,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamEmptyRunStillNeverSettles() {
-        EmptyRunContext ctx = emptyCtx("run-empty-no-settle", "session-empty-no-settle");
+        GenerationRunContext ctx = emptyCtx("run-empty-no-settle", "session-empty-no-settle");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
@@ -1054,7 +987,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
-        service.streamEmptyRun(ctx, events::add);
+        service.streamGenerationRun(ctx, events::add);
 
         assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
         assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
@@ -1073,22 +1006,19 @@ class AgentApplicationServiceTest {
                     + "\"blocks\":[{\"type\":\"note\",\"tone\":\"mute\",\"text\":\"skill-owned note\"}]},"
                     + "\"artifact\":{\"ok\":true}}";
 
-    private PicklistRunContext picklistCtx(String runId, String sessionId) {
-        return new PicklistRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE, "帮我选品");
+    private GenerationRunContext picklistCtx(String runId, String sessionId) {
+        return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
+                "帮我选品", SkillRunProfile.billedPicklist());
     }
 
-    private EmptyRunContext emptyCtx(String runId, String sessionId) {
-        return new EmptyRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE);
+    private GenerationRunContext emptyCtx(String runId, String sessionId) {
+        return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
+                "empty-run", SkillRunProfile.dry(null));
     }
 
     private void stubSubscribeEmittingSearchSkuOk(String runId, String sessionId, String finalText) {
         stubSubscribeEmittingSearchSkuEnd(runId, sessionId, finalText,
                 ToolResult.ok("call-sku", SearchSkuToolHandler.TOOL_NAME, "[{}]"));
-    }
-
-    private void stubSubscribeEmittingSearchSkuFailed(String runId, String sessionId, String finalText) {
-        stubSubscribeEmittingSearchSkuEnd(runId, sessionId, finalText,
-                ToolResult.failed("call-sku-fail", SearchSkuToolHandler.TOOL_NAME, "search_sku failed: timeout"));
     }
 
     private void stubSubscribeEmittingSearchSkuEnd(String runId, String sessionId, String finalText,

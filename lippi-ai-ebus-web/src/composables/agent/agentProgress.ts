@@ -10,7 +10,10 @@ export type ProcessEvent = {
   title: string
   at: number
   done?: boolean
+  /** LLM stream text, or tool_finished output/error */
   body?: string
+  /** tool_finished success flag when known */
+  success?: boolean
 }
 
 /** @deprecated Prefer ProcessEvent; kept for older call sites. */
@@ -106,15 +109,78 @@ export function applyToolStarted(events: ProcessEvent[], data: Record<string, un
 export function applyToolFinished(events: ProcessEvent[], data: Record<string, unknown>): ProcessEvent[] {
   const label = toolEventLabel(data)
   const callId = typeof data.toolCallId === 'string' ? data.toolCallId.trim() : ''
+  const body = toolResultBody(data)
+  const success = typeof data.success === 'boolean' ? data.success : body ? !data.error : undefined
   let matched = false
   return events.map((e) => {
     if (matched || e.kind !== 'tool') return e
     if ((callId && e.id === callId) || (!callId && e.title === label && !e.done)) {
       matched = true
-      return { ...e, done: true }
+      return {
+        ...e,
+        done: true,
+        ...(body ? { body } : {}),
+        ...(success !== undefined ? { success } : {}),
+      }
     }
     return e
   })
+}
+
+/** Prefer output; fall back to error / errorMessage for failed tools. */
+export function toolResultBody(data: Record<string, unknown>): string | undefined {
+  for (const key of ['output', 'error', 'errorMessage'] as const) {
+    const v = data[key]
+    if (typeof v === 'string' && v.trim()) return v.trim()
+  }
+  return undefined
+}
+
+/** Whether a process row can show an expandable detail panel. */
+export function canExpandProcessEvent(e: ProcessEvent): boolean {
+  return (e.kind === 'llm' || e.kind === 'tool') && Boolean(e.body?.trim())
+}
+
+const FAILURE_TOOL_BODY_MAX = 800
+const FAILURE_LLM_BODY_MAX = 6000
+
+function clipForFailureDetail(text: string, max: number): string {
+  const t = text.trim()
+  if (t.length <= max) return t
+  return `${t.slice(0, max)}\n…(已截断，完整内容见上方对应卡片展开)`
+}
+
+/**
+ * Failure STATUS expand panel: reason first, then model output, then truncated tool dumps.
+ */
+export function buildFailureDetail(reason: string, events: ProcessEvent[]): string {
+  const why = reason.trim() || '未知错误'
+  const parts: string[] = [`【失败原因】\n${why}`]
+
+  const llm = [...events].reverse().find((e) => e.kind === 'llm' && e.body?.trim())
+  if (llm?.body) {
+    parts.push(
+      `\n---\n【模型输出】（最可能含无效 JSON / 缺 view）\n${clipForFailureDetail(
+        formatStreamBodyForDisplay(llm.body),
+        FAILURE_LLM_BODY_MAX,
+      )}`,
+    )
+  } else {
+    parts.push('\n---\n【模型输出】\n（本轮未收到模型终态文本）')
+  }
+
+  const tools = events.filter((e) => e.kind === 'tool' && e.body?.trim())
+  if (tools.length) {
+    for (const e of tools) {
+      const name = processEventDisplayLabel(e.title)
+      const flag = e.success === false ? '失败' : e.success === true ? '成功' : '完成'
+      parts.push(
+        `\n---\n【工具 ${name} · ${flag}】\n${clipForFailureDetail(e.body!, FAILURE_TOOL_BODY_MAX)}`,
+      )
+    }
+  }
+
+  return parts.join('\n')
 }
 
 export function applyMessageDelta(events: ProcessEvent[], data: Record<string, unknown>): ProcessEvent[] {
@@ -166,6 +232,46 @@ function stripTrailingJsonObject(text: string): string {
     }
   }
   return text
+}
+
+/**
+ * Expanded LLM process body: pretty-print JSON (whole body, fenced, or trailing object)
+ * so mid-run dumps are readable without changing stored raw stream text.
+ */
+export function formatStreamBodyForDisplay(raw: string): string {
+  if (!raw) return ''
+  const trimmed = raw.trim()
+
+  const tryPretty = (candidate: string): string | null => {
+    try {
+      return JSON.stringify(JSON.parse(candidate), null, 2)
+    } catch {
+      return null
+    }
+  }
+
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    const pretty = tryPretty(trimmed)
+    if (pretty) return pretty
+  }
+
+  const closedFence = trimmed.match(/^```(?:json)?\s*\r?\n?([\s\S]*?)```\s*$/i)
+  if (closedFence) {
+    const inner = closedFence[1].trim()
+    return tryPretty(inner) ?? inner
+  }
+
+  for (let i = trimmed.lastIndexOf('{'); i >= 0; i = trimmed.lastIndexOf('{', i - 1)) {
+    const suffix = trimmed.slice(i).trim()
+    const pretty = tryPretty(suffix)
+    if (pretty) {
+      const prose = trimmed.slice(0, i).replace(/```(?:json)?\s*$/i, '').trim()
+      return prose ? `${prose}\n\n${pretty}` : pretty
+    }
+    if (i === 0) break
+  }
+
+  return raw
 }
 
 /**

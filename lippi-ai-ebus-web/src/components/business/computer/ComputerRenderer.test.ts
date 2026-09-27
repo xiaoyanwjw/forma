@@ -42,6 +42,18 @@ describe('ComputerRenderer', () => {
     await nextTick()
     expect(host.textContent).toMatch(/选品清单/)
     expect(host.textContent).toMatch(/已结算/)
+    // protocol placeholder `ready` must not surface in the head
+    const readyHost = document.createElement('div')
+    document.body.appendChild(readyHost)
+    const readyApp = createApp(ComputerRenderer, {
+      document: { ...doc, title: '厨房小件选品清单', status: 'ready' },
+    })
+    readyApp.mount(readyHost)
+    await nextTick()
+    expect(readyHost.textContent).toMatch(/厨房小件选品清单/)
+    expect(readyHost.textContent).not.toMatch(/ready/)
+    readyApp.unmount()
+    readyHost.remove()
     expect(host.textContent).toMatch(/非实时说明/)
     expect(host.textContent).toMatch(/优先试/)
     expect(host.textContent).toMatch(/硅胶垫/)

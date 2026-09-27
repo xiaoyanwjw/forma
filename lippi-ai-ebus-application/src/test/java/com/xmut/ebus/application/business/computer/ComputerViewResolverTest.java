@@ -28,7 +28,8 @@ class ComputerViewResolverTest {
                 Collections.<ComputerViewProjector>emptyList());
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> resolver.resolve(ViewProjectContext.builder().skillBound(true).build()));
-        assertEquals(ComputerViewResolver.MSG_VIEW_UNAVAILABLE, ex.getMessage());
+        assertTrue(ex.getMessage().contains("未返回终态")
+                || ex.getMessage().contains(ComputerViewResolver.MSG_VIEW_UNAVAILABLE));
     }
 
     @Test
@@ -86,6 +87,15 @@ class ComputerViewResolverTest {
                         .skillBound(true)
                         .finalResponse("plain picklist json without view")
                         .build()));
-        assertEquals(ComputerViewResolver.MSG_VIEW_UNAVAILABLE, ex.getMessage());
+        assertTrue(ex.getMessage().contains("缺少 view"));
+    }
+
+    @Test
+    void diagnoseMentionsUnparseableViewWhenKeyPresent() {
+        String msg = ComputerViewResolver.diagnoseFailure(ViewProjectContext.builder()
+                .skillBound(true)
+                .finalResponse("```json\n{\"view\": \"broken\"}\n```")
+                .build());
+        assertTrue(msg.contains("未能解析出合法 view"));
     }
 }

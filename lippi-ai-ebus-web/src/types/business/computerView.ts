@@ -97,6 +97,7 @@ export interface ComputerDocument {
 /** Locale map for document title keys emitted by projectors. */
 export const COMPUTER_TITLE_LABELS: Record<string, string> = {
   picklist: '选品清单',
+  report: '选品清单',
   listingPreview: '上架素材预览',
 }
 

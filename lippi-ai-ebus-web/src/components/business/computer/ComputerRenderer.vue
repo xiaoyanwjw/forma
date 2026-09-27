@@ -44,9 +44,12 @@ const visibleBlocks = computed(() => {
 })
 
 const documentTitle = computed(() => resolveComputerTitle(props.document.title))
-const documentStatus = computed(() =>
-  props.document.status ? resolveComputerStatus(props.document.status) : undefined,
-)
+/** Hide protocol placeholder `ready`; keep demo / settled labels. */
+const documentStatus = computed(() => {
+  const raw = props.document.status?.trim()
+  if (!raw || raw === 'ready') return undefined
+  return resolveComputerStatus(raw)
+})
 
 function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean {
   return block.ordered !== false

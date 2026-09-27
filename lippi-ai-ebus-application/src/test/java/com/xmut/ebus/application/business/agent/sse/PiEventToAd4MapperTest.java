@@ -72,11 +72,19 @@ class PiEventToAd4MapperTest {
         assertEquals("read_skill", started.getData().get("toolName"));
         assertEquals("call-1", started.getData().get("toolCallId"));
 
-        ToolResult result = ToolResult.ok("call-1", "read_skill", "ok");
+        ToolResult result = ToolResult.ok("call-1", "read_skill", "skill body here");
         Ad4SseEvent finished = PiEventToAd4Mapper.mapEvent(
                 PiEvent.of(PiEventType.TOOL_EXECUTION_END, result)).get();
         assertEquals("read_skill", finished.getData().get("toolName"));
         assertEquals("call-1", finished.getData().get("toolCallId"));
+        assertEquals(Boolean.TRUE, finished.getData().get("success"));
+        assertEquals("skill body here", finished.getData().get("output"));
+
+        ToolResult failed = ToolResult.failed("call-2", "search_sku", "empty hits");
+        Ad4SseEvent finishedFail = PiEventToAd4Mapper.mapEvent(
+                PiEvent.of(PiEventType.TOOL_EXECUTION_END, failed)).get();
+        assertEquals(Boolean.FALSE, finishedFail.getData().get("success"));
+        assertEquals("empty hits", finishedFail.getData().get("error"));
     }
 
     @Test

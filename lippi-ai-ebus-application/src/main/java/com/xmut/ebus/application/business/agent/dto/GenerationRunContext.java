@@ -31,28 +31,6 @@ public final class GenerationRunContext {
         this.profile = profile;
     }
 
-    public static GenerationRunContext fromEmpty(EmptyRunContext empty, SkillRunProfile profile) {
-        return new GenerationRunContext(
-                empty.getRunId(),
-                empty.getUserId(),
-                empty.getHoldId(),
-                empty.getSessionId(),
-                empty.getSceneCode(),
-                "empty-run",
-                profile);
-    }
-
-    public static GenerationRunContext fromPicklist(PicklistRunContext picklist, SkillRunProfile profile) {
-        return new GenerationRunContext(
-                picklist.getRunId(),
-                picklist.getUserId(),
-                picklist.getHoldId(),
-                picklist.getSessionId(),
-                picklist.getSceneCode(),
-                picklist.getPromptText(),
-                profile);
-    }
-
     public String getRunId() {
         return runId;
     }

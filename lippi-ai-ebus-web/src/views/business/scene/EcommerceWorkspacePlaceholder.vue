@@ -3,7 +3,14 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
 import { getScenes } from '@/api/business/scene/scene'
-import { formatEventTime, processEventDisplayLabel, type ProcessEvent } from '@/composables/agent/agentProgress'
+import {
+  buildFailureDetail,
+  canExpandProcessEvent,
+  formatEventTime,
+  formatStreamBodyForDisplay,
+  processEventDisplayLabel,
+  type ProcessEvent,
+} from '@/composables/agent/agentProgress'
 import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
 import {
   DEMO_LISTING_VIEW,
@@ -33,6 +40,9 @@ interface ChatMessage {
   text: string
   /** Ordered AGENT / LLM / TOOL rows from SSE */
   processEvents?: ProcessEvent[]
+  /** Failed STATUS expand panel (reason + tool/model dumps) */
+  statusDetail?: string
+  failed?: boolean
 }
 
 const sessionPrompt = ref('')
@@ -46,6 +56,7 @@ const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
 const thinkingMessageId = ref<string | null>(null)
 const expandedStreamIds = ref(new Set<string>())
+const expandedStatusIds = ref(new Set<string>())
 
 const {
   running: picklistRunning,
@@ -157,12 +168,15 @@ async function sendFromSession() {
       /积分不足|额度不足|不足/.test(reason)
         ? `${reason}。可前往套餐页升级后再试。`
         : reason
+    const statusDetail = buildFailureDetail(soft, processSnapshot || [])
     if (idx >= 0) {
       messages.value[idx] = {
         id: thinkingId,
         role: 'agent',
         text: soft,
         processEvents: processSnapshot,
+        failed: true,
+        statusDetail,
       }
     } else {
       messages.value.push({
@@ -170,6 +184,8 @@ async function sendFromSession() {
         role: 'agent',
         text: soft,
         processEvents: processSnapshot,
+        failed: true,
+        statusDetail,
       })
     }
     thinkingMessageId.value = null
@@ -202,12 +218,15 @@ async function sendFromSession() {
     }
   } else {
     const fallback = '选品已结束，但未收到可用清单，请重试。'
+    const statusDetail = buildFailureDetail(fallback, processSnapshot || [])
     if (idx >= 0) {
       messages.value[idx] = {
         id: thinkingId,
         role: 'agent',
         text: fallback,
         processEvents: processSnapshot,
+        failed: true,
+        statusDetail,
       }
     } else {
       messages.value.push({
@@ -215,6 +234,8 @@ async function sendFromSession() {
         role: 'agent',
         text: fallback,
         processEvents: processSnapshot,
+        failed: true,
+        statusDetail,
       })
     }
   }
@@ -239,16 +260,35 @@ function openListingComputer() {
 }
 
 function canPreviewFromStatus(m: ChatMessage): boolean {
-  return Boolean(livePicklist.value?.view) || /已生成/.test(m.text)
+  if (m.failed) return false
+  return /已生成/.test(m.text) && Boolean(livePicklist.value?.view)
+}
+
+/** Preview is showing when Computer is open on the live picks view. */
+function isPreviewOpenFromStatus(m: ChatMessage): boolean {
+  return canPreviewFromStatus(m) && computerKind.value === 'picks'
+}
+
+function canExpandStatus(m: ChatMessage): boolean {
+  return Boolean(m.failed && (m.statusDetail || m.text))
 }
 
 function onStatusCardClick(m: ChatMessage) {
-  if (!canPreviewFromStatus(m)) return
-  openPicksComputer()
+  if (canPreviewFromStatus(m)) {
+    if (isPreviewOpenFromStatus(m)) {
+      closeComputer()
+    } else {
+      openPicksComputer()
+    }
+    return
+  }
+  if (canExpandStatus(m)) {
+    toggleStatusExpand(m.id)
+  }
 }
 
 function onProcessEventClick(e: ProcessEvent) {
-  if (e.kind === 'llm') {
+  if (canExpandProcessEvent(e)) {
     toggleStreamExpand(e.id)
   }
 }
@@ -261,6 +301,7 @@ function newTask() {
   resetPicklistRun()
   thinkingMessageId.value = null
   expandedStreamIds.value = new Set()
+  expandedStatusIds.value = new Set()
   messages.value = []
   computerKind.value = null
   livePicklist.value = null
@@ -276,6 +317,16 @@ function toggleStreamExpand(id: string) {
     next.add(id)
   }
   expandedStreamIds.value = next
+}
+
+function toggleStatusExpand(id: string) {
+  const next = new Set(expandedStatusIds.value)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+  }
+  expandedStatusIds.value = next
 }
 
 function eventTag(kind: ProcessEvent['kind']): string {
@@ -358,96 +409,139 @@ onMounted(async () => {
               class="msg"
               :class="m.role"
             >
-              <div class="role">{{ m.role === 'user' ? '你' : 'Adam' }}</div>
+              <div
+                class="msg-avatar"
+                :aria-label="m.role === 'user' ? '你' : 'Adam'"
+                role="img"
+              >
+                <svg
+                  v-if="m.role === 'user'"
+                  class="msg-avatar-icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2c0 .7.5 1.2 1.2 1.2h16.8c.7 0 1.2-.5 1.2-1.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z"
+                  />
+                </svg>
+                <span v-else class="msg-avatar-letter" aria-hidden="true">A</span>
+              </div>
               <div class="body">
+                <p v-if="m.role === 'user'">{{ m.text }}</p>
                 <div
-                  v-if="m.processEvents?.length"
-                  class="chat-events"
-                  aria-label="过程事件"
+                  v-else-if="m.processEvents?.length || m.text"
+                  class="chat-console"
+                  :class="{
+                    'is-running': picklistRunning && m.id === thinkingMessageId,
+                  }"
+                  aria-label="运行日志"
+                  :aria-busy="picklistRunning && m.id === thinkingMessageId ? 'true' : undefined"
                 >
                   <div
-                    v-for="e in m.processEvents"
-                    :key="e.id"
-                    class="chat-event"
+                    v-if="m.processEvents?.length"
+                    class="chat-events"
+                    aria-label="过程事件"
+                  >
+                    <div
+                      v-for="e in m.processEvents"
+                      :key="e.id"
+                      class="chat-event"
+                      :class="{
+                        active: e.kind === 'tool' && !e.done,
+                        'chat-event-llm': e.kind === 'llm',
+                        'chat-event-tool': e.kind === 'tool',
+                        open: canExpandProcessEvent(e) && expandedStreamIds.has(e.id),
+                        expandable: canExpandProcessEvent(e),
+                      }"
+                      role="button"
+                      tabindex="0"
+                      @click="onProcessEventClick(e)"
+                      @keydown.enter.prevent="onProcessEventClick(e)"
+                    >
+                      <span class="chat-event-time">{{ formatEventTime(e.at) }}</span>
+                      <span
+                        class="chat-event-tag"
+                        :class="{
+                          'tag-agent': e.kind === 'agent',
+                          'tag-llm': e.kind === 'llm',
+                          'tag-tool': e.kind === 'tool',
+                        }"
+                      >{{ eventTag(e.kind) }}</span>
+                      <div class="chat-event-main">
+                        <div
+                          class="chat-event-head"
+                          :aria-expanded="
+                            canExpandProcessEvent(e) ? expandedStreamIds.has(e.id) : undefined
+                          "
+                        >
+                          <span class="chat-event-title">{{ eventTitle(e) }}</span>
+                          <span v-if="canExpandProcessEvent(e)" class="chat-stream-toggle">{{
+                            expandedStreamIds.has(e.id) ? '[-]' : '[+]'
+                          }}</span>
+                          <span
+                            v-else-if="e.kind === 'tool' && !e.done"
+                            class="chat-stream-toggle"
+                          >…</span>
+                        </div>
+                      </div>
+                      <pre
+                        v-if="canExpandProcessEvent(e) && expandedStreamIds.has(e.id)"
+                        class="chat-stream-body"
+                        @click.stop
+                      >{{ formatStreamBodyForDisplay(e.body || '') }}</pre>
+                    </div>
+                  </div>
+                  <div
+                    v-if="m.text && !(picklistRunning && m.id === thinkingMessageId)"
+                    class="chat-event chat-event-status"
                     :class="{
-                      active: e.kind === 'tool' && !e.done,
-                      'chat-event-llm': e.kind === 'llm',
-                      open: e.kind === 'llm' && expandedStreamIds.has(e.id),
+                      'is-preview': canPreviewFromStatus(m),
+                      'is-failed': canExpandStatus(m),
+                      open:
+                        isPreviewOpenFromStatus(m) ||
+                        (canExpandStatus(m) && expandedStatusIds.has(m.id)),
+                      expandable: canPreviewFromStatus(m) || canExpandStatus(m),
                     }"
                     role="button"
                     tabindex="0"
-                    @click="onProcessEventClick(e)"
-                    @keydown.enter.prevent="onProcessEventClick(e)"
+                    :aria-disabled="!(canPreviewFromStatus(m) || canExpandStatus(m))"
+                    :aria-expanded="
+                      canPreviewFromStatus(m)
+                        ? isPreviewOpenFromStatus(m)
+                        : canExpandStatus(m)
+                          ? expandedStatusIds.has(m.id)
+                          : undefined
+                    "
+                    @click="onStatusCardClick(m)"
+                    @keydown.enter.prevent="onStatusCardClick(m)"
                   >
-                    <span class="chat-event-time">{{ formatEventTime(e.at) }}</span>
-                    <span
-                      class="chat-event-tag"
-                      :class="{
-                        'tag-agent': e.kind === 'agent',
-                        'tag-llm': e.kind === 'llm',
-                        'tag-tool': e.kind === 'tool',
-                      }"
-                    >{{ eventTag(e.kind) }}</span>
+                    <span class="chat-event-time">{{
+                      formatEventTime(
+                        m.processEvents?.[m.processEvents.length - 1]?.at ?? Date.now(),
+                      )
+                    }}</span>
+                    <span class="chat-event-tag tag-status">{{
+                      canExpandStatus(m) ? 'FAIL' : 'OK'
+                    }}</span>
                     <div class="chat-event-main">
-                      <template v-if="e.kind === 'llm'">
-                        <div class="chat-event-head" :aria-expanded="expandedStreamIds.has(e.id)">
-                          <span class="chat-event-title">{{ eventTitle(e) }}</span>
-                          <span class="chat-stream-toggle">{{
-                            expandedStreamIds.has(e.id) ? '收起' : '展开'
-                          }}</span>
-                        </div>
-                        <pre v-if="expandedStreamIds.has(e.id)" class="chat-stream-body">{{
-                          e.body || ''
-                        }}</pre>
-                      </template>
-                      <span v-else class="chat-event-title">{{ eventTitle(e) }}</span>
+                      <div class="chat-event-head">
+                        <span class="chat-event-title chat-result-text">{{ m.text }}</span>
+                        <span v-if="canPreviewFromStatus(m)" class="chat-stream-toggle">{{
+                          isPreviewOpenFromStatus(m) ? '关闭' : '查看'
+                        }}</span>
+                        <span v-else-if="canExpandStatus(m)" class="chat-stream-toggle">{{
+                          expandedStatusIds.has(m.id) ? '[-]' : '[+]'
+                        }}</span>
+                      </div>
                     </div>
-                    <span
-                      v-if="e.kind === 'llm'"
-                      class="chat-event-chevron"
-                      aria-hidden="true"
-                    >{{ expandedStreamIds.has(e.id) ? '▾' : '▸' }}</span>
-                    <span
-                      v-else-if="e.kind === 'tool'"
-                      class="chat-event-mark"
-                      aria-hidden="true"
-                    >{{ e.done ? '✓' : '…' }}</span>
-                    <span v-else class="chat-event-mark" aria-hidden="true" />
+                    <pre
+                      v-if="canExpandStatus(m) && expandedStatusIds.has(m.id)"
+                      class="chat-stream-body"
+                      @click.stop
+                    >{{ formatStreamBodyForDisplay(m.statusDetail || m.text) }}</pre>
                   </div>
                 </div>
-                <p v-if="m.role === 'user'">{{ m.text }}</p>
-                <button
-                  v-else-if="m.text"
-                  type="button"
-                  class="chat-event chat-event-status"
-                  :class="{
-                    active: picklistRunning && m.id === thinkingMessageId,
-                    'is-preview': canPreviewFromStatus(m),
-                  }"
-                  :disabled="!canPreviewFromStatus(m)"
-                  @click="onStatusCardClick(m)"
-                >
-                  <span class="chat-event-time">{{
-                    formatEventTime(m.processEvents?.[m.processEvents.length - 1]?.at ?? Date.now())
-                  }}</span>
-                  <span class="chat-event-tag tag-status">STATUS</span>
-                  <div class="chat-event-main">
-                    <div class="chat-event-head">
-                      <span class="chat-event-title chat-result-text">{{ m.text }}</span>
-                      <span v-if="canPreviewFromStatus(m)" class="chat-stream-toggle">查看</span>
-                    </div>
-                  </div>
-                  <span
-                    v-if="canPreviewFromStatus(m)"
-                    class="chat-event-chevron"
-                    aria-hidden="true"
-                  >▸</span>
-                  <span
-                    v-else
-                    class="chat-event-mark"
-                    aria-hidden="true"
-                  >{{ picklistRunning && m.id === thinkingMessageId ? '…' : '✓' }}</span>
-                </button>
                 <div v-if="m.role === 'agent' && !picksIsLive" class="demo-actions">
                   <button
                     type="button"

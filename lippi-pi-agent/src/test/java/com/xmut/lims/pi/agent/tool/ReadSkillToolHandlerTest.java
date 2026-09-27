@@ -38,6 +38,8 @@ class ReadSkillToolHandlerTest {
         assertThat(result.isSuccess()).isTrue();
         assertThat(result.getOutput()).contains("# Skill ecommerce-picklist");
         assertThat(result.getOutput()).contains("非实时平台全站行情");
+        assertThat(result.getOutput()).contains("# Reference: output.md");
+        assertThat(result.getOutput()).contains("including references");
     }
 
     @Test

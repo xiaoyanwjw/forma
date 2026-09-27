@@ -3,7 +3,7 @@ package com.xmut.ebus.application.config;
 import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
-import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
+import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

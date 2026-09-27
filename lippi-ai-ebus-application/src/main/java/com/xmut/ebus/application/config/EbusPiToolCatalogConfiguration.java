@@ -2,9 +2,9 @@ package com.xmut.ebus.application.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.xmut.ebus.application.business.marketplace.MockSkuSearchClient;
-import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
-import com.xmut.ebus.application.business.marketplace.SkuSearchPort;
+import com.xmut.ebus.application.business.sku.MockSkuSearchClient;
+import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
+import com.xmut.ebus.application.business.sku.SkuSearchPort;
 import com.xmut.lims.pi.agent.skill.SkillCatalog;
 import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.Tool;
@@ -87,7 +87,7 @@ public class EbusPiToolCatalogConfiguration {
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(SearchSkuToolHandler.TOOL_NAME)
-                .description("Search marketplace SKUs and return hits with https detailUrl")
+                .description("Search SKUs and return hits with https detailUrl")
                 .text("[search_sku] Search promoted SKUs. Use query; never invent detailUrl.")
                 .schema(schema)
                 .handlerClass(SearchSkuToolHandler.class.getName())

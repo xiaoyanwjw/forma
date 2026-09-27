@@ -1,0 +1,143 @@
+# Output schema
+
+`view` 给界面渲染；`artifact` 落库回显。两边同一事实，不是互相拷贝。
+
+成功时只返回**一个** JSON 对象（可用 ` ```json ` 围栏），对象外不要闲聊。
+
+```json
+{ "view": { }, "artifact": { } }
+```
+
+## Contents
+
+1. [对齐规则](#对齐规则)
+2. [view](#view)
+3. [artifact](#artifact)
+4. [示例](#示例)
+
+## 对齐规则
+
+| 规则 | 说明 |
+|------|------|
+| 同一事实 | `view` 每个候选对应一条 `artifact.items[]` |
+| 链接一致 | `sourceUrl` = 该条 `detailUrl`；list `href` = 同一 `sourceUrl`；仅绝对 `https:`；禁止编造 |
+| 条数 | 成功时两边均为 **8–12**（下方示例为简洁只写 1 条） |
+| 免责声明 | 非空，且必须包含字面量 **`非实时平台全站行情`**。推荐整句：`候选基于淘宝客/多多客推广池抽样检索与助手排序，非实时平台全站行情。点击可打开平台商品页核对。` |
+
+## view
+
+| 字段 | 要求 |
+|------|------|
+| `version` | `1` |
+| `title` | **给人看的中文标题**（由本轮生成，建议与 `artifact.title` 一致，如「厨房小件 19–39 元选品清单」）；勿写裸 key `report` / `picklist` |
+| `status` | 可选；成功可写 `ready`（界面不展示） |
+| `blocks` | 仅 `note` / `list` / `markdown` / `media` / `section` |
+
+选品常用两块：
+
+1. `note`（`tone: mute`）：放免责声明（含 `非实时平台全站行情`）
+2. `list`（`ordered: true`）：每条候选一行
+
+### list.items[]
+
+| 字段 | 要求 |
+|------|------|
+| `title` | 商品名；此处**不加** `【优先试】` |
+| `href` | = 对应 `artifact.items[].sourceUrl` |
+| `badge` | 优先试条目用 `"priority"`（全清单 1–2 条） |
+| `lines` | 短事实；`kind` 如 `priceBand` / `painPoint` / `angle` / `diff` / `niche` |
+| `tags` | 评分条；`kind`：`demand` / `competition` / `margin` / `risk` |
+
+`tone` 仅：`mute` / `positive` / `warning` / `neutral`。  
+验收：每条 list 的 `href` 能打开真实商品页。
+
+## artifact
+
+| 字段 | 要求 |
+|------|------|
+| `title` | 与 `view.title` 相同的中文清单标题 |
+| `templateId` | `domestic-generic-default` |
+| `disclaimer` | 同 view note 的免责声明合同 |
+| `assumptions` | 可选；用户信息不足时的搜索假设 |
+| `items` | 成功时长度 **8–12** |
+
+### items[]
+
+| 字段 | 要求 |
+|------|------|
+| `title` | 全清单恰好 **1–2** 条以 `【优先试】` 开头 |
+| `priceBand` | 价格带（以工具抽样为准） |
+| `painPoint` / `angle` / `diff` | 痛点 / 角度 / 差异化 |
+| `niche` | 细分场景；全清单 **≥3 个不同** niche |
+| `demand` / `competition` / `margin` / `risk` | 以 `高｜` / `中｜` / `低｜` 开头，后接简评 |
+| `sourceUrl` | = 该条 `detailUrl` |
+
+不要把 `blocks` / `badge` / `lines` / `tags` 写进 `artifact`。
+
+## 示例
+
+（各 1 条；交付时两边均 8–12。）
+
+```json
+{
+  "view": {
+    "version": 1,
+    "title": "厨房小件 19–39 元选品清单",
+    "status": "ready",
+    "blocks": [
+      {
+        "type": "note",
+        "tone": "mute",
+        "text": "候选基于淘宝客/多多客推广池抽样检索与助手排序，非实时平台全站行情。点击可打开平台商品页核对。"
+      },
+      {
+        "type": "list",
+        "ordered": true,
+        "items": [
+          {
+            "badge": "priority",
+            "title": "硅胶沥水垫（多色）",
+            "href": "https://item.taobao.com/example-sku-1",
+            "lines": [
+              { "kind": "priceBand", "text": "19–39 元", "emphasis": "price" },
+              { "kind": "painPoint", "text": "水槽边易积水难打理" },
+              { "kind": "angle", "text": "租房厨房刚需且轻小好发" },
+              { "kind": "diff", "text": "多色套装+厚度对比主图" },
+              { "kind": "niche", "text": "厨房沥水收纳" }
+            ],
+            "tags": [
+              { "kind": "demand", "text": "高｜台面积水刚需、搜索意图清晰", "tone": "positive" },
+              { "kind": "competition", "text": "中｜供给多但同质，视觉差异可切", "tone": "neutral" },
+              { "kind": "margin", "text": "中｜低客单测款友好，注意包邮后毛利", "tone": "neutral" },
+              { "kind": "risk", "text": "低｜勿夸大功效；材质合规表述", "tone": "positive" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "artifact": {
+    "title": "厨房小件 19–39 元选品清单",
+    "templateId": "domestic-generic-default",
+    "disclaimer": "候选基于淘宝客/多多客推广池抽样检索与助手排序，非实时平台全站行情。点击可打开平台商品页核对。",
+    "assumptions": "未指定品类时按国内小件家居日用测款默认",
+    "items": [
+      {
+        "title": "【优先试】硅胶沥水垫（多色）",
+        "priceBand": "19–39 元",
+        "painPoint": "水槽边易积水难打理",
+        "angle": "租房厨房刚需且轻小好发",
+        "diff": "多色套装+厚度对比主图",
+        "niche": "厨房沥水收纳",
+        "demand": "高｜台面积水刚需、搜索意图清晰",
+        "competition": "中｜供给多但同质，视觉差异可切",
+        "margin": "中｜低客单测款友好，注意包邮后毛利",
+        "risk": "低｜勿夸大功效；材质合规表述",
+        "sourceUrl": "https://item.taobao.com/example-sku-1"
+      }
+    ]
+  }
+}
+```
+
+失败路径：不要输出本 JSON，只回人话（见 SKILL § Failures）。

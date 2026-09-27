@@ -6,14 +6,10 @@ import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
-import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
 
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -131,34 +127,14 @@ public final class DefaultPiResourceLoader implements PiResourceLoader {
     }
 
     /**
-     * 用 Spring FQCN ResourceLoader 读 promptRef，避免与本类撞名。
+     * 读 promptRef；{@code SKILL.md} 时附带同级 {@code references/*.md}（与 {@code read_skill} 一致）。
      */
     private Optional<String> loadPromptRef(String promptRef, String skillId) {
-        try {
-            org.springframework.core.io.ResourceLoader springLoader =
-                    new org.springframework.core.io.DefaultResourceLoader();
-            String location = promptRef.startsWith("classpath:")
-                    || promptRef.startsWith("file:")
-                    || promptRef.startsWith("http")
-                    ? promptRef
-                    : "classpath:" + promptRef;
-            Resource resource = springLoader.getResource(location);
-            if (!resource.exists()) {
-                log.warn("PiResourceLoader: promptRef not found skillId={} ref={}", skillId, promptRef);
-                return Optional.empty();
-            }
-            try (InputStream in = resource.getInputStream()) {
-                String body = StreamUtils.copyToString(in, StandardCharsets.UTF_8);
-                if (!StringUtils.hasText(body)) {
-                    return Optional.empty();
-                }
-                return Optional.of(body.trim());
-            }
-        } catch (Exception ex) {
-            log.warn("PiResourceLoader: failed promptRef skillId={} ref={}: {}",
-                    skillId, promptRef, ex.toString());
-            return Optional.empty();
+        Optional<String> body = com.xmut.lims.pi.agent.skill.SkillPromptBodyLoader.load(promptRef);
+        if (!body.isPresent()) {
+            log.warn("PiResourceLoader: promptRef unavailable skillId={} ref={}", skillId, promptRef);
         }
+        return body;
     }
 
     private List<String> skillIds() {
