@@ -26,7 +26,7 @@ public class StartGenerationRunCommand extends BaseCommand {
      * 目标 Skill。
      * <ul>
      *   <li>{@code dryRun=true} + blank → 默认空跑 skill</li>
-     *   <li>{@code dryRun=false} + blank → 无 Skill markdown 路径</li>
+     *   <li>{@code dryRun=false} + blank → 无 Skill markdown 路径（view 门禁后 settle）</li>
      *   <li>已知计费 skill（如 ecommerce-picklist）→ settle 路径</li>
      * </ul>
      */

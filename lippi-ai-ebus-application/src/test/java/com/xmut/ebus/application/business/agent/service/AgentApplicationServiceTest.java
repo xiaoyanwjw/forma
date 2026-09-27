@@ -621,7 +621,7 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void streamGenerationRunNoSkillEmitsMarkdownViewWithoutSettleOrRunFailed() {
+    void streamGenerationRunNoSkillSettlesOnUsableMarkdownView() {
         GenerationRunContext ctx = new GenerationRunContext(
                 "run-ns-ok", USER_ID, HOLD_ID, "session-ns-ok", ECOM_SCENE_CODE,
                 "你好", SkillRunProfile.noSkill());
@@ -656,10 +656,10 @@ class AgentApplicationServiceTest {
         assertEquals("markdown", blocks.get(0).get("type"));
         assertEquals("这是一段草稿回复", blocks.get(0).get("text"));
 
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        assertEquals(Ad4EventName.run_settled, events.get(events.size() - 1).getName());
         assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_failed));
-        verify(creditApplicationService).release(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(creditApplicationService).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).release(anyString(), anyString());
         verify(picklistApplicationService, never()).persistUsable(any());
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
@@ -667,7 +667,37 @@ class AgentApplicationServiceTest {
         assertEquals("你好", promptCaptor.getValue().getText());
         ArgumentCaptor<GenerationRun> runCaptor = ArgumentCaptor.forClass(GenerationRun.class);
         verify(generationRunRepository).update(runCaptor.capture());
-        assertEquals(GenerationRunStatus.FAILED, runCaptor.getValue().getStatus());
+        assertEquals(GenerationRunStatus.SETTLED, runCaptor.getValue().getStatus());
+        assertEquals(null, runCaptor.getValue().getArtifactRef());
+    }
+
+    @Test
+    void streamGenerationRunNoSkillSettleFailureDoesNotReleaseOrEmitReady() {
+        GenerationRunContext ctx = new GenerationRunContext(
+                "run-ns-settle", USER_ID, HOLD_ID, "session-ns-settle", ECOM_SCENE_CODE,
+                "你好", SkillRunProfile.noSkill());
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(ecommercePack());
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-ns-settle", "session-ns-settle", "草稿",
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
+                .when(creditApplicationService).settle(USER_ID, HOLD_ID);
+        when(generationRunRepository.findById("run-ns-settle")).thenReturn(Optional.of(
+                GenerationRun.start("run-ns-settle", USER_ID, HOLD_ID, "session-ns-settle",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.run_failed, failed.getName());
+        assertEquals(AgentApplicationService.PICKLIST_SETTLE_FAILED, failed.getData().get("reason"));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.artifact_ready));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.run_settled));
+        verify(creditApplicationService).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).release(anyString(), anyString());
     }
 
     @Test

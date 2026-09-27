@@ -19,8 +19,8 @@
 1. **先定义并冻结 Computer 通用组件白名单**（与业务名无关）。  
 2. Skill 终态**首先**产出合法 `view`（blocks 只用白名单）。  
 3. 计费场景**另外**带可校验的业务包（下文称 `artifact`）；类型名由业务插件解释，**不进入 Computer 渲染协议**。  
-4. **Projector 策略模式**（`supports` + `project`）：对已有 `view` 做**规范化**；**无 Skill** 时把终态文本**包成 markdown**；默认不 settle。  
-5. **Settle** 仍只认「可用 `artifact` 已持久化」（AD-5）。
+4. **Projector 策略模式**（`supports` + `project`）：对已有 `view` 做**规范化**；**无 Skill** 时把终态文本**包成 markdown**。
+5. **Settle**：有 `persistAs` 业务轨 → 可用 `artifact` 落库后 settle（AD-5）；**无 Skill**（`persistAs=none`）→ 可用 Computer `view` 门禁通过后 settle（草稿回合扣 1 分）。
 
 ## 非目标
 
@@ -223,7 +223,7 @@ output:
 }
 ```
 
-默认不 settle。聊天区仍可有 `message_delta`。
+默认 **settle**：`view` 门禁通过后扣 1 分，发 `artifact_ready(view)` + `run_settled`（无 `artifactRef`）。聊天区仍可有 `message_delta`。失败/无 view 则 release。
 
 ---
 
@@ -233,7 +233,8 @@ output:
 reserve? → prompt(skill|none) → final
   → 组装 ViewProjectContext
   → ViewProjectorChain.project(ctx)   // 策略：Normalize | NoSkillMarkdown | …
-  → 若 billing：artifact 校验 → persist → settle → artifact_ready(view + artifactRef)
+  → 若 billing + persistAs：artifact 校验 → persist → settle → artifact_ready(view + artifactRef)
+  → 若无 Skill：view 门禁 → settle → artifact_ready(view) + run_settled
   → 若失败：release + run_failed
 ```
 
@@ -394,3 +395,4 @@ FE 若登记了 `painPoint → 痛点` 词典则显示标签；未登记则只�
 | 2026-09-27 | **管道分层**：`CreditHoldSupport` + `ComputerViewResolver`；`streamPicklistRun` 顺序改为 parse→persist→**project 门禁**→settle→emit |
 | 2026-09-27 | **通用 Run**：`streamGenerationRun` + `SkillRunProfile` + `ArtifactPersistPlugin`；`POST /api/v1/agent/runs`；empty/picklist 为别名 |
 | 2026-09-27 | **无 Skill 路径**：blank `skillId` → `NoSkillMarkdown` → `artifact_ready(view)` → release；不 settle、成功不发 `run_failed` |
+| 2026-09-27 | **无 Skill 计费**：可用 markdown `view` 门禁后 settle + `run_settled`；失败仍 release |

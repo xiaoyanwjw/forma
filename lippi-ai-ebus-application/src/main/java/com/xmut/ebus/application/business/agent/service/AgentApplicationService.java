@@ -57,7 +57,7 @@ import java.util.function.Consumer;
  * 空跑只 {@code reserveOne} + 结束 {@code release}；禁止 {@code settle}；
  * 不发 {@code artifact_ready}/{@code run_settled}。
  * 通用 Generation 管道：{@link #streamGenerationRun}；dry 永不 settle；
- * 计费：persist 插件 → {@link ComputerViewResolver} → settle。
+ * 无 Skill：view 门禁后 settle；计费 Skill：persist 插件 → {@link ComputerViewResolver} → settle。
  * 计费生成必须绑定 AVAILABLE 场景（AD-15）。
  */
 @Slf4j
@@ -269,7 +269,7 @@ public class AgentApplicationService {
     }
 
     /**
-     * 通用 Generation SSE：dry → run_failed；无 Skill → markdown view + release；计费 → persist → settle。
+     * 通用 Generation SSE：dry → run_failed；无 Skill → markdown view + settle；计费 → persist → settle。
      */
     public void streamGenerationRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         ObjectUtils.requireNonNull(context, "生成上下文不能为空");
@@ -288,13 +288,14 @@ public class AgentApplicationService {
     }
 
     /**
-     * 无 Skill：prompt(none) → NoSkillMarkdown → artifact_ready(view) → release（不 settle、不 run_failed）。
+     * 无 Skill：prompt(none) → NoSkillMarkdown → settle → artifact_ready(view) + run_settled。
      */
     private void streamNoSkillRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         AtomicBoolean hasMessageDelta = new AtomicBoolean(false);
         AtomicBoolean aborted = new AtomicBoolean(false);
         AutoCloseable subscription = null;
         boolean holdClosed = false;
+        boolean settledOk = false;
         try {
             emit(sink, Ad4SseEvent.of(Ad4EventName.run_started, toRunStarted(context.getRunId(),
                     context.getSessionId(), context.getHoldId())));
@@ -352,21 +353,32 @@ public class AgentApplicationService {
                 return;
             }
 
-            Map<String, Object> ready = new LinkedHashMap<String, Object>();
-            ready.put("view", projectedView);
             try {
-                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, ready));
-            } catch (RuntimeException emitEx) {
+                creditHoldSupport.settle(context.getUserId(), context.getHoldId());
+            } catch (BusinessException ex) {
                 LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
-                        emitEx.getMessage() != null ? emitEx.getMessage() : "SSE emit artifact_ready failed",
-                        NameValue.create("runId", context.getRunId()));
+                        ex.getMessage() != null ? ex.getMessage() : "settle failed",
+                        NameValue.create("runId", context.getRunId()),
+                        NameValue.create("holdId", context.getHoldId()));
+                markRunFailed(context.getRunId());
+                emitRunFailed(sink, PICKLIST_SETTLE_FAILED, false);
+                holdClosed = true;
+                return;
             }
 
-            boolean releaseOk = creditHoldSupport.release(context.getUserId(), context.getHoldId(), context.getRunId());
+            markRunSettled(context.getRunId(), null);
+            settledOk = true;
             holdClosed = true;
-            markRunFailed(context.getRunId());
-            if (!releaseOk) {
-                emitRunFailed(sink, PICKLIST_RELEASE_FAILED, false);
+
+            try {
+                Map<String, Object> ready = new LinkedHashMap<String, Object>();
+                ready.put("view", projectedView);
+                emit(sink, Ad4SseEvent.of(Ad4EventName.artifact_ready, ready));
+                emit(sink, Ad4SseEvent.of(Ad4EventName.run_settled, toRunSettled(context, null)));
+            } catch (RuntimeException emitEx) {
+                LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
+                        emitEx.getMessage() != null ? emitEx.getMessage() : "SSE emit after settle failed",
+                        NameValue.create("runId", context.getRunId()));
             }
 
             LoggerUtils.success(log, AgentApplicationService.class, "streamGenerationRun",
@@ -377,6 +389,9 @@ public class AgentApplicationService {
             LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
                     ex.getMessage() != null ? ex.getMessage() : "stream failed",
                     NameValue.create("runId", context.getRunId()));
+            if (settledOk) {
+                return;
+            }
             if (!holdClosed) {
                 finishFailed(context, sink,
                         StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : PICKLIST_MODEL_FAILED);

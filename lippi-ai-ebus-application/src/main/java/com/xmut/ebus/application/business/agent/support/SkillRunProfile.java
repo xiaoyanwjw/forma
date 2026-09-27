@@ -40,9 +40,9 @@ public final class SkillRunProfile {
         return new SkillRunProfile(id, false, PERSIST_NONE, false, true, true);
     }
 
-    /** Chat / draft without Skill: markdown Computer view, never settle. */
+    /** Chat / draft without Skill: markdown Computer view; settle after usable view. */
     public static SkillRunProfile noSkill() {
-        return new SkillRunProfile(null, false, PERSIST_NONE, true, false, false);
+        return new SkillRunProfile(null, true, PERSIST_NONE, true, false, false);
     }
 
     public static SkillRunProfile billedPicklist() {

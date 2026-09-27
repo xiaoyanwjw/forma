@@ -13,7 +13,7 @@ class SkillRunProfileTest {
     void blankSkillIdResolvesToNoSkill() {
         SkillRunProfile profile = SkillRunProfile.resolve(null, false);
         assertFalse(profile.isSkillBound());
-        assertFalse(profile.isSettleEnabled());
+        assertTrue(profile.isSettleEnabled());
         assertFalse(profile.isDryRun());
         assertNull(profile.getSkillId());
         assertEquals(SkillRunProfile.PERSIST_NONE, profile.getPersistAs());

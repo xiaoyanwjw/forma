@@ -12,7 +12,7 @@
 
 - AD-5: settle only after usable persist + resolved view (when settleEnabled).
 - Dry / empty: never settle; emit `run_failed` with `emptyRun=true`.
-- No-skill: never settle; emit `artifact_ready(view)` then release; mark FAILED in DB; **no** `run_failed` on success.
+- No-skill: settle after usable markdown `view`; emit `artifact_ready(view)` + `run_settled` (no artifactRef).
 - Computer render field remains `view`; transitional picklist fields OK on `artifact_ready`.
 - Do not parse full Skill YAML `output:` block yet — registry maps known skill ids.
 
@@ -55,8 +55,8 @@
 ### Task 5: No-skill path
 
 - [x] `SkillRunProfile.noSkill()` + blank `skillId` resolve (non-dry).
-- [x] `streamNoSkillRun`: prompt(null skill) → NoSkillMarkdown → `artifact_ready(view)` → release; no settle / no success `run_failed`.
-- [x] Tests: prepare rejects blank text; stream emits markdown view without settle.
+- [x] `streamNoSkillRun`: prompt(null skill) → NoSkillMarkdown → settle → `artifact_ready(view)` + `run_settled`.
+- [x] Tests: prepare rejects blank text; stream settles on markdown view; settle failure does not release.
 
 ## Out of scope
 
