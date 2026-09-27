@@ -82,7 +82,7 @@ describe('streamEmptyRun', () => {
     expect(EventSourceMock).not.toHaveBeenCalled()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('/api/v1/agent/runs/empty?sceneCode=ecommerce')
+    expect(url).toBe('/api/v1/agent/runs')
     expect(init.method).toBe('POST')
     const headers = new Headers(init.headers)
     expect(headers.get('Authorization')).toBe('Bearer jwt-demo')
@@ -114,10 +114,12 @@ describe('streamEmptyRun', () => {
       // drain
     }
 
-    const [url] = fetchMock.mock.calls[0] as [string]
-    expect(url).toContain('/api/v1/agent/runs/empty?')
-    expect(url).toContain('sessionId=sess-42')
-    expect(url).toContain('sceneId=a1000001-0001-4000-8000-000000000001')
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/v1/agent/runs')
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body.sessionId).toBe('sess-42')
+    expect(body.sceneId).toBe('a1000001-0001-4000-8000-000000000001')
+    expect(body.dryRun).toBe(true)
   })
 
   it('maps insufficient credits JSON error without opening EventSource', async () => {

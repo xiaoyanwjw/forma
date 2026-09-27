@@ -1,14 +1,13 @@
 package com.xmut.ebus.interfaces.web.business.agent;
 
-import com.xmut.ebus.application.business.agent.command.StartEmptyRunCommand;
-import com.xmut.ebus.application.business.agent.command.StartPicklistRunCommand;
-import com.xmut.ebus.application.business.agent.dto.EmptyRunContext;
-import com.xmut.ebus.application.business.agent.dto.PicklistRunContext;
+import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
+import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
 import com.xmut.ebus.application.business.agent.service.AgentApplicationService;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.response.ApiResponse;
 import com.xmut.ebus.interfaces.security.SecuritySupport;
+import com.xmut.ebus.interfaces.vo.business.agent.StartGenerationRunRequest;
 import com.xmut.ebus.interfaces.vo.business.agent.StartPicklistRunRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +29,7 @@ import java.util.concurrent.Executors;
  * Agent 计费生成 SSE：JWT 鉴权后直接返回 {@code text/event-stream}。
  * <p>
  * 预占失败（如积分不足）在打开流之前以 JSON 业务错误返回，避免 SSE produces 干扰统一异常出口。
- * 空跑永不 settle；计费选品走独立入口。
+ * 通用入口 {@code POST /runs}；{@code /runs/empty}、{@code /runs/picklist} 为兼容别名。
  */
 @Slf4j
 @RestController
@@ -49,28 +48,26 @@ public class AgentController {
     });
 
     /**
-     * 空跑：预占失败返回 JSON 业务错误；成功则打开 SSE。永不 settle。
-     *
-     * @param sessionId 可选，复用同一聊天 session（每次仍新 hold）
-     * @param sceneId   场景业务 UUID；与 sceneCode 至少一项
-     * @param sceneCode 稳定场景码；与 sceneId 至少一项
+     * 通用 Generation Run：dryRun=true 永不 settle；否则按 skillId 计费（近端仅 ecommerce-picklist）。
      */
-    @PostMapping(value = "/runs/empty")
-    public Object startEmptyRun(@RequestParam(value = "sessionId", required = false) String sessionId,
-                                @RequestParam(value = "sceneId", required = false) String sceneId,
-                                @RequestParam(value = "sceneCode", required = false) String sceneCode) {
+    @PostMapping(value = "/runs")
+    public Object startGenerationRun(@RequestBody(required = false) StartGenerationRunRequest request) {
         String userId = SecuritySupport.requireUserId();
-        StartEmptyRunCommand command = StartEmptyRunCommand.builder()
+        StartGenerationRunRequest body = request != null ? request : new StartGenerationRunRequest();
+        StartGenerationRunCommand command = StartGenerationRunCommand.builder()
                 .userId(userId)
                 .username(SecuritySupport.currentUsername())
-                .sessionId(sessionId)
-                .sceneId(sceneId)
-                .sceneCode(sceneCode)
+                .text(body.getText())
+                .sessionId(body.getSessionId())
+                .sceneId(body.getSceneId())
+                .sceneCode(body.getSceneCode())
+                .skillId(body.getSkillId())
+                .dryRun(body.isDryRun())
                 .build();
 
-        final EmptyRunContext context;
+        final GenerationRunContext context;
         try {
-            context = agentService.prepareEmptyRun(command);
+            context = agentService.prepareGenerationRun(command);
         } catch (BusinessException ex) {
             int status = ex.getErrorCode().getHttpStatus();
             return ResponseEntity.status(status)
@@ -81,10 +78,10 @@ public class AgentController {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         sseExecutor.execute(() -> {
             try {
-                agentService.streamEmptyRun(context, event -> sendEvent(emitter, event));
+                agentService.streamGenerationRun(context, event -> sendEvent(emitter, event));
                 emitter.complete();
             } catch (Exception ex) {
-                log.warn("empty run sse failed runId={}: {}", context.getRunId(), ex.toString());
+                log.warn("generation run sse failed runId={}: {}", context.getRunId(), ex.toString());
                 try {
                     emitter.completeWithError(ex);
                 } catch (Exception ignored) {
@@ -96,46 +93,38 @@ public class AgentController {
     }
 
     /**
-     * 计费选品：预占失败返回 JSON；成功则 SSE（artifact_ready / run_settled 或 run_failed）。
+     * 空跑别名：预占失败返回 JSON 业务错误；成功则打开 SSE。永不 settle。
+     *
+     * @param sessionId 可选，复用同一聊天 session（每次仍新 hold）
+     * @param sceneId   场景业务 UUID；与 sceneCode 至少一项
+     * @param sceneCode 稳定场景码；与 sceneId 至少一项
+     */
+    @PostMapping(value = "/runs/empty")
+    public Object startEmptyRun(@RequestParam(value = "sessionId", required = false) String sessionId,
+                                @RequestParam(value = "sceneId", required = false) String sceneId,
+                                @RequestParam(value = "sceneCode", required = false) String sceneCode) {
+        StartGenerationRunRequest body = new StartGenerationRunRequest();
+        body.setSessionId(sessionId);
+        body.setSceneId(sceneId);
+        body.setSceneCode(sceneCode);
+        body.setDryRun(true);
+        return startGenerationRun(body);
+    }
+
+    /**
+     * 计费选品别名：预占失败返回 JSON；成功则 SSE（artifact_ready / run_settled 或 run_failed）。
      */
     @PostMapping(value = "/runs/picklist")
     public Object startPicklistRun(@RequestBody StartPicklistRunRequest request) {
-        String userId = SecuritySupport.requireUserId();
-        StartPicklistRunRequest body = request != null ? request : new StartPicklistRunRequest();
-        StartPicklistRunCommand command = StartPicklistRunCommand.builder()
-                .userId(userId)
-                .username(SecuritySupport.currentUsername())
-                .text(body.getText())
-                .sessionId(body.getSessionId())
-                .sceneId(body.getSceneId())
-                .sceneCode(body.getSceneCode())
-                .build();
-
-        final PicklistRunContext context;
-        try {
-            context = agentService.preparePicklistRun(command);
-        } catch (BusinessException ex) {
-            int status = ex.getErrorCode().getHttpStatus();
-            return ResponseEntity.status(status)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.error(status, ex.getMessage()));
-        }
-
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
-        sseExecutor.execute(() -> {
-            try {
-                agentService.streamPicklistRun(context, event -> sendEvent(emitter, event));
-                emitter.complete();
-            } catch (Exception ex) {
-                log.warn("picklist run sse failed runId={}: {}", context.getRunId(), ex.toString());
-                try {
-                    emitter.completeWithError(ex);
-                } catch (Exception ignored) {
-                    // already completed
-                }
-            }
-        });
-        return emitter;
+        StartPicklistRunRequest src = request != null ? request : new StartPicklistRunRequest();
+        StartGenerationRunRequest body = new StartGenerationRunRequest();
+        body.setText(src.getText());
+        body.setSessionId(src.getSessionId());
+        body.setSceneId(src.getSceneId());
+        body.setSceneCode(src.getSceneCode());
+        body.setSkillId("ecommerce-picklist");
+        body.setDryRun(false);
+        return startGenerationRun(body);
     }
 
     @PreDestroy

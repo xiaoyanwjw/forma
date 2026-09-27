@@ -391,4 +391,5 @@ FE 若登记了 `painPoint → 痛点` 词典则显示标签；未登记则只�
 | 2026-09-27 | **Projector = 策略模式**：Normalize + NoSkillMarkdown（`supports`/`project`）；弱化「从业务数据生成 list」为主路径 |
 | 2026-09-27 | **落地**：Chain（Normalize → LegacyPicklist → NoSkillMarkdown）接入 `artifact_ready.view`；FE `markdown` block；SKILL 双轨说明。信封解析 / 去 Legacy / CreditHold 拆分仍属后续 |
 | 2026-09-27 | **信封落地**：`PicklistArtifactParser` 解析 `{view,artifact}`；`rawView` 走 Normalize；SKILL 主契约改为 view 优先；扁平 JSON 仍兼容 Legacy |
-| 2026-09-27 | **管道分层**：`CreditHoldLifecycle` + `ComputerViewGate`；`streamPicklistRun` 顺序改为 parse→persist→**project 门禁**→settle→emit |
+| 2026-09-27 | **管道分层**：`CreditHoldSupport` + `ComputerViewResolver`；`streamPicklistRun` 顺序改为 parse→persist→**project 门禁**→settle→emit |
+| 2026-09-27 | **通用 Run**：`streamGenerationRun` + `SkillRunProfile` + `ArtifactPersistPlugin`；`POST /api/v1/agent/runs`；empty/picklist 为别名 |

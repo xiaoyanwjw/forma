@@ -12,8 +12,9 @@ import com.xmut.ebus.application.business.picklist.dto.PicklistArtifactDTO;
 import com.xmut.ebus.application.business.picklist.service.PicklistApplicationService;
 import com.xmut.ebus.application.business.picklist.support.PicklistArtifactParser;
 import com.xmut.ebus.application.business.picklist.support.PicklistParseResult;
-import com.xmut.ebus.application.business.agent.support.CreditHoldLifecycle;
-import com.xmut.ebus.application.business.computer.ComputerViewGate;
+import com.xmut.ebus.application.business.agent.support.CreditHoldSupport;
+import com.xmut.ebus.application.business.agent.support.PicklistArtifactPersistPlugin;
+import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.LegacyPicklistFallbackProjector;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
@@ -110,15 +111,15 @@ class AgentApplicationServiceTest {
                 new LegacyPicklistFallbackProjector(new PicklistViewProjector()),
                 new NoSkillMarkdownProjector()));
         service = new AgentApplicationService(
-                new CreditHoldLifecycle(creditApplicationService),
+                new CreditHoldSupport(creditApplicationService),
                 generationRunRepository,
                 piSessionSceneRepository,
                 sceneRepository,
                 sceneCapabilityPackLoader,
                 agentSession,
-                picklistArtifactParser,
-                picklistApplicationService,
-                new ComputerViewGate(chain),
+                java.util.Collections.<com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin>singletonList(
+                        new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService)),
+                new ComputerViewResolver(chain),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -719,15 +720,15 @@ class AgentApplicationServiceTest {
     void streamPicklistRunReleasesWithoutSettleWhenViewGateFails() {
         ViewProjectorChain emptyChain = new ViewProjectorChain(Collections.<com.xmut.ebus.application.business.computer.ComputerViewProjector>emptyList());
         AgentApplicationService gated = new AgentApplicationService(
-                new CreditHoldLifecycle(creditApplicationService),
+                new CreditHoldSupport(creditApplicationService),
                 generationRunRepository,
                 piSessionSceneRepository,
                 sceneRepository,
                 sceneCapabilityPackLoader,
                 agentSession,
-                picklistArtifactParser,
-                picklistApplicationService,
-                new ComputerViewGate(emptyChain),
+                java.util.Collections.<com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin>singletonList(
+                        new PicklistArtifactPersistPlugin(picklistArtifactParser, picklistApplicationService)),
+                new ComputerViewResolver(emptyChain),
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         PicklistRunContext ctx = picklistCtx("run-pl-noview", "session-pl-noview");

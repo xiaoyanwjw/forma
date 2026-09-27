@@ -3,25 +3,30 @@ import { getToken } from '@/api/http'
 import type {
   Ad4EventName,
   Ad4SseEvent,
+  StreamAgentRunOptions,
   StreamEmptyRunOptions,
   StreamPicklistRunOptions,
 } from '@/types/business/agent'
 import { isAd4EventName } from '@/types/business/agent'
 
-const EMPTY_RUN_PATH = '/api/v1/agent/runs/empty'
-const PICKLIST_RUN_PATH = '/api/v1/agent/runs/picklist'
+const AGENT_RUN_PATH = '/api/v1/agent/runs'
 
 /**
- * 启动空跑 SSE：fetch + ReadableStream + JWT（禁止 EventSource）。
- * 不经 {@code request().json()}。须带 sceneId 或 sceneCode。
+ * 通用 Generation Run SSE：dry / 计费 Skill 共用入口。
  */
-export async function* streamEmptyRun(
-  options: StreamEmptyRunOptions = {},
+export async function* streamAgentRun(
+  options: StreamAgentRunOptions,
 ): AsyncGenerator<Ad4SseEvent, void, undefined> {
   const sceneId = options.sceneId?.trim()
   const sceneCode = options.sceneCode?.trim()
   if (!sceneId && !sceneCode) {
     throw new ApiError(400, '请先选择场景')
+  }
+  if (!options.dryRun) {
+    const text = options.text?.trim()
+    if (!text) {
+      throw new ApiError(400, '请先描述需求')
+    }
   }
 
   const token = getToken()
@@ -29,25 +34,21 @@ export async function* streamEmptyRun(
     throw new ApiError(401, '未授权，请先登录')
   }
 
-  const params = new URLSearchParams()
-  if (options.sessionId) {
-    params.set('sessionId', options.sessionId)
-  }
-  if (sceneId) {
-    params.set('sceneId', sceneId)
-  }
-  if (sceneCode) {
-    params.set('sceneCode', sceneCode)
-  }
-  const qs = params.toString()
-  const url = qs ? `${EMPTY_RUN_PATH}?${qs}` : EMPTY_RUN_PATH
-
-  const response = await fetch(url, {
+  const response = await fetch(AGENT_RUN_PATH, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({
+      text: options.text?.trim() || undefined,
+      sessionId: options.sessionId?.trim() || undefined,
+      sceneId: sceneId || undefined,
+      sceneCode: sceneCode || undefined,
+      skillId: options.skillId?.trim() || undefined,
+      dryRun: Boolean(options.dryRun),
+    }),
     signal: options.signal,
   })
 
@@ -62,50 +63,25 @@ export async function* streamEmptyRun(
 }
 
 /**
- * 启动计费选品 SSE：fetch + ReadableStream + JWT（禁止 EventSource）。
+ * 空跑：走通用 /runs（dryRun）。
+ */
+export async function* streamEmptyRun(
+  options: StreamEmptyRunOptions = {},
+): AsyncGenerator<Ad4SseEvent, void, undefined> {
+  yield* streamAgentRun({ ...options, dryRun: true })
+}
+
+/**
+ * 计费选品：走通用 /runs（ecommerce-picklist）。
  */
 export async function* streamPicklistRun(
   options: StreamPicklistRunOptions,
 ): AsyncGenerator<Ad4SseEvent, void, undefined> {
-  const text = options.text?.trim()
-  if (!text) {
-    throw new ApiError(400, '请先描述选品需求')
-  }
-  const sceneId = options.sceneId?.trim()
-  const sceneCode = options.sceneCode?.trim()
-  if (!sceneId && !sceneCode) {
-    throw new ApiError(400, '请先选择场景')
-  }
-
-  const token = getToken()
-  if (!token) {
-    throw new ApiError(401, '未授权，请先登录')
-  }
-
-  const response = await fetch(PICKLIST_RUN_PATH, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'text/event-stream',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      text,
-      sessionId: options.sessionId?.trim() || undefined,
-      sceneId: sceneId || undefined,
-      sceneCode: sceneCode || undefined,
-    }),
-    signal: options.signal,
+  yield* streamAgentRun({
+    ...options,
+    skillId: 'ecommerce-picklist',
+    dryRun: false,
   })
-
-  if (!response.ok) {
-    throw await readApiError(response)
-  }
-  if (!response.body) {
-    throw new ApiError(response.status, '服务未返回事件流')
-  }
-
-  yield* parseSseStream(response.body)
 }
 
 async function readApiError(response: Response): Promise<ApiError> {

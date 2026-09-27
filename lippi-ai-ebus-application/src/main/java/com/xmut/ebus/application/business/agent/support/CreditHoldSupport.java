@@ -8,16 +8,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Credit hold boundary for GenerationRun orchestration (reserve / settle / release).
+ * Thin credit-hold helpers for GenerationRun orchestration (reserve / settle / release).
  * Does not own Run status transitions.
  */
 @Slf4j
 @Component
-public class CreditHoldLifecycle {
+public class CreditHoldSupport {
 
     private final CreditApplicationService creditService;
 
-    public CreditHoldLifecycle(CreditApplicationService creditService) {
+    public CreditHoldSupport(CreditApplicationService creditService) {
         this.creditService = creditService;
     }
 
@@ -32,22 +32,22 @@ public class CreditHoldLifecycle {
     /**
      * @return true only when release succeeds
      */
-    public boolean tryRelease(String userId, String holdId, String runId) {
+    public boolean release(String userId, String holdId, String runId) {
         try {
             creditService.release(userId, holdId);
-            LoggerUtils.success(log, CreditHoldLifecycle.class, "release",
+            LoggerUtils.success(log, CreditHoldSupport.class, "release",
                     NameValue.create("userId", userId),
                     NameValue.create("holdId", holdId),
                     NameValue.create("runId", runId));
             return true;
         } catch (BusinessException ex) {
-            LoggerUtils.error(log, CreditHoldLifecycle.class, "release",
+            LoggerUtils.error(log, CreditHoldSupport.class, "release",
                     ex.getMessage() != null ? ex.getMessage() : "释放预占失败",
                     NameValue.create("userId", userId),
                     NameValue.create("holdId", holdId));
             return false;
         } catch (RuntimeException ex) {
-            LoggerUtils.error(log, CreditHoldLifecycle.class, "release",
+            LoggerUtils.error(log, CreditHoldSupport.class, "release",
                     ex.getMessage() != null ? ex.getMessage() : "释放预占异常",
                     NameValue.create("userId", userId),
                     NameValue.create("holdId", holdId));

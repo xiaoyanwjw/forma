@@ -37,6 +37,17 @@ export interface StreamPicklistRunOptions {
   signal?: AbortSignal
 }
 
+/** 通用 Generation Run（FE 主入口） */
+export interface StreamAgentRunOptions {
+  text?: string
+  sceneId?: string
+  sceneCode?: string
+  sessionId?: string
+  skillId?: string
+  dryRun?: boolean
+  signal?: AbortSignal
+}
+
 /** artifact_ready 选品成果（Computer 展示） */
 export interface PicklistArtifactItem {
   title: string

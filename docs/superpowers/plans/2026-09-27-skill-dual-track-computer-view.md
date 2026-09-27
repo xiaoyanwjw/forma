@@ -77,4 +77,4 @@
 
 - Full Skill JSON wrapper parse (`artifact`/`view` envelope) in `PicklistArtifactParser`
 - Removing `LegacyPicklistFallbackProjector`
-- Splitting `CreditHoldLifecycle` / generic `streamGenerationRun`
+- Splitting `CreditHoldSupport` / generic `streamGenerationRun`

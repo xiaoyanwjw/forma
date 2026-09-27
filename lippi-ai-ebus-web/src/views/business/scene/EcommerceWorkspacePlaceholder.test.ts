@@ -85,7 +85,7 @@ function mockCatalogAndCredits(opts?: {
     if (url.includes('/api/v1/credits')) {
       return creditsResponse(opts?.available ?? 14)
     }
-    if (url.includes('/api/v1/agent/runs/picklist')) {
+    if (url.includes('/api/v1/agent/runs') && !url.includes('/runs/empty')) {
       if (opts?.onPicklist) {
         return opts.onPicklist()
       }
@@ -143,7 +143,7 @@ function mockCatalogAndCredits(opts?: {
         { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
       )
     }
-    if (url.includes('/api/v1/agent/runs/empty')) {
+    if (url.includes('/api/v1/agent/runs/empty') || (url.includes('/api/v1/agent/runs') && false)) {
       return new Response('should not empty', { status: 500 })
     }
     void init
@@ -194,11 +194,25 @@ function setTextareaValue(el: HTMLTextAreaElement, value: string) {
 }
 
 function picklistApiHits(fetchMock: ReturnType<typeof vi.spyOn>) {
-  return fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/v1/agent/runs/picklist'))
+  return fetchMock.mock.calls.filter(([input, init]) => {
+    const u = String(input)
+    if (!u.includes('/api/v1/agent/runs') || u.includes('/runs/empty')) {
+      return false
+    }
+    const body = typeof (init as RequestInit | undefined)?.body === 'string' ? String((init as RequestInit).body) : ''
+    return !body.includes('"dryRun":true')
+  })
 }
 
 function emptyRunApiHits(fetchMock: ReturnType<typeof vi.spyOn>) {
-  return fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/v1/agent/runs/empty'))
+  return fetchMock.mock.calls.filter(([input, init]) => {
+    const u = String(input)
+    if (!u.includes('/api/v1/agent/runs')) {
+      return false
+    }
+    const body = typeof (init as RequestInit | undefined)?.body === 'string' ? String((init as RequestInit).body) : ''
+    return body.includes('"dryRun":true') || u.includes('/runs/empty')
+  })
 }
 
 describe('EcommerceWorkspacePlaceholder default session shell', () => {
@@ -409,7 +423,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       const hits = picklistApiHits(fetchMock)
       expect(hits.length).toBeGreaterThanOrEqual(1)
       const [url, init] = hits[0] as [string, RequestInit]
-      expect(url).toBe('/api/v1/agent/runs/picklist')
+      expect(url).toBe('/api/v1/agent/runs')
       expect(init.method).toBe('POST')
       const body = JSON.parse(String(init.body)) as { text?: string; sceneCode?: string }
       expect(body.text).toBe('帮我做家居选品')
