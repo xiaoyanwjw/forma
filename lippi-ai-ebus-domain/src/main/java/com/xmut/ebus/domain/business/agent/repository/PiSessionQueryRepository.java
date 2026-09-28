@@ -1,5 +1,7 @@
 package com.xmut.ebus.domain.business.agent.repository;
 
+import com.xmut.ebus.common.page.Page;
+import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
 
 import java.time.Instant;
@@ -18,4 +20,12 @@ public interface PiSessionQueryRepository {
     List<PiSessionMeta> selectByUserSince(String userId, Instant since, String sceneCodeOrNull, int limit);
 
     Optional<PiSessionMeta> findBySessionId(String sessionId);
+
+    /**
+     * 回放消息分页：仅 user/assistant 且 content 非空；时间正序。
+     *
+     * @param nextToken 空=从最新往前取；非空=只取更早（{@code seq < token}）
+     * @param limit     本页条数（回放过滤后）
+     */
+    Page<PiMessageDTO> getMessageList(String sessionId, String nextToken, int limit);
 }

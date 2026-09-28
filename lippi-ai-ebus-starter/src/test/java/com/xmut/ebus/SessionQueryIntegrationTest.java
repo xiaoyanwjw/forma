@@ -107,10 +107,12 @@ class SessionQueryIntegrationTest {
         mockMvc.perform(get("/api/v1/sessions/" + mine + "/messages")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].role").value("user"))
-                .andExpect(jsonPath("$.data[0].content").value("找杯子"))
-                .andExpect(jsonPath("$.data[1].role").value("assistant"));
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.nextToken").value(null))
+                .andExpect(jsonPath("$.data.items[0].role").value("user"))
+                .andExpect(jsonPath("$.data.items[0].content").value("找杯子"))
+                .andExpect(jsonPath("$.data.items[0].seq").isNumber())
+                .andExpect(jsonPath("$.data.items[1].role").value("assistant"));
 
         mockMvc.perform(get("/api/v1/sessions/" + theirs + "/messages")
                         .header("Authorization", "Bearer " + token))

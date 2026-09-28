@@ -150,6 +150,33 @@
   padding: 28px 28px 12px;
 }
 
+.chat-load-more {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 16px;
+  max-width: 880px;
+}
+
+.chat-load-more-btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--mute);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.chat-load-more-btn:hover:not(:disabled) {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--chip) 70%, var(--surface));
+}
+
+.chat-load-more-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .msg {
   display: flex;
   align-items: flex-start;
@@ -211,6 +238,39 @@
 
 .msg .body p:last-child {
   margin-bottom: 0;
+}
+
+.msg .msg-text {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 用户消息：纯文本，不用气泡卡片 */
+.msg.user .msg-text {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.msg .msg-text.agent-text {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.msg .msg-time {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--mute);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 }
 
 .msg .body .meta {
@@ -337,15 +397,157 @@
 .msg .chat-event-status {
   width: 100%;
   text-align: left;
-  margin-top: 10px;
-  padding: 10px 6px 4px;
+  margin-top: 0;
+  padding: 4px 6px;
   margin-left: -6px;
   margin-right: -6px;
-  border-top: 1px solid var(--line);
-  border-radius: 0 0 6px 6px;
+  border-top: 0;
+  border-radius: 6px;
   font: inherit;
   color: inherit;
   align-items: start;
+}
+
+/* 仅当 STATUS 接在过程事件后时才画分割线，避免单卡多出一条线 */
+.msg .chat-events + .chat-event-status {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 6px 6px;
+}
+
+/* ask_human：Manus 式确认条 — 白底软阴影，主确认深色，补充弱化 */
+.chat-input-wrap .ask-human {
+  margin: 0 0 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 12px);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  color: var(--ink);
+}
+
+.chat-input-wrap .ask-human-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.chat-input-wrap .ask-human-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.chat-input-wrap .ask-human-hint {
+  font-size: 0.75rem;
+  color: var(--mute);
+  flex-shrink: 0;
+}
+
+.chat-input-wrap .ask-human-q {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.chat-input-wrap .ask-human-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-input-wrap .ask-human-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #262626;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.chat-input-wrap .ask-human-primary:hover:not(:disabled) {
+  background: #0a0a0a;
+}
+
+.chat-input-wrap .ask-human-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.chat-input-wrap .ask-human-primary-sm {
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  align-self: flex-start;
+}
+
+.chat-input-wrap .ask-human-secondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mute);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.chat-input-wrap .ask-human-secondary:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--chip);
+}
+
+.chat-input-wrap .ask-human-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.chat-input-wrap .ask-human-supplement {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-2, var(--line));
+}
+
+.chat-input-wrap .ask-human-note {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--chip);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.chat-input-wrap .ask-human-note:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+  background: var(--surface);
+}
+
+.chat-input-wrap .ask-human-note:disabled {
+  opacity: 0.7;
 }
 
 .msg .chat-event-status[aria-disabled='true'] {

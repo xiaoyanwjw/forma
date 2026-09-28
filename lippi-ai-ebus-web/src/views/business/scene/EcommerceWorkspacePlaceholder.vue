@@ -10,6 +10,7 @@ import {
   getSessionMessages,
   listSessions,
 } from '@/api/business/session/session'
+import type { Page, SessionMessage, SessionSummary } from '@/types/business/session'
 import {
   buildFailureDetail,
   canExpandProcessEvent,
@@ -28,8 +29,8 @@ import {
 import type { GenerationArtifactPayload } from '@/types/business/agent'
 import { parseComputerDocument } from '@/types/business/computerView'
 import { FEEDBACK_TAG_GOOD_QUALITY, FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
+import { toReplayBubbles } from '@/utils/sessionReplay'
 import type { HistoryArtifactDetail } from '@/types/business/history'
-import type { SessionSummary } from '@/types/business/session'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
 /** Stable scene binding for this workbench — Epic 3 session create must carry it */
@@ -55,6 +56,10 @@ interface ChatMessage {
   /** Failed STATUS expand panel (reason + tool/model dumps) */
   statusDetail?: string
   failed?: boolean
+  /** R1 回放用普通气泡；直播/合成 STATUS 走 console */
+  presentation?: 'bubble' | 'console'
+  /** epoch ms（回放来自 entry.created_at） */
+  at?: number
 }
 
 const sessionPrompt = ref('')
@@ -65,6 +70,12 @@ const sessions = ref<SessionSummary[]>([])
 const sessionsError = ref('')
 const selectedSessionId = ref<string | null>(null)
 const sessionTitle = ref(DEMO_SESSION_TITLE)
+/** 侧栏回放：已加载的原始 R1 行（分页累加） */
+const sessionRawRows = ref<SessionMessage[]>([])
+const sessionHasMore = ref(false)
+const sessionNextToken = ref<string | null>(null)
+const sessionHistoryLoading = ref(false)
+const sessionReplayKind = ref<ComputerKind>(null)
 const computerKind = ref<ComputerKind>(null)
 const livePicklist = ref<GenerationArtifactPayload | null>(null)
 const liveListing = ref<GenerationArtifactPayload | null>(null)
@@ -377,7 +388,7 @@ async function confirmListingExecute() {
 }
 
 function openListingSupplement() {
-  listingSupplementOpen.value = true
+  listingSupplementOpen.value = !listingSupplementOpen.value
 }
 
 async function submitListingSupplement() {
@@ -645,17 +656,74 @@ function closeComputer() {
 }
 
 function replayMessagesFromApi(
-  rows: { role?: string; content?: string }[] | null | undefined,
+  rows: SessionMessage[] | null | undefined,
+  artifactKind: ComputerKind,
 ): ChatMessage[] {
-  const out: ChatMessage[] = []
-  if (!rows) return out
-  for (const row of rows) {
-    const text = typeof row.content === 'string' ? row.content.trim() : ''
-    if (!text) continue
-    const role = row.role === 'user' ? 'user' : 'agent'
-    out.push({ id: nextMsgId(), role, text })
+  return toReplayBubbles(rows, artifactKind).map((bubble) => {
+    if (bubble.role === 'user') {
+      return {
+        id: nextMsgId(),
+        role: 'user' as const,
+        text: bubble.content,
+        at: bubble.at,
+      }
+    }
+    if (bubble.kind === 'artifact') {
+      return {
+        id: nextMsgId(),
+        role: 'agent' as const,
+        text: bubble.content,
+        presentation: 'console' as const,
+        at: bubble.at,
+      }
+    }
+    return {
+      id: nextMsgId(),
+      role: 'agent' as const,
+      text: bubble.content,
+      presentation: 'bubble' as const,
+      at: bubble.at,
+    }
+  })
+}
+
+function applyMessagePage(page: Page<SessionMessage> | null | undefined, mode: 'replace' | 'prepend') {
+  const items = Array.isArray(page?.items) ? page!.items : []
+  if (mode === 'replace') {
+    sessionRawRows.value = items
+  } else {
+    sessionRawRows.value = [...items, ...sessionRawRows.value]
   }
-  return out
+  const token = page?.nextToken?.trim() || null
+  sessionNextToken.value = token
+  sessionHasMore.value = Boolean(token)
+}
+
+function paintSessionReplay(kind: ComputerKind) {
+  sessionReplayKind.value = kind
+  const replayed = replayMessagesFromApi(sessionRawRows.value, kind)
+  lastBilledKind.value = kind
+  lastBilledPrompt.value = kind
+    ? lastUserPromptFromReplay(replayed, sessionTitle.value || DEMO_SESSION_TITLE)
+    : ''
+  const hasArtifactStatus = replayed.some(
+    (m) => m.role === 'agent' && m.presentation === 'console' && /已生成/.test(m.text),
+  )
+  const status = !hasArtifactStatus ? synthesizePreviewableStatus(kind) : null
+  messages.value = status ? [...replayed, status] : replayed
+}
+
+function isConsoleMessage(m: ChatMessage): boolean {
+  if (m.role !== 'agent') return false
+  if (m.presentation === 'bubble') return false
+  if (m.presentation === 'console') return true
+  return Boolean(
+    m.processEvents?.length ||
+      canPreviewFromStatus(m) ||
+      canExpandStatus(m) ||
+      (generationRunning.value && m.id === thinkingMessageId.value) ||
+      (listingAwaitingHuman.value && m.id === thinkingMessageId.value),
+  )
 }
 
 function kindFromArtifactType(artifactType?: string | null): ComputerKind {
@@ -679,6 +747,7 @@ function synthesizePreviewableStatus(kind: ComputerKind): ChatMessage | null {
     return {
       id: nextMsgId(),
       role: 'agent',
+      presentation: 'console',
       text: '已生成上架素材，右侧 Computer 可查看主图位与文案。',
     }
   }
@@ -686,13 +755,17 @@ function synthesizePreviewableStatus(kind: ComputerKind): ChatMessage | null {
     return {
       id: nextMsgId(),
       role: 'agent',
+      presentation: 'console',
       text: '已生成选品成果，右侧 Computer 可查看。',
     }
   }
   return null
 }
 
-function applyLatestArtifact(detail: HistoryArtifactDetail | null | undefined): ComputerKind {
+function applyLatestArtifact(
+  detail: HistoryArtifactDetail | null | undefined,
+  openComputer = true,
+): ComputerKind {
   livePicklist.value = null
   liveListing.value = null
   computerKind.value = null
@@ -707,13 +780,14 @@ function applyLatestArtifact(detail: HistoryArtifactDetail | null | undefined): 
   const payload: GenerationArtifactPayload = { artifactRef: detail.id, view }
   if (kind === 'listing') {
     liveListing.value = payload
-    computerKind.value = 'listing'
   } else {
     livePicklist.value = payload
-    computerKind.value = 'picks'
   }
-  revealComputer()
-  return computerKind.value
+  if (openComputer) {
+    computerKind.value = kind
+    revealComputer()
+  }
+  return kind
 }
 
 async function loadSessions() {
@@ -743,6 +817,11 @@ async function selectSession(item: SessionSummary) {
   selectedSessionId.value = sid
   sessionTitle.value = item.title || DEMO_SESSION_TITLE
   messages.value = []
+  sessionRawRows.value = []
+  sessionHasMore.value = false
+  sessionNextToken.value = null
+  sessionHistoryLoading.value = false
+  sessionReplayKind.value = null
   lastBilledPrompt.value = ''
   lastBilledKind.value = null
   pendingBilledPrompt.value = ''
@@ -755,23 +834,53 @@ async function selectSession(item: SessionSummary) {
   localFeedbackSubmitSeq.clear()
   applyLatestArtifact(null)
   try {
-    const [rows, latest] = await Promise.all([
+    const [page, latest] = await Promise.all([
       getSessionMessages(sid),
       getLatestSessionArtifact(sid),
     ])
     if (seq !== workspaceSwitchSeq) return
-    const replayed = replayMessagesFromApi(rows)
-    const kind = applyLatestArtifact(latest)
-    lastBilledKind.value = kind
-    lastBilledPrompt.value = kind
-      ? lastUserPromptFromReplay(replayed, item.title || DEMO_SESSION_TITLE)
-      : ''
-    const status = synthesizePreviewableStatus(kind)
-    messages.value = status ? [...replayed, status] : replayed
+    const kind = applyLatestArtifact(latest, false)
+    applyMessagePage(page, 'replace')
+    paintSessionReplay(kind)
     scrollChatToBottom()
   } catch (e) {
     if (seq !== workspaceSwitchSeq) return
     feedbackHint.value = e instanceof ApiError ? e.message : '会话加载失败'
+  }
+}
+
+async function loadMoreSessionHistory() {
+  const sid = selectedSessionId.value?.trim()
+  const token = sessionNextToken.value
+  if (
+    !sid ||
+    !sessionHasMore.value ||
+    !token ||
+    sessionHistoryLoading.value ||
+    sessionBusy.value
+  ) {
+    return
+  }
+  const switchSeq = workspaceSwitchSeq
+  sessionHistoryLoading.value = true
+  const el = chatScrollEl.value
+  const prevHeight = el?.scrollHeight ?? 0
+  try {
+    const page = await getSessionMessages(sid, { nextToken: token })
+    if (switchSeq !== workspaceSwitchSeq) return
+    applyMessagePage(page, 'prepend')
+    paintSessionReplay(sessionReplayKind.value)
+    await nextTick()
+    if (el) {
+      el.scrollTop = Math.max(0, el.scrollHeight - prevHeight)
+    }
+  } catch (e) {
+    if (switchSeq !== workspaceSwitchSeq) return
+    feedbackHint.value = e instanceof ApiError ? e.message : '加载更多失败'
+  } finally {
+    if (switchSeq === workspaceSwitchSeq) {
+      sessionHistoryLoading.value = false
+    }
   }
 }
 
@@ -785,6 +894,11 @@ function newTask() {
   expandedStreamIds.value = new Set()
   expandedStatusIds.value = new Set()
   messages.value = []
+  sessionRawRows.value = []
+  sessionHasMore.value = false
+  sessionNextToken.value = null
+  sessionHistoryLoading.value = false
+  sessionReplayKind.value = null
   computerKind.value = null
   livePicklist.value = null
   liveListing.value = null
@@ -923,6 +1037,17 @@ onMounted(async () => {
             <button type="button" class="chat-new-task" @click="newTask">新任务</button>
           </div>
           <div ref="chatScrollEl" class="chat-scroll" role="log" aria-live="polite">
+            <div v-if="sessionHasMore" class="chat-load-more">
+              <button
+                type="button"
+                class="chat-load-more-btn"
+                data-testid="session-load-more"
+                :disabled="sessionHistoryLoading || sessionBusy"
+                @click="loadMoreSessionHistory"
+              >
+                {{ sessionHistoryLoading ? '加载中…' : '加载更多' }}
+              </button>
+            </div>
             <div
               v-for="m in messages"
               :key="m.id"
@@ -948,7 +1073,13 @@ onMounted(async () => {
                 <span v-else class="msg-avatar-letter" aria-hidden="true">A</span>
               </div>
               <div class="body">
-                <p v-if="m.role === 'user'">{{ m.text }}</p>
+                <p v-if="m.role === 'user'" class="msg-text">
+                  {{ m.text }}
+                </p>
+                <p v-else-if="!isConsoleMessage(m)" class="msg-text agent-text">
+                  <span v-if="m.at" class="msg-time">{{ formatEventTime(m.at) }}</span>
+                  {{ m.text }}
+                </p>
                 <div
                   v-else-if="m.processEvents?.length || m.text"
                   class="chat-console"
@@ -1013,61 +1144,7 @@ onMounted(async () => {
                     </div>
                   </div>
                   <div
-                    v-if="
-                      listingAwaitingHuman &&
-                      m.id === thinkingMessageId &&
-                      listingPendingHuman
-                    "
-                    class="ask-human"
-                    data-testid="ask-human"
-                  >
-                    <p class="ask-human-q">{{ listingPendingHuman.question }}</p>
-                    <div class="ask-human-actions" role="group" aria-label="确认策划">
-                      <button
-                        type="button"
-                        class="pill"
-                        data-testid="ask-human-confirm"
-                        :disabled="listingRunning"
-                        @click="confirmListingExecute"
-                      >
-                        确认，出执行稿
-                      </button>
-                      <button
-                        type="button"
-                        class="pill"
-                        data-testid="ask-human-supplement"
-                        :disabled="listingRunning"
-                        @click="openListingSupplement"
-                      >
-                        补充需求
-                      </button>
-                    </div>
-                    <div
-                      v-if="listingSupplementOpen"
-                      class="ask-human-supplement"
-                      data-testid="ask-human-supplement-form"
-                    >
-                      <textarea
-                        v-model="listingSupplementText"
-                        class="ask-human-note"
-                        rows="3"
-                        placeholder="写下要改的分镜、标题或详情大纲"
-                        aria-label="补充需求"
-                        :disabled="listingRunning"
-                      />
-                      <button
-                        type="button"
-                        class="pill"
-                        data-testid="ask-human-supplement-submit"
-                        :disabled="listingRunning"
-                        @click="submitListingSupplement"
-                      >
-                        提交补充
-                      </button>
-                    </div>
-                  </div>
-                  <div
-                    v-else-if="m.text && !(generationRunning && m.id === thinkingMessageId)"
+                    v-if="m.text && !(generationRunning && m.id === thinkingMessageId)"
                     class="chat-event chat-event-status"
                     :class="{
                       'is-preview': canPreviewFromStatus(m),
@@ -1092,7 +1169,9 @@ onMounted(async () => {
                   >
                     <span class="chat-event-time">{{
                       formatEventTime(
-                        m.processEvents?.[m.processEvents.length - 1]?.at ?? Date.now(),
+                        m.at ??
+                          m.processEvents?.[m.processEvents.length - 1]?.at ??
+                          Date.now(),
                       )
                     }}</span>
                     <span class="chat-event-tag tag-status">{{
@@ -1115,45 +1194,66 @@ onMounted(async () => {
                       @click.stop
                     >{{ formatStreamBodyForDisplay(m.statusDetail || m.text) }}</pre>
                   </div>
-                  <div
-                    v-if="isLatestPreviewableStatus(m)"
-                    class="card-result-actions"
-                    data-testid="card-result-actions"
-                    @click.stop
+                </div>
+                <div
+                  v-if="isLatestPreviewableStatus(m)"
+                  class="card-result-actions"
+                  data-testid="card-result-actions"
+                  @click.stop
+                >
+                  <button
+                    type="button"
+                    class="card-action-icon"
+                    data-testid="one-click-retry"
+                    aria-label="重试"
+                    title="重试"
+                    :disabled="!canOneClickRetry"
+                    @click="oneClickRetry"
                   >
-                    <button
-                      type="button"
-                      class="pill"
-                      data-testid="one-click-retry"
-                      :disabled="!canOneClickRetry"
-                      @click="oneClickRetry"
-                    >
-                      重试
-                    </button>
-                    <button
-                      type="button"
-                      class="pill"
-                      data-testid="card-like"
-                      :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_GOOD_QUALITY }"
-                      :disabled="!canSubmitFeedback"
-                      @click="submitLikeFeedback"
-                    >
-                      点赞
-                    </button>
-                    <button
-                      type="button"
-                      class="pill"
-                      data-testid="card-dislike"
-                      :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_POOR_QUALITY }"
-                      :disabled="sessionBusy || feedbackBusy || !activeLiveArtifact?.artifactRef"
-                      @click="openDislikeDrawer"
-                    >
-                      点踩
-                    </button>
-                    <p v-if="feedbackHint" class="feedback-hint" data-testid="feedback-hint">
-                      {{ feedbackHint }}
-                    </p>
-                  </div>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5a5 5 0 0 1-9.9 1h-2.02A7 7 0 0 0 12 20c3.87 0 7-3.13 7-7s-3.13-7-7-7z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="card-action-icon"
+                    data-testid="card-like"
+                    aria-label="点赞"
+                    title="点赞"
+                    :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_GOOD_QUALITY }"
+                    :disabled="!canSubmitFeedback"
+                    @click="submitLikeFeedback"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M9 21h9a2 2 0 0 0 1.86-1.26l2.7-7.05A1.5 1.5 0 0 0 21.18 10H14V6a3 3 0 0 0-3-3l-4 9v9zm-6 0h4V12H3v9z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="card-action-icon"
+                    data-testid="card-dislike"
+                    aria-label="点踩"
+                    title="点踩"
+                    :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_POOR_QUALITY }"
+                    :disabled="sessionBusy || feedbackBusy || !activeLiveArtifact?.artifactRef"
+                    @click="openDislikeDrawer"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M15 3H6a2 2 0 0 0-1.86 1.26l-2.7 7.05A1.5 1.5 0 0 0 2.82 14H10v4a3 3 0 0 0 3 3l4-9V3zm6 0h-4v9h4V3z"
+                      />
+                    </svg>
+                  </button>
+                  <p v-if="feedbackHint" class="feedback-hint" data-testid="feedback-hint">
+                    {{ feedbackHint }}
+                  </p>
                 </div>
                 <div v-if="m.role === 'agent' && !picksIsLive && !listingIsLive" class="demo-actions">
                   <button
@@ -1179,7 +1279,67 @@ onMounted(async () => {
 
           <div class="chat-input-wrap">
             <div class="chat-composer">
-              <div class="quick-row" role="group" aria-label="快捷任务">
+              <div
+                v-if="listingAwaitingHuman && listingPendingHuman"
+                class="ask-human"
+                data-testid="ask-human"
+              >
+                <div class="ask-human-head">
+                  <span class="ask-human-eyebrow">需要你确认</span>
+                  <span class="ask-human-hint">右侧 Computer 可先看策划</span>
+                </div>
+                <p class="ask-human-q">{{ listingPendingHuman.question }}</p>
+                <div class="ask-human-actions" role="group" aria-label="确认策划">
+                  <button
+                    type="button"
+                    class="ask-human-primary"
+                    data-testid="ask-human-confirm"
+                    :disabled="listingRunning"
+                    @click="confirmListingExecute"
+                  >
+                    确认，出执行稿
+                  </button>
+                  <button
+                    type="button"
+                    class="ask-human-secondary"
+                    data-testid="ask-human-supplement"
+                    :disabled="listingRunning"
+                    @click="openListingSupplement"
+                  >
+                    {{ listingSupplementOpen ? '收起补充' : '补充需求' }}
+                  </button>
+                </div>
+                <div
+                  v-if="listingSupplementOpen"
+                  class="ask-human-supplement"
+                  data-testid="ask-human-supplement-form"
+                >
+                  <textarea
+                    v-model="listingSupplementText"
+                    class="ask-human-note"
+                    rows="3"
+                    placeholder="写下要改的分镜、标题或详情大纲"
+                    aria-label="补充需求"
+                    :disabled="listingRunning"
+                  />
+                  <button
+                    type="button"
+                    class="ask-human-primary ask-human-primary-sm"
+                    data-testid="ask-human-supplement-submit"
+                    :disabled="listingRunning"
+                    @click="submitListingSupplement"
+                  >
+                    提交补充
+                  </button>
+                </div>
+              </div>
+              <div
+                v-else
+                class="quick-row"
+                role="group"
+                aria-label="快捷任务"
+                data-testid="session-quick-row"
+              >
                 <button type="button" class="pill" :disabled="sessionBusy" @click="fillPicksSession">
                   选品清单
                 </button>
@@ -1283,47 +1443,6 @@ onMounted(async () => {
 <style scoped>
 .shell {
   min-height: 100vh;
-}
-
-.ask-human {
-  margin-top: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-xl);
-  background: var(--surface);
-}
-
-.ask-human-q {
-  margin: 0 0 10px;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: var(--ink);
-}
-
-.ask-human-actions,
-.ask-human-supplement {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.ask-human-supplement {
-  margin-top: 10px;
-  flex-direction: column;
-}
-
-.ask-human-note {
-  width: 100%;
-  min-height: 72px;
-  resize: vertical;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px 10px;
-  background: transparent;
-  color: var(--ink);
-  font-size: 0.875rem;
-  line-height: 1.6;
 }
 
 .quick-row {
@@ -1452,9 +1571,44 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 4px 2px 0;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 0 2px;
+}
+
+.card-action-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mute);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.card-action-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.card-action-icon:hover:not(:disabled) {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--chip) 80%, transparent);
+}
+
+.card-action-icon.is-on {
+  color: var(--accent);
+}
+
+.card-action-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .card-result-actions .pill.is-on {

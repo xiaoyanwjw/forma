@@ -4,6 +4,7 @@ import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
 import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.application.business.session.query.SessionQueryService;
+import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.common.response.ApiResponse;
 import com.xmut.ebus.interfaces.security.SecuritySupport;
 import lombok.RequiredArgsConstructor;
@@ -34,10 +35,13 @@ public class SessionController {
     }
 
     @GetMapping("/{sessionId}/messages")
-    public ApiResponse<List<SessionMessageDTO>> listMessages(
-            @PathVariable("sessionId") String sessionId) {
+    public ApiResponse<Page<SessionMessageDTO>> listMessages(
+            @PathVariable("sessionId") String sessionId,
+            @RequestParam(value = "nextToken", required = false) String nextToken,
+            @RequestParam(value = "limit", required = false) Integer limit) {
         return ApiResponse.success(
-                sessionQueryService.listMessages(SecuritySupport.requireUserId(), sessionId));
+                sessionQueryService.getMessageList(
+                        SecuritySupport.requireUserId(), sessionId, nextToken, limit));
     }
 
     @GetMapping("/{sessionId}/latest-artifact")

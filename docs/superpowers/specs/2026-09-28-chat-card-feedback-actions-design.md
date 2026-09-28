@@ -35,7 +35,7 @@
 3. Computer 顶栏结果操作条删除。  
 
 **B. 历史页抽屉**  
-4. 点列表条目 → 大抽屉，用 **Tab** 切换：「对话」（R1 会话气泡）｜「成果」（Computer 预览）；默认「成果」（或上次选中，实现自定默认「成果」）。  
+4. 点列表条目 → 大抽屉，默认 **「对话」**（R1 会话气泡）；点 agent 气泡切到 **「成果」**（Computer 预览）；也可用 Tab 手动切换。  
 
 **C. 工作台侧栏**  
 5. 侧栏本人近 60 天会话列表；点选整页切到该 `sessionId`（对话 R1 + Computer 最近成果）；可继续发送/重试。  
@@ -65,9 +65,9 @@
 ```text
 /history 点条目
   → 解析 artifact → run → sessionId
-  → 抽屉 Tab「对话」：GET session messages（本人 ACL；无会话则空态）
-  → 抽屉 Tab「成果」：GET history artifact detail（view 重签）
-  → 同一抽屉内 Tab 切换，不关抽屉
+  → 抽屉默认 Tab「对话」：GET session messages（本人 ACL；无会话则空态）
+  → 点 agent 气泡 → 切 Tab「成果」：GET history artifact detail（view 重签）
+  → 也可用 Tab 手动切换，不关抽屉
 ```
 
 ### 3.3 侧栏切会话
@@ -115,7 +115,7 @@ GET 本人会话列表（60d, scene 可滤）
 
 ### 5.2 历史页
 
-- 列表点击开抽屉；抽屉内 Tab：「对话」｜「成果」（默认「成果」）。  
+- 列表点击开抽屉；默认 Tab「对话」；点 agent 气泡切「成果」。  
 - 可保留列表选中态；空会话 / 加载失败人话提示。  
 
 ---
@@ -124,7 +124,7 @@ GET 本人会话列表（60d, scene 可滤）
 
 1. Given 成功 STATUS 卡，when 查看卡下，then 有重试/赞/踩，且 Computer 顶栏无旧操作。  
 2. Given 成功成果，when 赞或踩（抽屉确认），then 落库对应标签且积分不变；再改另一边则覆盖。  
-3. Given 历史列表有成果，when 点开抽屉，then 可用 Tab 在「对话」（气泡或空态）与「成果」预览间切换。  
+3. Given 历史列表有成果，when 点开抽屉，then 默认看到「对话」气泡；点 agent 气泡可切到「成果」预览。  
 4. Given 侧栏有过往会话，when 点选，then 工作台切到该 session 的对话与最近成果，并可继续发送。  
 5. Given 切到旧会话，when 一键重试且余额≥1，then 新 Run+新预占，旧成果保留。  
 
@@ -142,6 +142,6 @@ GET 本人会话列表（60d, scene 可滤）
 
 - 卡片：成功 STATUS 卡下重试/赞/踩；踩走底部抽屉；Computer 顶栏结果条已删。  
 - Feedback：`质量好`/`质量差` 按 `(user, artifact)` upsert；不经 CreditLedger。  
-- 历史抽屉：Tab「对话」（R1）｜「成果」；详情带 `sessionId`。  
+- 历史抽屉：默认 Tab「对话」（R1）；点 agent 气泡切「成果」；详情带 `sessionId`。  
 - 侧栏：近 60 天本人会话列表，点选整页切换并可继续发送。  
 - R2 过程卡笔录见 `sdd/implementation-artifacts/deferred-work.md`。  

@@ -6,6 +6,8 @@ import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
+import com.xmut.ebus.common.page.Page;
+import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
@@ -26,9 +28,12 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -87,36 +92,58 @@ class SessionQueryServiceTest {
     }
 
     @Test
-    void listMessagesSkipsSystemAndEmpty() {
+    void getMessageListReturnsPageWithNextToken() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
-        when(sessionStore.load(SESSION)).thenReturn(Arrays.asList(
-                Message.system("hidden"),
-                Message.user("   "),
-                Message.user("你好"),
-                Message.assistant("这是回复", null),
-                Message.builder().role("tool").content("tool-output").build(),
-                Message.assistant("", null)));
+        String dump = "```json\n{\"view\":{\"version\":1,\"blocks\":[]}}\n```";
+        Instant t1 = NOW.minus(3, ChronoUnit.MINUTES);
+        Instant t2 = NOW.minus(2, ChronoUnit.MINUTES);
+        Instant t3 = NOW.minus(1, ChronoUnit.MINUTES);
+        when(piSessionQueryRepository.getMessageList(eq(SESSION), isNull(), eq(100)))
+                .thenReturn(Page.of(Arrays.asList(
+                        new PiMessageDTO("user", "你好", t1, 3L),
+                        new PiMessageDTO("assistant", "这是回复", t2, 4L),
+                        new PiMessageDTO("assistant", dump, t3, 6L)), "3"));
 
-        List<SessionMessageDTO> messages = service.listMessages(USER, SESSION);
+        Page<SessionMessageDTO> page = service.getMessageList(USER, SESSION, null, null);
 
-        assertEquals(2, messages.size());
-        assertEquals("user", messages.get(0).getRole());
-        assertEquals("你好", messages.get(0).getContent());
-        assertEquals("assistant", messages.get(1).getRole());
-        assertEquals("这是回复", messages.get(1).getContent());
+        assertEquals("3", page.getNextToken());
+        assertEquals(3, page.getItems().size());
+        assertEquals("user", page.getItems().get(0).getRole());
+        assertEquals("你好", page.getItems().get(0).getContent());
+        assertEquals(t1, page.getItems().get(0).getCreatedAt());
+        assertEquals(Long.valueOf(3L), page.getItems().get(0).getSeq());
+        assertEquals("assistant", page.getItems().get(1).getRole());
+        assertEquals(Long.valueOf(4L), page.getItems().get(1).getSeq());
+        assertEquals(dump, page.getItems().get(2).getContent());
+        assertEquals(Long.valueOf(6L), page.getItems().get(2).getSeq());
+        verify(sessionStore, never()).load(any());
     }
 
     @Test
-    void listMessagesForbiddenForOtherUser() {
+    void getMessageListPassesNextTokenAndClampsLimit() {
+        when(piSessionQueryRepository.findBySessionId(SESSION))
+                .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
+        when(piSessionQueryRepository.getMessageList(eq(SESSION), eq("10"), eq(100)))
+                .thenReturn(Page.<PiMessageDTO>empty());
+
+        Page<SessionMessageDTO> page = service.getMessageList(USER, SESSION, "10", 500);
+
+        assertNull(page.getNextToken());
+        assertTrue(page.getItems().isEmpty());
+        verify(piSessionQueryRepository).getMessageList(SESSION, "10", 100);
+    }
+
+    @Test
+    void getMessageListForbiddenForOtherUser() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, OTHER, "ecommerce", NOW)));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.listMessages(USER, SESSION));
+                () -> service.getMessageList(USER, SESSION, null, null));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
         assertEquals(SessionQueryService.MSG_UNAVAILABLE, ex.getMessage());
-        verify(sessionStore, never()).load(any());
+        verify(piSessionQueryRepository, never()).getMessageList(anyString(), any(), anyInt());
     }
 
     @Test
@@ -144,13 +171,13 @@ class SessionQueryServiceTest {
     }
 
     @Test
-    void listMessagesForbiddenWhenUserIdNullOnRow() {
+    void getMessageListForbiddenWhenUserIdNullOnRow() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, null, "ecommerce", NOW)));
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.listMessages(USER, SESSION));
+                () -> service.getMessageList(USER, SESSION, null, null));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
-        verify(sessionStore, never()).load(any());
+        verify(piSessionQueryRepository, never()).getMessageList(anyString(), any(), anyInt());
     }
 
     @Test

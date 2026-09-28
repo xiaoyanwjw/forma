@@ -1,6 +1,8 @@
 import { request } from '@/api/client'
 import type { HistoryArtifactDetail } from '@/types/business/history'
-import type { SessionMessage, SessionSummary } from '@/types/business/session'
+import type { Page, SessionMessage, SessionSummary } from '@/types/business/session'
+
+export const SESSION_MESSAGE_PAGE_SIZE = 100
 
 export function listSessions(sceneCode?: string) {
   const q = sceneCode?.trim()
@@ -9,9 +11,20 @@ export function listSessions(sceneCode?: string) {
   return request<SessionSummary[]>(`/api/v1/sessions${q}`)
 }
 
-export function getSessionMessages(sessionId: string) {
-  return request<SessionMessage[]>(
-    `/api/v1/sessions/${encodeURIComponent(sessionId)}/messages`,
+export function getSessionMessages(
+  sessionId: string,
+  opts?: { nextToken?: string; limit?: number },
+) {
+  const params = new URLSearchParams()
+  const token = opts?.nextToken?.trim()
+  if (token) {
+    params.set('nextToken', token)
+  }
+  const limit = opts?.limit ?? SESSION_MESSAGE_PAGE_SIZE
+  params.set('limit', String(limit))
+  const q = params.toString()
+  return request<Page<SessionMessage>>(
+    `/api/v1/sessions/${encodeURIComponent(sessionId)}/messages${q ? `?${q}` : ''}`,
   )
 }
 

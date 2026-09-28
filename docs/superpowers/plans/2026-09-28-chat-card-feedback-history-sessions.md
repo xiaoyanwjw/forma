@@ -14,7 +14,7 @@
 - 回放 = **R1**：user/assistant 文本气泡；**不做** STATUS 过程卡笔录
 - Feedback 标签仅 `质量好` | `质量差`；零 CreditLedger；可改口 **upsert**
 - Session 列表/消息：**application 显式传 userId**；`user_id IS NULL` 的会话 **不进入** 本 API 列表（防漏数）
-- 历史抽屉默认 Tab：**成果**；Tab 名：**对话** | **成果**
+- 历史抽屉默认 Tab：**对话**；点 agent 气泡切 **成果**；Tab 名：**对话** | **成果**
 - 消息过滤：**保留** `user`/`assistant` 且 content 非空；**丢弃** `system`、tool、空 content
 - 重试语义不变：新 GenerationRun + 新预占；可复用 sessionId
 - 不改 3.5/3.7；不做历史页反馈入口；不做分页/物理清理

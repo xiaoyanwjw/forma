@@ -6,7 +6,9 @@ import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
+import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.common.util.StringUtils;
+import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
@@ -34,6 +36,9 @@ public class SessionQueryService {
     public static final int SESSION_WINDOW_DAYS = 60;
     public static final int DEFAULT_LIMIT = 50;
     public static final int MAX_LIMIT = 100;
+    /** 消息回放默认 / 最大页大小 */
+    public static final int MESSAGE_PAGE_DEFAULT = 100;
+    public static final int MESSAGE_PAGE_MAX = 100;
     public static final String DEFAULT_TITLE = "电商会话";
     public static final String MSG_UNAVAILABLE = "会话不存在或无权查看";
 
@@ -68,27 +73,34 @@ public class SessionQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<SessionMessageDTO> listMessages(String userId, String sessionId) {
+    public Page<SessionMessageDTO> getMessageList(String userId, String sessionId, String nextToken, Integer limit) {
         String uid = StringUtils.requireHasText(userId, "userId required");
         String sid = StringUtils.requireHasText(sessionId, "sessionId required");
+
         PiSessionMeta row = piSessionQueryRepository.findBySessionId(sid)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE));
         if (!uid.equals(row.getUserId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE);
         }
-        List<Message> loaded = sessionStore.load(sid);
+        
+        int pageSize = clampMessagePage(limit);
+        Page<PiMessageDTO> page = piSessionQueryRepository.getMessageList(sid, nextToken, pageSize);
         List<SessionMessageDTO> out = new ArrayList<SessionMessageDTO>();
-        if (loaded == null) {
-            return out;
-        }
-        for (Message message : loaded) {
-            if (!keepReplay(message)) {
-                continue;
+        if (page != null) {
+            for (PiMessageDTO message : page.getItems()) {
+                if (!keepReplay(message)) {
+                    continue;
+                }
+                String role = message.getRole().toLowerCase(Locale.ROOT);
+                out.add(new SessionMessageDTO(
+                        role,
+                        message.getContent(),
+                        message.getCreatedAt(),
+                        message.getSeq()));
             }
-            String role = message.getRole().toLowerCase(Locale.ROOT);
-            out.add(new SessionMessageDTO(role, message.getContent(), null));
         }
-        return out;
+        String token = page == null ? null : page.getNextToken();
+        return Page.of(out, token);
     }
 
     /**
@@ -117,13 +129,32 @@ public class SessionQueryService {
         return Math.min(limit.intValue(), MAX_LIMIT);
     }
 
+    static int clampMessagePage(Integer limit) {
+        if (limit == null || limit.intValue() <= 0) {
+            return MESSAGE_PAGE_DEFAULT;
+        }
+        return Math.min(limit.intValue(), MESSAGE_PAGE_MAX);
+    }
+
     static boolean keepReplay(Message message) {
-        if (message == null || !StringUtils.hasText(message.getContent())) {
+        if (message == null) {
             return false;
         }
-        String role = message.getRole();
-        return role != null
-                && ("user".equalsIgnoreCase(role) || "assistant".equalsIgnoreCase(role));
+        return keepReplay(message.getRole(), message.getContent());
+    }
+
+    static boolean keepReplay(PiMessageDTO message) {
+        if (message == null) {
+            return false;
+        }
+        return keepReplay(message.getRole(), message.getContent());
+    }
+
+    static boolean keepReplay(String role, String content) {
+        if (!StringUtils.hasText(content) || role == null) {
+            return false;
+        }
+        return "user".equalsIgnoreCase(role) || "assistant".equalsIgnoreCase(role);
     }
 
     static String titleFrom(List<Message> messages) {

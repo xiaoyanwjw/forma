@@ -11,4 +11,12 @@ export interface SessionMessage {
   role: 'user' | 'assistant' | string
   content: string
   createdAt?: string | null
+  /** pi_session_entry.seq */
+  seq?: number | null
+}
+
+/** 通用分页（nextToken 非空表示还有更早一页） */
+export interface Page<T> {
+  items: T[]
+  nextToken?: string | null
 }

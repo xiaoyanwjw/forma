@@ -135,8 +135,9 @@ describe('HistoryPlaceholder', () => {
     ;(mounted.root.querySelector('.history-item') as HTMLElement).click()
     await flushUi()
     await flushUi()
-    expect(mounted.root.querySelector('[data-testid="history-detail"]')?.textContent).toMatch(
-      /历史预览|Adam's Computer/,
+    expect(mounted.root.querySelector('[data-testid="history-drawer"]')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-testid="history-chat-empty"]')?.textContent).toMatch(
+      /暂无会话记录/,
     )
 
     const select = mounted.root.querySelector(
@@ -159,7 +160,7 @@ describe('HistoryPlaceholder', () => {
     expect(mounted.root.querySelector('[data-testid="history-empty"]')).toBeTruthy()
   })
 
-  it('opens drawer with tabs 成果 default and 对话 messages', async () => {
+  it('opens drawer on chat; agent bubble opens 成果 with back icon', async () => {
     const withSession = {
       id: 'a1',
       artifactType: 'picklist',
@@ -209,10 +210,13 @@ describe('HistoryPlaceholder', () => {
         })
       }
       if (url.includes('/api/v1/sessions/sess-1/messages')) {
-        return jsonOk([
-          { role: 'user', content: '找杯子', createdAt: null },
-          { role: 'assistant', content: '这是建议', createdAt: null },
-        ])
+        return jsonOk({
+          items: [
+            { role: 'user', content: '找杯子', createdAt: null, seq: 1 },
+            { role: 'assistant', content: '这是建议', createdAt: null, seq: 2 },
+          ],
+          nextToken: null,
+        })
       }
       if (url.includes('/api/v1/history/artifacts')) {
         return jsonOk([withSession, withoutSession])
@@ -232,31 +236,13 @@ describe('HistoryPlaceholder', () => {
     const drawer = mounted.root.querySelector('[data-testid="history-drawer"]')
     expect(drawer).toBeTruthy()
     expect(mounted.root.querySelector('[data-testid="history-list"]')).toBeTruthy()
-    expect(drawer?.textContent).toMatch(/成果/)
-    expect(drawer?.textContent).toMatch(/对话/)
-    const artifactTab = mounted.root.querySelector(
-      '[data-testid="history-tab-artifact"]',
-    ) as HTMLButtonElement
-    const chatTab = mounted.root.querySelector(
-      '[data-testid="history-tab-chat"]',
-    ) as HTMLButtonElement
-    expect(artifactTab.getAttribute('aria-selected')).toBe('true')
-    expect(chatTab.getAttribute('aria-selected')).toBe('false')
-    expect(mounted.root.querySelector('[data-testid="history-detail"]')?.textContent).toMatch(
-      /历史预览|Adam's Computer/,
-    )
+    expect(mounted.root.querySelector('[data-testid="history-tab-chat"]')).toBeNull()
+    expect(mounted.root.querySelector('[data-testid="history-tab-artifact"]')).toBeNull()
+    expect(mounted.root.querySelector('[data-testid="history-back-to-chat"]')).toBeNull()
 
     const fetchMock = globalThis.fetch as unknown as {
       mock: { calls: ReadonlyArray<unknown[]> }
     }
-    expect(
-      fetchMock.mock.calls.some(([input]) => String(input).includes('/api/v1/sessions/')),
-    ).toBe(false)
-
-    chatTab.click()
-    await flushUi()
-    await flushUi()
-    expect(chatTab.getAttribute('aria-selected')).toBe('true')
     expect(
       fetchMock.mock.calls.some(([input]) =>
         String(input).includes('/api/v1/sessions/sess-1/messages'),
@@ -269,16 +255,31 @@ describe('HistoryPlaceholder', () => {
       /这是建议/,
     )
 
-    ;(items[1] as HTMLElement).click()
+    const agentBubble = mounted.root.querySelector(
+      '[data-testid="history-agent-bubble"]',
+    ) as HTMLElement
+    expect(agentBubble).toBeTruthy()
+    agentBubble.click()
     await flushUi()
-    await flushUi()
-    const chatTabAgain = mounted.root.querySelector(
-      '[data-testid="history-tab-chat"]',
+    expect(mounted.root.querySelector('[data-testid="history-detail"]')?.textContent).toMatch(
+      /历史预览|Adam's Computer/,
+    )
+    const back = mounted.root.querySelector(
+      '[data-testid="history-back-to-chat"]',
     ) as HTMLButtonElement
-    expect(mounted.root.querySelector('[data-testid="history-tab-artifact"]')?.getAttribute(
-      'aria-selected',
-    )).toBe('true')
-    chatTabAgain.click()
+    expect(back).toBeTruthy()
+    expect(back.getAttribute('aria-label')).toBe('返回对话')
+    expect(mounted.root.querySelector('.computer-bar-left')?.textContent).toMatch(
+      /Adam's Computer/,
+    )
+    back.click()
+    await flushUi()
+    expect(mounted.root.querySelector('[data-testid="history-chat"]')?.textContent).toMatch(
+      /找杯子/,
+    )
+    expect(mounted.root.querySelector('[data-testid="history-back-to-chat"]')).toBeNull()
+
+    ;(items[1] as HTMLElement).click()
     await flushUi()
     await flushUi()
     expect(mounted.root.querySelector('[data-testid="history-chat-empty"]')?.textContent).toMatch(

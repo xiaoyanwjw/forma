@@ -10,14 +10,17 @@ public class SessionMessageDTO {
     private String role;
     private String content;
     private Instant createdAt;
+    /** pi_session_entry.seq；分页游标 */
+    private Long seq;
 
     public SessionMessageDTO() {
     }
 
-    public SessionMessageDTO(String role, String content, Instant createdAt) {
+    public SessionMessageDTO(String role, String content, Instant createdAt, Long seq) {
         this.role = role;
         this.content = content;
         this.createdAt = createdAt;
+        this.seq = seq;
     }
 
     public String getRole() {
@@ -42,5 +45,13 @@ public class SessionMessageDTO {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Long getSeq() {
+        return seq;
+    }
+
+    public void setSeq(Long seq) {
+        this.seq = seq;
     }
 }

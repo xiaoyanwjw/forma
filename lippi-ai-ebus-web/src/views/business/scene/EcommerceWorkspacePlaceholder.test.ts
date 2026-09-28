@@ -198,7 +198,7 @@ function mockCatalogAndCredits(opts?: {
     if (url.includes('/api/v1/sessions/') && url.includes('/messages')) {
       const id = url.split('/api/v1/sessions/')[1]?.split('/')[0] || ''
       const rows = opts?.sessionMessages?.[decodeURIComponent(id)] ?? []
-      return okScenes(rows)
+      return okScenes({ items: rows, nextToken: null })
     }
     if (url.includes('/api/v1/sessions/') && url.includes('/latest-artifact')) {
       const id = url.split('/api/v1/sessions/')[1]?.split('/')[0] || ''
@@ -936,6 +936,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(listingApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
     expect(resumeApiHits(fetchMock)).toHaveLength(0)
     expect(mounted.root.querySelector('[data-testid="ask-human"]')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-testid="session-quick-row"]')).toBeNull()
     expect(mounted.root.textContent).toMatch(/确认，出执行稿/)
     expect(mounted.root.textContent).toMatch(/补充需求/)
     expect(mounted.root.querySelector('.workspace.split')).toBeTruthy()
@@ -957,6 +958,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       optionId: 'confirm_execute',
     })
     expect(mounted.root.querySelector('[data-testid="ask-human"]')).toBeNull()
+    expect(mounted.root.querySelector('[data-testid="session-quick-row"]')).toBeTruthy()
     expect(mounted.root.textContent).toMatch(/已生成上架素材/)
     expect(mounted.root.querySelector('.platform-switch')).toBeTruthy()
     expect(mounted.root.querySelector('.listing-copy.is-title')).toBeTruthy()
@@ -1081,7 +1083,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     const statusCards = mounted.root.querySelectorAll('.chat-event-status.is-preview')
     expect(statusCards.length).toBeGreaterThanOrEqual(2)
     const lastStatus = statusCards[statusCards.length - 1]
-    expect(lastStatus?.parentElement?.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()
+    expect(lastStatus?.closest('.msg')?.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()
   })
 
   it('keeps like highlight when delayed GET restore returns null', async () => {
@@ -1131,8 +1133,36 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       ],
       sessionMessages: {
         'sess-b': [
-          { role: 'user', content: '帮我找杯子' },
-          { role: 'assistant', content: '这是杯子建议' },
+          {
+            role: 'user',
+            content: '帮我找杯子',
+            createdAt: '2026-09-28T08:00:00.000Z',
+            seq: 1,
+          },
+          {
+            role: 'assistant',
+            content: "I'll load the skill instructions first.",
+            createdAt: '2026-09-28T08:00:01.000Z',
+            seq: 2,
+          },
+          {
+            role: 'assistant',
+            content: '```json\n{"view":{"version":1,"title":"dump","blocks":[]}}\n```',
+            createdAt: '2026-09-28T08:00:10.000Z',
+            seq: 6,
+          },
+          {
+            role: 'user',
+            content: '帮我找杯子',
+            createdAt: '2026-09-28T08:01:00.000Z',
+            seq: 7,
+          },
+          {
+            role: 'assistant',
+            content: '```json\n{"view":{"version":1,"title":"dump","blocks":[]}}\n```',
+            createdAt: '2026-09-28T08:01:05.000Z',
+            seq: 8,
+          },
         ],
       },
       latestArtifacts: {
@@ -1162,10 +1192,26 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
 
     const thread = mounted.root.querySelector('.chat-scroll')?.textContent || ''
     expect(thread).toContain('帮我找杯子')
-    expect(thread).toContain('这是杯子建议')
+    expect(thread).toMatch(/已生成选品成果/)
+    expect(thread).not.toContain("I'll load")
+    expect(thread).not.toContain('"blocks"')
+    const userBubbles = mounted.root.querySelectorAll('.msg.user .msg-text')
+    expect(userBubbles.length).toBe(2)
+    expect(userBubbles[0]?.textContent).toContain('帮我找杯子')
+    expect(userBubbles[0]?.querySelector('.msg-time')).toBeNull()
+    const agentStatuses = mounted.root.querySelectorAll('.chat-event-status.is-preview')
+    expect(agentStatuses.length).toBe(2)
+    expect(agentStatuses[0]?.querySelector('.chat-event-time')?.textContent).toMatch(/^\d{2}:\d{2}:\d{2}$/)
     expect(mounted.root.querySelector('.chat-events')).toBeNull()
     expect(items[1]?.classList.contains('on')).toBe(true)
     expect(items[0]?.classList.contains('on')).toBe(false)
+    // 侧栏切入：挂上成果但不自动展开 Computer
+    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
+    expect(mounted.root.querySelector('[data-testid="one-click-retry"]')?.getAttribute('aria-label')).toBe(
+      '重试',
+    )
+    ;(agentStatuses[1] as HTMLElement).click()
+    await flushUi()
     expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(true)
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('候选1')
 
@@ -1184,6 +1230,91 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
         (el) => !el.classList.contains('on'),
       ),
     ).toBe(true)
+  })
+
+  it('session switch supports load more older messages', async () => {
+    const view = sampleComputerView()
+    fetchMock.mockRestore()
+    fetchMock = mockCatalogAndCredits({
+      sessions: [
+        {
+          sessionId: 'sess-b',
+          title: '旧会话乙',
+          sceneCode: 'ecommerce',
+          updatedAt: '2026-09-28T00:00:00Z',
+        },
+      ],
+      latestArtifacts: {
+        'sess-b': {
+          id: 'pl-switched',
+          artifactType: 'picklist',
+          sceneCode: 'ecommerce',
+          title: '切换后的选品',
+          createdAt: '2026-09-28T00:00:00Z',
+          view,
+          sessionId: 'sess-b',
+        },
+      },
+    })
+    const baseImpl = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.includes('/api/v1/sessions/sess-b/messages')) {
+        const u = new URL(url, 'http://local')
+        const token = u.searchParams.get('nextToken')
+        if (token === '7') {
+          return okScenes({
+            items: [
+              {
+                role: 'user',
+                content: '更早的提问',
+                createdAt: '2026-09-28T07:00:00.000Z',
+                seq: 1,
+              },
+              {
+                role: 'assistant',
+                content: '```json\n{"view":{"version":1,"title":"old","blocks":[]}}\n```',
+                createdAt: '2026-09-28T07:00:10.000Z',
+                seq: 6,
+              },
+            ],
+            nextToken: null,
+          })
+        }
+        return okScenes({
+          items: [
+            {
+              role: 'user',
+              content: '帮我找杯子',
+              createdAt: '2026-09-28T08:01:00.000Z',
+              seq: 7,
+            },
+            {
+              role: 'assistant',
+              content: '```json\n{"view":{"version":1,"title":"dump","blocks":[]}}\n```',
+              createdAt: '2026-09-28T08:01:05.000Z',
+              seq: 8,
+            },
+          ],
+          nextToken: '7',
+        })
+      }
+      return baseImpl(input, init)
+    })
+
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await flushUi()
+    ;(mounted.root.querySelector('[data-testid="session-item"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    expect(mounted.root.querySelector('[data-testid="session-load-more"]')).toBeTruthy()
+    ;(mounted.root.querySelector('[data-testid="session-load-more"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+    expect(mounted.root.querySelector('.chat-scroll')?.textContent).toContain('更早的提问')
+    expect(mounted.root.querySelector('[data-testid="session-load-more"]')).toBeNull()
   })
 
   it('refreshes sidebar sessions after billed run succeeds', async () => {
