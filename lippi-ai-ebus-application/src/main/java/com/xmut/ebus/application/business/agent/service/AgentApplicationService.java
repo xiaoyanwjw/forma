@@ -409,7 +409,7 @@ public class AgentApplicationService {
                 return;
             }
 
-            // 6b. 非 OK：按失败收尾
+            // 6b. 失败收尾
             if (!TurnResult.Status.OK.equals(result.getStatus())) {
                 String reason = StringUtils.hasText(result.getFinalResponse())
                         ? result.getFinalResponse()
@@ -417,7 +417,7 @@ public class AgentApplicationService {
                 throw new BusinessException(ErrorCode.SYSTEM_ERROR, reason);
             }
 
-            // 7. OK：发布终稿 MESSAGE_DELTA，解析并投影 Computer View
+            // 7. 发布终稿 MESSAGE_DELTA，解析并投影 Computer View
             String finalResponse = result.getFinalResponse();
             if (StringUtils.hasText(finalResponse)) {
                 Map<String, Object> delta = new LinkedHashMap<String, Object>();
