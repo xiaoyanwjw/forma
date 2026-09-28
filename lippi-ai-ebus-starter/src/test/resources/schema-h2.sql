@@ -105,6 +105,19 @@ CREATE TABLE IF NOT EXISTS ebus_media_object (
 );
 CREATE INDEX IF NOT EXISTS idx_ebus_media_object_user ON ebus_media_object (user_id);
 
+CREATE TABLE IF NOT EXISTS ebus_feedback (
+    id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    biz_id       VARCHAR(36)  NOT NULL,
+    user_id      VARCHAR(36)  NOT NULL,
+    artifact_id  VARCHAR(36)  NOT NULL,
+    tag          VARCHAR(64)  NOT NULL,
+    comment_text VARCHAR(512) NULL,
+    created_at   TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_ebus_feedback_biz UNIQUE (biz_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ebus_feedback_user_time ON ebus_feedback (user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ebus_feedback_artifact ON ebus_feedback (artifact_id);
+
 CREATE TABLE IF NOT EXISTS pi_session (
     id                  BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     session_id          VARCHAR(64)  NOT NULL,

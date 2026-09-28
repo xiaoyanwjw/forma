@@ -46,4 +46,21 @@
         FROM ebus_artifact
         WHERE run_id = #{runId}
     </select>
+
+    <select id="selectByUserSince" resultMap="ArtifactResultMap">
+        SELECT id, biz_id, user_id, run_id, artifact_type, scene_code, template_id, title, payload_json, created_at, updated_at
+        FROM ebus_artifact
+        WHERE user_id = #{userId}
+          AND created_at &gt;= #{since}
+        <if test="artifactTypes != null and artifactTypes.size() &gt; 0">
+            AND artifact_type IN
+            <foreach collection="artifactTypes" item="t" open="(" separator="," close=")">
+                #{t}
+            </foreach>
+        </if>
+        <if test="sceneCode != null and sceneCode != ''">
+            AND scene_code = #{sceneCode}
+        </if>
+        ORDER BY created_at DESC
+    </select>
 </mapper>

@@ -191,3 +191,15 @@
 - source_spec: `sdd/implementation-artifacts/spec-3-6-生成-listing-套装并结算-1-积分.md`
   summary: 客户端取消/SSE 断流时服务端 Listing 仍可能跑完并 settle（与 3.4 同构）。
   evidence: FE abort 只停本地流；AgentSession.prompt 无中断端口。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-8-重试-质量差-反馈与近-60-天历史.md`
+  summary: 历史列表缺少分页/硬 LIMIT，重度用户近 60 天可能一次拉回过大结果集。
+  evidence: 评审确认 mapper/API/UI 均无分页；意图未锁定分页契约，不宜在本故事猜 pageSize。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-8-重试-质量差-反馈与近-60-天历史.md`
+  summary: 同一用户对同一成果可多次提交「质量差」，无库级幂等。
+  evidence: Feedback 表无 (user,artifact,tag) 唯一约束；FE 仅会话内挡一次；意图未要求一次性。
+
+- source_spec: `sdd/implementation-artifacts/spec-3-8-重试-质量差-反馈与近-60-天历史.md`
+  summary: 已有 MySQL named volume 不会自动执行 `013_ebus_feedback.sql`，需手工跑 SQL 或重建库。
+  evidence: compose 仅首次 initdb；与既有 bootstrap SQL 运维约定同类。

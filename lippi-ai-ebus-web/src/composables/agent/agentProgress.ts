@@ -256,7 +256,7 @@ export function formatStreamBodyForDisplay(raw: string): string {
   }
 
   const closedFence = trimmed.match(/^```(?:json)?\s*\r?\n?([\s\S]*?)```\s*$/i)
-  if (closedFence) {
+  if (closedFence?.[1] != null) {
     const inner = closedFence[1].trim()
     return tryPretty(inner) ?? inner
   }

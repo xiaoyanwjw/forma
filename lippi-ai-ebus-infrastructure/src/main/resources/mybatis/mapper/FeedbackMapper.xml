@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.ebus.infrastructure.persistence.mybatis.mapper.FeedbackMapper">
+
+    <resultMap id="FeedbackResultMap" type="com.xmut.ebus.infrastructure.persistence.mybatis.po.FeedbackPO">
+        <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="artifactId" column="artifact_id"/>
+        <result property="tag" column="tag"/>
+        <result property="commentText" column="comment_text"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO ebus_feedback
+            (biz_id, user_id, artifact_id, tag, comment_text, created_at)
+        VALUES
+            (#{bizId}, #{userId}, #{artifactId}, #{tag}, #{commentText}, #{createdAt})
+    </insert>
+
+    <select id="selectByBizId" resultMap="FeedbackResultMap">
+        SELECT id, biz_id, user_id, artifact_id, tag, comment_text, created_at
+        FROM ebus_feedback
+        WHERE biz_id = #{bizId}
+    </select>
+</mapper>

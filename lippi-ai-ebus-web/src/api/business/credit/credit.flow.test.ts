@@ -288,9 +288,38 @@ describe('credits FE', () => {
   })
 
   it('HistoryPlaceholder mounts AppHeader with nav slots', async () => {
+    setToken('jwt')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/v1/history/artifacts')) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ success: true, code: 0, message: 'ok', data: [] }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          )
+        }
+        if (url.includes('/api/v1/credits')) {
+          return Promise.resolve(
+            okCredits({
+              tier: 'FREE',
+              available: 20,
+              balance: 20,
+              reserved: 0,
+              nextResetAt: '2026-10-24T10:00:00Z',
+              periodAnchorAt: '2026-09-24T10:00:00Z',
+            }),
+          )
+        }
+        return Promise.resolve(new Response('not found', { status: 404 }))
+      }),
+    )
     const mounted = await mountShell(HistoryPlaceholder, '/history')
     unmount = mounted.unmount
     await flushUi()
     assertAppHeaderSlots(mounted.root)
+    expect(mounted.root.textContent).toMatch(/近 60 天还没有|生成历史/)
   })
 })

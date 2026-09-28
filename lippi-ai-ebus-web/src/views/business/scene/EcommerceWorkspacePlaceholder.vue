@@ -2,6 +2,8 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
+import { ApiError } from '@/api/client'
+import { submitFeedback } from '@/api/business/feedback/feedback'
 import { getScenes } from '@/api/business/scene/scene'
 import {
   buildFailureDetail,
@@ -19,6 +21,7 @@ import {
   DEMO_SESSION_TITLE,
 } from '@/views/business/scene/ecommerceDemoFixtures'
 import type { GenerationArtifactPayload } from '@/types/business/agent'
+import { FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
 /** Stable scene binding for this workbench — Epic 3 session create must carry it */
@@ -85,6 +88,16 @@ const {
 const listingSupplementOpen = ref(false)
 const listingSupplementText = ref('')
 
+/** 一键重试用：上次成功计费提示词与类型（勿走 newTask） */
+const lastBilledPrompt = ref('')
+const lastBilledKind = ref<ComputerKind>(null)
+/** 当前计费轮次提示词（含 HITL 续跑成功后回填） */
+const pendingBilledPrompt = ref('')
+const feedbackNote = ref('')
+const feedbackBusy = ref(false)
+const feedbackHint = ref('')
+const feedbackDoneForArtifact = ref<string | null>(null)
+
 const generationRunning = computed(() => picklistRunning.value || listingRunning.value)
 const listingAwaitingHuman = computed(() => Boolean(listingPendingHuman.value))
 const sessionBusy = computed(() => generationRunning.value || listingAwaitingHuman.value)
@@ -103,6 +116,33 @@ const sessionSendEnabled = computed(
 
 const picksIsLive = computed(() => Boolean(livePicklist.value?.view))
 const listingIsLive = computed(() => Boolean(liveListing.value?.view))
+
+const activeLiveArtifact = computed(() => {
+  if (computerKind.value === 'listing' && liveListing.value?.artifactRef) {
+    return liveListing.value
+  }
+  if (computerKind.value === 'picks' && livePicklist.value?.artifactRef) {
+    return livePicklist.value
+  }
+  if (liveListing.value?.artifactRef) return liveListing.value
+  if (livePicklist.value?.artifactRef) return livePicklist.value
+  return null
+})
+
+const canOneClickRetry = computed(
+  () =>
+    Boolean(lastBilledPrompt.value.trim()) &&
+    Boolean(lastBilledKind.value) &&
+    !sessionBusy.value,
+)
+
+const canSubmitFeedback = computed(
+  () =>
+    Boolean(activeLiveArtifact.value?.artifactRef) &&
+    !sessionBusy.value &&
+    !feedbackBusy.value &&
+    feedbackDoneForArtifact.value !== activeLiveArtifact.value?.artifactRef,
+)
 
 const activeComputerDoc = computed(() => {
   if (computerKind.value === 'listing') {
@@ -199,6 +239,11 @@ async function finishGenerationMessage(opts: {
       liveListing.value = opts.artifact
     }
     computerKind.value = opts.kind
+    if (opts.kind && pendingBilledPrompt.value.trim()) {
+      lastBilledPrompt.value = pendingBilledPrompt.value.trim()
+      lastBilledKind.value = opts.kind
+    }
+    feedbackHint.value = ''
     revealComputer()
     const reply = opts.successFallback
     if (idx >= 0) {
@@ -362,12 +407,18 @@ async function sendFromSession() {
     return
   }
 
+  await runBilledGeneration(text, listing ? 'listing' : 'picks')
+}
+
+/** 计费生成（首次发送与一键重试共用；复用 sessionId，新 Run）。 */
+async function runBilledGeneration(text: string, kind: 'picks' | 'listing') {
+  pendingBilledPrompt.value = text
   const thinkingId = nextMsgId()
   thinkingMessageId.value = thinkingId
   messages.value.push({
     id: thinkingId,
     role: 'agent',
-    text: listing ? '正在生成上架素材…' : '正在生成选品清单…',
+    text: kind === 'listing' ? '正在生成上架素材…' : '正在生成选品清单…',
   })
   scrollChatToBottom()
 
@@ -378,7 +429,7 @@ async function sendFromSession() {
     sessionId: sessionId.value ?? undefined,
   }
 
-  if (listing) {
+  if (kind === 'listing') {
     await startListingRun(shared)
     await finishListingAfterStream(thinkingId)
     return
@@ -398,6 +449,36 @@ async function sendFromSession() {
       ? [...picklistProcessEvents.value]
       : undefined,
   })
+}
+
+async function oneClickRetry() {
+  if (!canOneClickRetry.value || !lastBilledKind.value) return
+  const text = lastBilledPrompt.value.trim()
+  const kind = lastBilledKind.value
+  messages.value.push({ id: nextMsgId(), role: 'user', text: `重试：${text}` })
+  scrollChatToBottom()
+  await runBilledGeneration(text, kind)
+}
+
+async function submitPoorQualityFeedback() {
+  const artifactRef = activeLiveArtifact.value?.artifactRef?.trim()
+  if (!artifactRef || !canSubmitFeedback.value) return
+  feedbackBusy.value = true
+  feedbackHint.value = ''
+  try {
+    await submitFeedback({
+      artifactId: artifactRef,
+      tag: FEEDBACK_TAG_POOR_QUALITY,
+      commentText: feedbackNote.value.trim() || undefined,
+    })
+    feedbackDoneForArtifact.value = artifactRef
+    feedbackNote.value = ''
+    feedbackHint.value = '已记录「质量差」反馈，不影响积分。'
+  } catch (e) {
+    feedbackHint.value = e instanceof ApiError ? e.message : '反馈提交失败'
+  } finally {
+    feedbackBusy.value = false
+  }
 }
 
 function revealComputer() {
@@ -484,6 +565,13 @@ function newTask() {
   liveListing.value = null
   sessionPrompt.value = ''
   sessionTitle.value = DEMO_SESSION_TITLE
+  lastBilledPrompt.value = ''
+  lastBilledKind.value = null
+  pendingBilledPrompt.value = ''
+  feedbackNote.value = ''
+  feedbackHint.value = ''
+  feedbackDoneForArtifact.value = null
+  feedbackBusy.value = false
 }
 
 function toggleStreamExpand(id: string) {
@@ -863,6 +951,43 @@ onMounted(async () => {
               </svg>
             </button>
           </div>
+          <div
+            v-if="lastBilledKind && (picksIsLive || listingIsLive)"
+            class="result-actions"
+            data-testid="result-actions"
+          >
+            <button
+              type="button"
+              class="pill"
+              data-testid="one-click-retry"
+              :disabled="!canOneClickRetry"
+              @click="oneClickRetry"
+            >
+              重试
+            </button>
+            <button
+              type="button"
+              class="pill"
+              data-testid="feedback-poor-quality"
+              :disabled="!canSubmitFeedback"
+              @click="submitPoorQualityFeedback"
+            >
+              质量差
+            </button>
+            <input
+              v-model="feedbackNote"
+              class="feedback-note"
+              type="text"
+              maxlength="512"
+              placeholder="可选短文说明"
+              aria-label="质量反馈短文"
+              data-testid="feedback-note"
+              :disabled="feedbackBusy || !activeLiveArtifact?.artifactRef"
+            />
+            <p v-if="feedbackHint" class="feedback-hint" data-testid="feedback-hint">
+              {{ feedbackHint }}
+            </p>
+          </div>
           <div class="computer-body">
             <ComputerRenderer v-if="activeComputerDoc" :document="activeComputerDoc" />
           </div>
@@ -1038,5 +1163,32 @@ onMounted(async () => {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.feedback-note {
+  flex: 1 1 140px;
+  min-width: 120px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+
+.feedback-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--mute);
 }
 </style>

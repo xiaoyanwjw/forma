@@ -193,6 +193,23 @@ function mockCatalogAndCredits(opts?: {
     if (url.includes('/api/v1/credits')) {
       return creditsResponse(opts?.available ?? 14)
     }
+    if (url.includes('/api/v1/feedbacks')) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          code: 0,
+          message: 'ok',
+          data: {
+            id: 'fb-1',
+            artifactId: 'pl-1',
+            tag: '质量差',
+            commentText: null,
+            createdAt: '2026-09-28T00:00:00Z',
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
     if (url.includes('/resume')) {
       if (opts?.onResume) {
         return opts.onResume(init)
@@ -938,5 +955,93 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(sessionCss).toMatch(/max-width:\s*860px/)
     expect(sessionCss).toMatch(/\.session\s+\.sidebar\s*\{[^}]*display:\s*none/s)
     expect(sessionCss).toMatch(/max-width:\s*1100px/)
+  })
+
+  it('one-click retry reuses last prompt and session without newTask', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '帮我做家居选品')
+
+    expect(mounted.root.querySelector('[data-testid="result-actions"]')).toBeTruthy()
+    const before = picklistApiHits(fetchMock).length
+    ;(mounted.root.querySelector('[data-testid="one-click-retry"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const hits = picklistApiHits(fetchMock)
+    expect(hits.length).toBeGreaterThan(before)
+    const last = hits[hits.length - 1] as [string, RequestInit]
+    const body = JSON.parse(String(last[1].body)) as { text?: string; sessionId?: string }
+    expect(body.text).toBe('帮我做家居选品')
+    expect(body.sessionId).toBe('s1')
+    expect(mounted.root.querySelector('.session')).toBeTruthy()
+    expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBeGreaterThan(0)
+  })
+
+  it('quality feedback posts tag without calling credit write APIs', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '帮我做家居选品')
+
+    const picklistBefore = picklistApiHits(fetchMock).length
+    const listingBefore = listingApiHits(fetchMock).length
+
+    const note = mounted.root.querySelector(
+      '[data-testid="feedback-note"]',
+    ) as HTMLInputElement
+    const proto = window.HTMLInputElement.prototype
+    const desc = Object.getOwnPropertyDescriptor(proto, 'value')
+    desc?.set?.call(note, '文案偏空')
+    note.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushUi()
+
+    ;(mounted.root.querySelector(
+      '[data-testid="feedback-poor-quality"]',
+    ) as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const feedbackHits = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/api/v1/feedbacks'),
+    )
+    expect(feedbackHits.length).toBeGreaterThanOrEqual(1)
+    const [, init] = feedbackHits[0] as [string, RequestInit]
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      artifactId: 'pl-1',
+      tag: '质量差',
+      commentText: '文案偏空',
+    })
+    expect(mounted.root.querySelector('[data-testid="feedback-hint"]')?.textContent).toMatch(
+      /已记录/,
+    )
+    expect(picklistApiHits(fetchMock).length).toBe(picklistBefore)
+    expect(listingApiHits(fetchMock).length).toBe(listingBefore)
+  })
+
+  it('listing one-click retry reuses last prompt and session', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    const listingText = '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。'
+    await enterViaSend(mounted.root, listingText)
+
+    expect(mounted.root.querySelector('[data-testid="result-actions"]')).toBeTruthy()
+    const before = listingApiHits(fetchMock).length
+    const picklistBefore = picklistApiHits(fetchMock).length
+    ;(mounted.root.querySelector('[data-testid="one-click-retry"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const hits = listingApiHits(fetchMock)
+    expect(hits.length).toBeGreaterThan(before)
+    expect(picklistApiHits(fetchMock).length).toBe(picklistBefore)
+    const last = hits[hits.length - 1] as [string, RequestInit]
+    const body = JSON.parse(String(last[1].body)) as {
+      text?: string
+      sessionId?: string
+      skillId?: string
+    }
+    expect(body.text).toBe(listingText)
+    expect(body.sessionId).toBe('s1')
+    expect(String(last[1].body || '')).toContain('ecommerce-skulist')
   })
 })

@@ -1,7 +1,11 @@
 package com.xmut.ebus.domain.business.artifact.repository;
 
 import com.xmut.ebus.domain.business.artifact.model.Artifact;
+import com.xmut.ebus.domain.business.artifact.model.ArtifactType;
 
+import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -17,4 +21,12 @@ public interface ArtifactRepository {
     Optional<Artifact> findById(String id);
 
     Optional<Artifact> findByRunId(String runId);
+
+    /**
+     * 本人历史列表：时间窗 + 类型集合 + 可选场景；新在前。
+     */
+    List<Artifact> listByUserSince(String userId,
+                                   Instant sinceInclusive,
+                                   Collection<ArtifactType> types,
+                                   String sceneCodeOrNull);
 }

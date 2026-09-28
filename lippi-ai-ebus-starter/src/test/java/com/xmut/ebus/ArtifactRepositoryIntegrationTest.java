@@ -12,6 +12,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -54,5 +57,34 @@ class ArtifactRepositoryIntegrationTest {
         assertEquals("ecommerce", loaded.get().getSceneCode());
         assertEquals(payload, loaded.get().getPayloadJson());
         assertEquals(id, artifactRepository.findByRunId(runId).get().getId());
+    }
+
+    @Test
+    void listByUserSinceFiltersWindowTypeAndScene() {
+        Instant now = Instant.parse("2026-09-28T12:00:00Z");
+        artifactRepository.save(Artifact.create(
+                UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
+                ArtifactType.PICKLIST, "ecommerce", null, "近", "{}", now.minus(1, ChronoUnit.DAYS)));
+        artifactRepository.save(Artifact.create(
+                UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
+                ArtifactType.SKU, "ecommerce", null, "sku", "{}", now.minus(2, ChronoUnit.DAYS)));
+        artifactRepository.save(Artifact.create(
+                UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
+                ArtifactType.CHAT, "ecommerce", null, "chat", "{}", now.minus(1, ChronoUnit.HOURS)));
+        artifactRepository.save(Artifact.create(
+                UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
+                ArtifactType.PICKLIST, "ecommerce", null, "旧", "{}", now.minus(70, ChronoUnit.DAYS)));
+        artifactRepository.save(Artifact.create(
+                UUID.randomUUID().toString(), "user-2", UUID.randomUUID().toString(),
+                ArtifactType.PICKLIST, "ecommerce", null, "他人", "{}", now));
+
+        List<Artifact> rows = artifactRepository.listByUserSince(
+                "user-1",
+                now.minus(60, ChronoUnit.DAYS),
+                Arrays.asList(ArtifactType.PICKLIST, ArtifactType.SKU),
+                "ecommerce");
+        assertEquals(2, rows.size());
+        assertEquals("近", rows.get(0).getTitle());
+        assertEquals("sku", rows.get(1).getTitle());
     }
 }

@@ -4,6 +4,9 @@ import com.xmut.ebus.infrastructure.persistence.mybatis.po.ArtifactPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.Instant;
+import java.util.List;
+
 @Mapper
 public interface ArtifactMapper {
 
@@ -14,4 +17,9 @@ public interface ArtifactMapper {
     ArtifactPO selectByBizId(@Param("bizId") String bizId);
 
     ArtifactPO selectByRunId(@Param("runId") String runId);
+
+    List<ArtifactPO> selectByUserSince(@Param("userId") String userId,
+                                       @Param("since") Instant since,
+                                       @Param("artifactTypes") List<String> artifactTypes,
+                                       @Param("sceneCode") String sceneCode);
 }

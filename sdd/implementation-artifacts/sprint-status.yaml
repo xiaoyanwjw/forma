@@ -31,7 +31,7 @@
 # - 2026-09-26: 按 epics.md 全量重生；旧键进度已移植（见 last_updated）；未入新清单的
 #   Pi/session/checkpoint（原 2-6～2-8b）与落地页/docker 等仍以仓内 spec/代码为准，不在本表跟踪
 generated: 09-26-2026 10:49
-last_updated: 09-27-2026 18:24
+last_updated: 09-28-2026 14:13
 project: lippi-ai-ebusiness
 project_key: NOKEY
 tracking_system: file-system
@@ -61,9 +61,9 @@ development_status:
   3-3-会话态工作台-侧栏-对话-computer: done
   3-4-生成选品清单并结算-1-积分: done
   3-5-超范围短聊后友好拉回: backlog
-  3-6-生成-listing-套装并结算-1-积分: review
+  3-6-生成-listing-套装并结算-1-积分: done
   3-7-下载图片与复制文案: backlog
-  3-8-重试-质量差-反馈与近-60-天历史: backlog
+  3-8-重试-质量差-反馈与近-60-天历史: review
   epic-3-retrospective: optional
 
   epic-4: backlog
