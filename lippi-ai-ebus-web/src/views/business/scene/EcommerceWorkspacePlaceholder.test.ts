@@ -185,11 +185,27 @@ function mockCatalogAndCredits(opts?: {
   onResume?: (init?: RequestInit) => Response
   available?: number
   delayFeedbackGet?: Promise<void>
+  sessions?: unknown[]
+  sessionMessages?: Record<string, unknown[]>
+  latestArtifacts?: Record<string, unknown | null>
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
     if (url.includes('/api/v1/scenes')) {
       return okScenes([ECOMMERCE])
+    }
+    if (url.includes('/api/v1/sessions/') && url.includes('/messages')) {
+      const id = url.split('/api/v1/sessions/')[1]?.split('/')[0] || ''
+      const rows = opts?.sessionMessages?.[decodeURIComponent(id)] ?? []
+      return okScenes(rows)
+    }
+    if (url.includes('/api/v1/sessions/') && url.includes('/latest-artifact')) {
+      const id = url.split('/api/v1/sessions/')[1]?.split('/')[0] || ''
+      const art = opts?.latestArtifacts?.[decodeURIComponent(id)]
+      return okScenes(art === undefined ? null : art)
+    }
+    if (url.includes('/api/v1/sessions')) {
+      return okScenes(opts?.sessions ?? [])
     }
     if (url.includes('/api/v1/credits')) {
       return creditsResponse(opts?.available ?? 14)
@@ -1077,6 +1093,81 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(
       (mounted.root.querySelector('[data-testid="card-like"]') as HTMLButtonElement).classList.contains(
         'is-on',
+      ),
+    ).toBe(true)
+  })
+
+  it('lists sessions in sidebar and switches workspace on click', async () => {
+    const view = sampleComputerView()
+    fetchMock.mockRestore()
+    fetchMock = mockCatalogAndCredits({
+      sessions: [
+        {
+          sessionId: 'sess-a',
+          title: '旧会话甲',
+          sceneCode: 'ecommerce',
+          updatedAt: '2026-09-27T00:00:00Z',
+        },
+        {
+          sessionId: 'sess-b',
+          title: '旧会话乙',
+          sceneCode: 'ecommerce',
+          updatedAt: '2026-09-28T00:00:00Z',
+        },
+      ],
+      sessionMessages: {
+        'sess-b': [
+          { role: 'user', content: '帮我找杯子' },
+          { role: 'assistant', content: '这是杯子建议' },
+        ],
+      },
+      latestArtifacts: {
+        'sess-b': {
+          id: 'pl-switched',
+          artifactType: 'picklist',
+          sceneCode: 'ecommerce',
+          title: '切换后的选品',
+          createdAt: '2026-09-28T00:00:00Z',
+          view,
+          sessionId: 'sess-b',
+        },
+      },
+    })
+
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const items = mounted.root.querySelectorAll('[data-testid="session-item"]')
+    expect(mounted.root.querySelector('[data-testid="session-list"]')).toBeTruthy()
+    expect(items.length).toBe(2)
+
+    ;(items[1] as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const thread = mounted.root.querySelector('.chat-scroll')?.textContent || ''
+    expect(thread).toContain('帮我找杯子')
+    expect(thread).toContain('这是杯子建议')
+    expect(mounted.root.querySelector('.chat-events')).toBeNull()
+    expect(items[1].classList.contains('on')).toBe(true)
+    expect(items[0].classList.contains('on')).toBe(false)
+    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(true)
+    expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('候选1')
+
+    await enterViaSend(mounted.root, '继续这个选品')
+    const hits = picklistApiHits(fetchMock)
+    const last = hits[hits.length - 1] as [string, RequestInit]
+    const body = JSON.parse(String(last[1].body)) as { sessionId?: string }
+    expect(body.sessionId).toBe('sess-b')
+
+    ;(mounted.root.querySelector('.side-new') as HTMLButtonElement).click()
+    await flushUi()
+    expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
+    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
+    expect(
+      Array.from(mounted.root.querySelectorAll('[data-testid="session-item"]')).every(
+        (el) => !el.classList.contains('on'),
       ),
     ).toBe(true)
   })

@@ -6,6 +6,11 @@ import { ApiError } from '@/api/client'
 import { getFeedbackByArtifact, submitFeedback } from '@/api/business/feedback/feedback'
 import { getScenes } from '@/api/business/scene/scene'
 import {
+  getLatestSessionArtifact,
+  getSessionMessages,
+  listSessions,
+} from '@/api/business/session/session'
+import {
   buildFailureDetail,
   canExpandProcessEvent,
   formatEventTime,
@@ -21,7 +26,10 @@ import {
   DEMO_SESSION_TITLE,
 } from '@/views/business/scene/ecommerceDemoFixtures'
 import type { GenerationArtifactPayload } from '@/types/business/agent'
+import { parseComputerDocument } from '@/types/business/computerView'
 import { FEEDBACK_TAG_GOOD_QUALITY, FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
+import type { HistoryArtifactDetail } from '@/types/business/history'
+import type { SessionSummary } from '@/types/business/session'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
 /** Stable scene binding for this workbench — Epic 3 session create must carry it */
@@ -53,6 +61,8 @@ const sessionPrompt = ref('')
 /** Optional Catalog bizId when list is available; null if unresolved */
 const sceneBizId = ref<string | null>(null)
 const messages = ref<ChatMessage[]>([])
+const sessions = ref<SessionSummary[]>([])
+const selectedSessionId = ref<string | null>(null)
 const sessionTitle = ref(DEMO_SESSION_TITLE)
 const computerKind = ref<ComputerKind>(null)
 const livePicklist = ref<GenerationArtifactPayload | null>(null)
@@ -101,6 +111,8 @@ const dislikeDrawerOpen = ref(false)
 /** Monotonic seq so a late GET cannot overwrite a newer local like/dislike. */
 let feedbackOpSeq = 0
 const localFeedbackSubmitSeq = new Map<string, number>()
+/** Ignore stale session-switch HTTP after 新任务 / 连点侧栏 */
+let workspaceSwitchSeq = 0
 
 const generationRunning = computed(() => picklistRunning.value || listingRunning.value)
 const listingAwaitingHuman = computed(() => Boolean(listingPendingHuman.value))
@@ -630,7 +642,95 @@ function closeComputer() {
   computerKind.value = null
 }
 
+function replayMessagesFromApi(
+  rows: { role?: string; content?: string }[] | null | undefined,
+): ChatMessage[] {
+  const out: ChatMessage[] = []
+  if (!rows) return out
+  for (const row of rows) {
+    const text = typeof row.content === 'string' ? row.content.trim() : ''
+    if (!text) continue
+    const role = row.role === 'user' ? 'user' : 'agent'
+    out.push({ id: nextMsgId(), role, text })
+  }
+  return out
+}
+
+function applyLatestArtifact(detail: HistoryArtifactDetail | null | undefined) {
+  livePicklist.value = null
+  liveListing.value = null
+  computerKind.value = null
+  if (!detail?.id || !detail.view) {
+    return
+  }
+  const view = parseComputerDocument(detail.view)
+  if (!view) {
+    return
+  }
+  const payload: GenerationArtifactPayload = { artifactRef: detail.id, view }
+  if (detail.artifactType === 'sku') {
+    liveListing.value = payload
+    computerKind.value = 'listing'
+  } else {
+    livePicklist.value = payload
+    computerKind.value = 'picks'
+  }
+  revealComputer()
+}
+
+async function loadSessions() {
+  try {
+    const data = await listSessions(SCENE_CODE)
+    sessions.value = Array.isArray(data) ? data : []
+  } catch {
+    sessions.value = []
+  }
+}
+
+async function selectSession(item: SessionSummary) {
+  const sid = item.sessionId?.trim()
+  if (!sid) return
+  const seq = ++workspaceSwitchSeq
+  resetPicklistRun()
+  resetListingRun()
+  listingSupplementOpen.value = false
+  listingSupplementText.value = ''
+  thinkingMessageId.value = null
+  expandedStreamIds.value = new Set()
+  expandedStatusIds.value = new Set()
+  picklistSessionId.value = sid
+  listingSessionId.value = sid
+  selectedSessionId.value = sid
+  sessionTitle.value = item.title || DEMO_SESSION_TITLE
+  messages.value = []
+  lastBilledPrompt.value = ''
+  lastBilledKind.value = null
+  pendingBilledPrompt.value = ''
+  feedbackNote.value = ''
+  feedbackHint.value = ''
+  feedbackTag.value = null
+  dislikeDrawerOpen.value = false
+  feedbackBusy.value = false
+  feedbackOpSeq += 1
+  localFeedbackSubmitSeq.clear()
+  applyLatestArtifact(null)
+  try {
+    const [rows, latest] = await Promise.all([
+      getSessionMessages(sid),
+      getLatestSessionArtifact(sid),
+    ])
+    if (seq !== workspaceSwitchSeq) return
+    messages.value = replayMessagesFromApi(rows)
+    applyLatestArtifact(latest)
+    scrollChatToBottom()
+  } catch (e) {
+    if (seq !== workspaceSwitchSeq) return
+    feedbackHint.value = e instanceof ApiError ? e.message : '会话加载失败'
+  }
+}
+
 function newTask() {
+  workspaceSwitchSeq += 1
   resetPicklistRun()
   resetListingRun()
   listingSupplementOpen.value = false
@@ -644,6 +744,7 @@ function newTask() {
   liveListing.value = null
   sessionPrompt.value = ''
   sessionTitle.value = DEMO_SESSION_TITLE
+  selectedSessionId.value = null
   lastBilledPrompt.value = ''
   lastBilledKind.value = null
   pendingBilledPrompt.value = ''
@@ -654,6 +755,7 @@ function newTask() {
   feedbackBusy.value = false
   feedbackOpSeq += 1
   localFeedbackSubmitSeq.clear()
+  void loadSessions()
 }
 
 function toggleStreamExpand(id: string) {
@@ -712,6 +814,10 @@ watch(processEvents, () => {
   }
 })
 
+watch(sessionId, (id) => {
+  selectedSessionId.value = id
+})
+
 onMounted(async () => {
   try {
     const data = await getScenes()
@@ -724,6 +830,7 @@ onMounted(async () => {
   } catch {
     // Empty UI still works with sceneCode alone
   }
+  void loadSessions()
 })
 </script>
 
@@ -743,11 +850,21 @@ onMounted(async () => {
           </svg>
           新任务
         </button>
-        <div class="side-section">当前</div>
-        <button type="button" class="side-item on">
-          {{ sessionTitle }}
-          <span class="sub">进行中 · 电商开店</span>
-        </button>
+        <div class="side-section">会话</div>
+        <div class="session-list" data-testid="session-list">
+          <button
+            v-for="s in sessions"
+            :key="s.sessionId"
+            type="button"
+            class="side-item"
+            :class="{ on: selectedSessionId === s.sessionId }"
+            data-testid="session-item"
+            @click="selectSession(s)"
+          >
+            {{ s.title }}
+            <span class="sub">电商开店</span>
+          </button>
+        </div>
       </aside>
 
       <div class="workspace" :class="{ split: computerOpen }">

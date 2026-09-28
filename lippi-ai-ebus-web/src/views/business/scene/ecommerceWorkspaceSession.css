@@ -64,9 +64,17 @@
   background: transparent;
   padding: 10px 12px;
   border-radius: var(--r-sm);
-  cursor: default;
+  cursor: pointer;
   color: var(--ink);
   font-size: 0.85rem;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow: auto;
 }
 
 .side-item.on {

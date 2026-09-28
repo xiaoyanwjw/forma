@@ -156,7 +156,7 @@ class SessionQueryIntegrationTest {
     @Test
     void latestArtifactSkipsChatAndPicksLatestPicklistOrSku() throws Exception {
         String username = "sqa_" + shortId();
-        registerAndLogin(username);
+        String token = registerAndLogin(username);
         String userId = userIdOf(username);
         String sessionId = "sess-art-" + shortId();
         insertSession(sessionId, userId, Instant.now());
@@ -175,6 +175,12 @@ class SessionQueryIntegrationTest {
         assertEquals(sessionId, latest.getSessionId());
         assertFalse(pickId.equals(latest.getId()));
         assertFalse(sessionQueryService.latestArtifact(userId, "no-such-session").isPresent());
+
+        mockMvc.perform(get("/api/v1/sessions/" + sessionId + "/latest-artifact")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(skuId))
+                .andExpect(jsonPath("$.data.sessionId").value(sessionId));
     }
 
     @Test

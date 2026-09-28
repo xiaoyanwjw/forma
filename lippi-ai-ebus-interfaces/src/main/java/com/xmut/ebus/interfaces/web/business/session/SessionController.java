@@ -1,5 +1,6 @@
 package com.xmut.ebus.interfaces.web.business.session;
 
+import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
 import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.application.business.session.query.SessionQueryService;
@@ -37,5 +38,13 @@ public class SessionController {
             @PathVariable("sessionId") String sessionId) {
         return ApiResponse.success(
                 sessionQueryService.listMessages(SecuritySupport.requireUserId(), sessionId));
+    }
+
+    @GetMapping("/{sessionId}/latest-artifact")
+    public ApiResponse<HistoryArtifactDetailDTO> latestArtifact(
+            @PathVariable("sessionId") String sessionId) {
+        return ApiResponse.success(
+                sessionQueryService.latestArtifact(SecuritySupport.requireUserId(), sessionId)
+                        .orElse(null));
     }
 }
