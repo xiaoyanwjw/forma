@@ -9,7 +9,8 @@ export interface HistoryArtifactSummary {
   createdAt: string
 }
 
-/** 历史详情（含 Computer view） */
+/** 历史详情（含 Computer view；sessionId 可空） */
 export interface HistoryArtifactDetail extends HistoryArtifactSummary {
   view: ComputerDocument | Record<string, unknown> | null
+  sessionId?: string | null
 }

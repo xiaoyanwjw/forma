@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
 import { ApiError } from '@/api/client'
 import { getHistoryArtifact, getHistoryArtifacts } from '@/api/business/history/history'
+import { getSessionMessages } from '@/api/business/session/session'
 import { parseComputerDocument } from '@/types/business/computerView'
 import type { HistoryArtifactDetail, HistoryArtifactSummary } from '@/types/business/history'
+import type { SessionMessage } from '@/types/business/session'
 
 const SCENE_OPTIONS = [
   { value: '', label: '全部场景' },
@@ -21,8 +23,14 @@ const selectedId = ref<string | null>(null)
 const detail = ref<HistoryArtifactDetail | null>(null)
 const detailError = ref('')
 const detailLoading = ref(false)
+const drawerOpen = ref(false)
+const activeTab = ref<'artifact' | 'chat'>('artifact')
+const chatMessages = ref<SessionMessage[]>([])
+const chatError = ref('')
+const chatLoading = ref(false)
 /** 忽略过期详情响应，避免连点串扰 */
 let detailRequestSeq = 0
+let chatRequestSeq = 0
 
 const computerDoc = computed(() => {
   if (!detail.value?.view) return null
@@ -62,17 +70,30 @@ async function loadList() {
   }
 }
 
+function resetChat() {
+  chatRequestSeq += 1
+  chatMessages.value = []
+  chatError.value = ''
+  chatLoading.value = false
+}
+
+function closeDrawer() {
+  detailRequestSeq += 1
+  resetChat()
+  drawerOpen.value = false
+  selectedId.value = null
+  detail.value = null
+  detailError.value = ''
+  detailLoading.value = false
+  activeTab.value = 'artifact'
+}
+
 async function openItem(item: HistoryArtifactSummary) {
-  if (selectedId.value === item.id && detail.value) {
-    detailRequestSeq += 1
-    selectedId.value = null
-    detail.value = null
-    detailError.value = ''
-    detailLoading.value = false
-    return
-  }
   const seq = ++detailRequestSeq
+  resetChat()
   selectedId.value = item.id
+  drawerOpen.value = true
+  activeTab.value = 'artifact'
   detail.value = null
   detailError.value = ''
   detailLoading.value = true
@@ -94,12 +115,49 @@ async function openItem(item: HistoryArtifactSummary) {
   }
 }
 
+async function loadChat() {
+  const sessionId = detail.value?.sessionId?.trim()
+  if (!sessionId) {
+    chatMessages.value = []
+    chatError.value = ''
+    chatLoading.value = false
+    return
+  }
+  const seq = ++chatRequestSeq
+  chatLoading.value = true
+  chatError.value = ''
+  try {
+    const data = await getSessionMessages(sessionId)
+    if (seq !== chatRequestSeq) {
+      return
+    }
+    chatMessages.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    if (seq !== chatRequestSeq) {
+      return
+    }
+    chatMessages.value = []
+    chatError.value = e instanceof ApiError ? e.message : '会话加载失败'
+  } finally {
+    if (seq === chatRequestSeq) {
+      chatLoading.value = false
+    }
+  }
+}
+
+function selectTab(tab: 'artifact' | 'chat') {
+  activeTab.value = tab
+}
+
+watch([activeTab, detail], () => {
+  if (activeTab.value !== 'chat') {
+    return
+  }
+  void loadChat()
+})
+
 async function onSceneChange() {
-  detailRequestSeq += 1
-  selectedId.value = null
-  detail.value = null
-  detailError.value = ''
-  detailLoading.value = false
+  closeDrawer()
   await loadList()
 }
 
@@ -157,8 +215,49 @@ onMounted(() => {
           </article>
         </div>
 
+      </div>
+    </main>
+
+    <div
+      v-if="drawerOpen"
+      class="drawer-root"
+      data-testid="history-drawer"
+    >
+      <button
+        type="button"
+        class="drawer-mask"
+        aria-label="关闭预览"
+        @click="closeDrawer"
+      />
+      <aside class="drawer-panel" role="dialog" aria-label="历史预览">
+        <div class="drawer-head">
+          <div class="tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              data-testid="history-tab-artifact"
+              :aria-selected="activeTab === 'artifact'"
+              :class="{ on: activeTab === 'artifact' }"
+              @click="selectTab('artifact')"
+            >
+              成果
+            </button>
+            <button
+              type="button"
+              role="tab"
+              data-testid="history-tab-chat"
+              :aria-selected="activeTab === 'chat'"
+              :class="{ on: activeTab === 'chat' }"
+              @click="selectTab('chat')"
+            >
+              对话
+            </button>
+          </div>
+          <button type="button" class="drawer-close" @click="closeDrawer">关闭</button>
+        </div>
+
         <section
-          v-if="selectedId"
+          v-show="activeTab === 'artifact'"
           class="detail"
           data-testid="history-detail"
           aria-label="成果预览"
@@ -176,8 +275,32 @@ onMounted(() => {
           </div>
           <p v-else class="hint">该成果暂无可用预览。</p>
         </section>
-      </div>
-    </main>
+
+        <section
+          v-show="activeTab === 'chat'"
+          class="chat-pane"
+          data-testid="history-chat"
+          aria-label="对话回放"
+        >
+          <p v-if="!detailLoading && !detail?.sessionId" class="hint" data-testid="history-chat-empty">
+            暂无会话记录
+          </p>
+          <p v-else-if="chatLoading" class="hint">正在加载对话…</p>
+          <p v-else-if="chatError" class="hint error">{{ chatError }}</p>
+          <div v-else class="chat-list">
+            <article
+              v-for="(m, i) in chatMessages"
+              :key="i"
+              class="bubble"
+              :class="m.role"
+            >
+              <span class="bubble-role">{{ m.role === 'user' ? '你' : 'Adam' }}</span>
+              <p>{{ m.content }}</p>
+            </article>
+          </div>
+        </section>
+      </aside>
+    </div>
   </div>
 </template>
 
@@ -311,7 +434,114 @@ h1 {
 
 .computer-body {
   padding: 12px 14px 20px;
-  max-height: 70vh;
+  max-height: none;
   overflow: auto;
+  flex: 1;
+}
+
+.drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.drawer-mask {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 18, 24, 0.28);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.drawer-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 100%);
+  background: var(--bg, #fff);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  box-shadow: -12px 0 32px rgba(15, 18, 24, 0.08);
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--mute);
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.tabs button.on {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.drawer-close {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+
+.drawer-panel .detail,
+.chat-pane {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  margin: 0;
+}
+
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bubble {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.bubble.user {
+  align-self: flex-end;
+}
+
+.bubble-role {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--mute);
+  margin-bottom: 4px;
+}
+
+.bubble p {
+  margin: 0;
+  white-space: pre-wrap;
 }
 </style>
