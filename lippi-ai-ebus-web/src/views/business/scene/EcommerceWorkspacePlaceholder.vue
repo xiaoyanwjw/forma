@@ -656,19 +656,54 @@ function replayMessagesFromApi(
   return out
 }
 
-function applyLatestArtifact(detail: HistoryArtifactDetail | null | undefined) {
+function kindFromArtifactType(artifactType?: string | null): ComputerKind {
+  if (artifactType === 'sku') return 'listing'
+  if (artifactType === 'picklist') return 'picks'
+  return null
+}
+
+function lastUserPromptFromReplay(rows: ChatMessage[], titleFallback: string): string {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const cur = rows[i]
+    if (cur?.role === 'user' && cur.text.trim()) {
+      return cur.text.trim()
+    }
+  }
+  return titleFallback.trim()
+}
+
+function synthesizePreviewableStatus(kind: ComputerKind): ChatMessage | null {
+  if (kind === 'listing') {
+    return {
+      id: nextMsgId(),
+      role: 'agent',
+      text: '已生成上架素材，右侧 Computer 可查看主图位与文案。',
+    }
+  }
+  if (kind === 'picks') {
+    return {
+      id: nextMsgId(),
+      role: 'agent',
+      text: '已生成选品成果，右侧 Computer 可查看。',
+    }
+  }
+  return null
+}
+
+function applyLatestArtifact(detail: HistoryArtifactDetail | null | undefined): ComputerKind {
   livePicklist.value = null
   liveListing.value = null
   computerKind.value = null
   if (!detail?.id || !detail.view) {
-    return
+    return null
   }
   const view = parseComputerDocument(detail.view)
   if (!view) {
-    return
+    return null
   }
+  const kind = kindFromArtifactType(detail.artifactType) || 'picks'
   const payload: GenerationArtifactPayload = { artifactRef: detail.id, view }
-  if (detail.artifactType === 'sku') {
+  if (kind === 'listing') {
     liveListing.value = payload
     computerKind.value = 'listing'
   } else {
@@ -676,6 +711,7 @@ function applyLatestArtifact(detail: HistoryArtifactDetail | null | undefined) {
     computerKind.value = 'picks'
   }
   revealComputer()
+  return computerKind.value
 }
 
 async function loadSessions() {
@@ -720,8 +756,14 @@ async function selectSession(item: SessionSummary) {
       getLatestSessionArtifact(sid),
     ])
     if (seq !== workspaceSwitchSeq) return
-    messages.value = replayMessagesFromApi(rows)
-    applyLatestArtifact(latest)
+    const replayed = replayMessagesFromApi(rows)
+    const kind = applyLatestArtifact(latest)
+    lastBilledKind.value = kind
+    lastBilledPrompt.value = kind
+      ? lastUserPromptFromReplay(replayed, item.title || DEMO_SESSION_TITLE)
+      : ''
+    const status = synthesizePreviewableStatus(kind)
+    messages.value = status ? [...replayed, status] : replayed
     scrollChatToBottom()
   } catch (e) {
     if (seq !== workspaceSwitchSeq) return

@@ -987,6 +987,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(sessionCss).toMatch(/max-width:\s*860px/)
     expect(sessionCss).toMatch(/\.session\s+\.sidebar\s*\{[^}]*display:\s*none/s)
     expect(sessionCss).toMatch(/max-width:\s*1100px/)
+    expect(sessionCss).toMatch(/\.session-list\s*\{[^}]*flex:\s*1/s)
+    expect(sessionCss).toMatch(/\.session-list\s*\{[^}]*overflow:\s*auto/s)
   })
 
   it('shows retry/like/dislike under success STATUS card, not on Computer bar', async () => {
@@ -1170,6 +1172,71 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
         (el) => !el.classList.contains('on'),
       ),
     ).toBe(true)
+  })
+
+  it('session switch shows card actions and retry reuses sessionId', async () => {
+    const view = sampleComputerView()
+    fetchMock.mockRestore()
+    fetchMock = mockCatalogAndCredits({
+      sessions: [
+        {
+          sessionId: 'sess-a',
+          title: '旧会话甲',
+          sceneCode: 'ecommerce',
+          updatedAt: '2026-09-27T00:00:00Z',
+        },
+        {
+          sessionId: 'sess-b',
+          title: '旧会话乙',
+          sceneCode: 'ecommerce',
+          updatedAt: '2026-09-28T00:00:00Z',
+        },
+      ],
+      sessionMessages: {
+        'sess-b': [
+          { role: 'user', content: '帮我找杯子' },
+          { role: 'assistant', content: '这是杯子建议' },
+        ],
+      },
+      latestArtifacts: {
+        'sess-b': {
+          id: 'pl-switched',
+          artifactType: 'picklist',
+          sceneCode: 'ecommerce',
+          title: '切换后的选品',
+          createdAt: '2026-09-28T00:00:00Z',
+          view,
+          sessionId: 'sess-b',
+        },
+      },
+    })
+
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const items = mounted.root.querySelectorAll('[data-testid="session-item"]')
+    ;(items[1] as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const actions = mounted.root.querySelector('[data-testid="card-result-actions"]')
+    expect(actions).toBeTruthy()
+    const retry = mounted.root.querySelector(
+      '[data-testid="one-click-retry"]',
+    ) as HTMLButtonElement
+    expect(retry.disabled).toBe(false)
+    const before = picklistApiHits(fetchMock).length
+    retry.click()
+    await flushUi()
+    await flushUi()
+
+    const hits = picklistApiHits(fetchMock)
+    expect(hits.length).toBeGreaterThan(before)
+    const last = hits[hits.length - 1] as [string, RequestInit]
+    const body = JSON.parse(String(last[1].body)) as { text?: string; sessionId?: string }
+    expect(body.sessionId).toBe('sess-b')
+    expect(body.text).toBe('帮我找杯子')
   })
 
   it('one-click retry reuses last prompt and session without newTask', async () => {
