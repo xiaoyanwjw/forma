@@ -16,7 +16,7 @@ context:
 
 ## Intent
 
-**Problem:** 2.8 后图 CP 已落 MySQL，但 `ResumeIdempotencyStore` 默认仍是进程内 InMemory；多 Pod 下同一 `confirmRequestId` 可能双跑工具。Redis 幂等仅随 Redis CP 显式开启，不是 Adam 默认。
+**Problem:** 2.8 后图 CP 已落 MySQL，但 `ResumeIdempotencyStore` 默认仍是进程内 InMemory；多 Pod 下同一 `confirmId` 可能双跑工具。Redis 幂等仅随 Redis CP 显式开启，不是 Adam 默认。
 
 **Approach:** 在 ebus-infrastructure 落地 `@Primary MysqlResumeIdempotencyStore`（表 `pi_resume_idempotency`），语义对齐 InMemory/Redis；与 CP/Session 分表。顺带在 `DefaultAgent.resume` 抽出 `claim` / `resolveResumeResult` / `complete` 收敛幂等与双模式样板（**不改** claim→跑→complete/abandon 状态机）。打通多实例 resume 幂等，供 2.9 使用。
 
@@ -83,7 +83,7 @@ context:
 - [x] `lippi-pi-agent` README 一句 — Adam 生产默认 MySQL resume 幂等 — 叙事一致
 
 **Acceptance Criteria:**
-- Given 2.8 CP 已 MySQL，when 装配 MysqlResumeIdempotencyStore，then 同 `(runId, confirmRequestId)` 重放不双跑
+- Given 2.8 CP 已 MySQL，when 装配 MysqlResumeIdempotencyStore，then 同 `(runId, confirmId)` 重放不双跑
 - Given Redis CP 未开，when 解析 ResumeIdempotencyStore，then 为 Mysql 实现
 - Given Redis CP 显式开启且有 JedisPool，when 解析，then Redis 幂等为 Primary、Mysql 不抢
 - Given `DefaultAgent.complete` 落地后，when 跑 `CheckpointPersistenceHitlTest`（含双批准/再挂起 abandon），then 行为与重构前一致

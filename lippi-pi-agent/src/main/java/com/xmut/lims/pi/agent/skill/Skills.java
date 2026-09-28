@@ -168,11 +168,12 @@ public final class Skills {
         if (!StringUtils.hasText(raw)) {
             return Collections.emptyList();
         }
-        String[] parts = raw.trim().split("\\s+");
+        // YAML: "ask_human, read_skill" / "ask_human read_skill" — 按逗号或空白切，勿把逗号粘进工具名
+        String[] parts = raw.trim().split("[,\\s]+");
         List<String> out = new ArrayList<String>(parts.length);
         for (String part : parts) {
             if (StringUtils.hasText(part)) {
-                out.add(part);
+                out.add(part.trim());
             }
         }
         return out;

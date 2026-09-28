@@ -41,6 +41,21 @@ public class Artifact {
         return artifact;
     }
 
+    /** 同 Run 覆盖写：保留 biz_id / run_id / createdAt，更新类型与载荷。 */
+    public void replaceContent(ArtifactType type,
+                               String sceneCode,
+                               String templateId,
+                               String title,
+                               String payloadJson,
+                               Instant now) {
+        this.type = type;
+        this.sceneCode = sceneCode;
+        this.templateId = templateId;
+        this.title = title;
+        this.payloadJson = payloadJson;
+        this.updatedAt = now;
+    }
+
     public String getId() {
         return id;
     }

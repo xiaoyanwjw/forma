@@ -9,7 +9,7 @@ public class PiResumeIdempotencyPO {
 
     private Long id;
     private String runId;
-    private String confirmRequestId;
+    private String confirmId;
     private String phase;
     private String resultSummary;
     private Instant updatedAt;
@@ -31,12 +31,12 @@ public class PiResumeIdempotencyPO {
         this.runId = runId;
     }
 
-    public String getConfirmRequestId() {
-        return confirmRequestId;
+    public String getConfirmId() {
+        return confirmId;
     }
 
-    public void setConfirmRequestId(String confirmRequestId) {
-        this.confirmRequestId = confirmRequestId;
+    public void setConfirmId(String confirmId) {
+        this.confirmId = confirmId;
     }
 
     public String getPhase() {

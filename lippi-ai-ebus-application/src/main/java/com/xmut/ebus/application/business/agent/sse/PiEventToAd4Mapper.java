@@ -42,19 +42,19 @@ public final class PiEventToAd4Mapper {
         }
         PiEventType type = event.getType();
         if (type == PiEventType.AGENT_START) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.agent_started, labelMap("agent.start")));
+            return Optional.of(Ad4SseEvent.of(Ad4EventName.AGENT_STARTED, labelMap("agent.start")));
         }
         if (type == PiEventType.AGENT_END) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.agent_ended, labelMap("agent.end")));
+            return Optional.of(Ad4SseEvent.of(Ad4EventName.AGENT_ENDED, labelMap("agent.end")));
         }
         if (type == PiEventType.MESSAGE_UPDATE) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.message_delta, payloadMap(event.getPayload())));
+            return Optional.of(Ad4SseEvent.of(Ad4EventName.MESSAGE_DELTA, payloadMap(event.getPayload())));
         }
         if (type == PiEventType.TOOL_EXECUTION_START) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.tool_started, payloadMap(event.getPayload())));
+            return Optional.of(Ad4SseEvent.of(Ad4EventName.TOOL_STARTED, payloadMap(event.getPayload())));
         }
         if (type == PiEventType.TOOL_EXECUTION_END) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.tool_finished, payloadMap(event.getPayload())));
+            return Optional.of(Ad4SseEvent.of(Ad4EventName.TOOL_FINISHED, payloadMap(event.getPayload())));
         }
         if (type == PiEventType.SUSPENDED) {
             return mapHumanInputRequired(event.getPayload());
@@ -92,7 +92,7 @@ public final class PiEventToAd4Mapper {
         data.put("allowFreeText", Boolean.valueOf(parsed.isAllowFreeText()));
         putIfText(data, "toolCallId", call.getId());
         putIfText(data, "runId", runId);
-        return Optional.of(Ad4SseEvent.of(Ad4EventName.human_input_required, data));
+        return Optional.of(Ad4SseEvent.of(Ad4EventName.HUMAN_INPUT_REQUIRED, data));
     }
 
     private static boolean isAskHuman(String toolName) {

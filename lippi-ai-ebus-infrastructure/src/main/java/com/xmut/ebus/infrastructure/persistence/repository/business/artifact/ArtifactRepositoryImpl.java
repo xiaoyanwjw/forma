@@ -23,6 +23,11 @@ public class ArtifactRepositoryImpl implements ArtifactRepository {
     }
 
     @Override
+    public void update(Artifact artifact) {
+        artifactMapper.updateByBizId(toPo(artifact));
+    }
+
+    @Override
     public Optional<Artifact> findById(String id) {
         if (!StringUtils.hasText(id)) {
             return Optional.empty();

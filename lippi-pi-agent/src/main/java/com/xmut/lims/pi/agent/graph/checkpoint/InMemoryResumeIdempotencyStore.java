@@ -21,8 +21,8 @@ public final class InMemoryResumeIdempotencyStore implements ResumeIdempotencySt
             new ConcurrentHashMap<>();
 
     @Override
-    public ClaimResult claim(String runId, String confirmRequestId) {
-        String key = key(runId, confirmRequestId);
+    public ClaimResult claim(String runId, String confirmId) {
+        String key = key(runId, confirmId);
         Entry created = new Entry();
         created.phase = "in_progress";
         Entry existing = entries.putIfAbsent(key, created);
@@ -37,8 +37,8 @@ public final class InMemoryResumeIdempotencyStore implements ResumeIdempotencySt
     }
 
     @Override
-    public void complete(String runId, String confirmRequestId, ConversationResult result) {
-        String key = key(runId, confirmRequestId);
+    public void complete(String runId, String confirmId, ConversationResult result) {
+        String key = key(runId, confirmId);
         Entry entry = entries.computeIfAbsent(key, k -> new Entry());
         entry.result = result;
         entry.phase = "completed";
@@ -46,8 +46,8 @@ public final class InMemoryResumeIdempotencyStore implements ResumeIdempotencySt
     }
 
     @Override
-    public void abandon(String runId, String confirmRequestId) {
-        String key = key(runId, confirmRequestId);
+    public void abandon(String runId, String confirmId) {
+        String key = key(runId, confirmId);
         entries.remove(key);
         Map<String, Boolean> set = runKeys.get(runKey(runId));
         if (set != null) {
@@ -75,8 +75,8 @@ public final class InMemoryResumeIdempotencyStore implements ResumeIdempotencySt
                 .put(key, Boolean.TRUE);
     }
 
-    private static String key(String runId, String confirmRequestId) {
-        return nullToEmpty(runId) + "|" + nullToEmpty(confirmRequestId);
+    private static String key(String runId, String confirmId) {
+        return nullToEmpty(runId) + "|" + nullToEmpty(confirmId);
     }
 
     private static String runKey(String runId) {

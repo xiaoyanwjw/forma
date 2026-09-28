@@ -4,7 +4,7 @@ import com.xmut.ebus.application.business.media.support.ListingMediaMountSupport
 import org.springframework.stereotype.Component;
 
 /**
- * Listing（persistAs=sku）：settle 前挂系统占位主图。
+ * persistAs=sku：settle 前挂系统占位主图。
  */
 @Component
 public class SkuMediaMountInterceptor implements BilledRunInterceptor {
@@ -16,8 +16,8 @@ public class SkuMediaMountInterceptor implements BilledRunInterceptor {
     }
 
     @Override
-    public void after(BilledRunContext ctx) {
-        if (!SkillRunProfile.PERSIST_SKU.equals(ctx.getProfile().getPersistAs())) {
+    public void onAfter(BilledRunContext ctx) {
+        if (!SkillRunProfile.PERSIST_SKU.equals(ctx.getPersistAs())) {
             return;
         }
 

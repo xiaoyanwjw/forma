@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.xmut.lims.pi.agent.IterationBudget;
 
 /**
- * AC2/AC3/AC5：跨实例 loadLatest+resume、confirmRequestId 幂等、终态清理。
+ * AC2/AC3/AC5：跨实例 loadLatest+resume、confirmId 幂等、终态清理。
  */
 class CheckpointPersistenceHitlTest {
 
@@ -62,7 +62,7 @@ class CheckpointPersistenceHitlTest {
         ConversationResult resumed = loopB.resume(ResumeRequest.builder()
                 .runId("cross-run")
                 .decision(ToolDecision.APPROVE)
-                .confirmRequestId("confirm-1")
+                .confirmId("confirm-1")
                 .build(), PiTestBus.withPolicy(policy));
 
         assertThat(resumed.getStatus()).isEqualTo(ConversationResult.Status.OK);
@@ -71,7 +71,7 @@ class CheckpointPersistenceHitlTest {
     }
 
     @Test
-    void doubleApprove_sameConfirmRequestId_handlerStillOnce() {
+    void doubleApprove_sameConfirmId_handlerStillOnce() {
         AtomicInteger handlerCalls = new AtomicInteger();
         InMemoryToolCatalog policy = writeConfig(handlerCalls);
         SharedJsonCheckpointStore store = new SharedJsonCheckpointStore();
@@ -89,7 +89,7 @@ class CheckpointPersistenceHitlTest {
         ResumeRequest resume = ResumeRequest.builder()
                 .runId("idem-run")
                 .decision(ToolDecision.APPROVE)
-                .confirmRequestId("same-confirm")
+                .confirmId("same-confirm")
                 .build();
 
         ConversationResult first = loop.resume(resume, bus);
@@ -125,7 +125,7 @@ class CheckpointPersistenceHitlTest {
     }
 
     @Test
-    void doubleDeny_sameConfirmRequestId_idempotent() {
+    void doubleDeny_sameConfirmId_idempotent() {
         AtomicInteger handlerCalls = new AtomicInteger();
         AtomicInteger agentVisits = new AtomicInteger();
         InMemoryToolCatalog policy = writeConfig(handlerCalls);
@@ -157,7 +157,7 @@ class CheckpointPersistenceHitlTest {
         ResumeRequest deny = ResumeRequest.builder()
                 .runId("deny-idem")
                 .decision(ToolDecision.DENY)
-                .confirmRequestId("deny-1")
+                .confirmId("deny-1")
                 .build();
 
         ConversationResult first = loop.resume(deny, bus);
@@ -188,7 +188,7 @@ class CheckpointPersistenceHitlTest {
                 .runId("tool-result-run")
                 .toolCallId("c1")
                 .humanInput("user-chose-option-a")
-                .confirmRequestId("tr-1")
+                .confirmId("tr-1")
                 .build(), bus);
 
         assertThat(resumed.getStatus()).isEqualTo(ConversationResult.Status.OK);
@@ -330,7 +330,7 @@ class CheckpointPersistenceHitlTest {
         ConversationResult failed = loop.resume(ResumeRequest.builder()
                 .runId("ex-run")
                 .decision(ToolDecision.APPROVE)
-                .confirmRequestId("confirm-ex")
+                .confirmId("confirm-ex")
                 .build(), bus);
         assertThat(failed.getStatus()).isEqualTo(ConversationResult.Status.FAILED);
         assertThat(failed.getFinalResponse()).contains("cp-load-boom");
@@ -376,7 +376,7 @@ class CheckpointPersistenceHitlTest {
         ConversationResult mid = loop.resume(ResumeRequest.builder()
                 .runId("re-suspend")
                 .decision(ToolDecision.APPROVE)
-                .confirmRequestId("confirm-re")
+                .confirmId("confirm-re")
                 .build(), bus);
         assertThat(mid.getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
         assertThat(store.loadLatest("re-suspend")).isPresent();
@@ -385,7 +385,7 @@ class CheckpointPersistenceHitlTest {
         ConversationResult done = loop.resume(ResumeRequest.builder()
                 .runId("re-suspend")
                 .decision(ToolDecision.APPROVE)
-                .confirmRequestId("confirm-re")
+                .confirmId("confirm-re")
                 .build(), bus);
         assertThat(done.getStatus()).isEqualTo(ConversationResult.Status.OK);
         assertThat(handlerCalls.get()).isEqualTo(2);

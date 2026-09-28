@@ -36,9 +36,11 @@ public class GenerationRunRepositoryImpl implements GenerationRunRepository {
         po.setBizId(run.getId());
         po.setUserId(run.getUserId());
         po.setHoldId(run.getHoldId());
+        po.setExecHoldId(run.getExecHoldId());
         po.setSessionId(run.getSessionId());
         po.setSceneId(run.getSceneId());
         po.setSceneCode(run.getSceneCode());
+        po.setSkillId(run.getSkillId());
         po.setArtifactRef(run.getArtifactRef());
         po.setStatus(run.getStatus().name());
         po.setCreatedAt(run.getCreatedAt());
@@ -51,9 +53,11 @@ public class GenerationRunRepositoryImpl implements GenerationRunRepository {
         run.setId(po.getBizId());
         run.setUserId(po.getUserId());
         run.setHoldId(po.getHoldId());
+        run.setExecHoldId(po.getExecHoldId());
         run.setSessionId(po.getSessionId());
         run.setSceneId(po.getSceneId());
         run.setSceneCode(po.getSceneCode());
+        run.setSkillId(po.getSkillId());
         run.setArtifactRef(po.getArtifactRef());
         run.setStatus(GenerationRunStatus.fromCode(po.getStatus()));
         run.setCreatedAt(po.getCreatedAt());

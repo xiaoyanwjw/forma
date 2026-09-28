@@ -7,7 +7,7 @@
                type="com.xmut.ebus.infrastructure.persistence.mybatis.po.PiResumeIdempotencyPO">
         <id property="id" column="id"/>
         <result property="runId" column="run_id"/>
-        <result property="confirmRequestId" column="confirm_request_id"/>
+        <result property="confirmId" column="confirm_request_id"/>
         <result property="phase" column="phase"/>
         <result property="resultSummary" column="result_summary"/>
         <result property="updatedAt" column="updated_at"/>
@@ -22,14 +22,14 @@
         INSERT INTO pi_resume_idempotency
             (run_id, confirm_request_id, phase, result_summary, updated_at, expires_at)
         VALUES
-            (#{runId}, #{confirmRequestId}, #{phase}, #{resultSummary}, #{updatedAt}, #{expiresAt})
+            (#{runId}, #{confirmId}, #{phase}, #{resultSummary}, #{updatedAt}, #{expiresAt})
     </insert>
 
     <insert id="upsert">
         INSERT INTO pi_resume_idempotency
             (run_id, confirm_request_id, phase, result_summary, updated_at, expires_at)
         VALUES
-            (#{runId}, #{confirmRequestId}, #{phase}, #{resultSummary}, #{updatedAt}, #{expiresAt})
+            (#{runId}, #{confirmId}, #{phase}, #{resultSummary}, #{updatedAt}, #{expiresAt})
         ON DUPLICATE KEY UPDATE
             phase = VALUES(phase),
             result_summary = VALUES(result_summary),
@@ -41,19 +41,19 @@
         SELECT <include refid="IdemColumns"/>
         FROM pi_resume_idempotency
         WHERE run_id = #{runId}
-          AND confirm_request_id = #{confirmRequestId}
+          AND confirm_request_id = #{confirmId}
     </select>
 
     <delete id="deleteByKey">
         DELETE FROM pi_resume_idempotency
         WHERE run_id = #{runId}
-          AND confirm_request_id = #{confirmRequestId}
+          AND confirm_request_id = #{confirmId}
     </delete>
 
     <delete id="deleteByKeyIfExpired">
         DELETE FROM pi_resume_idempotency
         WHERE run_id = #{runId}
-          AND confirm_request_id = #{confirmRequestId}
+          AND confirm_request_id = #{confirmId}
           AND (expires_at IS NULL OR expires_at &lt; #{now})
     </delete>
 

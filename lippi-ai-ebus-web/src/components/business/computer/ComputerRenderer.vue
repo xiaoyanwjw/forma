@@ -91,17 +91,33 @@ const listingContent = computed(() => {
   let detailTitle = ''
   let detailBody = ''
   let displayNotes = ''
+  let framePromptsSummary = ''
+  const frames: string[] = []
   for (const block of visibleBlocks.value) {
     if (block.type === 'media') {
       heroPlan = mediaPlanText(block)
       heroMounted = Boolean(block.src || block.mediaObjectId)
+    } else if (block.type === 'list' && isOrderedList(block)) {
+      for (const item of block.items) {
+        const title = (item.title || '').trim()
+        if (title) frames.push(title)
+      }
     } else if (block.type === 'section') {
       if (block.heading === '详情标题') detailTitle = block.body
       else if (block.heading === '详情正文') detailBody = block.body
       else if (block.heading === '展示说明') displayNotes = block.body
+      else if (block.heading === '生图 Prompt') framePromptsSummary = block.body
     }
   }
-  return { heroPlan, heroMounted, detailTitle, detailBody, displayNotes }
+  return {
+    heroPlan,
+    heroMounted,
+    detailTitle,
+    detailBody,
+    displayNotes,
+    frames,
+    framePromptsSummary,
+  }
 })
 
 function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean {

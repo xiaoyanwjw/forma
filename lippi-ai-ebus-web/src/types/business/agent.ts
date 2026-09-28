@@ -86,7 +86,7 @@ export interface ResumeGenerationRunOptions {
   toolCallId: string
   optionId?: AskHumanOptionId | string
   freeText?: string
-  confirmRequestId?: string
+  confirmId?: string
   signal?: AbortSignal
 }
 

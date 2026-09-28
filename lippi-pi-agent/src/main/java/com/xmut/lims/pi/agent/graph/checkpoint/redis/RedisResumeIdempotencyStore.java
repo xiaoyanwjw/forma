@@ -18,7 +18,7 @@ import java.util.Map;
 
 /**
  * Redis resume 幂等实现。
- * 功能描述：用 SET NX EX 对 (runId, confirmRequestId) 占位。
+ * 功能描述：用 SET NX EX 对 (runId, confirmId) 占位。
  */
 public final class RedisResumeIdempotencyStore implements ResumeIdempotencyStore {
 
@@ -42,17 +42,17 @@ public final class RedisResumeIdempotencyStore implements ResumeIdempotencyStore
     }
 
     @Override
-    public ClaimResult claim(String runId, String confirmRequestId) {
-        requireIds(runId, confirmRequestId);
-        return doClaim(runId, confirmRequestId, true);
+    public ClaimResult claim(String runId, String confirmId) {
+        requireIds(runId, confirmId);
+        return doClaim(runId, confirmId, true);
     }
 
-    private ClaimResult doClaim(String runId, String confirmRequestId, boolean retryOnNull) {
-        String key = entryKey(runId, confirmRequestId);
+    private ClaimResult doClaim(String runId, String confirmId, boolean retryOnNull) {
+        String key = entryKey(runId, confirmId);
         String inProgressJson = encodePhase("in_progress", null);
         boolean claimed = redis.setIfAbsent(key, inProgressJson, ttlSeconds);
         if (claimed) {
-            trackConfirmId(runId, confirmRequestId);
+            trackConfirmId(runId, confirmId);
             return ClaimResult.claimed();
         }
 
@@ -60,7 +60,7 @@ public final class RedisResumeIdempotencyStore implements ResumeIdempotencyStore
         if (existing == null || existing.isEmpty()) {
             // SET NX 失败后键已过期：重试一次，避免误报 IN_PROGRESS
             if (retryOnNull) {
-                return doClaim(runId, confirmRequestId, false);
+                return doClaim(runId, confirmId, false);
             }
             return ClaimResult.inProgress();
         }
@@ -71,7 +71,7 @@ public final class RedisResumeIdempotencyStore implements ResumeIdempotencyStore
         if (looksCompleted(existing)) {
             // 摘要损坏：明确失败，禁止当成 IN_PROGRESS 挡死，也不重放 WRITE
             return ClaimResult.completed(ConversationResult.failed(runId,
-                    "idempotent resume: corrupt cached result for confirmRequestId=" + confirmRequestId));
+                    "idempotent resume: corrupt cached result for confirmId=" + confirmId));
         }
         return ClaimResult.inProgress();
     }
@@ -86,20 +86,20 @@ public final class RedisResumeIdempotencyStore implements ResumeIdempotencyStore
     }
 
     @Override
-    public void complete(String runId, String confirmRequestId, ConversationResult result) {
-        requireIds(runId, confirmRequestId);
-        String key = entryKey(runId, confirmRequestId);
+    public void complete(String runId, String confirmId, ConversationResult result) {
+        requireIds(runId, confirmId);
+        String key = entryKey(runId, confirmId);
         redis.setex(key, ttlSeconds, encodePhase("completed", result));
-        trackConfirmId(runId, confirmRequestId);
+        trackConfirmId(runId, confirmId);
     }
 
     @Override
-    public void abandon(String runId, String confirmRequestId) {
-        if (!StringUtils.hasText(confirmRequestId)) {
+    public void abandon(String runId, String confirmId) {
+        if (!StringUtils.hasText(confirmId)) {
             return;
         }
-        redis.del(entryKey(runId, confirmRequestId));
-        untrackConfirmId(runId, confirmRequestId);
+        redis.del(entryKey(runId, confirmId));
+        untrackConfirmId(runId, confirmId);
     }
 
     @Override
@@ -114,11 +114,11 @@ public final class RedisResumeIdempotencyStore implements ResumeIdempotencyStore
         redis.del(idsKey(runId));
     }
 
-    private void trackConfirmId(String runId, String confirmRequestId) {
+    private void trackConfirmId(String runId, String confirmId) {
         try {
             List<String> ids = new ArrayList<>(readConfirmIds(runId));
-            if (!ids.contains(confirmRequestId)) {
-                ids.add(confirmRequestId);
+            if (!ids.contains(confirmId)) {
+                ids.add(confirmId);
             }
             redis.setex(idsKey(runId), ttlSeconds, mapper.writeValueAsString(ids));
         } catch (Exception e) {
@@ -126,10 +126,10 @@ public final class RedisResumeIdempotencyStore implements ResumeIdempotencyStore
         }
     }
 
-    private void untrackConfirmId(String runId, String confirmRequestId) {
+    private void untrackConfirmId(String runId, String confirmId) {
         try {
             List<String> ids = new ArrayList<>(readConfirmIds(runId));
-            ids.remove(confirmRequestId);
+            ids.remove(confirmId);
             if (ids.isEmpty()) {
                 redis.del(idsKey(runId));
             } else {
@@ -222,17 +222,17 @@ public final class RedisResumeIdempotencyStore implements ResumeIdempotencyStore
         }
     }
 
-    private static void requireIds(String runId, String confirmRequestId) {
+    private static void requireIds(String runId, String confirmId) {
         if (!StringUtils.hasText(runId)) {
             throw new IllegalArgumentException("runId required for hermes resume idempotency");
         }
-        if (!StringUtils.hasText(confirmRequestId)) {
-            throw new IllegalArgumentException("confirmRequestId required for hermes resume idempotency");
+        if (!StringUtils.hasText(confirmId)) {
+            throw new IllegalArgumentException("confirmId required for hermes resume idempotency");
         }
     }
 
-    static String entryKey(String runId, String confirmRequestId) {
-        return KEY_PREFIX + runId + ":" + confirmRequestId;
+    static String entryKey(String runId, String confirmId) {
+        return KEY_PREFIX + runId + ":" + confirmId;
     }
 
     static String idsKey(String runId) {

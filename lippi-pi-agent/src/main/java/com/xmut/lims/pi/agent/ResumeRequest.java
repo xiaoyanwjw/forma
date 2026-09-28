@@ -56,11 +56,11 @@ public class ResumeRequest {
     Boolean approved;
 
     /**
-     * 确认请求 ID：与 {@code runId} 组成幂等键 {@code (runId, confirmRequestId)}。
+     * 确认请求 ID：与 {@code runId} 组成幂等键 {@code (runId, confirmId)}。
      *
      * <p>非空时：首次 {@code resume} 原子占位（Redis {@code SET NX EX} / 内存等价）；
      * 重复调用返回已完成摘要，WRITE handler 不再执行。为空时走非幂等单次路径
      *（仍受同 run {@code activeRuns} 互斥保护）。生产 HITL 客户端<strong>应传</strong>本字段。
      */
-    String confirmRequestId;
+    String confirmId;
 }

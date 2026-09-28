@@ -23,7 +23,7 @@ import java.util.Objects;
 
 /**
  * Adam 生产 resume 幂等实现（MySQL）。
- * 功能描述：对 (runId, confirmRequestId) 原子占位，语义对齐 InMemory/Redis。
+ * 功能描述：对 (runId, confirmId) 原子占位，语义对齐 InMemory/Redis。
  * 关键设计：表 {@code pi_resume_idempotency} 与 CP/Session 分表；过期视同缺失；
  * 由 {@link MysqlResumeIdempotencyStoreConfiguration} 在无 Redis 幂等 bean 时注册。
  */
@@ -44,16 +44,16 @@ public class MysqlResumeIdempotencyStore implements ResumeIdempotencyStore {
     }
 
     @Override
-    public ClaimResult claim(String runId, String confirmRequestId) {
-        requireIds(runId, confirmRequestId);
-        return doClaim(runId.trim(), confirmRequestId.trim(), true);
+    public ClaimResult claim(String runId, String confirmId) {
+        requireIds(runId, confirmId);
+        return doClaim(runId.trim(), confirmId.trim(), true);
     }
 
-    private ClaimResult doClaim(String runId, String confirmRequestId, boolean retryOnExpired) {
+    private ClaimResult doClaim(String runId, String confirmId, boolean retryOnExpired) {
         Instant now = Instant.now();
         PiResumeIdempotencyPO row = new PiResumeIdempotencyPO();
         row.setRunId(runId);
-        row.setConfirmRequestId(confirmRequestId);
+        row.setConfirmId(confirmId);
         row.setPhase("in_progress");
         row.setResultSummary(null);
         row.setUpdatedAt(now);
@@ -62,23 +62,23 @@ public class MysqlResumeIdempotencyStore implements ResumeIdempotencyStore {
             mapper.insert(row);
             return ClaimResult.claimed();
         } catch (DuplicateKeyException e) {
-            return resolveConflict(runId, confirmRequestId, retryOnExpired);
+            return resolveConflict(runId, confirmId, retryOnExpired);
         } catch (DataAccessException e) {
-            log.error("Failed to claim mysql resume idem runId={} confirmId={}", runId, confirmRequestId, e);
+            log.error("Failed to claim mysql resume idem runId={} confirmId={}", runId, confirmId, e);
             throw new IllegalStateException("Failed to claim mysql resume idempotency: " + e.getMessage(), e);
         }
     }
 
-    private ClaimResult resolveConflict(String runId, String confirmRequestId, boolean retryOnExpired) {
+    private ClaimResult resolveConflict(String runId, String confirmId, boolean retryOnExpired) {
         try {
-            PiResumeIdempotencyPO existing = mapper.selectByKey(runId, confirmRequestId);
+            PiResumeIdempotencyPO existing = mapper.selectByKey(runId, confirmId);
             if (existing == null || isExpired(existing)) {
                 // UNIQUE 冲突后行已消失或过期：仅删仍过期行后重试一次（避免 concurrent complete 刷新 TTL 后误删）
                 if (retryOnExpired) {
                     if (existing != null) {
-                        mapper.deleteByKeyIfExpired(runId, confirmRequestId, Instant.now());
+                        mapper.deleteByKeyIfExpired(runId, confirmId, Instant.now());
                     }
-                    return doClaim(runId, confirmRequestId, false);
+                    return doClaim(runId, confirmId, false);
                 }
                 return ClaimResult.inProgress();
             }
@@ -88,24 +88,24 @@ public class MysqlResumeIdempotencyStore implements ResumeIdempotencyStore {
                     return ClaimResult.completed(completed);
                 }
                 return ClaimResult.completed(ConversationResult.failed(runId,
-                        "idempotent resume: corrupt cached result for confirmRequestId=" + confirmRequestId));
+                        "idempotent resume: corrupt cached result for confirmId=" + confirmId));
             }
             return ClaimResult.inProgress();
         } catch (DataAccessException e) {
             log.error("Failed to resolve mysql resume idem conflict runId={} confirmId={}",
-                    runId, confirmRequestId, e);
+                    runId, confirmId, e);
             throw new IllegalStateException(
                     "Failed to claim mysql resume idempotency: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public void complete(String runId, String confirmRequestId, ConversationResult result) {
-        requireIds(runId, confirmRequestId);
+    public void complete(String runId, String confirmId, ConversationResult result) {
+        requireIds(runId, confirmId);
         Instant now = Instant.now();
         PiResumeIdempotencyPO row = new PiResumeIdempotencyPO();
         row.setRunId(runId.trim());
-        row.setConfirmRequestId(confirmRequestId.trim());
+        row.setConfirmId(confirmId.trim());
         row.setPhase("completed");
         row.setResultSummary(encodeSummary(result));
         row.setUpdatedAt(now);
@@ -113,21 +113,21 @@ public class MysqlResumeIdempotencyStore implements ResumeIdempotencyStore {
         try {
             mapper.upsert(row);
         } catch (DataAccessException e) {
-            log.error("Failed to complete mysql resume idem runId={} confirmId={}", runId, confirmRequestId, e);
+            log.error("Failed to complete mysql resume idem runId={} confirmId={}", runId, confirmId, e);
             throw new IllegalStateException("Failed to complete mysql resume idempotency: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public void abandon(String runId, String confirmRequestId) {
-        if (!StringUtils.hasText(confirmRequestId) || !StringUtils.hasText(runId)) {
+    public void abandon(String runId, String confirmId) {
+        if (!StringUtils.hasText(confirmId) || !StringUtils.hasText(runId)) {
             return;
         }
         try {
-            mapper.deleteByKey(runId.trim(), confirmRequestId.trim());
+            mapper.deleteByKey(runId.trim(), confirmId.trim());
         } catch (DataAccessException e) {
             log.error("Failed to abandon mysql resume idem runId={} confirmId={}",
-                    runId, confirmRequestId, e);
+                    runId, confirmId, e);
             throw new IllegalStateException(
                     "Failed to abandon mysql resume idempotency: " + e.getMessage(), e);
         }
@@ -227,12 +227,12 @@ public class MysqlResumeIdempotencyStore implements ResumeIdempotencyStore {
         }
     }
 
-    private static void requireIds(String runId, String confirmRequestId) {
+    private static void requireIds(String runId, String confirmId) {
         if (!StringUtils.hasText(runId)) {
             throw new IllegalArgumentException("runId required for resume idempotency");
         }
-        if (!StringUtils.hasText(confirmRequestId)) {
-            throw new IllegalArgumentException("confirmRequestId required for resume idempotency");
+        if (!StringUtils.hasText(confirmId)) {
+            throw new IllegalArgumentException("confirmId required for resume idempotency");
         }
     }
 }

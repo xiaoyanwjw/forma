@@ -27,9 +27,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.Optional;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ArtifactPersistPluginTest {
@@ -49,6 +52,8 @@ class ArtifactPersistPluginTest {
                 artifactRepository,
                 objectMapper,
                 Clock.fixed(NOW, ZoneOffset.UTC));
+        org.mockito.Mockito.lenient().when(artifactRepository.findByRunId(any()))
+                .thenReturn(Optional.<Artifact>empty());
     }
 
     @Test
@@ -147,6 +152,24 @@ class ArtifactPersistPluginTest {
         ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
         verify(artifactRepository).save(cap.capture());
         assertEquals(ArtifactType.LISTING_PLAN, cap.getValue().getType());
+    }
+
+    @Test
+    void persist_sameRun_listingPlanThenSku_updatesExistingRow() {
+        Artifact existing = Artifact.create(
+                "art-plan-1", "u1", "r1", ArtifactType.LISTING_PLAN, "ecommerce",
+                null, "策划分镜", "{\"view\":{},\"data\":{}}", NOW);
+        when(artifactRepository.findByRunId("r1")).thenReturn(Optional.of(existing));
+
+        PersistedGenerationArtifact out = plugin.persist(
+                "u1", "r1", "ecommerce", SkillRunProfile.PERSIST_SKU, listViewMap(), usableSkuPayload());
+
+        assertEquals("art-plan-1", out.getArtifactRef());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+        ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
+        verify(artifactRepository).update(cap.capture());
+        assertEquals(ArtifactType.SKU, cap.getValue().getType());
+        assertEquals("art-plan-1", cap.getValue().getId());
     }
 
     private static Map<String, Object> usablePlanPayload() {

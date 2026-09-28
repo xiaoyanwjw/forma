@@ -23,7 +23,7 @@ context:
 **Decisions:**
 - 表形跟 slim ER：`run_id` PK，一行一 run（upsert）；`graph_state` = `CheckpointCodec` 全量 JSON（复用 Redis 同编解码）；`expires_at` 对齐 `lims.pi.checkpoint.ttl-seconds`（默认 7200）
 - Resume 双模式互斥：① **tool-result 路径**（`toolCallId` + 结果正文）— 写入 Messages、从挂起 `TOOL_CALLS` 移除该 call，**不**再跑该 handler；② **WRITE 路径**（既有 `decision`/`approved`）— 行为不变。二者都缺 → fail-closed FAILED
-- `ResumeIdempotencyStore` 本故事不换 MySQL：仍 MissingBean→InMemory，可选 Redis；`confirmRequestId` 建议客户端传
+- `ResumeIdempotencyStore` 本故事不换 MySQL：仍 MissingBean→InMemory，可选 Redis；`confirmId` 建议客户端传
 - Redis CP 仅 `lims.pi.checkpoint.redis.enabled=true` 时可抢 `@Primary`；Adam 默认 MySQL
 
 ## Boundaries & Constraints
@@ -33,7 +33,7 @@ context:
 - DDL 仅 `APP-META/bootstrap/sql/006_pi_graph_checkpoint.sql` + 同步 `schema-h2.sql`；表名 `pi_graph_checkpoint`；**禁止**与 `pi_session*` 混表
 - 适配器在 `…/infrastructure/checkpoint/`；端口仍在 pi-agent；**pi-agent 不依赖 MyBatis**
 - Adam：`MysqlCheckpointer` `@Primary`；过期 `expires_at` 视同无 CP（`loadLatest` 空）
-- `confirmRequestId` 非空时仍走现有幂等 store；空则仅 `activeRuns` 互斥
+- `confirmId` 非空时仍走现有幂等 store；空则仅 `activeRuns` 互斥
 - tool-result resume：合成 `ToolResult` 进 transcript（`Message.withToolResults`），清该 `toolCallId` 挂起 call，再 `compiled.resume`；可再次 SUSPENDED
 
 **Never:**
@@ -51,7 +51,7 @@ context:
 | WRITE resume | 同既有 + `approved=true` | 行为对齐 `CheckpointPersistenceHitlTest` | 缺 decision 且无 tool-result → FAILED |
 | 终态清理 | resume→SUCCESS/FAILED/CANCELLED | `deleteByRun`；库无该 run 行 | N/A |
 | 再挂起 | resume 后又 needsHitl | CP 保留/更新；幂等占位 `abandon` | N/A |
-| confirm 幂等 | 同 `(runId, confirmRequestId)` 再 resume | 返回首次终态摘要，不双跑 | IN_PROGRESS → FAILED |
+| confirm 幂等 | 同 `(runId, confirmId)` 再 resume | 返回首次终态摘要，不双跑 | IN_PROGRESS → FAILED |
 | Redis 显式开 | `redis.enabled=true`+JedisPool | Redis `@Primary` 覆盖 Mysql | 未开则 Mysql Primary |
 | 装配默认 | starter 有 MySQL | 解析 `Checkpointer` → MysqlCheckpointer | 无 Mysql bean 时 pi MissingBean→InMemory |
 
@@ -88,7 +88,7 @@ context:
 - Given Session 已 MySQL（2.7）且图仍为 agent⇄tools，when 装配 `@Primary MysqlCheckpointer`，then HITL 挂起落盘 `pi_graph_checkpoint`，与 `pi_session*` 分表
 - Given SUSPENDED CP，when `AgentSession.resume` 带 `toolCallId`+结果，then 注入 tool result 并重跑 tools→继续 loop（可再次挂起）
 - Given 终态 SUCCESS/FAILED/CANCELLED，when resume 结束，then 删除该 run CP；SUSPENDED 保留
-- Given `confirmRequestId`，when 同答重放，then 幂等不双跑（既有 store）
+- Given `confirmId`，when 同答重放，then 幂等不双跑（既有 store）
 - Given Redis CP 未显式开启，when 解析 Checkpointer，then 为 MysqlCheckpointer 而非 Redis
 - Given 本故事完成，when 审查范围，then 无 ask_human UI/SSE、无积分语义变更
 

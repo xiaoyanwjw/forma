@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -61,11 +62,10 @@ public class ArtifactPersistPlugin {
                 ? businessPayload
                 : Collections.<String, Object>emptyMap();
         if (type == ArtifactType.LISTING_PLAN) {
-            requireUsableListingPlanPayload(data);
+            requireUsableSkuPlanPayload(data);
         } else if (type == ArtifactType.SKU) {
             requireUsableSkuPayload(data);
         }
-        String id = UUID.randomUUID().toString();
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         Map<String, Object> view = projectedView != null ? projectedView : Collections.<String, Object>emptyMap();
         payload.put(PAYLOAD_VIEW, view);
@@ -78,6 +78,15 @@ public class ArtifactPersistPlugin {
         }
         String title = resolveTitle(view);
         Instant now = Instant.now(clock);
+        // 同 Run 一果：uk_ebus_artifact_run；策划→执行 / 补充改策划 覆盖写。
+        Optional<Artifact> existing = artifactRepository.findByRunId(runId);
+        if (existing.isPresent()) {
+            Artifact artifact = existing.get();
+            artifact.replaceContent(type, sceneCode, null, title, json, now);
+            artifactRepository.update(artifact);
+            return new PersistedGenerationArtifact(artifact.getId(), Collections.<String, Object>emptyMap());
+        }
+        String id = UUID.randomUUID().toString();
         Artifact artifact = Artifact.create(id, userId, runId, type, sceneCode,
                 null, title, json, now);
         artifactRepository.save(artifact);
@@ -103,9 +112,9 @@ public class ArtifactPersistPlugin {
     /**
      * @return true when payload passes listing-plan gate (no throw).
      */
-    public static boolean isUsableListingPlanPayload(Map<String, Object> data) {
+    public static boolean isUsableSkuPlanPayload(Map<String, Object> data) {
         try {
-            requireUsableListingPlanPayload(data);
+            requireUsableSkuPlanPayload(data);
             return true;
         } catch (BusinessException ex) {
             return false;
@@ -115,7 +124,7 @@ public class ArtifactPersistPlugin {
     /**
      * 可用策划分镜：templateId 固定国内通用默认；driver、titleDraft；frames/modules 各 3～5 条非空短句。
      */
-    static void requireUsableListingPlanPayload(Map<String, Object> data) {
+    static void requireUsableSkuPlanPayload(Map<String, Object> data) {
         if (data == null || data.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
         }

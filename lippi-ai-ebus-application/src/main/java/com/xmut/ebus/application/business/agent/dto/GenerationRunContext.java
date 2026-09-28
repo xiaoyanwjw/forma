@@ -1,12 +1,12 @@
 package com.xmut.ebus.application.business.agent.dto;
 
 import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
+import com.xmut.ebus.common.util.StringUtils;
 
 /**
  * Unified GenerationRun context for SSE streaming (dry / no-skill / billed).
  * <p>
- * Listing HITL（策划分镜）另跟踪 {@link #planSettled} / {@link #execHoldId}；
- * {@link #holdId} 表示<strong>当前未关闭</strong>的预占（策划 settle 后清空，确认执行后再写入 exec hold）。
+ * HITL：{@link #artifactRef} 复用挂起 settle / 终态成果；{@link #holdId} 为当前未关闭预占。
  */
 public final class GenerationRunContext {
 
@@ -18,8 +18,7 @@ public final class GenerationRunContext {
     private final String promptText;
     private final SkillRunProfile profile;
 
-    private boolean planSettled;
-    private String planArtifactRef;
+    private String artifactRef;
     private String execHoldId;
     private String pendingToolCallId;
 
@@ -71,18 +70,22 @@ public final class GenerationRunContext {
         return profile;
     }
 
-    public boolean isPlanSettled() {
-        return planSettled;
+    /** 挂起路径已 settle：有 artifactRef，当前 hold 已清，回合仍 RUNNING。 */
+    public boolean isSettledOnSuspended() {
+        return StringUtils.hasText(artifactRef);
     }
 
-    public void markPlanSettled(String planArtifactRef) {
-        this.planSettled = true;
-        this.planArtifactRef = planArtifactRef;
+    public void markSettledOnSuspended(String artifactRef) {
+        this.artifactRef = artifactRef;
         this.holdId = null;
     }
 
-    public String getPlanArtifactRef() {
-        return planArtifactRef;
+    public String getArtifactRef() {
+        return artifactRef;
+    }
+
+    public void setArtifactRef(String artifactRef) {
+        this.artifactRef = artifactRef;
     }
 
     public String getExecHoldId() {

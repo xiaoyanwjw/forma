@@ -112,12 +112,12 @@ START → agent ⇄ tools → agent → END
   - **TTL**：`lims.pi.checkpoint.ttl-seconds`（默认 7200=2h，应对 HITL 等待窗口）；过期后 resume → 明确失败（无 CP）
   - **resume 双模式**：`toolCallId`+结果正文（注入 tool result，不跑 handler）与 WRITE `decision`/`approved` 互斥；都缺 fail-closed
   - 仅 interrupt 落盘；终态 SUCCESS/FAILED/CANCELLED → `deleteByRun`；**SUSPENDED 保留**
-  - resume 幂等：非空 `ResumeRequest.confirmRequestId` → 原子占位；空则非幂等（仍受 `activeRuns` 互斥）
+  - resume 幂等：非空 `ResumeRequest.confirmId` → 原子占位；空则非幂等（仍受 `activeRuns` 互斥）
   - **Adam 生产默认**：ebus-infrastructure `MysqlResumeIdempotencyStore` `@Primary`（表 `pi_resume_idempotency`；≠ CP/Session）；Redis 仅当 `lims.pi.checkpoint.redis.enabled=true` **且** 有 `JedisPool` 时由 `PiCheckpointAutoConfiguration` `@Primary` 注册（此时 Mysql 幂等 Bean 不注册）
   - **本模块过渡默认**：`InMemoryResumeIdempotencyStore`（MissingBean）
-  - 幂等冲突：同 `(runId, confirmRequestId)` 若已 `completed` → 短路返回缓存摘要；若仍 `in_progress` → `FAILED`（客户端应退避或换新 confirmId）
+  - 幂等冲突：同 `(runId, confirmId)` 若已 `completed` → 短路返回缓存摘要；若仍 `in_progress` → `FAILED`（客户端应退避或换新 confirmId）
   - TTL：`lims.pi.resume-idem.ttl-seconds`（默认 86400）；过期视同无键
-  - 键仅 `runId`（+ 可选 `confirmRequestId`）；**已移除** `tenantId` / `userId`
+  - 键仅 `runId`（+ 可选 `confirmId`）；**已移除** `tenantId` / `userId`
 
 **批次语义：** 审批开启时，同一超步任一未批准调用 → **整批挂起**。默认关时，已登记且 active 的工具直接执行。
 

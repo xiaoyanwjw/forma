@@ -22,6 +22,6 @@ public class ResumeGenerationRunCommand extends BaseCommand {
 
     private final String freeText;
 
-    /** 可选幂等键，透传 {@code ResumeRequest.confirmRequestId}。 */
-    private final String confirmRequestId;
+    /** 可选幂等键，透传 {@code ResumeRequest.confirmId}。 */
+    private final String confirmId;
 }

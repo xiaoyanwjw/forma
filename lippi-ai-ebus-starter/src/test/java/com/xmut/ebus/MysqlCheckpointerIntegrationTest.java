@@ -193,7 +193,7 @@ class MysqlCheckpointerIntegrationTest {
                 .runId("mysql-hitl")
                 .toolCallId("c1")
                 .humanInput("option-b")
-                .confirmRequestId("confirm-mysql-1")
+                .confirmId("confirm-mysql-1")
                 .build(), bus);
         assertThat(resumed.getStatus()).isEqualTo(ConversationResult.Status.OK);
         assertThat(handlerCalls.get()).isZero();

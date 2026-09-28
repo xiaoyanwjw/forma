@@ -160,9 +160,10 @@ flowchart TB
 - **Rule:**
   - 用户提交答案 → application 调 **`AgentSession.resume`**：将选择/自由文本写入对应 `toolCallId` 的 **tool result**，重跑 `tools` 节点 → 继续 `agent ⇄ tools` 直至结束或再次 `ask_human`。
   - Checkpointer 生产默认：**MySQL** 表 **`pi_graph_checkpoint`**（DDL 仅 `APP-META/bootstrap`；键空间按 `runId`；**禁止**与 `pi_session*` 混表）。适配器在 ebus-infrastructure；端口仍在 pi-agent `Checkpointer`。
-  - `ResumeRequest` 建议带 `confirmRequestId` 做幂等；同答重放不双写工具副作用。
-  - 同一计费 GenerationRun / hold 跨越 HITL；多次 ask/resume 仍是 **一次**预占，直至成果落库结算或失败释放。
-  - 前端：SSE 断线后可用 `runId` 查询挂起态并再次订阅；答案走 REST/SSE 控制通道调 resume，不新开「假 prompt」冒充续跑（除非 AD-S9 崩溃无 CP 降级）。
+  - `ResumeRequest` 建议带 `confirmId` 做幂等；同答重放不双写工具副作用。
+  - **Checkpoint 是唯一图中断真源**（是否允许 resume = CP 存在 + toolCallId）；GenerationRun **不**镜像挂起状态，只存计费字段（活跃 hold / execHold / artifactRef / skillId）。
+  - Listing 等双阶段计费：同 Run 可跨 **两次 settle**（策划 1 + 执行 1）；非 Listing 仍可一次预占跨越多次 ask/resume。
+  - 前端：SSE 断线后可用 `runId` + CP 查询挂起态并再次订阅；答案走 REST/SSE 控制通道调 resume，不新开「假 prompt」冒充续跑（除非 AD-S9 崩溃无 CP 降级）。
 
 ## Consistency Conventions
 

@@ -190,6 +190,15 @@ describe('ComputerRenderer', () => {
             placeholder: '白底俯拍主图方案说明',
             alt: '主图',
           },
+          {
+            type: 'list',
+            ordered: true,
+            items: [
+              { title: '首图：白底' },
+              { title: '图2：场景' },
+              { title: '图3：细节' },
+            ],
+          },
           { type: 'section', heading: '详情标题', body: '硅胶沥水垫标题' },
           { type: 'section', heading: '详情正文', body: '详情段落' },
           {
@@ -197,6 +206,11 @@ describe('ComputerRenderer', () => {
             heading: '展示说明',
             body: '主图顺序说明',
             tone: 'mute',
+          },
+          {
+            type: 'section',
+            heading: '生图 Prompt',
+            body: '1. white bg product\n2. lifestyle scene\n3. detail close-up',
           },
         ],
       },
@@ -208,20 +222,31 @@ describe('ComputerRenderer', () => {
     // Adam：素材卡片，无手机框
     expect(host.querySelector('.adam-doc')).toBeTruthy()
     expect(host.querySelector('.iphone')).toBeNull()
-    expect(host.textContent).toMatch(/白底俯拍主图方案说明/)
+    expect(host.querySelector('.listing-hero-plan-card')).toBeNull()
     expect(host.textContent).toMatch(/硅胶沥水垫标题/)
     expect(host.textContent).toMatch(/详情段落/)
+    expect(host.textContent).toMatch(/生图 Prompt/)
+    expect(host.textContent).toMatch(/white bg product/)
+    expect(host.textContent).toMatch(/首图：白底/)
+    // Adam 顺序：生图 Prompt → 详情标题 → 详情正文 → 主图分镜
+    const text = host.textContent || ''
+    expect(text.indexOf('生图 Prompt')).toBeLessThan(text.indexOf('详情标题'))
+    expect(text.indexOf('详情标题')).toBeLessThan(text.indexOf('详情正文'))
+    expect(text.indexOf('详情正文')).toBeLessThan(text.indexOf('主图分镜'))
     expect(host.textContent).not.toMatch(/素材规范/)
+    // 淘宝壳仍用 heroPlan 文案作主图位说明
     const taobao = host.querySelector('.platform-btn.platform-taobao') as HTMLButtonElement
     taobao.click()
     await nextTick()
     expect(host.querySelector('.iphone')).toBeTruthy()
     expect(host.querySelector('.tb-bar')).toBeTruthy()
     expect(host.querySelector('.tb-buy')).toBeTruthy()
-    // 切换平台只换壳，文案仍是同一套公共字段
+    expect(host.textContent).toMatch(/白底俯拍主图方案说明/)
     expect(host.textContent).toMatch(/硅胶沥水垫标题/)
     expect(host.textContent).toMatch(/详情段落/)
     expect(host.textContent).toMatch(/立即购买/)
+    expect(host.textContent).toMatch(/生图 Prompt/)
+    expect(host.textContent).toMatch(/white bg product/)
     const xianyu = host.querySelector('.platform-btn.platform-xianyu') as HTMLButtonElement
     xianyu.click()
     await nextTick()
@@ -316,7 +341,7 @@ describe('parseComputerDocument', () => {
     expect(list && list.type === 'list' && list.items[1]?.href).toBeUndefined()
   })
 
-  it('renders listing plan storyboard as generic blocks without platform shell', async () => {
+  it('renders listing plan storyboard as single markdown without platform shell', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp(ComputerRenderer, {
@@ -325,17 +350,11 @@ describe('parseComputerDocument', () => {
         title: '硅胶沥水垫 · 策划分镜',
         status: 'ready',
         blocks: [
-          { type: 'note', text: '痛点：台面长期积水', tone: 'mute' },
           {
-            type: 'list',
-            ordered: true,
-            items: [
-              { title: '主图：白底产品' },
-              { title: '对比：湿台面' },
-              { title: '场景：沥水收纳' },
-            ],
+            type: 'markdown',
+            text:
+              '## 成交方向\n痛点：台面长期积水\n\n## 主图分镜\n1. 主图：白底产品\n2. 对比：湿台面\n3. 场景：沥水收纳\n\n## 标题草稿\n硅胶沥水垫',
           },
-          { type: 'section', heading: '标题草稿', body: '硅胶沥水垫' },
         ],
       },
     })
@@ -343,6 +362,7 @@ describe('parseComputerDocument', () => {
     await nextTick()
     expect(host.textContent).toMatch(/主图：白底产品/)
     expect(host.textContent).toMatch(/标题草稿/)
+    expect(host.querySelector('.cv-markdown')).not.toBeNull()
     expect(host.querySelector('.platform-switch')).toBeNull()
     expect(host.querySelector('.listing-stack')).toBeNull()
     expect(host.querySelector('.iphone')).toBeNull()

@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Agent 默认实现。
  * 功能描述：运行模块内默认 Tool-loop 图（START → agent ⇄ tools → END）。
- * 关键设计：不按 Skill 换图；resume 支持 WRITE 批准与 tool-result 注入双路径；幂等靠 confirmRequestId。
+ * 关键设计：不按 Skill 换图；resume 支持 WRITE 批准与 tool-result 注入双路径；幂等靠 confirmId。
  */
 public final class DefaultAgent implements Agent {
 
@@ -169,10 +169,19 @@ public final class DefaultAgent implements Agent {
                 return ConversationResult.cancelled(runId,
                         outcome.getCancelReason() != null ? outcome.getCancelReason() : "cancelled");
             case SUSPENDED:
-                // 保留 checkpoint 供 resume
-                String node = outcome.getSuspendedNode();
-                return ConversationResult.suspended(runId,
-                        node != null ? "suspended at node: " + node : "suspended");
+                // 保留 checkpoint 供 resume；终稿带回助手正文（如策划 JSON），勿只写 suspend 原因。
+                GraphState suspendedState = outcome.getFinalState();
+                String suspendedText = resolveResponse(suspendedState);
+                if (!StringUtils.hasText(suspendedText)) {
+                    String node = outcome.getSuspendedNode();
+                    suspendedText = node != null ? "suspended at node: " + node : "suspended";
+                }
+                return ConversationResult.builder()
+                        .runId(runId)
+                        .status(ConversationResult.Status.SUSPENDED)
+                        .finalResponse(suspendedText)
+                        .messages(resolve(suspendedState))
+                        .build();
             default:
                 cleanup(runId);
                 return ConversationResult.failed(runId, "unknown GraphOutcome kind: " + outcome.getKind());
@@ -218,7 +227,7 @@ public final class DefaultAgent implements Agent {
 
     /**
      * 终态清理 checkpoint（SUSPENDED 不调用）。
-     * 幂等摘要<strong>不</strong>在此删除——须保留至 TTL，以便重复 {@code (runId, confirmRequestId)}
+     * 幂等摘要<strong>不</strong>在此删除——须保留至 TTL，以便重复 {@code (runId, confirmId)}
      * 返回缓存结果（AC3）；显式 {@link ResumeIdempotencyStore#deleteByRun} 留给运维/覆盖写。
      */
     private void cleanup(String runId) {
@@ -240,7 +249,7 @@ public final class DefaultAgent implements Agent {
 
         CancelHandle handle = new CancelHandle();
         String runId = request.getRunId().trim();
-        String confirmId = request.getConfirmRequestId();
+        String confirmId = request.getConfirmId();
 
         boolean claimed = false;
         try {
@@ -325,7 +334,7 @@ public final class DefaultAgent implements Agent {
                 return Claim.completed(cached);
             case IN_PROGRESS:
                 return Claim.completed(ConversationResult.failed(runId,
-                        "resume already in progress for confirmRequestId=" + confirmId));
+                        "resume already in progress for confirmId=" + confirmId));
             case CLAIMED:
                 return Claim.claimed();
             default:

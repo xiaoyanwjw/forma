@@ -19,4 +19,8 @@ export interface ListingPreviewContent {
   detailTitle: string
   detailBody: string
   displayNotes: string
+  /** 主图分镜短句（ordered list） */
+  frames: string[]
+  /** 「生图 Prompt」section 正文 */
+  framePromptsSummary: string
 }

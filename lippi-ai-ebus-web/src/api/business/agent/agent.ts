@@ -130,7 +130,7 @@ export async function* resumeGenerationRun(
       toolCallId,
       optionId: options.optionId?.trim() || undefined,
       freeText: options.freeText?.trim() || undefined,
-      confirmRequestId: options.confirmRequestId?.trim() || undefined,
+      confirmId: options.confirmId?.trim() || undefined,
     }),
     signal: options.signal,
   })

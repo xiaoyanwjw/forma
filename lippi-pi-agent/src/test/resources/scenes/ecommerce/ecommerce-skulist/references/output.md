@@ -38,7 +38,7 @@ metadata:
 | 规则 | 说明 |
 |------|------|
 | 同一事实 | 各阶段 `view` 与 `artifact` 同一商品事实 |
-| 主图 | 策划：`frames[0]` → hero `media` placeholder；执行：业务真相为系统挂载后的 `mediaObjectId`，须写清 `heroPlan` |
+| 主图 | 策划：写进 Markdown「主图分镜」列表（与 `frames` 一致）；执行：业务真相为系统挂载后的 `mediaObjectId`，须写清 `heroPlan` |
 | 风格底 | `templateId` 固定 `domestic-generic-default`（补充需求**不可**改） |
 | 口吻 | 国内电商成交文案；策划偏分镜与大纲，执行偏可搜索标题与商详卖点 |
 | 假设 | 信息不足时写 `assumptions` |
@@ -69,16 +69,19 @@ metadata:
 | `version` | `1` |
 | `title` | 给人看的中文标题 |
 | `status` | 可选；可写 `draft` 或 `ready` |
-| `blocks` | 仅 `note` / `list` / `markdown` / `media` / `section` |
+| `blocks` | **恰好 1 个** `{ "type": "markdown", "text": "…" }` |
 
-| 策划字段 | block |
-|----------|--------|
-| `driver` | `note`，`tone: mute` |
-| `frames[0]` | `media`，`role: hero`，`placeholder` |
-| `frames` | `list`，ordered，items 用 `title` |
-| `titleDraft` | `section`「标题草稿」 |
-| `modules` | `section`「详情大纲」+ `list` 或正文列举 |
-| `assumptions` | `note`，可选 `kind: assumptions` |
+Markdown `text` 固定小标题（与 `artifact` 同一事实）：
+
+| 小节 | 内容 |
+|------|------|
+| `## 成交方向` | = `driver` |
+| `## 主图分镜` | 有序列表 = `frames` |
+| `## 标题草稿` | = `titleDraft` |
+| `## 详情大纲` | 有序列表 = `modules` |
+| `## 假设` | 可选 = `assumptions` |
+
+策划阶段**不要**再用多块 `note` / `list` / `media` / `section` 拼盘。
 
 ## 执行 artifact + view
 
@@ -104,7 +107,7 @@ metadata:
 | `detailTitle` | `section`「详情标题」 |
 | `detailBody` | `section`「详情正文」 |
 | `displayNotes` | `section`「展示说明」，`tone: mute` |
-| `framePrompts` | **一条** `section`「生图 Prompt」摘要 |
+| `framePrompts` | **一条** `section`「生图 Prompt」：`body` 有序列表写出与 `artifact.framePrompts` 等长的完整 prompt（可附 negative） |
 | `driver` | 可选 `note` |
 
 ## 策划示例
@@ -119,49 +122,8 @@ metadata:
     "status": "draft",
     "blocks": [
       {
-        "type": "note",
-        "text": "成交方向：台面干爽 + 防滑收纳，打动小户型厨房用户。",
-        "tone": "mute"
-      },
-      {
-        "type": "media",
-        "role": "hero",
-        "placeholder": "首图：沥水垫铺满台面，水珠顺槽流走，角标「台面干爽」。",
-        "alt": "主图分镜 1"
-      },
-      {
-        "type": "list",
-        "ordered": true,
-        "items": [
-          { "title": "首图：沥水动态特写 + 「台面干爽」角标" },
-          { "title": "图2：碗碟防滑纹理近景" },
-          { "title": "图3：一卷收纳进抽屉" }
-        ]
-      },
-      {
-        "type": "section",
-        "heading": "标题草稿",
-        "body": "厨房硅胶沥水垫 防滑易清洗 可折叠收纳"
-      },
-      {
-        "type": "section",
-        "heading": "详情大纲",
-        "body": "痛点钩子 → 防滑/易洗好处 → 材质一句 → 适用场景"
-      },
-      {
-        "type": "list",
-        "ordered": true,
-        "items": [
-          { "title": "洗完碗碟台面积水？一块垫解决沥干" },
-          { "title": "防滑纹理 + 食品接触级硅胶，好清洗" },
-          { "title": "卷折收纳，小户型厨房省空间" }
-        ]
-      },
-      {
-        "type": "note",
-        "text": "假设：按国内电商、优先淘宝语气；未提供实物图。",
-        "kind": "assumptions",
-        "tone": "mute"
+        "type": "markdown",
+        "text": "## 成交方向\n台面干爽 + 防滑收纳，打动小户型厨房用户。\n\n## 主图分镜\n1. 首图：沥水动态特写 + 「台面干爽」角标\n2. 图2：碗碟防滑纹理近景\n3. 图3：一卷收纳进抽屉\n\n## 标题草稿\n厨房硅胶沥水垫 防滑易清洗 可折叠收纳\n\n## 详情大纲\n1. 洗完碗碟台面积水？一块垫解决沥干\n2. 防滑纹理 + 食品接触级硅胶，好清洗\n3. 卷折收纳，小户型厨房省空间\n\n## 假设\n按国内电商、优先淘宝语气；未提供实物图。"
       }
     ]
   },
@@ -219,7 +181,7 @@ metadata:
       {
         "type": "section",
         "heading": "详情正文",
-        "body": "洗完碗碟台面积水？铺上一块就能沥干。\n防滑纹理托住碗盘不易滑；食品接触级硅胶，柔软好清洗。\n用完一卷，抽屉里也能塞下，小户型厨房更省事。"
+        "body": "洗完碗碟台面积水，铺上一块就能沥干，抹布不用一直擦。\n防滑纹理托住碗盘不易滑；食品接触级硅胶，柔软好清洗，水龙头下冲一冲就净。\n用完一卷塞进抽屉，小户型厨房、租房台面都省事。尺寸与颜色可选，按水槽边或台面长度挑选。"
       },
       {
         "type": "section",
@@ -230,7 +192,7 @@ metadata:
       {
         "type": "section",
         "heading": "生图 Prompt",
-        "body": "共 3 条：首图台面沥水特写；图2防滑纹理；图3卷折收纳。完整 prompt 见 artifact.framePrompts。"
+        "body": "1. Product photo, silicone dish drying mat on kitchen counter, water droplets draining into grooves, clean bright kitchen, short Chinese text overlay 台面干爽, commercial e-commerce style, soft daylight\n   negative: cluttered props, watermark, medical claims\n2. Close-up of textured silicone mat surface holding plates and bowls securely, anti-slip pattern visible, kitchen background blur, e-commerce detail shot\n   negative: blurry, distorted text\n3. Rolled silicone drying mat fitting into kitchen drawer, compact storage scene, warm home kitchen, e-commerce lifestyle photo\n   negative: messy drawer, unrelated products"
       }
     ]
   },

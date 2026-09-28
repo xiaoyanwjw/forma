@@ -9,6 +9,8 @@ public interface ArtifactMapper {
 
     int insert(ArtifactPO artifact);
 
+    int updateByBizId(ArtifactPO artifact);
+
     ArtifactPO selectByBizId(@Param("bizId") String bizId);
 
     ArtifactPO selectByRunId(@Param("runId") String runId);

@@ -8,9 +8,11 @@
         <result property="bizId" column="biz_id"/>
         <result property="userId" column="user_id"/>
         <result property="holdId" column="hold_id"/>
+        <result property="execHoldId" column="exec_hold_id"/>
         <result property="sessionId" column="session_id"/>
         <result property="sceneId" column="scene_id"/>
         <result property="sceneCode" column="scene_code"/>
+        <result property="skillId" column="skill_id"/>
         <result property="artifactRef" column="artifact_ref"/>
         <result property="status" column="status"/>
         <result property="createdAt" column="created_at"/>
@@ -19,17 +21,21 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO ebus_generation_run
-            (biz_id, user_id, hold_id, session_id, scene_id, scene_code, artifact_ref, status, created_at, updated_at)
+            (biz_id, user_id, hold_id, exec_hold_id, session_id, scene_id, scene_code, skill_id,
+             artifact_ref, status, created_at, updated_at)
         VALUES
-            (#{bizId}, #{userId}, #{holdId}, #{sessionId}, #{sceneId}, #{sceneCode}, #{artifactRef}, #{status}, #{createdAt}, #{updatedAt})
+            (#{bizId}, #{userId}, #{holdId}, #{execHoldId}, #{sessionId}, #{sceneId}, #{sceneCode}, #{skillId},
+             #{artifactRef}, #{status}, #{createdAt}, #{updatedAt})
     </insert>
 
     <update id="update">
         UPDATE ebus_generation_run
         SET hold_id = #{holdId},
+            exec_hold_id = #{execHoldId},
             session_id = #{sessionId},
             scene_id = #{sceneId},
             scene_code = #{sceneCode},
+            skill_id = #{skillId},
             artifact_ref = #{artifactRef},
             status = #{status},
             updated_at = #{updatedAt}
@@ -37,7 +43,8 @@
     </update>
 
     <select id="selectById" resultMap="GenerationRunResultMap">
-        SELECT id, biz_id, user_id, hold_id, session_id, scene_id, scene_code, artifact_ref, status, created_at, updated_at
+        SELECT id, biz_id, user_id, hold_id, exec_hold_id, session_id, scene_id, scene_code, skill_id,
+               artifact_ref, status, created_at, updated_at
         FROM ebus_generation_run
         WHERE biz_id = #{id}
     </select>

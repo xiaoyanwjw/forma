@@ -26,14 +26,11 @@ const bodyOverLimit = computed(() => (props.content.detailBody || '').length > 2
 
 <template>
   <div class="plat-preview" :class="{ 'is-adam': platform === 'adam' }">
-    <!-- Adam：通用底稿，不要手机浏览器框 -->
+    <!-- Adam：执行稿优先 Prompt + SKU 文案；不要大块假图占位（主图信息看分镜/Prompt） -->
     <div v-if="platform === 'adam'" class="adam-doc">
-      <div class="listing-hero listing-hero-plan-card">
-        <div class="listing-hero-meta">
-          <span class="listing-hero-kicker">主图方案</span>
-          <span v-if="content.heroMounted" class="listing-hero-chip">占位已挂载</span>
-        </div>
-        <p class="listing-hero-plan">{{ content.heroPlan || '主图方案待补充' }}</p>
+      <div v-if="content.framePromptsSummary" class="listing-copy is-prompts">
+        <h4>生图 Prompt</h4>
+        <pre class="section-prompts">{{ content.framePromptsSummary }}</pre>
       </div>
       <div class="listing-copy is-title">
         <h4>详情标题 <em>{{ titleHint }}</em></h4>
@@ -46,6 +43,12 @@ const bodyOverLimit = computed(() => (props.content.detailBody || '').length > 2
         <p class="section-body" :class="{ warn: bodyOverLimit }">
           {{ content.detailBody || '—' }}
         </p>
+      </div>
+      <div v-if="content.frames.length" class="listing-copy is-frames">
+        <h4>主图分镜</h4>
+        <ol class="listing-frames">
+          <li v-for="(frame, i) in content.frames" :key="i">{{ frame }}</li>
+        </ol>
       </div>
       <div class="listing-copy is-notes">
         <h4>展示说明</h4>
@@ -211,6 +214,23 @@ const bodyOverLimit = computed(() => (props.content.detailBody || '').length > 2
         </div>
       </div>
     </template>
+
+    <!-- 平台壳外：制作备注顺序与 Adam 主信息一致 -->
+    <div
+      v-if="platform !== 'adam' && (content.frames.length || content.framePromptsSummary)"
+      class="listing-craft"
+    >
+      <div v-if="content.framePromptsSummary" class="listing-copy is-prompts">
+        <h4>生图 Prompt</h4>
+        <pre class="section-prompts">{{ content.framePromptsSummary }}</pre>
+      </div>
+      <div v-if="content.frames.length" class="listing-copy is-frames">
+        <h4>主图分镜</h4>
+        <ol class="listing-frames">
+          <li v-for="(frame, i) in content.frames" :key="i">{{ frame }}</li>
+        </ol>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -369,6 +389,45 @@ const bodyOverLimit = computed(() => (props.content.detailBody || '').length > 2
   font-weight: 400;
   line-height: 1.6;
   color: var(--mute);
+}
+
+.listing-frames {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.listing-frames li {
+  margin: 0 0 4px;
+}
+
+.listing-copy.is-prompts {
+  margin-top: 4px;
+}
+
+.section-prompts {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: #0f172a0a;
+  border: 1px solid var(--line-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.listing-craft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line-2);
 }
 
 .iphone {

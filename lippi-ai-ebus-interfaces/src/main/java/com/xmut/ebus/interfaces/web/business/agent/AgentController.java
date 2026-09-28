@@ -163,11 +163,11 @@ public class AgentController {
                 .toolCallId(body.getToolCallId())
                 .optionId(body.getOptionId())
                 .freeText(body.getFreeText())
-                .confirmRequestId(body.getConfirmRequestId())
+                .confirmId(body.getConfirmId())
                 .build();
 
         try {
-            agentService.requireAwaitingResume(command);
+            agentService.prepareResumeGenerationRun(command);
         } catch (BusinessException ex) {
             int status = ex.getErrorCode().getHttpStatus();
             return ResponseEntity.status(status)
@@ -178,7 +178,7 @@ public class AgentController {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         sseExecutor.execute(() -> {
             try {
-                agentService.streamResumeGenerationRun(command, event -> sendEvent(emitter, event));
+                agentService.resumeBilledRun(command, event -> sendEvent(emitter, event));
                 emitter.complete();
             } catch (Exception ex) {
                 log.warn("resume run sse failed runId={}: {}", runId, ex.toString());

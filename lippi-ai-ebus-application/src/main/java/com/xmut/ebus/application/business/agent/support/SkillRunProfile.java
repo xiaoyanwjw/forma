@@ -112,7 +112,7 @@ public final class SkillRunProfile {
     }
 
     /** Billed Listing：persist sku；系统挂载占位主图后再 settle. */
-    public boolean isBilledListing() {
+    public boolean isBilledSku() {
         return settleEnabled && PERSIST_SKU.equals(persistAs);
     }
 }

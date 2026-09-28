@@ -1,8 +1,8 @@
 ---
 name: ecommerce-skulist
 description: >-
-  两阶段 Listing：先策划分镜（短字段 + view），经 ask_human 确认或补充后，再出执行稿与生图 Prompt（view + artifact）。
-  在用户提到上架、Listing、主图、详情文案、商品素材时使用。选品清单请改用 ecommerce-picklist。
+  生成素材：先策划分镜（短字段 + view），经 ask_human 确认或补充后，再出执行稿与生图 Prompt（view + artifact）。
+  在用户提到上架、主图、详情文案、商品素材时使用。选品清单请改用 ecommerce-picklist。
 allowed-tools: ask_human, read_skill
 metadata:
   output:
@@ -15,7 +15,7 @@ metadata:
 
 同一次 Run 内分 **策划** 与 **执行** 两段可用成果：
 
-1. **策划**：成交方向、主图分镜（3～5 条）、详情大纲、标题草稿；`view` 用通用 blocks 展示分镜，**不要**上架四字段与生图 Prompt。
+1. **策划**：成交方向、主图分镜（3～5 条）、详情大纲、标题草稿；`view` **仅一篇** `markdown`（好读），**不要**上架四字段与生图 Prompt。
 2. **`ask_human`**：用户确认出执行稿，或补充需求改策划（可多轮）。
 3. **执行**（仅 `confirm_execute` 后）：补齐上架四字段 + 与分镜对齐的 `framePrompts`；`view` 对齐 Listing 预览（hero `media` + 三 `section` + Prompt 摘要）。
 
@@ -35,7 +35,7 @@ metadata:
 2. **固定底。** `templateId` = `domestic-generic-default`（全程不可改，补充需求也不得改 `templateId`）。
 3. **定成交驱动力。** 写入 `driver`（一句成交方向）；家居日用多选「痛点/效率」或「视觉/质感」。
 4. **写策划短字段。** `frames`（3～5 条主图分镜短句，每条 ≤40 字）、`modules`（3～5 条详情大纲短句）、`titleDraft`（标题草稿一行）。详见 [output.md](references/output.md) §策划。
-5. **写策划 `view`。** 按 spec 映射：`driver` → `note`；`frames[0]` → hero `media` placeholder；`frames` → ordered `list`；`titleDraft` / `modules` → `section`；可选 `assumptions` → `note`。策划阶段**不要**「详情标题/正文/展示说明」三 section。
+5. **写策划 `view`。** `blocks` **只含 1 个** `markdown`：固定小标题 `## 成交方向` / `## 主图分镜`（有序列表，与 `frames` 一致）/ `## 标题草稿` / `## 详情大纲`（有序列表，与 `modules` 一致）/ 可选 `## 假设`。正文与 `artifact` 同一事实。策划阶段**不要**多块 `note`/`list`/`media`/`section` 拼盘，**不要**「详情标题/正文/展示说明」三 section。
 6. **输出策划 JSON。** 一个 `{ "view": …, "artifact": … }` 对象（策划字段 only）。
 7. **立刻调用 `ask_human`**（参数与下方一致，勿在 Computer / JSON 里自造确认按钮）：
 
@@ -61,9 +61,13 @@ metadata:
 ### Phase C — 执行（仅 `confirm_execute` 后）
 
 1. **继承策划字段**（可微调 `titleDraft` / `frames` / `modules`，仍须满足条数与门禁）。
-2. **写上架四字段**（卖货口吻）：`heroPlan`、`detailTitle`、`detailBody`、`displayNotes`。
+2. **写上架四字段**（像真实淘宝详情，不要鸡汤问答腔）：
+   - `detailTitle`：品类词 + 2～4 个卖点词，可检索、可读；
+   - `detailBody`：3～6 短段或条目——先一句场景/痛点，再写核心卖点与使用感受，可带 1～2 句规格/材质（未知勿编造具体参数）；少用「想换机又怕踩坑」式长提问开场；
+   - `displayNotes`：主图顺序与禁区（短）；
+   - `heroPlan`：首图画面任务 + 短卖点（给系统挂位，不必在 Adam 大图区展示）。
 3. **写 `framePrompts`**：与 `frames` **等长**；每项 `{ "prompt": "…", "negative": "…" }`（`negative` 可选）。只出 Prompt，不调生图。
-4. **写执行 `view`。** hero `media`（对齐 `heroPlan`）+ 分镜 `list` + 三 `section`（详情标题/正文/展示说明）+ **一条** `section`「生图 Prompt」摘要（全文以 `artifact.framePrompts` 为准）。
+4. **写执行 `view`。** hero `media`（对齐 `heroPlan`）+ 分镜 `list` + 三 `section`（详情标题/正文/展示说明）+ **一条** `section`「生图 Prompt」：`body` 用有序列表写出与 `framePrompts` **逐条对应**的完整 `prompt`（可附 `negative:` 行）；勿只写「共 N 条、详见 artifact」。
 5. **过 Verification（执行）。** 全部勾上再输出**最终** JSON。
 6. **禁止**输出 `platformCopies` / `preferredPlatform`。
 
@@ -82,8 +86,8 @@ metadata:
 - [ ] `artifact.templateId` = `domestic-generic-default`
 - [ ] `driver`、`titleDraft` 非空
 - [ ] `frames`、`modules` 各 3～5 条非空短句
-- [ ] 策划 `view` **无**「详情标题/正文/展示说明」三 section；**无** `framePrompts` / 上架四字段
-- [ ] `blocks` 仅 `note` / `list` / `markdown` / `media` / `section`
+- [ ] 策划 `view.blocks` **恰好 1 个** `markdown`（含上述小标题）；**无**「详情标题/正文/展示说明」三 section；**无** `framePrompts` / 上架四字段
+- [ ] Markdown 与 `artifact` 短字段同一事实
 - [ ] 输出策划 JSON 后**必须**调用 `ask_human`（未确认前禁止 Phase C）
 - [ ] 未编造 BSR / 销量 / 资质；未宣称违禁功效
 
@@ -91,7 +95,7 @@ metadata:
 
 - [ ] 继承策划必填字段；四字段均非空，读起来像上架素材
 - [ ] `framePrompts.length` = `frames.length`；每条 `prompt` 非空
-- [ ] `detailTitle` 含品类 + 卖点词；`detailBody` 有场景钩子
+- [ ] `detailTitle` 含品类 + 卖点词；`detailBody` 像真实详情短段（场景一句 + 卖点/材质），忌长问答鸡汤腔
 - [ ] `heroPlan` 写清首图画面任务 + 短卖点（非空说明书腔）
 - [ ] 执行 `view` 含 hero `media` + 三详情 `section` + Prompt 摘要 `section`
 - [ ] `mediaObjectIds` 可 `[]`（系统挂载后 settle 前须有真实 id）

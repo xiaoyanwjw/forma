@@ -150,17 +150,11 @@ function samplePlanView() {
     title: '硅胶沥水垫 · 策划分镜',
     status: 'ready',
     blocks: [
-      { type: 'note', text: '痛点：台面长期积水', tone: 'mute' },
       {
-        type: 'list',
-        ordered: true,
-        items: [
-          { title: '主图：白底产品' },
-          { title: '对比：湿台面' },
-          { title: '场景：沥水收纳' },
-        ],
+        type: 'markdown',
+        text:
+          '## 成交方向\n痛点：台面长期积水\n\n## 主图分镜\n1. 主图：白底产品\n2. 对比：湿台面\n3. 场景：沥水收纳\n\n## 标题草稿\n硅胶沥水垫',
       },
-      { type: 'section', heading: '标题草稿', body: '硅胶沥水垫' },
     ],
   }
 }

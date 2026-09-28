@@ -6,15 +6,19 @@ import java.time.Instant;
 
 /**
  * 一次计费生成回合：关联 holdId + sessionId + 可选 artifact 引用（AD-7）。
+ * <p>
+ * HITL：挂起真源在 Checkpoint；本实体只存计费字段（skillId / 活跃 hold / execHold / artifactRef）。
  */
 public class GenerationRun {
 
     private String id;
     private String userId;
     private String holdId;
+    private String execHoldId;
     private String sessionId;
     private String sceneId;
     private String sceneCode;
+    private String skillId;
     private String artifactRef;
     private GenerationRunStatus status;
     private Instant createdAt;
@@ -27,13 +31,26 @@ public class GenerationRun {
                                       String sceneId,
                                       String sceneCode,
                                       Instant now) {
+        return start(id, userId, holdId, sessionId, sceneId, sceneCode, null, now);
+    }
+
+    public static GenerationRun start(String id,
+                                      String userId,
+                                      String holdId,
+                                      String sessionId,
+                                      String sceneId,
+                                      String sceneCode,
+                                      String skillId,
+                                      Instant now) {
         GenerationRun run = new GenerationRun();
         run.id = id;
         run.userId = userId;
         run.holdId = holdId;
+        run.execHoldId = null;
         run.sessionId = sessionId;
         run.sceneId = sceneId;
         run.sceneCode = sceneCode;
+        run.skillId = skillId;
         run.artifactRef = null;
         run.status = GenerationRunStatus.RUNNING;
         run.createdAt = now;
@@ -49,6 +66,28 @@ public class GenerationRun {
     public void markSettled(String artifactRef, Instant now) {
         this.artifactRef = artifactRef;
         this.status = GenerationRunStatus.SETTLED;
+        this.updatedAt = now;
+    }
+
+    /** 挂起路径 settle：落 artifactRef、清活跃 hold，status 仍 RUNNING。 */
+    public void markSettledOnSuspended(String artifactRef, Instant now) {
+        this.artifactRef = artifactRef;
+        this.holdId = null;
+        this.updatedAt = now;
+    }
+
+    /** 确认执行：绑定第二笔预占为当前活跃 hold。 */
+    public void bindExecHold(String execHoldId, Instant now) {
+        this.execHoldId = execHoldId;
+        this.holdId = execHoldId;
+        this.updatedAt = now;
+    }
+
+    public void clearExecHold(Instant now) {
+        if (this.execHoldId != null && this.execHoldId.equals(this.holdId)) {
+            this.holdId = null;
+        }
+        this.execHoldId = null;
         this.updatedAt = now;
     }
 
@@ -76,6 +115,14 @@ public class GenerationRun {
         this.holdId = holdId;
     }
 
+    public String getExecHoldId() {
+        return execHoldId;
+    }
+
+    public void setExecHoldId(String execHoldId) {
+        this.execHoldId = execHoldId;
+    }
+
     public String getSessionId() {
         return sessionId;
     }
@@ -98,6 +145,14 @@ public class GenerationRun {
 
     public void setSceneCode(String sceneCode) {
         this.sceneCode = sceneCode;
+    }
+
+    public String getSkillId() {
+        return skillId;
+    }
+
+    public void setSkillId(String skillId) {
+        this.skillId = skillId;
     }
 
     public String getArtifactRef() {

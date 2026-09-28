@@ -45,11 +45,11 @@ class PiEventToAd4MapperTest {
     @Test
     void mapsAgentStartAndEnd() {
         Ad4SseEvent started = PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.AGENT_START)).get();
-        assertEquals(Ad4EventName.agent_started, started.getName());
+        assertEquals(Ad4EventName.AGENT_STARTED, started.getName());
         assertEquals("agent.start", started.getData().get("label"));
 
         Ad4SseEvent ended = PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.AGENT_END)).get();
-        assertEquals(Ad4EventName.agent_ended, ended.getName());
+        assertEquals(Ad4EventName.AGENT_ENDED, ended.getName());
         assertEquals("agent.end", ended.getData().get("label"));
     }
 
@@ -58,15 +58,15 @@ class PiEventToAd4MapperTest {
         Optional<Ad4SseEvent> mapped = PiEventToAd4Mapper.mapEvent(
                 PiEvent.of(PiEventType.MESSAGE_UPDATE, "chunk"));
         assertTrue(mapped.isPresent());
-        assertEquals(Ad4EventName.message_delta, mapped.get().getName());
+        assertEquals(Ad4EventName.MESSAGE_DELTA, mapped.get().getName());
         assertEquals("chunk", mapped.get().getData().get("text"));
     }
 
     @Test
     void mapsToolStartAndEnd() {
-        assertEquals(Ad4EventName.tool_started,
+        assertEquals(Ad4EventName.TOOL_STARTED,
                 PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.TOOL_EXECUTION_START)).get().getName());
-        assertEquals(Ad4EventName.tool_finished,
+        assertEquals(Ad4EventName.TOOL_FINISHED,
                 PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.TOOL_EXECUTION_END)).get().getName());
     }
 
@@ -108,7 +108,7 @@ class PiEventToAd4MapperTest {
         ToolCallEntry call = AskHumanToolHandlerTest.listingAskCall("call-ask");
         Ad4SseEvent ev = PiEventToAd4Mapper.mapEvent(
                 PiEvent.of(PiEventType.SUSPENDED, ToolSuspendPayload.of(call, "run-hitl", "ask_human"))).get();
-        assertEquals(Ad4EventName.human_input_required, ev.getName());
+        assertEquals(Ad4EventName.HUMAN_INPUT_REQUIRED, ev.getName());
         assertEquals("策划可以了吗？确认后写出执行稿，或补充需求。", ev.getData().get("question"));
         assertEquals(Boolean.TRUE, ev.getData().get("allowFreeText"));
         assertEquals("call-ask", ev.getData().get("toolCallId"));

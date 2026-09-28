@@ -34,7 +34,7 @@ class SkillRunProfileTest {
     @Test
     void skulistResolvesToBilledListing() {
         SkillRunProfile profile = SkillRunProfile.resolve(SceneCapabilityPackLoader.SKILL_SKULIST, false);
-        assertTrue(profile.isBilledListing());
+        assertTrue(profile.isBilledSku());
         assertFalse(profile.isBilledPicklist());
         assertEquals(SkillRunProfile.PERSIST_SKU, profile.getPersistAs());
         assertEquals(SceneCapabilityPackLoader.SKILL_SKULIST, profile.getSkillId());
@@ -46,7 +46,7 @@ class SkillRunProfileTest {
     void billedListingFactoryMatchesResolve() {
         SkillRunProfile profile = SkillRunProfile.billedListing();
         assertEquals(SkillRunProfile.PERSIST_SKU, profile.getPersistAs());
-        assertTrue(profile.isBilledListing());
+        assertTrue(profile.isBilledSku());
     }
 
     @Test

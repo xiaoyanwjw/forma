@@ -4,7 +4,7 @@ import com.xmut.lims.pi.agent.ConversationResult;
 
 /**
  * resume 幂等占位端口。
- * 功能描述：对 (runId, confirmRequestId) 做原子占位，防止重复审批。
+ * 功能描述：对 (runId, confirmId) 做原子占位，防止重复审批。
  */
 public interface ResumeIdempotencyStore {
 
@@ -48,17 +48,17 @@ public interface ResumeIdempotencyStore {
     }
 
     /**
-     * 原子占位。{@code confirmRequestId} 为空时不应调用。
+     * 原子占位。{@code confirmId} 为空时不应调用。
      */
-    ClaimResult claim(String runId, String confirmRequestId);
+    ClaimResult claim(String runId, String confirmId);
 
     /** 终态成功 / 失败后写入摘要（覆盖 in_progress）。 */
-    void complete(String runId, String confirmRequestId, ConversationResult result);
+    void complete(String runId, String confirmId, ConversationResult result);
 
     /**
-     * 释放占位（例如再次 SUSPENDED），允许同 confirmRequestId 后续重试。
+     * 释放占位（例如再次 SUSPENDED），允许同 confirmId 后续重试。
      */
-    void abandon(String runId, String confirmRequestId);
+    void abandon(String runId, String confirmId);
 
     /** 终态清理：删除该 run 下全部幂等键。 */
     void deleteByRun(String runId);

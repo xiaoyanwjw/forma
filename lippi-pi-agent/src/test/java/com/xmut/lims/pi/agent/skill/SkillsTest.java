@@ -34,4 +34,24 @@ public class SkillsTest {
         assertThat(m.getSceneCode()).isEqualTo("ecommerce");
         assertThat(m.getPromptRef()).contains("scenes/ecommerce/ecommerce-picklist/SKILL.md");
     }
+
+    @Test
+    void parseAllowedTools_splitsCommaSeparatedNames() throws Exception {
+        String md = ""
+                + "---\n"
+                + "name: ecommerce-skulist\n"
+                + "description: Listing with HITL.\n"
+                + "allowed-tools: ask_human, read_skill\n"
+                + "---\n"
+                + "\n"
+                + "# Body\n";
+        Resource resource = new ByteArrayResource(md.getBytes(StandardCharsets.UTF_8)) {
+            @Override public String getFilename() { return "SKILL.md"; }
+            @Override public String getDescription() {
+                return "class path resource [scenes/ecommerce/ecommerce-skulist/SKILL.md]";
+            }
+        };
+        Skill m = Skills.parse(resource, "ecommerce");
+        assertThat(m.getAllowedTools()).containsExactly("ask_human", "read_skill");
+    }
 }

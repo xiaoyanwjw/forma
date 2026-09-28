@@ -24,6 +24,17 @@
             (#{bizId}, #{userId}, #{runId}, #{artifactType}, #{sceneCode}, #{templateId}, #{title}, #{payloadJson}, #{createdAt}, #{updatedAt})
     </insert>
 
+    <update id="updateByBizId">
+        UPDATE ebus_artifact
+        SET artifact_type = #{artifactType},
+            scene_code = #{sceneCode},
+            template_id = #{templateId},
+            title = #{title},
+            payload_json = #{payloadJson},
+            updated_at = #{updatedAt}
+        WHERE biz_id = #{bizId}
+    </update>
+
     <select id="selectByBizId" resultMap="ArtifactResultMap">
         SELECT id, biz_id, user_id, run_id, artifact_type, scene_code, template_id, title, payload_json, created_at, updated_at
         FROM ebus_artifact

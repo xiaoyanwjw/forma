@@ -8,7 +8,7 @@ public class ResumeGenerationRunRequest {
     private String toolCallId;
     private String optionId;
     private String freeText;
-    private String confirmRequestId;
+    private String confirmId;
 
     public String getToolCallId() {
         return toolCallId;
@@ -34,11 +34,11 @@ public class ResumeGenerationRunRequest {
         this.freeText = freeText;
     }
 
-    public String getConfirmRequestId() {
-        return confirmRequestId;
+    public String getConfirmId() {
+        return confirmId;
     }
 
-    public void setConfirmRequestId(String confirmRequestId) {
-        this.confirmRequestId = confirmRequestId;
+    public void setConfirmId(String confirmId) {
+        this.confirmId = confirmId;
     }
 }

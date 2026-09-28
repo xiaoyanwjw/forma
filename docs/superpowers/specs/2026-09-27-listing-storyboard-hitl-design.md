@@ -29,7 +29,7 @@
 ### Goals
 
 1. Listing 生成拆成 **策划** 与 **执行** 两段可用成果，同 Run、HITL 续跑。  
-2. 策划字段短；`view` 用 `note` / `list` / `section` / `media` 表达分镜。  
+2. 策划字段短；`view` **仅一篇** `markdown`（见 [`2026-09-28-listing-plan-markdown-view-design.md`](./2026-09-28-listing-plan-markdown-view-design.md)）。  
 3. 执行稿补齐上架四字段 + `framePrompts`；`view` 对齐现有 Listing 预览（三 section + hero media）。  
 4. `ask_human` 固定选项：**确认出执行稿** / **补充需求**（可多轮改策划后再确认）。  
 5. 积分：策划可用后扣 1；确认且执行可用后再扣 1。
@@ -91,14 +91,13 @@
 
 **策划 `view` 映射**
 
-| 字段 | block |
-|------|--------|
-| `driver` | `note` mute |
-| `frames[0]` | `media` hero，`placeholder` |
-| `frames` | `list` ordered，items.title |
-| `titleDraft` | `section`「标题草稿」 |
-| `modules` | `section`「详情大纲」+ `list` 或正文列举 |
-| `assumptions` | `note` `kind: assumptions` |
+| 约定 | 说明 |
+|------|------|
+| `blocks` | **恰好 1 个** `markdown` |
+| 小标题 | `## 成交方向` / `## 主图分镜` / `## 标题草稿` / `## 详情大纲` / 可选 `## 假设` |
+| 真源 | 短字段仍在 `artifact`；Markdown 与之同一事实 |
+
+细则 → [`2026-09-28-listing-plan-markdown-view-design.md`](./2026-09-28-listing-plan-markdown-view-design.md)。
 
 策划阶段 **不要求**「详情标题/正文/展示说明」三 section；Listing 手机壳可仅在执行稿后启用（或策划也只走通用文档流）。
 
@@ -164,6 +163,7 @@
 - AD-4：`human_input_required` 用于挂起；**执行** settle 不在等待期间发生。  
 - **刻意修订操作化：** 策划 settle 安排在 **第一次** `ask_human` **之前**（门闩 A），以便「只逛策划、多次补充」时策划分已入账，且不把策划扣费拖到 HITL 之后。  
 - AD-S12/S13：依赖 `ask_human` 工具、MySQL checkpoint resume、FE 选项 UI；若故事 2.9 未齐，本设计实现时一并交付或标明阻塞。
+- **挂起真源 = Checkpoint**（不写 GenerationRun 挂起态）；GenerationRun 只持久化计费字段（活跃 hold / execHold / artifactRef / skillId）。同 Run 策划 settle 1 + 执行 settle 1。
 
 ### 5.4 预占建议
 
