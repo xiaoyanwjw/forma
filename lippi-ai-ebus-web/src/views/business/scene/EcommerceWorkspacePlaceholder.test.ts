@@ -184,6 +184,7 @@ function mockCatalogAndCredits(opts?: {
   onListing?: () => Response
   onResume?: (init?: RequestInit) => Response
   available?: number
+  delayFeedbackGet?: Promise<void>
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
@@ -195,6 +196,9 @@ function mockCatalogAndCredits(opts?: {
     }
     if (url.includes('/api/v1/feedbacks')) {
       const method = String(init?.method || 'GET').toUpperCase()
+      if (method !== 'POST' && opts?.delayFeedbackGet) {
+        await opts.delayFeedbackGet
+      }
       let posted: { artifactId?: string; tag?: string; commentText?: string } = {}
       if (method === 'POST' && typeof init?.body === 'string') {
         try {
@@ -1030,6 +1034,51 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       tag: '质量差',
       commentText: '文案偏空',
     })
+  })
+
+  it('shows card actions only on the latest success STATUS card', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '帮我做家居选品')
+
+    expect(mounted.root.querySelectorAll('[data-testid="card-result-actions"]')).toHaveLength(1)
+
+    ;(mounted.root.querySelector('[data-testid="one-click-retry"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    expect(mounted.root.querySelectorAll('[data-testid="card-result-actions"]')).toHaveLength(1)
+    const statusCards = mounted.root.querySelectorAll('.chat-event-status.is-preview')
+    expect(statusCards.length).toBeGreaterThanOrEqual(2)
+    const lastStatus = statusCards[statusCards.length - 1]
+    expect(lastStatus?.parentElement?.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()
+  })
+
+  it('keeps like highlight when delayed GET restore returns null', async () => {
+    let releaseGet: () => void = () => {}
+    const delayFeedbackGet = new Promise<void>((resolve) => {
+      releaseGet = resolve
+    })
+    fetchMock = mockCatalogAndCredits({ delayFeedbackGet })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '帮我做家居选品')
+
+    const like = mounted.root.querySelector('[data-testid="card-like"]') as HTMLButtonElement
+    expect(like).toBeTruthy()
+    like.click()
+    await flushUi()
+    await flushUi()
+    expect(like.classList.contains('is-on')).toBe(true)
+
+    releaseGet()
+    await flushUi()
+    await flushUi()
+    expect(
+      (mounted.root.querySelector('[data-testid="card-like"]') as HTMLButtonElement).classList.contains(
+        'is-on',
+      ),
+    ).toBe(true)
   })
 
   it('one-click retry reuses last prompt and session without newTask', async () => {

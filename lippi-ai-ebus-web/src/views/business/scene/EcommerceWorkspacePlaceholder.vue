@@ -98,6 +98,9 @@ const feedbackBusy = ref(false)
 const feedbackHint = ref('')
 const feedbackTag = ref<string | null>(null)
 const dislikeDrawerOpen = ref(false)
+/** Monotonic seq so a late GET cannot overwrite a newer local like/dislike. */
+let feedbackOpSeq = 0
+const localFeedbackSubmitSeq = new Map<string, number>()
 
 const generationRunning = computed(() => picklistRunning.value || listingRunning.value)
 const listingAwaitingHuman = computed(() => Boolean(listingPendingHuman.value))
@@ -470,6 +473,7 @@ async function submitLikeFeedback() {
       artifactId: artifactRef,
       tag: FEEDBACK_TAG_GOOD_QUALITY,
     })
+    markLocalFeedbackSubmit(artifactRef)
     feedbackTag.value = FEEDBACK_TAG_GOOD_QUALITY
     feedbackHint.value = '已记录「质量好」反馈，不影响积分。'
   } catch (e) {
@@ -499,6 +503,7 @@ async function submitPoorQualityFeedback() {
       tag: FEEDBACK_TAG_POOR_QUALITY,
       commentText: feedbackNote.value.trim() || undefined,
     })
+    markLocalFeedbackSubmit(artifactRef)
     feedbackTag.value = FEEDBACK_TAG_POOR_QUALITY
     feedbackNote.value = ''
     dislikeDrawerOpen.value = false
@@ -541,18 +546,47 @@ function canPreviewFromStatus(m: ChatMessage): boolean {
   return Boolean(livePicklist.value?.view || liveListing.value?.view)
 }
 
+function currentFeedbackArtifactId() {
+  return activeLiveArtifact.value?.artifactRef?.trim() || ''
+}
+
+function markLocalFeedbackSubmit(artifactId: string) {
+  const seq = ++feedbackOpSeq
+  localFeedbackSubmitSeq.set(artifactId, seq)
+}
+
+function applyFeedbackRestore(seq: number, artifactId: string, tag: string | null) {
+  if (currentFeedbackArtifactId() !== artifactId) return
+  const localSeq = localFeedbackSubmitSeq.get(artifactId) ?? 0
+  if (localSeq > seq) return
+  feedbackTag.value = tag
+}
+
+function isLatestPreviewableStatus(m: ChatMessage): boolean {
+  if (!canPreviewFromStatus(m)) return false
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    const cur = messages.value[i]
+    if (cur && canPreviewFromStatus(cur)) {
+      return cur.id === m.id
+    }
+  }
+  return false
+}
+
 watch(
   () => activeLiveArtifact.value?.artifactRef?.trim() || '',
   async (artifactId) => {
     if (!artifactId) {
+      feedbackOpSeq += 1
       feedbackTag.value = null
       return
     }
+    const seq = ++feedbackOpSeq
     try {
       const existing = await getFeedbackByArtifact(artifactId)
-      feedbackTag.value = existing?.tag?.trim() || null
+      applyFeedbackRestore(seq, artifactId, existing?.tag?.trim() || null)
     } catch {
-      feedbackTag.value = null
+      applyFeedbackRestore(seq, artifactId, null)
     }
   },
 )
@@ -618,6 +652,8 @@ function newTask() {
   feedbackTag.value = null
   dislikeDrawerOpen.value = false
   feedbackBusy.value = false
+  feedbackOpSeq += 1
+  localFeedbackSubmitSeq.clear()
 }
 
 function toggleStreamExpand(id: string) {
@@ -913,7 +949,7 @@ onMounted(async () => {
                     >{{ formatStreamBodyForDisplay(m.statusDetail || m.text) }}</pre>
                   </div>
                   <div
-                    v-if="canPreviewFromStatus(m)"
+                    v-if="isLatestPreviewableStatus(m)"
                     class="card-result-actions"
                     data-testid="card-result-actions"
                     @click.stop
