@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
 import { ApiError } from '@/api/client'
-import { submitFeedback } from '@/api/business/feedback/feedback'
+import { getFeedbackByArtifact, submitFeedback } from '@/api/business/feedback/feedback'
 import { getScenes } from '@/api/business/scene/scene'
 import {
   buildFailureDetail,
@@ -21,7 +21,7 @@ import {
   DEMO_SESSION_TITLE,
 } from '@/views/business/scene/ecommerceDemoFixtures'
 import type { GenerationArtifactPayload } from '@/types/business/agent'
-import { FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
+import { FEEDBACK_TAG_GOOD_QUALITY, FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
 /** Stable scene binding for this workbench — Epic 3 session create must carry it */
@@ -96,7 +96,8 @@ const pendingBilledPrompt = ref('')
 const feedbackNote = ref('')
 const feedbackBusy = ref(false)
 const feedbackHint = ref('')
-const feedbackDoneForArtifact = ref<string | null>(null)
+const feedbackTag = ref<string | null>(null)
+const dislikeDrawerOpen = ref(false)
 
 const generationRunning = computed(() => picklistRunning.value || listingRunning.value)
 const listingAwaitingHuman = computed(() => Boolean(listingPendingHuman.value))
@@ -140,8 +141,7 @@ const canSubmitFeedback = computed(
   () =>
     Boolean(activeLiveArtifact.value?.artifactRef) &&
     !sessionBusy.value &&
-    !feedbackBusy.value &&
-    feedbackDoneForArtifact.value !== activeLiveArtifact.value?.artifactRef,
+    !feedbackBusy.value,
 )
 
 const activeComputerDoc = computed(() => {
@@ -460,6 +460,34 @@ async function oneClickRetry() {
   await runBilledGeneration(text, kind)
 }
 
+async function submitLikeFeedback() {
+  const artifactRef = activeLiveArtifact.value?.artifactRef?.trim()
+  if (!artifactRef || !canSubmitFeedback.value) return
+  feedbackBusy.value = true
+  feedbackHint.value = ''
+  try {
+    await submitFeedback({
+      artifactId: artifactRef,
+      tag: FEEDBACK_TAG_GOOD_QUALITY,
+    })
+    feedbackTag.value = FEEDBACK_TAG_GOOD_QUALITY
+    feedbackHint.value = '已记录「质量好」反馈，不影响积分。'
+  } catch (e) {
+    feedbackHint.value = e instanceof ApiError ? e.message : '反馈提交失败'
+  } finally {
+    feedbackBusy.value = false
+  }
+}
+
+function openDislikeDrawer() {
+  if (!activeLiveArtifact.value?.artifactRef || sessionBusy.value) return
+  dislikeDrawerOpen.value = true
+}
+
+function closeDislikeDrawer() {
+  dislikeDrawerOpen.value = false
+}
+
 async function submitPoorQualityFeedback() {
   const artifactRef = activeLiveArtifact.value?.artifactRef?.trim()
   if (!artifactRef || !canSubmitFeedback.value) return
@@ -471,8 +499,9 @@ async function submitPoorQualityFeedback() {
       tag: FEEDBACK_TAG_POOR_QUALITY,
       commentText: feedbackNote.value.trim() || undefined,
     })
-    feedbackDoneForArtifact.value = artifactRef
+    feedbackTag.value = FEEDBACK_TAG_POOR_QUALITY
     feedbackNote.value = ''
+    dislikeDrawerOpen.value = false
     feedbackHint.value = '已记录「质量差」反馈，不影响积分。'
   } catch (e) {
     feedbackHint.value = e instanceof ApiError ? e.message : '反馈提交失败'
@@ -511,6 +540,22 @@ function canPreviewFromStatus(m: ChatMessage): boolean {
   if (kind === 'picks') return Boolean(livePicklist.value?.view)
   return Boolean(livePicklist.value?.view || liveListing.value?.view)
 }
+
+watch(
+  () => activeLiveArtifact.value?.artifactRef?.trim() || '',
+  async (artifactId) => {
+    if (!artifactId) {
+      feedbackTag.value = null
+      return
+    }
+    try {
+      const existing = await getFeedbackByArtifact(artifactId)
+      feedbackTag.value = existing?.tag?.trim() || null
+    } catch {
+      feedbackTag.value = null
+    }
+  },
+)
 
 /** Preview is showing when Computer is open on the matching live view. */
 function isPreviewOpenFromStatus(m: ChatMessage): boolean {
@@ -570,7 +615,8 @@ function newTask() {
   pendingBilledPrompt.value = ''
   feedbackNote.value = ''
   feedbackHint.value = ''
-  feedbackDoneForArtifact.value = null
+  feedbackTag.value = null
+  dislikeDrawerOpen.value = false
   feedbackBusy.value = false
 }
 
@@ -866,6 +912,45 @@ onMounted(async () => {
                       @click.stop
                     >{{ formatStreamBodyForDisplay(m.statusDetail || m.text) }}</pre>
                   </div>
+                  <div
+                    v-if="canPreviewFromStatus(m)"
+                    class="card-result-actions"
+                    data-testid="card-result-actions"
+                    @click.stop
+                  >
+                    <button
+                      type="button"
+                      class="pill"
+                      data-testid="one-click-retry"
+                      :disabled="!canOneClickRetry"
+                      @click="oneClickRetry"
+                    >
+                      重试
+                    </button>
+                    <button
+                      type="button"
+                      class="pill"
+                      data-testid="card-like"
+                      :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_GOOD_QUALITY }"
+                      :disabled="!canSubmitFeedback"
+                      @click="submitLikeFeedback"
+                    >
+                      点赞
+                    </button>
+                    <button
+                      type="button"
+                      class="pill"
+                      data-testid="card-dislike"
+                      :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_POOR_QUALITY }"
+                      :disabled="sessionBusy || feedbackBusy || !activeLiveArtifact?.artifactRef"
+                      @click="openDislikeDrawer"
+                    >
+                      点踩
+                    </button>
+                    <p v-if="feedbackHint" class="feedback-hint" data-testid="feedback-hint">
+                      {{ feedbackHint }}
+                    </p>
+                  </div>
                 </div>
                 <div v-if="m.role === 'agent' && !picksIsLive && !listingIsLive" class="demo-actions">
                   <button
@@ -951,48 +1036,43 @@ onMounted(async () => {
               </svg>
             </button>
           </div>
-          <div
-            v-if="lastBilledKind && (picksIsLive || listingIsLive)"
-            class="result-actions"
-            data-testid="result-actions"
-          >
-            <button
-              type="button"
-              class="pill"
-              data-testid="one-click-retry"
-              :disabled="!canOneClickRetry"
-              @click="oneClickRetry"
-            >
-              重试
-            </button>
-            <button
-              type="button"
-              class="pill"
-              data-testid="feedback-poor-quality"
-              :disabled="!canSubmitFeedback"
-              @click="submitPoorQualityFeedback"
-            >
-              质量差
-            </button>
-            <input
-              v-model="feedbackNote"
-              class="feedback-note"
-              type="text"
-              maxlength="512"
-              placeholder="可选短文说明"
-              aria-label="质量反馈短文"
-              data-testid="feedback-note"
-              :disabled="feedbackBusy || !activeLiveArtifact?.artifactRef"
-            />
-            <p v-if="feedbackHint" class="feedback-hint" data-testid="feedback-hint">
-              {{ feedbackHint }}
-            </p>
-          </div>
           <div class="computer-body">
             <ComputerRenderer v-if="activeComputerDoc" :document="activeComputerDoc" />
           </div>
         </aside>
       </div>
+    </div>
+  </div>
+  <div
+    v-if="dislikeDrawerOpen"
+    class="dislike-drawer"
+    data-testid="dislike-drawer"
+    @click.stop
+  >
+    <p class="dislike-drawer-title">这次成果哪里不好？</p>
+    <textarea
+      v-model="feedbackNote"
+      class="dislike-comment"
+      data-testid="dislike-comment"
+      rows="4"
+      maxlength="512"
+      placeholder="可选短文说明"
+      aria-label="质量差短文"
+      :disabled="feedbackBusy"
+    />
+    <div class="dislike-drawer-actions">
+      <button type="button" class="pill" data-testid="dislike-cancel" @click="closeDislikeDrawer">
+        取消
+      </button>
+      <button
+        type="button"
+        class="pill"
+        data-testid="dislike-submit"
+        :disabled="!canSubmitFeedback"
+        @click="submitPoorQualityFeedback"
+      >
+        提交
+      </button>
     </div>
   </div>
 </template>
@@ -1165,24 +1245,18 @@ onMounted(async () => {
   border: 0;
 }
 
-.result-actions {
+.card-result-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+  margin-top: 8px;
+  padding: 4px 2px 0;
 }
 
-.feedback-note {
-  flex: 1 1 140px;
-  min-width: 120px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 6px 10px;
-  background: transparent;
-  color: var(--ink);
-  font-size: 0.8125rem;
+.card-result-actions .pill.is-on {
+  background: var(--accent);
+  color: #fff;
 }
 
 .feedback-hint {
@@ -1190,5 +1264,42 @@ onMounted(async () => {
   margin: 0;
   font-size: 0.75rem;
   color: var(--mute);
+}
+
+.dislike-drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 16px 18px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.dislike-drawer-title {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.dislike-comment {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+
+.dislike-drawer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
 }
 </style>

@@ -194,18 +194,30 @@ function mockCatalogAndCredits(opts?: {
       return creditsResponse(opts?.available ?? 14)
     }
     if (url.includes('/api/v1/feedbacks')) {
+      const method = String(init?.method || 'GET').toUpperCase()
+      let posted: { artifactId?: string; tag?: string; commentText?: string } = {}
+      if (method === 'POST' && typeof init?.body === 'string') {
+        try {
+          posted = JSON.parse(init.body) as typeof posted
+        } catch {
+          posted = {}
+        }
+      }
       return new Response(
         JSON.stringify({
           success: true,
           code: 0,
           message: 'ok',
-          data: {
-            id: 'fb-1',
-            artifactId: 'pl-1',
-            tag: '质量差',
-            commentText: null,
-            createdAt: '2026-09-28T00:00:00Z',
-          },
+          data:
+            method === 'GET'
+              ? null
+              : {
+                  id: 'fb-1',
+                  artifactId: posted.artifactId || 'pl-1',
+                  tag: posted.tag || '质量差',
+                  commentText: posted.commentText ?? null,
+                  createdAt: '2026-09-28T00:00:00Z',
+                },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       )
@@ -846,7 +858,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(body?.textContent).toContain(DEMO_LISTING.title)
     expect(body?.textContent).toContain(DEMO_LISTING.body)
     expect(mounted.root.querySelector('.listing-stack')).toBeNull()
-    expect(mounted.root.textContent).toMatch(/主图方案预览/)
+    expect(mounted.root.textContent).toMatch(/上架素材预览/)
     expect(mounted.root.textContent).toMatch(/详情标题/)
     expect(mounted.root.textContent).toMatch(DEMO_LISTING.title)
     expect(body?.querySelectorAll('.comp-card').length).toBe(1)
@@ -868,7 +880,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.textContent).toMatch(/厨房硅胶沥水垫/)
     expect(mounted.root.textContent).toMatch(/易清洗防滑/)
     expect(mounted.root.querySelector('.platform-switch')).toBeTruthy()
-    expect(mounted.root.querySelector('.listing-hero-plan')).toBeTruthy()
+    expect(mounted.root.querySelector('.listing-copy.is-title')).toBeTruthy()
     expect(mounted.root.querySelector('[data-demo="open-listing"]')).toBeNull()
   })
 
@@ -915,7 +927,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.querySelector('[data-testid="ask-human"]')).toBeNull()
     expect(mounted.root.textContent).toMatch(/已生成上架素材/)
     expect(mounted.root.querySelector('.platform-switch')).toBeTruthy()
-    expect(mounted.root.querySelector('.listing-hero-plan')).toBeTruthy()
+    expect(mounted.root.querySelector('.listing-copy.is-title')).toBeTruthy()
     expect(mounted.root.textContent).toMatch(/厨房硅胶沥水垫/)
   })
 
@@ -957,12 +969,75 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(sessionCss).toMatch(/max-width:\s*1100px/)
   })
 
+  it('shows retry/like/dislike under success STATUS card, not on Computer bar', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '帮我做家居选品')
+
+    expect(mounted.root.querySelector('[data-testid="result-actions"]')).toBeNull()
+    expect(mounted.root.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()
+    expect(
+      mounted.root.querySelector('.chat-scroll [data-testid="card-result-actions"]'),
+    ).toBeTruthy()
+    expect(mounted.root.querySelector('.computer [data-testid="card-result-actions"]')).toBeNull()
+    expect(mounted.root.querySelector('[data-testid="one-click-retry"]')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-testid="card-like"]')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-testid="card-dislike"]')).toBeTruthy()
+  })
+
+  it('like posts 质量好 without drawer; dislike opens drawer then posts 质量差', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '帮我做家居选品')
+
+    ;(mounted.root.querySelector('[data-testid="card-like"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    expect(mounted.root.querySelector('[data-testid="dislike-drawer"]')).toBeNull()
+    const postHits = fetchMock.mock.calls.filter(([input, init]) => {
+      const method = String((init as RequestInit | undefined)?.method || 'GET').toUpperCase()
+      return String(input).includes('/api/v1/feedbacks') && method === 'POST'
+    })
+    expect(postHits.length).toBeGreaterThanOrEqual(1)
+    const [, likeInit] = postHits[postHits.length - 1] as [string, RequestInit]
+    expect(JSON.parse(String(likeInit.body))).toMatchObject({
+      artifactId: 'pl-1',
+      tag: '质量好',
+    })
+
+    ;(mounted.root.querySelector('[data-testid="card-dislike"]') as HTMLButtonElement).click()
+    await flushUi()
+    expect(mounted.root.querySelector('[data-testid="dislike-drawer"]')).toBeTruthy()
+
+    const note = mounted.root.querySelector(
+      '[data-testid="dislike-comment"]',
+    ) as HTMLTextAreaElement
+    setTextareaValue(note, '文案偏空')
+    await flushUi()
+    ;(mounted.root.querySelector('[data-testid="dislike-submit"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const afterDislike = fetchMock.mock.calls.filter(([input, init]) => {
+      const method = String((init as RequestInit | undefined)?.method || 'GET').toUpperCase()
+      return String(input).includes('/api/v1/feedbacks') && method === 'POST'
+    })
+    expect(afterDislike.length).toBeGreaterThan(postHits.length)
+    const [, dislikeInit] = afterDislike[afterDislike.length - 1] as [string, RequestInit]
+    expect(JSON.parse(String(dislikeInit.body))).toMatchObject({
+      artifactId: 'pl-1',
+      tag: '质量差',
+      commentText: '文案偏空',
+    })
+  })
+
   it('one-click retry reuses last prompt and session without newTask', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     await enterViaSend(mounted.root, '帮我做家居选品')
 
-    expect(mounted.root.querySelector('[data-testid="result-actions"]')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()
     const before = picklistApiHits(fetchMock).length
     ;(mounted.root.querySelector('[data-testid="one-click-retry"]') as HTMLButtonElement).click()
     await flushUi()
@@ -986,24 +1061,22 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     const picklistBefore = picklistApiHits(fetchMock).length
     const listingBefore = listingApiHits(fetchMock).length
 
+    ;(mounted.root.querySelector('[data-testid="card-dislike"]') as HTMLButtonElement).click()
+    await flushUi()
     const note = mounted.root.querySelector(
-      '[data-testid="feedback-note"]',
-    ) as HTMLInputElement
-    const proto = window.HTMLInputElement.prototype
-    const desc = Object.getOwnPropertyDescriptor(proto, 'value')
-    desc?.set?.call(note, '文案偏空')
-    note.dispatchEvent(new Event('input', { bubbles: true }))
+      '[data-testid="dislike-comment"]',
+    ) as HTMLTextAreaElement
+    setTextareaValue(note, '文案偏空')
     await flushUi()
 
-    ;(mounted.root.querySelector(
-      '[data-testid="feedback-poor-quality"]',
-    ) as HTMLButtonElement).click()
+    ;(mounted.root.querySelector('[data-testid="dislike-submit"]') as HTMLButtonElement).click()
     await flushUi()
     await flushUi()
 
-    const feedbackHits = fetchMock.mock.calls.filter(([input]) =>
-      String(input).includes('/api/v1/feedbacks'),
-    )
+    const feedbackHits = fetchMock.mock.calls.filter(([input, init]) => {
+      const method = String((init as RequestInit | undefined)?.method || 'GET').toUpperCase()
+      return String(input).includes('/api/v1/feedbacks') && method === 'POST'
+    })
     expect(feedbackHits.length).toBeGreaterThanOrEqual(1)
     const [, init] = feedbackHits[0] as [string, RequestInit]
     expect(JSON.parse(String(init.body))).toMatchObject({
@@ -1024,7 +1097,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     const listingText = '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。'
     await enterViaSend(mounted.root, listingText)
 
-    expect(mounted.root.querySelector('[data-testid="result-actions"]')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()
     const before = listingApiHits(fetchMock).length
     const picklistBefore = picklistApiHits(fetchMock).length
     ;(mounted.root.querySelector('[data-testid="one-click-retry"]') as HTMLButtonElement).click()

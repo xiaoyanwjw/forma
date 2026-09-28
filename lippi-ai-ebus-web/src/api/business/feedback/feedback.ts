@@ -12,6 +12,12 @@ export function submitFeedback(body: SubmitFeedbackRequest) {
   })
 }
 
+export function getFeedbackByArtifact(artifactId: string) {
+  return request<Feedback | null>(
+    `/api/v1/feedbacks?artifactId=${encodeURIComponent(artifactId)}`,
+  )
+}
+
 export function getFeedback(id: string) {
   return request<Feedback>(`/api/v1/feedbacks/${encodeURIComponent(id)}`)
 }
