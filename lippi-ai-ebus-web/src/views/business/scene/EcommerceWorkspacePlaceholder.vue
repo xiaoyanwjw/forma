@@ -62,6 +62,7 @@ const sessionPrompt = ref('')
 const sceneBizId = ref<string | null>(null)
 const messages = ref<ChatMessage[]>([])
 const sessions = ref<SessionSummary[]>([])
+const sessionsError = ref('')
 const selectedSessionId = ref<string | null>(null)
 const sessionTitle = ref(DEMO_SESSION_TITLE)
 const computerKind = ref<ComputerKind>(null)
@@ -260,6 +261,7 @@ async function finishGenerationMessage(opts: {
     }
     feedbackHint.value = ''
     revealComputer()
+    void loadSessions()
     const reply = opts.successFallback
     if (idx >= 0) {
       messages.value[idx] = {
@@ -718,8 +720,10 @@ async function loadSessions() {
   try {
     const data = await listSessions(SCENE_CODE)
     sessions.value = Array.isArray(data) ? data : []
-  } catch {
+    sessionsError.value = ''
+  } catch (e) {
     sessions.value = []
+    sessionsError.value = e instanceof ApiError ? e.message : '会话加载失败'
   }
 }
 
@@ -856,8 +860,11 @@ watch(processEvents, () => {
   }
 })
 
-watch(sessionId, (id) => {
+watch(sessionId, (id, prev) => {
   selectedSessionId.value = id
+  if (id && id !== prev) {
+    void loadSessions()
+  }
 })
 
 onMounted(async () => {
@@ -893,6 +900,7 @@ onMounted(async () => {
           新任务
         </button>
         <div class="side-section">会话</div>
+        <p v-if="sessionsError" class="sessions-error" data-testid="sessions-error">{{ sessionsError }}</p>
         <div class="session-list" data-testid="session-list">
           <button
             v-for="s in sessions"

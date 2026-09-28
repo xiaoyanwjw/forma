@@ -185,7 +185,8 @@ function mockCatalogAndCredits(opts?: {
   onResume?: (init?: RequestInit) => Response
   available?: number
   delayFeedbackGet?: Promise<void>
-  sessions?: unknown[]
+  sessions?: unknown[] | (() => unknown[])
+  sessionsFailMessage?: string
   sessionMessages?: Record<string, unknown[]>
   latestArtifacts?: Record<string, unknown | null>
 }) {
@@ -205,7 +206,18 @@ function mockCatalogAndCredits(opts?: {
       return okScenes(art === undefined ? null : art)
     }
     if (url.includes('/api/v1/sessions')) {
-      return okScenes(opts?.sessions ?? [])
+      if (opts?.sessionsFailMessage) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: 500,
+            message: opts.sessionsFailMessage,
+          }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      const list = typeof opts?.sessions === 'function' ? opts.sessions() : (opts?.sessions ?? [])
+      return okScenes(list)
     }
     if (url.includes('/api/v1/credits')) {
       return creditsResponse(opts?.available ?? 14)
@@ -1172,6 +1184,51 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
         (el) => !el.classList.contains('on'),
       ),
     ).toBe(true)
+  })
+
+  it('refreshes sidebar sessions after billed run succeeds', async () => {
+    let afterBind = false
+    fetchMock.mockRestore()
+    fetchMock = mockCatalogAndCredits({
+      sessions: () =>
+        afterBind
+          ? [
+              {
+                sessionId: 's1',
+                title: '新计费会话',
+                sceneCode: 'ecommerce',
+                updatedAt: '2026-09-28T12:00:00Z',
+              },
+            ]
+          : [],
+    })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await flushUi()
+    expect(mounted.root.querySelectorAll('[data-testid="session-item"]').length).toBe(0)
+
+    afterBind = true
+    await enterViaSend(mounted.root, '帮我做家居选品')
+    await flushUi()
+    await flushUi()
+
+    const items = mounted.root.querySelectorAll('[data-testid="session-item"]')
+    expect(items.length).toBe(1)
+    expect(items[0]?.textContent).toContain('新计费会话')
+  })
+
+  it('shows sessions load error hint instead of empty list', async () => {
+    fetchMock.mockRestore()
+    fetchMock = mockCatalogAndCredits({ sessionsFailMessage: '会话列表失败' })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await flushUi()
+    await flushUi()
+
+    expect(mounted.root.querySelector('[data-testid="sessions-error"]')?.textContent).toContain(
+      '会话列表失败',
+    )
+    expect(mounted.root.querySelectorAll('[data-testid="session-item"]').length).toBe(0)
   })
 
   it('session switch shows card actions and retry reuses sessionId', async () => {
