@@ -15,6 +15,10 @@ public interface UserMapper {
                        @Param("username") String username,
                        @Param("updatedAt") Instant updatedAt);
 
+    int updatePasswordHash(@Param("bizId") String bizId,
+                           @Param("passwordHash") String passwordHash,
+                           @Param("updatedAt") Instant updatedAt);
+
     UserPO selectById(@Param("id") String id);
 
     UserPO selectByUsername(@Param("username") String username);

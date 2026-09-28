@@ -650,4 +650,111 @@ describe('AccountSettings', () => {
     expect(getToken()).toBeNull()
     expect(mounted.router.currentRoute.value.name).toBe('login')
   })
+
+  it('changes password successfully and keeps token', async () => {
+    setToken('jwt-account')
+    const fetchMock = stubAccountFetch((url, init) => {
+      if (String(url).includes('/api/v1/account/password') && init?.method === 'PUT') {
+        return new Response(
+          JSON.stringify({ success: true, code: 200, message: '密码已更新', data: null }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return null
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const mounted = await mountAccount()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const securityTab = mounted.root.querySelector('[data-section="security"]') as HTMLButtonElement
+    securityTab.click()
+    await flushUi()
+
+    const oldInput = mounted.root.querySelector('#old-password') as HTMLInputElement
+    const newInput = mounted.root.querySelector('#new-password') as HTMLInputElement
+    expect(oldInput).toBeTruthy()
+    expect(newInput).toBeTruthy()
+    oldInput.value = 'secret12'
+    oldInput.dispatchEvent(new Event('input'))
+    newInput.value = 'newpass99'
+    newInput.dispatchEvent(new Event('input'))
+    await flushUi()
+
+    const changeBtn = mounted.root.querySelector('[data-action="change-password"]') as HTMLButtonElement
+    changeBtn.click()
+    await flushUi()
+
+    const putCall = fetchMock.mock.calls.find(
+      (c) => String(c[0]).includes('/api/v1/account/password') && c[1]?.method === 'PUT',
+    )
+    expect(putCall).toBeTruthy()
+    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({
+      oldPassword: 'secret12',
+      newPassword: 'newpass99',
+    })
+    expect(getToken()).toBe('jwt-account')
+    expect(mounted.router.currentRoute.value.name).toBe('me')
+    expect(mounted.root.textContent).toMatch(/密码已更新/)
+    expect(oldInput.value).toBe('')
+    expect(newInput.value).toBe('')
+  })
+
+  it('shows password change error and keeps token', async () => {
+    setToken('jwt-account')
+    vi.stubGlobal(
+      'fetch',
+      stubAccountFetch((url, init) => {
+        if (String(url).includes('/api/v1/account/password') && init?.method === 'PUT') {
+          return failJson(400, '当前密码不正确', 400)
+        }
+        return null
+      }),
+    )
+
+    const mounted = await mountAccount()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const securityTab = mounted.root.querySelector('[data-section="security"]') as HTMLButtonElement
+    securityTab.click()
+    await flushUi()
+
+    const oldInput = mounted.root.querySelector('#old-password') as HTMLInputElement
+    const newInput = mounted.root.querySelector('#new-password') as HTMLInputElement
+    oldInput.value = 'wrong-old'
+    oldInput.dispatchEvent(new Event('input'))
+    newInput.value = 'newpass99'
+    newInput.dispatchEvent(new Event('input'))
+    await flushUi()
+
+    const changeBtn = mounted.root.querySelector('[data-action="change-password"]') as HTMLButtonElement
+    changeBtn.click()
+    await flushUi()
+
+    expect(getToken()).toBe('jwt-account')
+    expect(mounted.root.textContent).toMatch(/当前密码不正确/)
+    expect(mounted.root.textContent).not.toMatch(/密码已更新/)
+  })
+
+  it('disables delete account and does not pretend deleted', async () => {
+    setToken('jwt-account')
+    vi.stubGlobal('fetch', stubAccountFetch(() => null))
+
+    const mounted = await mountAccount()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const securityTab = mounted.root.querySelector('[data-section="security"]') as HTMLButtonElement
+    securityTab.click()
+    await flushUi()
+
+    const deleteBtn = [...mounted.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === '删除账户',
+    ) as HTMLButtonElement
+    expect(deleteBtn).toBeTruthy()
+    expect(deleteBtn.disabled).toBe(true)
+    expect(mounted.root.textContent).toMatch(/即将开放/)
+  })
 })

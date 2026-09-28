@@ -1,6 +1,7 @@
 package com.xmut.ebus.application.identity.service;
 
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
+import com.xmut.ebus.application.identity.command.ChangePasswordCommand;
 import com.xmut.ebus.application.identity.command.LoginCommand;
 import com.xmut.ebus.application.identity.command.RegisterCommand;
 import com.xmut.ebus.application.identity.command.UpdateUsernameCommand;
@@ -27,7 +28,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Identity 写用例：注册 / 登录签发 JWT / 改用户名。
+ * Identity 写用例：注册 / 登录签发 JWT / 改用户名 / 改密。
  */
 @Slf4j
 @Service
@@ -36,6 +37,8 @@ public class IdentityApplicationService {
 
     private static final int USERNAME_MIN_LEN = 2;
     private static final int USERNAME_MAX_LEN = 64;
+    private static final int PASSWORD_MIN_LEN = 6;
+    private static final int PASSWORD_MAX_LEN = 72;
 
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
@@ -50,10 +53,7 @@ public class IdentityApplicationService {
         }
         String username = requireValidUsername(command.getUsername());
         String email = StringUtils.requireHasText(command.getEmail(), "邮箱不能为空").toLowerCase();
-        String password = StringUtils.requireHasText(command.getPassword(), "密码不能为空");
-        if (password.length() < 6) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID, "密码至少 6 位");
-        }
+        String password = requireValidNewPassword(command.getPassword());
 
         if (userRepository.findByUsername(username).isPresent()) {
             throw new BusinessException(ErrorCode.CONFLICT, "用户名已被占用");
@@ -132,6 +132,32 @@ public class IdentityApplicationService {
         return new AccountProfileDTO(user.getId(), newUsername, user.getEmail());
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public void changePassword(ChangePasswordCommand command) {
+        String userId = StringUtils.requireHasText(command.getUserId(), "用户未登录");
+        String oldPassword = StringUtils.requireHasText(command.getOldPassword(), "当前密码不能为空");
+        String newPassword = requireValidNewPassword(command.getNewPassword());
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "用户不存在或未登录"));
+
+        if (!passwordHasher.matches(oldPassword, user.getPasswordHash())) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "当前密码不正确");
+        }
+        if (oldPassword.equals(newPassword)) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "新密码不能与当前密码相同");
+        }
+
+        Instant now = Instant.now();
+        String newHash = passwordHasher.hash(newPassword);
+        if (!userRepository.updatePasswordHash(userId, newHash, now)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户不存在或未登录");
+        }
+
+        LoggerUtils.success(log, IdentityApplicationService.class, "changePassword",
+                NameValue.create("userId", userId));
+    }
+
     private static String requireValidUsername(String username) {
         String value = StringUtils.requireHasText(username, "用户名不能为空");
         if (value.length() < USERNAME_MIN_LEN || value.length() > USERNAME_MAX_LEN) {
@@ -139,6 +165,17 @@ public class IdentityApplicationService {
         }
         if (value.contains("@")) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "用户名不能包含 @");
+        }
+        return value;
+    }
+
+    private static String requireValidNewPassword(String password) {
+        String value = StringUtils.requireHasText(password, "密码不能为空");
+        if (value.length() < PASSWORD_MIN_LEN) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "密码至少 6 位");
+        }
+        if (value.length() > PASSWORD_MAX_LEN) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "密码最长 72 位");
         }
         return value;
     }

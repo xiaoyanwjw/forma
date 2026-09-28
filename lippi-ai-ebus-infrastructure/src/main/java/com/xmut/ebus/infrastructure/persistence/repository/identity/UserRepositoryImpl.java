@@ -27,6 +27,11 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public boolean updatePasswordHash(String userId, String passwordHash, Instant updatedAt) {
+        return userMapper.updatePasswordHash(userId, passwordHash, updatedAt) > 0;
+    }
+
+    @Override
     public Optional<User> findById(String id) {
         return Optional.ofNullable(userMapper.selectById(id)).map(this::toDomain);
     }

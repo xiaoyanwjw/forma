@@ -191,3 +191,6 @@
 - source_spec: `sdd/implementation-artifacts/spec-3-6-生成-listing-套装并结算-1-积分.md`
   summary: 客户端取消/SSE 断流时服务端 Listing 仍可能跑完并 settle（与 3.4 同构）。
   evidence: FE abort 只停本地流；AgentSession.prompt 无中断端口。
+- source_spec: `sdd/implementation-artifacts/spec-4-4-安全分区-改密真能力与退出.md`
+  summary: 密码长度按字符计 ≤72，但 UTF-8 多字节串字节数可 >72，BCrypt 可能截断
+  evidence: 注册与改密均用 char 长度规则（RegisterRequest @Size / requireValidNewPassword）；非本故事新引入，属既有 Identity+BCrypt 边界

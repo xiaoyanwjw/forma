@@ -1,6 +1,7 @@
 package com.xmut.ebus.application.identity.service;
 
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
+import com.xmut.ebus.application.identity.command.ChangePasswordCommand;
 import com.xmut.ebus.application.identity.command.LoginCommand;
 import com.xmut.ebus.application.identity.command.RegisterCommand;
 import com.xmut.ebus.application.identity.command.UpdateUsernameCommand;
@@ -359,6 +360,140 @@ class IdentityApplicationServiceTest {
             @Override
             public void execute() {
                 service.updateUsername(cmd);
+            }
+        });
+        assertEquals(ErrorCode.UNAUTHORIZED, ex.getErrorCode());
+        assertEquals("用户不存在或未登录", ex.getMessage());
+    }
+
+    @Test
+    void changePasswordPersistsNewHash() {
+        User user = sampleUser();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(passwordHasher.matches("secret12", "HASH")).thenReturn(true);
+        when(passwordHasher.hash("newpass1")).thenReturn("NEW_HASH");
+        when(userRepository.updatePasswordHash(eq(user.getId()), eq("NEW_HASH"), any(Instant.class))).thenReturn(true);
+
+        ChangePasswordCommand cmd = ChangePasswordCommand.builder()
+                .userId(user.getId())
+                .oldPassword("secret12")
+                .newPassword("newpass1")
+                .build();
+
+        service.changePassword(cmd);
+
+        verify(userRepository).updatePasswordHash(eq(user.getId()), eq("NEW_HASH"), any(Instant.class));
+        verify(jwtTokenPort, never()).generateToken(anyString());
+    }
+
+    @Test
+    void changePasswordRejectsWrongOldPassword() {
+        User user = sampleUser();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(passwordHasher.matches("wrong", "HASH")).thenReturn(false);
+
+        ChangePasswordCommand cmd = ChangePasswordCommand.builder()
+                .userId(user.getId())
+                .oldPassword("wrong")
+                .newPassword("newpass1")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.changePassword(cmd);
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        assertEquals("当前密码不正确", ex.getMessage());
+        verify(userRepository, never()).updatePasswordHash(anyString(), anyString(), any(Instant.class));
+        verify(passwordHasher, never()).hash(anyString());
+    }
+
+    @Test
+    void changePasswordRejectsTooShortNewPassword() {
+        ChangePasswordCommand cmd = ChangePasswordCommand.builder()
+                .userId(sampleUser().getId())
+                .oldPassword("secret12")
+                .newPassword("12345")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.changePassword(cmd);
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        assertEquals("密码至少 6 位", ex.getMessage());
+        verify(userRepository, never()).updatePasswordHash(anyString(), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void changePasswordRejectsTooLongNewPassword() {
+        StringBuilder tooLong = new StringBuilder();
+        for (int i = 0; i < 73; i++) {
+            tooLong.append('a');
+        }
+        ChangePasswordCommand cmd = ChangePasswordCommand.builder()
+                .userId(sampleUser().getId())
+                .oldPassword("secret12")
+                .newPassword(tooLong.toString())
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.changePassword(cmd);
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        assertEquals("密码最长 72 位", ex.getMessage());
+        verify(userRepository, never()).updatePasswordHash(anyString(), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void changePasswordRejectsSameAsOld() {
+        User user = sampleUser();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(passwordHasher.matches("secret12", "HASH")).thenReturn(true);
+
+        ChangePasswordCommand cmd = ChangePasswordCommand.builder()
+                .userId(user.getId())
+                .oldPassword("secret12")
+                .newPassword("secret12")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.changePassword(cmd);
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        assertEquals("新密码不能与当前密码相同", ex.getMessage());
+        verify(userRepository, never()).updatePasswordHash(anyString(), anyString(), any(Instant.class));
+        verify(passwordHasher, never()).hash(anyString());
+    }
+
+    @Test
+    void changePasswordWhenNoRowUpdatedUnauthorized() {
+        User user = sampleUser();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(passwordHasher.matches("secret12", "HASH")).thenReturn(true);
+        when(passwordHasher.hash("newpass1")).thenReturn("NEW_HASH");
+        when(userRepository.updatePasswordHash(eq(user.getId()), eq("NEW_HASH"), any(Instant.class))).thenReturn(false);
+
+        ChangePasswordCommand cmd = ChangePasswordCommand.builder()
+                .userId(user.getId())
+                .oldPassword("secret12")
+                .newPassword("newpass1")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.changePassword(cmd);
             }
         });
         assertEquals(ErrorCode.UNAUTHORIZED, ex.getErrorCode());

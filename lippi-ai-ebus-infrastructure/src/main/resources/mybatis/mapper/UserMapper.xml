@@ -29,6 +29,13 @@
         WHERE biz_id = #{bizId}
     </update>
 
+    <update id="updatePasswordHash">
+        UPDATE ebus_user
+        SET password_hash = #{passwordHash},
+            updated_at = #{updatedAt}
+        WHERE biz_id = #{bizId}
+    </update>
+
     <select id="selectById" resultMap="UserResultMap">
         SELECT <include refid="UserColumns"/>
         FROM ebus_user

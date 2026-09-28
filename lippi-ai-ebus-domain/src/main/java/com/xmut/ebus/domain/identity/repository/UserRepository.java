@@ -19,6 +19,13 @@ public interface UserRepository {
      */
     boolean updateUsername(String userId, String username, Instant updatedAt);
 
+    /**
+     * 按业务用户 ID 更新密码哈希与 updated_at。
+     *
+     * @return {@code true} 若更新了至少一行；{@code false} 若无匹配行
+     */
+    boolean updatePasswordHash(String userId, String passwordHash, Instant updatedAt);
+
     Optional<User> findById(String id);
 
     Optional<User> findByUsername(String username);

@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -261,6 +262,101 @@ class AccountProfileIntegrationTest {
     @Test
     void getCreditUsageWithoutTokenUnauthorized() throws Exception {
         mockMvc.perform(get("/api/v1/account/credits/usage"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void putPasswordChangesHashAndKeepsOldJwtUsable() throws Exception {
+        RegisteredUser user = registerAndLogin("pwdok");
+        String oldHash = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM ebus_user WHERE biz_id = ?", String.class, user.userId);
+
+        mockMvc.perform(put("/api/v1/account/password")
+                        .header("Authorization", "Bearer " + user.token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"oldPassword\":\"secret12\",\"newPassword\":\"newpass99\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("密码已更新"));
+
+        String newHash = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM ebus_user WHERE biz_id = ?", String.class, user.userId);
+        assertFalse(oldHash.equals(newHash));
+
+        // 旧 JWT 仍可用（保持登录）
+        mockMvc.perform(get("/api/v1/account/profile")
+                        .header("Authorization", "Bearer " + user.token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(user.userId));
+
+        // 新密码可登录；旧密码失败
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"account\":\"" + user.username + "\",\"password\":\"newpass99\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.token").isString());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"account\":\"" + user.username + "\",\"password\":\"secret12\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void putPasswordWrongOldDoesNotChangeHash() throws Exception {
+        RegisteredUser user = registerAndLogin("pwdold");
+        String hashBefore = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM ebus_user WHERE biz_id = ?", String.class, user.userId);
+
+        mockMvc.perform(put("/api/v1/account/password")
+                        .header("Authorization", "Bearer " + user.token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"oldPassword\":\"wrong-old\",\"newPassword\":\"newpass99\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("当前密码不正确"));
+
+        String hashAfter = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM ebus_user WHERE biz_id = ?", String.class, user.userId);
+        assertTrue(hashBefore.equals(hashAfter));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"account\":\"" + user.username + "\",\"password\":\"secret12\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void putPasswordRejectsInvalidNewAndSamePassword() throws Exception {
+        RegisteredUser user = registerAndLogin("pwdnew");
+        String hashBefore = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM ebus_user WHERE biz_id = ?", String.class, user.userId);
+
+        mockMvc.perform(put("/api/v1/account/password")
+                        .header("Authorization", "Bearer " + user.token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"oldPassword\":\"secret12\",\"newPassword\":\"12345\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("6")));
+
+        mockMvc.perform(put("/api/v1/account/password")
+                        .header("Authorization", "Bearer " + user.token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"oldPassword\":\"secret12\",\"newPassword\":\"secret12\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("新密码不能与当前密码相同"));
+
+        String hashAfter = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM ebus_user WHERE biz_id = ?", String.class, user.userId);
+        assertTrue(hashBefore.equals(hashAfter));
+    }
+
+    @Test
+    void putPasswordWithoutTokenUnauthorized() throws Exception {
+        mockMvc.perform(put("/api/v1/account/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"oldPassword\":\"secret12\",\"newPassword\":\"newpass99\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false));
     }

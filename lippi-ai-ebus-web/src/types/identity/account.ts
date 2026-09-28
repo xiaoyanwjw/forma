@@ -8,3 +8,9 @@ export interface AccountProfile {
 export interface UpdateAccountProfileRequest {
   username: string
 }
+
+/** PUT /api/v1/account/password */
+export interface ChangeAccountPasswordRequest {
+  oldPassword: string
+  newPassword: string
+}

@@ -2,7 +2,12 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
-import { getAccountCreditUsage, getAccountProfile, updateAccountProfile } from '@/api/identity/account'
+import {
+  changeAccountPassword,
+  getAccountCreditUsage,
+  getAccountProfile,
+  updateAccountProfile,
+} from '@/api/identity/account'
 import { ApiError } from '@/api/client'
 import { clearToken, getToken } from '@/api/http'
 import type { AccountProfile } from '@/types/identity/account'
@@ -34,6 +39,12 @@ const saveOk = ref(false)
 const usage = ref<CreditUsage | null>(null)
 const usageLoading = ref(false)
 const usageError = ref('')
+
+const oldPassword = ref('')
+const newPassword = ref('')
+const passwordSaving = ref(false)
+const passwordError = ref('')
+const passwordOk = ref(false)
 
 const avatarLetter = computed(() => {
   const name = profile.value?.username?.trim()
@@ -122,6 +133,8 @@ async function loadUsage() {
 function selectSection(id: AccountSection) {
   activeSection.value = id
   saveOk.value = false
+  passwordOk.value = false
+  passwordError.value = ''
 }
 
 function onNavKeydown(event: KeyboardEvent) {
@@ -174,6 +187,49 @@ async function onSaveUsername() {
     }
   } finally {
     saving.value = false
+  }
+}
+
+async function onChangePassword() {
+  passwordError.value = ''
+  passwordOk.value = false
+  const current = oldPassword.value
+  const next = newPassword.value
+  if (!current) {
+    passwordError.value = '请填写当前密码'
+    return
+  }
+  if (!next) {
+    passwordError.value = '请填写新密码'
+    return
+  }
+  if (next.length < 6) {
+    passwordError.value = '密码至少 6 位'
+    return
+  }
+  if (next.length > 72) {
+    passwordError.value = '密码最长 72 位'
+    return
+  }
+  if (current === next) {
+    passwordError.value = '新密码不能与当前密码相同'
+    return
+  }
+  passwordSaving.value = true
+  try {
+    await changeAccountPassword({ oldPassword: current, newPassword: next })
+    oldPassword.value = ''
+    newPassword.value = ''
+    passwordOk.value = true
+  } catch (e) {
+    passwordError.value = e instanceof ApiError ? e.message : '修改密码失败'
+    if (e instanceof ApiError && e.code === 401) {
+      clearToken()
+      needsLogin.value = true
+      loadError.value = e.message || '未登录或登录已过期'
+    }
+  } finally {
+    passwordSaving.value = false
   }
 }
 
@@ -389,19 +445,48 @@ function logout() {
             aria-labelledby="title-security"
           >
             <h1 id="title-security">安全</h1>
-            <p class="settings-lead">登录与账户安全相关操作。改密能力即将完善。</p>
+            <p class="settings-lead">登录与账户安全相关操作。</p>
 
-            <div class="settings-card">
+            <form class="settings-card" @submit.prevent="onChangePassword">
               <div class="settings-row">
                 <div class="row-body">
-                  <div class="row-label">密码</div>
-                  <div class="row-value">即将支持在此修改密码</div>
+                  <label class="row-label" for="old-password">当前密码</label>
+                  <input
+                    id="old-password"
+                    v-model="oldPassword"
+                    class="row-input"
+                    type="password"
+                    autocomplete="current-password"
+                    maxlength="72"
+                    @input="passwordOk = false"
+                  />
                 </div>
-                <button type="button" class="btn btn-ghost" disabled title="即将开放">
-                  更新密码
+              </div>
+              <div class="settings-row">
+                <div class="row-body">
+                  <label class="row-label" for="new-password">新密码</label>
+                  <input
+                    id="new-password"
+                    v-model="newPassword"
+                    class="row-input"
+                    type="password"
+                    autocomplete="new-password"
+                    maxlength="72"
+                    @input="passwordOk = false"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  class="btn btn-ghost"
+                  data-action="change-password"
+                  :disabled="passwordSaving"
+                >
+                  {{ passwordSaving ? '更新中…' : '更新密码' }}
                 </button>
               </div>
-            </div>
+            </form>
+            <p v-if="passwordError" class="error" role="alert">{{ passwordError }}</p>
+            <p v-else-if="passwordOk" class="ok" role="status">密码已更新</p>
 
             <div class="settings-card danger">
               <div class="settings-row">

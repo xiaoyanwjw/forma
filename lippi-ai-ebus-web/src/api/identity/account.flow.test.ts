@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken } from '@/api/http'
 import {
+  changeAccountPassword,
   getAccountCreditUsage,
   getAccountProfile,
   updateAccountProfile,
@@ -88,6 +89,28 @@ describe('account profile api', () => {
     expect(usage.entries[0]?.title).toBe('已扣分')
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/account/credits/usage')
     const headers = fetchMock.mock.calls[0]?.[1]?.headers as Headers
+    expect(headers.get('Authorization')).toBe('Bearer jwt-account')
+  })
+
+  it('changeAccountPassword PUTs old and new password', async () => {
+    setToken('jwt-account')
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ success: true, code: 200, message: '密码已更新', data: null }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await changeAccountPassword({ oldPassword: 'secret12', newPassword: 'newpass99' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/account/password')
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(String(init.body))).toEqual({
+      oldPassword: 'secret12',
+      newPassword: 'newpass99',
+    })
+    const headers = init.headers as Headers
     expect(headers.get('Authorization')).toBe('Bearer jwt-account')
   })
 })
