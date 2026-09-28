@@ -98,11 +98,16 @@ public class SessionQueryService {
     public Optional<HistoryArtifactDetailDTO> latestArtifact(String userId, String sessionId) {
         String uid = StringUtils.requireHasText(userId, "userId required");
         String sid = StringUtils.requireHasText(sessionId, "sessionId required");
-        Optional<String> artifactId = generationRunRepository.findLatestSettledArtifactRefBySession(uid, sid);
+        Optional<String> artifactId = generationRunRepository.findLatestSettledArtifactRefBySession(
+                uid, sid, Instant.now(clock).minus(HistoryQueryService.HISTORY_WINDOW_DAYS, ChronoUnit.DAYS));
         if (!artifactId.isPresent()) {
             return Optional.empty();
         }
-        return Optional.of(historyQueryService.findById(uid, artifactId.get()));
+        try {
+            return Optional.of(historyQueryService.findById(uid, artifactId.get()));
+        } catch (BusinessException ex) {
+            return Optional.empty();
+        }
     }
 
     static int clampLimit(Integer limit) {

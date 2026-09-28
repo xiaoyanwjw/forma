@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,20 +30,22 @@ class GenerationRunRepositoryImplTest {
 
     @Test
     void findLatestSettledArtifactRefBySessionDelegatesToMapper() {
-        when(generationRunMapper.selectLatestUsableArtifactRefBySession("user-1", "sess-1"))
+        Instant since = Instant.parse("2026-07-30T12:00:00Z");
+        when(generationRunMapper.selectLatestUsableArtifactRefBySession("user-1", "sess-1", since))
                 .thenReturn("art-9");
 
-        Optional<String> found = repository.findLatestSettledArtifactRefBySession("user-1", "sess-1");
+        Optional<String> found = repository.findLatestSettledArtifactRefBySession("user-1", "sess-1", since);
 
         assertEquals("art-9", found.get());
-        verify(generationRunMapper).selectLatestUsableArtifactRefBySession("user-1", "sess-1");
+        verify(generationRunMapper).selectLatestUsableArtifactRefBySession("user-1", "sess-1", since);
     }
 
     @Test
     void findLatestSettledArtifactRefBySessionEmptyWhenMapperNull() {
-        when(generationRunMapper.selectLatestUsableArtifactRefBySession("user-1", "sess-1"))
+        Instant since = Instant.parse("2026-07-30T12:00:00Z");
+        when(generationRunMapper.selectLatestUsableArtifactRefBySession("user-1", "sess-1", since))
                 .thenReturn(null);
 
-        assertFalse(repository.findLatestSettledArtifactRefBySession("user-1", "sess-1").isPresent());
+        assertFalse(repository.findLatestSettledArtifactRefBySession("user-1", "sess-1", since).isPresent());
     }
 }

@@ -58,6 +58,7 @@
           AND r.artifact_ref IS NOT NULL
           AND r.artifact_ref &lt;&gt; ''
           AND a.artifact_type IN ('picklist', 'sku')
+          AND a.created_at &gt;= #{since}
         ORDER BY r.created_at DESC
         LIMIT 1
     </select>

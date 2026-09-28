@@ -157,7 +157,8 @@ class SessionQueryServiceTest {
     void latestArtifactReturnsHistoryDetailForLatestUsableRef() {
         HistoryArtifactDetailDTO expected = new HistoryArtifactDetailDTO(
                 "sku-9", "sku", "ecommerce", "Listing", NOW, Collections.emptyMap(), SESSION);
-        when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION))
+        Instant since = NOW.minus(60, ChronoUnit.DAYS);
+        when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION, since))
                 .thenReturn(Optional.of("sku-9"));
         when(historyQueryService.findById(USER, "sku-9")).thenReturn(expected);
 
@@ -166,18 +167,33 @@ class SessionQueryServiceTest {
         assertTrue(found.isPresent());
         assertEquals("sku-9", found.get().getId());
         assertEquals(SESSION, found.get().getSessionId());
+        verify(generationRunRepository).findLatestSettledArtifactRefBySession(USER, SESSION, since);
         verify(historyQueryService).findById(USER, "sku-9");
     }
 
     @Test
     void latestArtifactEmptyWhenNoUsableRun() {
-        when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION))
+        Instant since = NOW.minus(60, ChronoUnit.DAYS);
+        when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION, since))
                 .thenReturn(Optional.empty());
 
         Optional<HistoryArtifactDetailDTO> found = service.latestArtifact(USER, SESSION);
 
         assertFalse(found.isPresent());
         verify(historyQueryService, never()).findById(any(), any());
+    }
+
+    @Test
+    void latestArtifactEmptyWhenHistoryFindByIdForbidden() {
+        Instant since = NOW.minus(60, ChronoUnit.DAYS);
+        when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION, since))
+                .thenReturn(Optional.of("sku-old"));
+        when(historyQueryService.findById(USER, "sku-old"))
+                .thenThrow(new BusinessException(ErrorCode.FORBIDDEN, HistoryQueryService.MSG_UNAVAILABLE));
+
+        Optional<HistoryArtifactDetailDTO> found = service.latestArtifact(USER, SESSION);
+
+        assertFalse(found.isPresent());
     }
 
     private static PiSessionMeta meta(String sessionId, String userId, String sceneCode, Instant updatedAt) {

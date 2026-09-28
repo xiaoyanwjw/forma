@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -174,6 +175,41 @@ class SessionQueryIntegrationTest {
         assertEquals(sessionId, latest.getSessionId());
         assertFalse(pickId.equals(latest.getId()));
         assertFalse(sessionQueryService.latestArtifact(userId, "no-such-session").isPresent());
+    }
+
+    @Test
+    void latestArtifactSkipsOutOfWindowAndFallsBackToRecent() throws Exception {
+        String username = "sqw_" + shortId();
+        registerAndLogin(username);
+        String userId = userIdOf(username);
+        String sessionId = "sess-win-" + shortId();
+        insertSession(sessionId, userId, Instant.now());
+
+        Instant tooOld = Instant.now().minus(70, ChronoUnit.DAYS);
+        Instant recent = Instant.now().minus(1, ChronoUnit.DAYS);
+        String oldSkuId = insertArtifactAndRun(userId, sessionId, ArtifactType.SKU, "超窗 Listing", tooOld);
+        jdbcTemplate.update(
+                "UPDATE ebus_generation_run SET created_at = ? WHERE artifact_ref = ?",
+                Timestamp.from(Instant.now()), oldSkuId);
+        String pickId = insertArtifactAndRun(userId, sessionId, ArtifactType.PICKLIST, "窗内选品", recent);
+
+        HistoryArtifactDetailDTO latest = sessionQueryService.latestArtifact(userId, sessionId).orElse(null);
+        assertTrue(latest != null);
+        assertEquals(pickId, latest.getId());
+        assertEquals("picklist", latest.getArtifactType());
+    }
+
+    @Test
+    void latestArtifactEmptyWhenOnlyOutOfWindow() throws Exception {
+        String username = "sqe_" + shortId();
+        registerAndLogin(username);
+        String userId = userIdOf(username);
+        String sessionId = "sess-old-" + shortId();
+        insertSession(sessionId, userId, Instant.now());
+        insertArtifactAndRun(userId, sessionId, ArtifactType.SKU, "超窗",
+                Instant.now().minus(70, ChronoUnit.DAYS));
+
+        assertFalse(sessionQueryService.latestArtifact(userId, sessionId).isPresent());
     }
 
     private String insertArtifactAndRun(String userId,
