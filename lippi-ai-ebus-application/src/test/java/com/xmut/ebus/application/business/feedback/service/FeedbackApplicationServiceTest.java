@@ -20,9 +20,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -46,6 +50,20 @@ class FeedbackApplicationServiceTest {
                 feedbackRepository,
                 artifactRepository,
                 Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    @Test
+    void submitGoodQualityUpsertsSameArtifact() {
+        when(artifactRepository.findById(ARTIFACT_ID)).thenReturn(Optional.of(ownedPicklist()));
+        when(feedbackRepository.findByUserAndArtifact(USER, ARTIFACT_ID)).thenReturn(Optional.empty());
+        service.submit(cmd(USER, ARTIFACT_ID, "质量好", null));
+        verify(feedbackRepository).save(argThat(f -> "质量好".equals(f.getTag())));
+
+        Feedback existing = Feedback.create("fb1", USER, ARTIFACT_ID, "质量好", null, Instant.parse("2026-09-01T00:00:00Z"));
+        when(feedbackRepository.findByUserAndArtifact(USER, ARTIFACT_ID)).thenReturn(Optional.of(existing));
+        service.submit(cmd(USER, ARTIFACT_ID, "质量差", "偏水"));
+        verify(feedbackRepository, atLeastOnce()).save(argThat(f ->
+                "fb1".equals(f.getId()) && "质量差".equals(f.getTag()) && "偏水".equals(f.getCommentText())));
     }
 
     @Test
@@ -126,6 +144,24 @@ class FeedbackApplicationServiceTest {
     }
 
     @Test
+    void findByArtifactReturnsOwnFeedback() {
+        Feedback feedback = Feedback.create("fb1", USER, ARTIFACT_ID,
+                FeedbackApplicationService.TAG_GOOD_QUALITY, null, NOW);
+        when(feedbackRepository.findByUserAndArtifact(USER, ARTIFACT_ID)).thenReturn(Optional.of(feedback));
+
+        Optional<FeedbackDTO> dto = service.findByArtifact(USER, ARTIFACT_ID);
+        assertTrue(dto.isPresent());
+        assertEquals("fb1", dto.get().getId());
+        assertEquals(FeedbackApplicationService.TAG_GOOD_QUALITY, dto.get().getTag());
+    }
+
+    @Test
+    void findByArtifactEmptyWhenNone() {
+        when(feedbackRepository.findByUserAndArtifact(USER, ARTIFACT_ID)).thenReturn(Optional.empty());
+        assertFalse(service.findByArtifact(USER, ARTIFACT_ID).isPresent());
+    }
+
+    @Test
     void submitRejectsNonPoorQualityTag() {
         when(artifactRepository.findById(ARTIFACT_ID)).thenReturn(Optional.of(ownedPicklist()));
 
@@ -194,5 +230,14 @@ class FeedbackApplicationServiceTest {
         return Artifact.create(
                 ARTIFACT_ID, USER, "run-1", ArtifactType.PICKLIST, "ecommerce",
                 null, "选品", "{}", NOW);
+    }
+
+    private static SubmitFeedbackCommand cmd(String userId, String artifactId, String tag, String commentText) {
+        return SubmitFeedbackCommand.builder()
+                .userId(userId)
+                .artifactId(artifactId)
+                .tag(tag)
+                .commentText(commentText)
+                .build();
     }
 }

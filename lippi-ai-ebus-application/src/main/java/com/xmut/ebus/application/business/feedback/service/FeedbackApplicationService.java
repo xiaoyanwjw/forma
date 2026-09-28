@@ -24,7 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Feedback 写用例：本人成果、标签「质量差」、可选短文；零积分路径。
+ * Feedback 写用例：本人成果、标签「质量好/质量差」、可选短文；零积分路径。
  */
 @Slf4j
 @Service
@@ -32,6 +32,7 @@ import java.util.UUID;
 public class FeedbackApplicationService {
 
     public static final String TAG_POOR_QUALITY = "质量差";
+    public static final String TAG_GOOD_QUALITY = "质量好";
     public static final String MSG_ARTIFACT_UNAVAILABLE = "成果不存在或无权操作";
     private static final int COMMENT_MAX_LEN = 512;
 
@@ -44,24 +45,28 @@ public class FeedbackApplicationService {
         ObjectUtils.requireNonNull(command, "command required");
         String userId = StringUtils.requireHasText(command.getUserId(), "userId required");
         String artifactId = StringUtils.requireHasText(command.getArtifactId(), "请选择要反馈的成果");
-        String tag = StringUtils.requireHasText(command.getTag(), "请选择反馈标签");
-        if (!TAG_POOR_QUALITY.equals(tag.trim())) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID, "暂仅支持「质量差」反馈");
+        String tag = StringUtils.requireHasText(command.getTag(), "请选择反馈标签").trim();
+        if (!TAG_POOR_QUALITY.equals(tag) && !TAG_GOOD_QUALITY.equals(tag)) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "仅支持「质量好」或「质量差」反馈");
         }
         String comment = normalizeComment(command.getCommentText());
 
         Artifact artifact = requireOwnedUsableArtifact(userId, artifactId);
         Instant now = Instant.now(clock);
+        Optional<Feedback> existing = feedbackRepository.findByUserAndArtifact(userId, artifact.getId());
+        if (existing.isPresent()) {
+            Feedback f = existing.get();
+            f.setTag(tag);
+            f.setCommentText(comment);
+            f.setUpdatedAt(now);
+            feedbackRepository.save(f);
+            logSubmit(userId, f.getId(), artifact.getId(), tag);
+            return toDto(f);
+        }
         String id = UUID.randomUUID().toString();
-        Feedback feedback = Feedback.create(id, userId, artifact.getId(), TAG_POOR_QUALITY, comment, now);
+        Feedback feedback = Feedback.create(id, userId, artifact.getId(), tag, comment, now);
         feedbackRepository.save(feedback);
-
-        LoggerUtils.success(log, FeedbackApplicationService.class, "submit",
-                NameValue.create("userId", userId),
-                NameValue.create("feedbackId", id),
-                NameValue.create("artifactId", artifact.getId()),
-                NameValue.create("tag", TAG_POOR_QUALITY));
-
+        logSubmit(userId, id, artifact.getId(), tag);
         return toDto(feedback);
     }
 
@@ -75,6 +80,17 @@ public class FeedbackApplicationService {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_ARTIFACT_UNAVAILABLE);
         }
         return toDto(feedback);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<FeedbackDTO> findByArtifact(String userId, String artifactId) {
+        String uid = StringUtils.requireHasText(userId, "userId required");
+        String aid = StringUtils.requireHasText(artifactId, "请选择要查看的成果");
+        Optional<Feedback> found = feedbackRepository.findByUserAndArtifact(uid, aid);
+        if (!found.isPresent()) {
+            return Optional.empty();
+        }
+        return Optional.of(toDto(found.get()));
     }
 
     private Artifact requireOwnedUsableArtifact(String userId, String artifactId) {
@@ -102,6 +118,14 @@ public class FeedbackApplicationService {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "反馈短文过长");
         }
         return trimmed;
+    }
+
+    private void logSubmit(String userId, String feedbackId, String artifactId, String tag) {
+        LoggerUtils.success(log, FeedbackApplicationService.class, "submit",
+                NameValue.create("userId", userId),
+                NameValue.create("feedbackId", feedbackId),
+                NameValue.create("artifactId", artifactId),
+                NameValue.create("tag", tag));
     }
 
     private static FeedbackDTO toDto(Feedback feedback) {

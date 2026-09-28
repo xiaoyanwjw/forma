@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Optional;
 
 /**
  * 成果质量反馈（JWT；零积分）。
@@ -35,6 +38,13 @@ public class FeedbackController {
                 .commentText(body.getCommentText())
                 .build();
         return ApiResponse.success(feedbackApplicationService.submit(command));
+    }
+
+    @GetMapping
+    public ApiResponse<FeedbackDTO> getByArtifact(@RequestParam("artifactId") String artifactId) {
+        Optional<FeedbackDTO> found = feedbackApplicationService.findByArtifact(
+                SecuritySupport.requireUserId(), artifactId);
+        return ApiResponse.success(found.orElse(null));
     }
 
     @GetMapping("/{id}")

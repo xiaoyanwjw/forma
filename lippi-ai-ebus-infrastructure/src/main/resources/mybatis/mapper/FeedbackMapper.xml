@@ -11,18 +11,33 @@
         <result property="tag" column="tag"/>
         <result property="commentText" column="comment_text"/>
         <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO ebus_feedback
-            (biz_id, user_id, artifact_id, tag, comment_text, created_at)
+            (biz_id, user_id, artifact_id, tag, comment_text, created_at, updated_at)
         VALUES
-            (#{bizId}, #{userId}, #{artifactId}, #{tag}, #{commentText}, #{createdAt})
+            (#{bizId}, #{userId}, #{artifactId}, #{tag}, #{commentText}, #{createdAt}, #{updatedAt})
     </insert>
 
+    <update id="updateByBizId">
+        UPDATE ebus_feedback
+        SET tag = #{tag},
+            comment_text = #{commentText},
+            updated_at = #{updatedAt}
+        WHERE biz_id = #{bizId}
+    </update>
+
     <select id="selectByBizId" resultMap="FeedbackResultMap">
-        SELECT id, biz_id, user_id, artifact_id, tag, comment_text, created_at
+        SELECT id, biz_id, user_id, artifact_id, tag, comment_text, created_at, updated_at
         FROM ebus_feedback
         WHERE biz_id = #{bizId}
+    </select>
+
+    <select id="selectByUserAndArtifact" resultMap="FeedbackResultMap">
+        SELECT id, biz_id, user_id, artifact_id, tag, comment_text, created_at, updated_at
+        FROM ebus_feedback
+        WHERE user_id = #{userId} AND artifact_id = #{artifactId}
     </select>
 </mapper>

@@ -14,3 +14,4 @@ export interface SubmitFeedbackRequest {
 }
 
 export const FEEDBACK_TAG_POOR_QUALITY = '质量差'
+export const FEEDBACK_TAG_GOOD_QUALITY = '质量好'

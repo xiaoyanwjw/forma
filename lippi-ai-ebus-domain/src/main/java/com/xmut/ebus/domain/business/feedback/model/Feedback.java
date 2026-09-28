@@ -13,6 +13,7 @@ public class Feedback {
     private String tag;
     private String commentText;
     private Instant createdAt;
+    private Instant updatedAt;
 
     public static Feedback create(String id,
                                   String userId,
@@ -27,6 +28,7 @@ public class Feedback {
         feedback.tag = tag;
         feedback.commentText = commentText;
         feedback.createdAt = now;
+        feedback.updatedAt = now;
         return feedback;
     }
 
@@ -76,5 +78,13 @@ public class Feedback {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

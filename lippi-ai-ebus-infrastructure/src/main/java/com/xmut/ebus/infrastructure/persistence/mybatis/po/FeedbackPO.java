@@ -14,6 +14,7 @@ public class FeedbackPO {
     private String tag;
     private String commentText;
     private Instant createdAt;
+    private Instant updatedAt;
 
     public Long getId() {
         return id;
@@ -69,5 +70,13 @@ public class FeedbackPO {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

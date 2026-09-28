@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -87,6 +88,48 @@ class FeedbackHistoryIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(feedbackId))
                 .andExpect(jsonPath("$.data.tag").value("质量差"));
+    }
+
+    @Test
+    void upsertGoodThenPoorKeepsOneRowAndGetByArtifact() throws Exception {
+        String username = "fbup_" + shortId();
+        String token = registerAndLogin(username);
+        String userId = userIdOf(username);
+        String artifactId = saveOwnedArtifact(userId, ArtifactType.PICKLIST, Instant.now(), "选品 upsert");
+
+        mockMvc.perform(post("/api/v1/feedbacks")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"artifactId\":\"" + artifactId + "\",\"tag\":\"质量好\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.tag").value("质量好"));
+
+        MvcResult updated = mockMvc.perform(post("/api/v1/feedbacks")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"artifactId\":\"" + artifactId + "\",\"tag\":\"质量差\",\"commentText\":\"偏水\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.tag").value("质量差"))
+                .andExpect(jsonPath("$.data.commentText").value("偏水"))
+                .andReturn();
+
+        String feedbackId = objectMapper.readTree(updated.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        Integer rows = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ebus_feedback WHERE artifact_id = ?", Integer.class, artifactId);
+        assertEquals(1, rows);
+
+        mockMvc.perform(get("/api/v1/feedbacks").param("artifactId", artifactId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(feedbackId))
+                .andExpect(jsonPath("$.data.tag").value("质量差"))
+                .andExpect(jsonPath("$.data.commentText").value("偏水"));
+
+        mockMvc.perform(get("/api/v1/feedbacks").param("artifactId", UUID.randomUUID().toString())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
     @Test

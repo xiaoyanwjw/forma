@@ -9,5 +9,9 @@ public interface FeedbackMapper {
 
     int insert(FeedbackPO feedback);
 
+    int updateByBizId(FeedbackPO feedback);
+
     FeedbackPO selectByBizId(@Param("bizId") String bizId);
+
+    FeedbackPO selectByUserAndArtifact(@Param("userId") String userId, @Param("artifactId") String artifactId);
 }

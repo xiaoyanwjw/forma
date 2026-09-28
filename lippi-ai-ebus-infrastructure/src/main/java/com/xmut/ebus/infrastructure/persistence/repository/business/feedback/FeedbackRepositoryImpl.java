@@ -18,7 +18,15 @@ public class FeedbackRepositoryImpl implements FeedbackRepository {
 
     @Override
     public void save(Feedback feedback) {
-        feedbackMapper.insert(toPo(feedback));
+        FeedbackPO po = toPo(feedback);
+        if (StringUtils.hasText(feedback.getId())) {
+            FeedbackPO existing = feedbackMapper.selectByBizId(feedback.getId().trim());
+            if (existing != null) {
+                feedbackMapper.updateByBizId(po);
+                return;
+            }
+        }
+        feedbackMapper.insert(po);
     }
 
     @Override
@@ -33,6 +41,18 @@ public class FeedbackRepositoryImpl implements FeedbackRepository {
         return Optional.of(toDomain(po));
     }
 
+    @Override
+    public Optional<Feedback> findByUserAndArtifact(String userId, String artifactId) {
+        if (!StringUtils.hasText(userId) || !StringUtils.hasText(artifactId)) {
+            return Optional.empty();
+        }
+        FeedbackPO po = feedbackMapper.selectByUserAndArtifact(userId.trim(), artifactId.trim());
+        if (po == null) {
+            return Optional.empty();
+        }
+        return Optional.of(toDomain(po));
+    }
+
     private static Feedback toDomain(FeedbackPO po) {
         Feedback feedback = new Feedback();
         feedback.setId(po.getBizId());
@@ -41,6 +61,7 @@ public class FeedbackRepositoryImpl implements FeedbackRepository {
         feedback.setTag(po.getTag());
         feedback.setCommentText(po.getCommentText());
         feedback.setCreatedAt(po.getCreatedAt());
+        feedback.setUpdatedAt(po.getUpdatedAt());
         return feedback;
     }
 
@@ -52,6 +73,7 @@ public class FeedbackRepositoryImpl implements FeedbackRepository {
         po.setTag(feedback.getTag());
         po.setCommentText(feedback.getCommentText());
         po.setCreatedAt(feedback.getCreatedAt());
+        po.setUpdatedAt(feedback.getUpdatedAt());
         return po;
     }
 }

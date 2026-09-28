@@ -113,7 +113,9 @@ CREATE TABLE IF NOT EXISTS ebus_feedback (
     tag          VARCHAR(64)  NOT NULL,
     comment_text VARCHAR(512) NULL,
     created_at   TIMESTAMP    NOT NULL,
-    CONSTRAINT uk_ebus_feedback_biz UNIQUE (biz_id)
+    updated_at   TIMESTAMP    NOT NULL,
+    CONSTRAINT uk_ebus_feedback_biz UNIQUE (biz_id),
+    CONSTRAINT uk_ebus_feedback_user_artifact UNIQUE (user_id, artifact_id)
 );
 CREATE INDEX IF NOT EXISTS idx_ebus_feedback_user_time ON ebus_feedback (user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_ebus_feedback_artifact ON ebus_feedback (artifact_id);

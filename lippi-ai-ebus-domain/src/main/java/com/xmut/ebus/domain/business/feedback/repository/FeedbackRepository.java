@@ -12,4 +12,6 @@ public interface FeedbackRepository {
     void save(Feedback feedback);
 
     Optional<Feedback> findById(String id);
+
+    Optional<Feedback> findByUserAndArtifact(String userId, String artifactId);
 }
