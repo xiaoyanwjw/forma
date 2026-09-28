@@ -130,7 +130,7 @@ public class AgentApplicationService {
         String sessionId = StringUtils.hasText(command.getSessionId())
                 ? command.getSessionId().trim()
                 : UUID.randomUUID().toString();
-        binding(sessionId, scene);
+        binding(sessionId, scene, userId);
 
         String holdId = reserveOne(userId);
         Instant now = Instant.now(clock);
@@ -196,7 +196,7 @@ public class AgentApplicationService {
         return scene;
     }
 
-    private void binding(String sessionId, Scene scene) {
+    private void binding(String sessionId, Scene scene, String userId) {
         Optional<SessionSceneBinding> existing = piSessionSceneRepository.findBySessionId(sessionId);
         if (existing.isPresent() && existing.get().hasScene()) {
             SessionSceneBinding bound = existing.get();
@@ -204,10 +204,9 @@ public class AgentApplicationService {
                     || !scene.getSceneCode().equals(bound.getSceneCode())) {
                 throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SESSION_SCENE_MISMATCH);
             }
-            return;
         }
         try {
-            piSessionSceneRepository.ensureBound(sessionId, scene.getId(), scene.getSceneCode());
+            piSessionSceneRepository.ensureBound(sessionId, scene.getId(), scene.getSceneCode(), userId);
         } catch (IllegalStateException ex) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SESSION_SCENE_MISMATCH);
         }

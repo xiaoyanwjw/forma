@@ -34,7 +34,7 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
     }
 
     @Override
-    public void ensureBound(String sessionId, String sceneId, String sceneCode) {
+    public void ensureBound(String sessionId, String sceneId, String sceneCode, String userId) {
         if (!StringUtils.hasText(sessionId)) {
             throw new IllegalArgumentException("sessionId required");
         }
@@ -44,13 +44,14 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
         String id = sessionId.trim();
         String sid = sceneId.trim();
         String code = sceneCode.trim();
+        String uid = StringUtils.hasText(userId) ? userId.trim() : null;
         Instant now = Instant.now();
 
         PiSessionPO existing = sessionMapper.selectById(id);
         if (existing == null) {
             PiSessionPO created = new PiSessionPO();
             created.setSessionId(id);
-            created.setUserId(null);
+            created.setUserId(uid);
             created.setSceneId(sid);
             created.setSceneCode(code);
             created.setTitle(null);
@@ -66,10 +67,19 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
                 sessionMapper.insert(created);
             } catch (DuplicateKeyException e) {
                 updateSceneIfCompatible(id, sid, code, now);
+                fillUserIdIfAbsent(id, uid);
             }
             return;
         }
         updateSceneIfCompatible(id, sid, code, now);
+        fillUserIdIfAbsent(id, uid);
+    }
+
+    private void fillUserIdIfAbsent(String sessionId, String userId) {
+        if (!StringUtils.hasText(userId)) {
+            return;
+        }
+        sessionMapper.updateUserIdIfNull(sessionId, userId);
     }
 
     /**

@@ -181,7 +181,7 @@ class AgentApplicationServiceTest {
         assertEquals(null, saved.getArtifactRef());
         assertEquals(ECOM_SCENE_ID, saved.getSceneId());
         assertEquals(ECOM_SCENE_CODE, saved.getSceneCode());
-        verify(piSessionSceneRepository).ensureBound(eq(ctx.getSessionId()), eq(ECOM_SCENE_ID), eq(ECOM_SCENE_CODE));
+        verify(piSessionSceneRepository).ensureBound(eq(ctx.getSessionId()), eq(ECOM_SCENE_ID), eq(ECOM_SCENE_CODE), eq(USER_ID));
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
 
@@ -200,7 +200,7 @@ class AgentApplicationServiceTest {
         verify(generationRunRepository).save(captor.capture());
         assertEquals(ECOM_SCENE_ID, captor.getValue().getSceneId());
         assertEquals(ECOM_SCENE_CODE, captor.getValue().getSceneCode());
-        verify(piSessionSceneRepository).ensureBound(eq(ctx.getSessionId()), eq(ECOM_SCENE_ID), eq(ECOM_SCENE_CODE));
+        verify(piSessionSceneRepository).ensureBound(eq(ctx.getSessionId()), eq(ECOM_SCENE_ID), eq(ECOM_SCENE_CODE), eq(USER_ID));
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
 
@@ -230,7 +230,7 @@ class AgentApplicationServiceTest {
         assertEquals(AgentApplicationService.MSG_SCENE_REQUIRED, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
         verify(generationRunRepository, never()).save(any(GenerationRun.class));
-        verify(piSessionSceneRepository, never()).ensureBound(anyString(), anyString(), anyString());
+        verify(piSessionSceneRepository, never()).ensureBound(anyString(), anyString(), anyString(), anyString());
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
 
@@ -308,7 +308,7 @@ class AgentApplicationServiceTest {
         assertEquals(AgentApplicationService.MSG_SESSION_SCENE_MISMATCH, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
         verify(generationRunRepository, never()).save(any(GenerationRun.class));
-        verify(piSessionSceneRepository, never()).ensureBound(anyString(), anyString(), anyString());
+        verify(piSessionSceneRepository, never()).ensureBound(anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
@@ -324,7 +324,7 @@ class AgentApplicationServiceTest {
                 .sceneCode(ECOM_SCENE_CODE)
                 .build());
 
-        verify(piSessionSceneRepository).ensureBound("legacy-session", ECOM_SCENE_ID, ECOM_SCENE_CODE);
+        verify(piSessionSceneRepository).ensureBound("legacy-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID);
     }
 
     @Test
