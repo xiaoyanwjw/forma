@@ -4,10 +4,16 @@ import com.xmut.ebus.infrastructure.persistence.mybatis.po.UserPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.Instant;
+
 @Mapper
 public interface UserMapper {
 
     int insert(UserPO user);
+
+    int updateUsername(@Param("bizId") String bizId,
+                       @Param("username") String username,
+                       @Param("updatedAt") Instant updatedAt);
 
     UserPO selectById(@Param("id") String id);
 

@@ -2,6 +2,7 @@ package com.xmut.ebus.domain.identity.repository;
 
 import com.xmut.ebus.domain.identity.model.User;
 
+import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -10,6 +11,13 @@ import java.util.Optional;
 public interface UserRepository {
 
     void save(User user);
+
+    /**
+     * 按业务用户 ID 更新用户名与 updated_at。
+     *
+     * @return {@code true} 若更新了至少一行；{@code false} 若无匹配行
+     */
+    boolean updateUsername(String userId, String username, Instant updatedAt);
 
     Optional<User> findById(String id);
 

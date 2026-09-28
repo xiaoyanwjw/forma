@@ -7,6 +7,7 @@ import com.xmut.ebus.infrastructure.persistence.mybatis.po.UserPO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Optional;
 
 @Repository
@@ -18,6 +19,11 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public void save(User user) {
         userMapper.insert(toPo(user));
+    }
+
+    @Override
+    public boolean updateUsername(String userId, String username, Instant updatedAt) {
+        return userMapper.updateUsername(userId, username, updatedAt) > 0;
     }
 
     @Override

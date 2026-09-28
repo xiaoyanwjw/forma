@@ -3,6 +3,8 @@ package com.xmut.ebus.application.identity.service;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
 import com.xmut.ebus.application.identity.command.LoginCommand;
 import com.xmut.ebus.application.identity.command.RegisterCommand;
+import com.xmut.ebus.application.identity.command.UpdateUsernameCommand;
+import com.xmut.ebus.application.identity.dto.AccountProfileDTO;
 import com.xmut.ebus.application.identity.dto.LoginResultDTO;
 import com.xmut.ebus.application.identity.dto.RegisterResultDTO;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -183,6 +185,184 @@ class IdentityApplicationServiceTest {
         LoginResultDTO result = service.login(cmd);
         assertEquals("jwt-token", result.getToken());
         assertEquals(user.getId(), result.getUserId());
+    }
+
+    @Test
+    void updateUsernamePersistsNewName() {
+        User user = sampleUser();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(userRepository.findByUsername("bob")).thenReturn(Optional.empty());
+        when(userRepository.updateUsername(eq(user.getId()), eq("bob"), any(Instant.class))).thenReturn(true);
+
+        UpdateUsernameCommand cmd = UpdateUsernameCommand.builder()
+                .userId(user.getId())
+                .username("bob")
+                .build();
+
+        AccountProfileDTO result = service.updateUsername(cmd);
+
+        assertEquals("bob", result.getUsername());
+        assertEquals(user.getEmail(), result.getEmail());
+        assertEquals(user.getId(), result.getUserId());
+        verify(userRepository).updateUsername(eq(user.getId()), eq("bob"), any(Instant.class));
+        verify(creditApplicationService, never()).initFreeAccount(anyString(), any(Instant.class));
+    }
+
+    @Test
+    void updateUsernameRejectsBlank() {
+        UpdateUsernameCommand cmd = UpdateUsernameCommand.builder()
+                .userId(sampleUser().getId())
+                .username("   ")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.updateUsername(cmd);
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        verify(userRepository, never()).updateUsername(anyString(), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void updateUsernameRejectsAtSign() {
+        UpdateUsernameCommand cmd = UpdateUsernameCommand.builder()
+                .userId(sampleUser().getId())
+                .username("a@b")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.updateUsername(cmd);
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        assertTrue(ex.getMessage().contains("@"));
+        verify(userRepository, never()).updateUsername(anyString(), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void updateUsernameRejectsTooShort() {
+        UpdateUsernameCommand cmd = UpdateUsernameCommand.builder()
+                .userId(sampleUser().getId())
+                .username("a")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.updateUsername(cmd);
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        verify(userRepository, never()).updateUsername(anyString(), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void updateUsernameConflictsWhenTaken() {
+        User user = sampleUser();
+        User other = User.create("22222222-2222-2222-2222-222222222222", "bob", "bob@example.com", "HASH", Instant.now());
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(userRepository.findByUsername("bob")).thenReturn(Optional.of(other));
+
+        UpdateUsernameCommand cmd = UpdateUsernameCommand.builder()
+                .userId(user.getId())
+                .username("bob")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.updateUsername(cmd);
+            }
+        });
+        assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
+        assertEquals("用户名已被占用", ex.getMessage());
+        verify(userRepository, never()).updateUsername(anyString(), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void updateUsernameAllowsKeepingOwnName() {
+        User user = sampleUser();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        UpdateUsernameCommand cmd = UpdateUsernameCommand.builder()
+                .userId(user.getId())
+                .username("alice")
+                .build();
+
+        AccountProfileDTO result = service.updateUsername(cmd);
+        assertEquals("alice", result.getUsername());
+        verify(userRepository, never()).updateUsername(anyString(), anyString(), any(Instant.class));
+        verify(userRepository, never()).findByUsername(anyString());
+    }
+
+    @Test
+    void updateUsernameConcurrentUniqueKeyMapsToConflict() {
+        User user = sampleUser();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(userRepository.findByUsername("bob")).thenReturn(Optional.empty());
+        doThrow(new DataIntegrityViolationException("uk"))
+                .when(userRepository).updateUsername(eq(user.getId()), eq("bob"), any(Instant.class));
+
+        UpdateUsernameCommand cmd = UpdateUsernameCommand.builder()
+                .userId(user.getId())
+                .username("bob")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.updateUsername(cmd);
+            }
+        });
+        assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
+        assertEquals("用户名已被占用", ex.getMessage());
+    }
+
+    @Test
+    void updateUsernameRejectsTooLong() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 65; i++) {
+            sb.append('a');
+        }
+        UpdateUsernameCommand cmd = UpdateUsernameCommand.builder()
+                .userId(sampleUser().getId())
+                .username(sb.toString())
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.updateUsername(cmd);
+            }
+        });
+        assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
+        verify(userRepository, never()).updateUsername(anyString(), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void updateUsernameWhenNoRowUpdatedUnauthorized() {
+        User user = sampleUser();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(userRepository.findByUsername("bob")).thenReturn(Optional.empty());
+        when(userRepository.updateUsername(eq(user.getId()), eq("bob"), any(Instant.class))).thenReturn(false);
+
+        UpdateUsernameCommand cmd = UpdateUsernameCommand.builder()
+                .userId(user.getId())
+                .username("bob")
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, new org.junit.jupiter.api.function.Executable() {
+            @Override
+            public void execute() {
+                service.updateUsername(cmd);
+            }
+        });
+        assertEquals(ErrorCode.UNAUTHORIZED, ex.getErrorCode());
+        assertEquals("用户不存在或未登录", ex.getMessage());
     }
 
     private static User sampleUser() {

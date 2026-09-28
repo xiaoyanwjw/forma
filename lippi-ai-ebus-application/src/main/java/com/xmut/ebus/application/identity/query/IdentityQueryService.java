@@ -1,5 +1,6 @@
 package com.xmut.ebus.application.identity.query;
 
+import com.xmut.ebus.application.identity.dto.AccountProfileDTO;
 import com.xmut.ebus.application.identity.dto.MeDTO;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
@@ -20,8 +21,18 @@ public class IdentityQueryService {
 
     @Transactional(readOnly = true)
     public MeDTO findMe(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "用户不存在或未登录"));
+        User user = requireUser(userId);
         return new MeDTO(user.getId(), user.getUsername(), user.getEmail());
+    }
+
+    @Transactional(readOnly = true)
+    public AccountProfileDTO findProfile(String userId) {
+        User user = requireUser(userId);
+        return new AccountProfileDTO(user.getId(), user.getUsername(), user.getEmail());
+    }
+
+    private User requireUser(String userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "用户不存在或未登录"));
     }
 }

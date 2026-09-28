@@ -3,6 +3,8 @@ package com.xmut.ebus.application.identity.service;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
 import com.xmut.ebus.application.identity.command.LoginCommand;
 import com.xmut.ebus.application.identity.command.RegisterCommand;
+import com.xmut.ebus.application.identity.command.UpdateUsernameCommand;
+import com.xmut.ebus.application.identity.dto.AccountProfileDTO;
 import com.xmut.ebus.application.identity.dto.LoginResultDTO;
 import com.xmut.ebus.application.identity.dto.RegisterResultDTO;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -21,15 +23,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Identity 写用例：注册 / 登录签发 JWT。
+ * Identity 写用例：注册 / 登录签发 JWT / 改用户名。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class IdentityApplicationService {
+
+    private static final int USERNAME_MIN_LEN = 2;
+    private static final int USERNAME_MAX_LEN = 64;
 
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
@@ -42,7 +48,7 @@ public class IdentityApplicationService {
             throw new BusinessException(ErrorCode.PARAM_INVALID,
                     "须先确认已知悉：AI 生成内容须人工复核后再上架，Adam 不承诺销售效果");
         }
-        String username = StringUtils.requireHasText(command.getUsername(), "用户名不能为空");
+        String username = requireValidUsername(command.getUsername());
         String email = StringUtils.requireHasText(command.getEmail(), "邮箱不能为空").toLowerCase();
         String password = StringUtils.requireHasText(command.getPassword(), "密码不能为空");
         if (password.length() < 6) {
@@ -92,5 +98,48 @@ public class IdentityApplicationService {
         LoggerUtils.success(log, IdentityApplicationService.class, "login",
                 NameValue.create("userId", user.getId()));
         return new LoginResultDTO(token, user.getId(), user.getUsername(), user.getEmail());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public AccountProfileDTO updateUsername(UpdateUsernameCommand command) {
+        String userId = StringUtils.requireHasText(command.getUserId(), "用户未登录");
+        String newUsername = requireValidUsername(command.getUsername());
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "用户不存在或未登录"));
+
+        if (newUsername.equals(user.getUsername())) {
+            return new AccountProfileDTO(user.getId(), user.getUsername(), user.getEmail());
+        }
+
+        Optional<User> taken = userRepository.findByUsername(newUsername);
+        if (taken.isPresent() && !taken.get().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.CONFLICT, "用户名已被占用");
+        }
+
+        Instant now = Instant.now();
+        try {
+            if (!userRepository.updateUsername(userId, newUsername, now)) {
+                throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户不存在或未登录");
+            }
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.CONFLICT, "用户名已被占用");
+        }
+
+        LoggerUtils.success(log, IdentityApplicationService.class, "updateUsername",
+                NameValue.create("userId", userId),
+                NameValue.create("username", newUsername));
+        return new AccountProfileDTO(user.getId(), newUsername, user.getEmail());
+    }
+
+    private static String requireValidUsername(String username) {
+        String value = StringUtils.requireHasText(username, "用户名不能为空");
+        if (value.length() < USERNAME_MIN_LEN || value.length() > USERNAME_MAX_LEN) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "用户名长度需在 2～64 之间");
+        }
+        if (value.contains("@")) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "用户名不能包含 @");
+        }
+        return value;
     }
 }
