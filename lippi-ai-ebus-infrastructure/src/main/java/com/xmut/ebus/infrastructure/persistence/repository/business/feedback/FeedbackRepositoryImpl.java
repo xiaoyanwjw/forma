@@ -5,6 +5,7 @@ import com.xmut.ebus.domain.business.feedback.repository.FeedbackRepository;
 import com.xmut.ebus.infrastructure.persistence.mybatis.mapper.FeedbackMapper;
 import com.xmut.ebus.infrastructure.persistence.mybatis.po.FeedbackPO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -26,7 +27,31 @@ public class FeedbackRepositoryImpl implements FeedbackRepository {
                 return;
             }
         }
-        feedbackMapper.insert(po);
+        try {
+            feedbackMapper.insert(po);
+        } catch (DuplicateKeyException e) {
+            applyOnExistingRow(feedback, po, e);
+        }
+    }
+
+    /**
+     * 并发首次写入撞 UNIQUE(user_id, artifact_id) 时，改写已存在行而不是失败整单。
+     */
+    private void applyOnExistingRow(Feedback feedback, FeedbackPO incoming, DuplicateKeyException cause) {
+        if (!StringUtils.hasText(feedback.getUserId()) || !StringUtils.hasText(feedback.getArtifactId())) {
+            throw cause;
+        }
+        FeedbackPO winner = feedbackMapper.selectByUserAndArtifact(
+                feedback.getUserId().trim(), feedback.getArtifactId().trim());
+        if (winner == null) {
+            throw cause;
+        }
+        incoming.setBizId(winner.getBizId());
+        feedbackMapper.updateByBizId(incoming);
+        feedback.setId(winner.getBizId());
+        if (winner.getCreatedAt() != null) {
+            feedback.setCreatedAt(winner.getCreatedAt());
+        }
     }
 
     @Override

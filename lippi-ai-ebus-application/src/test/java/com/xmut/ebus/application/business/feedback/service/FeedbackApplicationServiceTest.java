@@ -162,7 +162,7 @@ class FeedbackApplicationServiceTest {
     }
 
     @Test
-    void submitRejectsNonPoorQualityTag() {
+    void submitRejectsUnknownTag() {
         when(artifactRepository.findById(ARTIFACT_ID)).thenReturn(Optional.of(ownedPicklist()));
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
