@@ -12,4 +12,7 @@ public interface GenerationRunMapper {
     int update(GenerationRunPO run);
 
     GenerationRunPO selectById(@Param("id") String id);
+
+    String selectLatestUsableArtifactRefBySession(@Param("userId") String userId,
+                                                  @Param("sessionId") String sessionId);
 }

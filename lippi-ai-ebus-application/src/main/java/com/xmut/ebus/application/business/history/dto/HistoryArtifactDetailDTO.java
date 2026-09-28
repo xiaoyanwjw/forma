@@ -14,6 +14,8 @@ public class HistoryArtifactDetailDTO {
     private String title;
     private Instant createdAt;
     private Map<String, Object> view;
+    /** 来自 GenerationRun；run 缺失时可为 null。 */
+    private String sessionId;
 
     public HistoryArtifactDetailDTO() {
     }
@@ -23,13 +25,15 @@ public class HistoryArtifactDetailDTO {
                                     String sceneCode,
                                     String title,
                                     Instant createdAt,
-                                    Map<String, Object> view) {
+                                    Map<String, Object> view,
+                                    String sessionId) {
         this.id = id;
         this.artifactType = artifactType;
         this.sceneCode = sceneCode;
         this.title = title;
         this.createdAt = createdAt;
         this.view = view;
+        this.sessionId = sessionId;
     }
 
     public String getId() {
@@ -78,5 +82,13 @@ public class HistoryArtifactDetailDTO {
 
     public void setView(Map<String, Object> view) {
         this.view = view;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
     }
 }

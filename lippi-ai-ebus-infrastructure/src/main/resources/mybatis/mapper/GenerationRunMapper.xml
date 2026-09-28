@@ -48,4 +48,17 @@
         FROM ebus_generation_run
         WHERE biz_id = #{id}
     </select>
+
+    <select id="selectLatestUsableArtifactRefBySession" resultType="java.lang.String">
+        SELECT r.artifact_ref
+        FROM ebus_generation_run r
+        INNER JOIN ebus_artifact a ON a.biz_id = r.artifact_ref AND a.user_id = r.user_id
+        WHERE r.user_id = #{userId}
+          AND r.session_id = #{sessionId}
+          AND r.artifact_ref IS NOT NULL
+          AND r.artifact_ref &lt;&gt; ''
+          AND a.artifact_type IN ('picklist', 'sku')
+        ORDER BY r.created_at DESC
+        LIMIT 1
+    </select>
 </mapper>

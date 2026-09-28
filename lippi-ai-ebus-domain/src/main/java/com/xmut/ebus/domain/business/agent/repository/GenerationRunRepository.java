@@ -14,4 +14,9 @@ public interface GenerationRunRepository {
     void update(GenerationRun run);
 
     Optional<GenerationRun> findById(String id);
+
+    /**
+     * 该会话下本人最近一次带成果引用、且成果类型为 picklist/sku 的 artifact_ref。
+     */
+    Optional<String> findLatestSettledArtifactRefBySession(String userId, String sessionId);
 }

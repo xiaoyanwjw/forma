@@ -1,10 +1,13 @@
 package com.xmut.ebus.application.business.session.query;
 
+import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
+import com.xmut.ebus.application.business.history.query.HistoryQueryService;
 import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
+import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
 import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.agent.session.SessionStore;
@@ -22,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,15 +45,21 @@ class SessionQueryServiceTest {
 
     private PiSessionQueryRepository piSessionQueryRepository;
     private SessionStore sessionStore;
+    private GenerationRunRepository generationRunRepository;
+    private HistoryQueryService historyQueryService;
     private SessionQueryService service;
 
     @BeforeEach
     void setUp() {
         piSessionQueryRepository = mock(PiSessionQueryRepository.class);
         sessionStore = mock(SessionStore.class);
+        generationRunRepository = mock(GenerationRunRepository.class);
+        historyQueryService = mock(HistoryQueryService.class);
         service = new SessionQueryService(
                 piSessionQueryRepository,
                 sessionStore,
+                generationRunRepository,
+                historyQueryService,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -141,6 +151,33 @@ class SessionQueryServiceTest {
                 () -> service.listMessages(USER, SESSION));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
         verify(sessionStore, never()).load(any());
+    }
+
+    @Test
+    void latestArtifactReturnsHistoryDetailForLatestUsableRef() {
+        HistoryArtifactDetailDTO expected = new HistoryArtifactDetailDTO(
+                "sku-9", "sku", "ecommerce", "Listing", NOW, Collections.emptyMap(), SESSION);
+        when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION))
+                .thenReturn(Optional.of("sku-9"));
+        when(historyQueryService.findById(USER, "sku-9")).thenReturn(expected);
+
+        Optional<HistoryArtifactDetailDTO> found = service.latestArtifact(USER, SESSION);
+
+        assertTrue(found.isPresent());
+        assertEquals("sku-9", found.get().getId());
+        assertEquals(SESSION, found.get().getSessionId());
+        verify(historyQueryService).findById(USER, "sku-9");
+    }
+
+    @Test
+    void latestArtifactEmptyWhenNoUsableRun() {
+        when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION))
+                .thenReturn(Optional.empty());
+
+        Optional<HistoryArtifactDetailDTO> found = service.latestArtifact(USER, SESSION);
+
+        assertFalse(found.isPresent());
+        verify(historyQueryService, never()).findById(any(), any());
     }
 
     private static PiSessionMeta meta(String sessionId, String userId, String sceneCode, Instant updatedAt) {

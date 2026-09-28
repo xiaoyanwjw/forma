@@ -9,6 +9,8 @@ import com.xmut.ebus.application.business.history.support.HistoryViewResignSuppo
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.util.StringUtils;
+import com.xmut.ebus.domain.business.agent.model.GenerationRun;
+import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.artifact.model.Artifact;
 import com.xmut.ebus.domain.business.artifact.model.ArtifactType;
 import com.xmut.ebus.domain.business.artifact.repository.ArtifactRepository;
@@ -39,6 +41,7 @@ public class HistoryQueryService {
             Arrays.asList(ArtifactType.PICKLIST, ArtifactType.SKU));
 
     private final ArtifactRepository artifactRepository;
+    private final GenerationRunRepository generationRunRepository;
     private final HistoryViewResignSupport historyViewResignSupport;
     private final ObjectMapper objectMapper;
     private final Clock clock;
@@ -79,7 +82,18 @@ public class HistoryQueryService {
                 artifact.getSceneCode(),
                 artifact.getTitle(),
                 artifact.getCreatedAt(),
-                view);
+                view,
+                resolveSessionId(artifact.getRunId()));
+    }
+
+    private String resolveSessionId(String runId) {
+        if (!StringUtils.hasText(runId)) {
+            return null;
+        }
+        return generationRunRepository.findById(runId)
+                .map(GenerationRun::getSessionId)
+                .filter(StringUtils::hasText)
+                .orElse(null);
     }
 
     private Map<String, Object> extractAndResignView(String payloadJson, String ownerUserId) {

@@ -6,6 +6,8 @@ import com.xmut.ebus.application.business.history.dto.HistoryArtifactSummaryDTO;
 import com.xmut.ebus.application.business.history.support.HistoryViewResignSupport;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
+import com.xmut.ebus.domain.business.agent.model.GenerationRun;
+import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.artifact.model.Artifact;
 import com.xmut.ebus.domain.business.artifact.model.ArtifactType;
 import com.xmut.ebus.domain.business.artifact.repository.ArtifactRepository;
@@ -25,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,18 +43,22 @@ class HistoryQueryServiceTest {
     private static final String USER = "user-1";
 
     private ArtifactRepository artifactRepository;
+    private GenerationRunRepository generationRunRepository;
     private MediaStore mediaStore;
     private HistoryQueryService service;
 
     @BeforeEach
     void setUp() {
         artifactRepository = mock(ArtifactRepository.class);
+        generationRunRepository = mock(GenerationRunRepository.class);
         mediaStore = mock(MediaStore.class);
         service = new HistoryQueryService(
                 artifactRepository,
+                generationRunRepository,
                 new HistoryViewResignSupport(mediaStore),
                 new ObjectMapper(),
                 Clock.fixed(NOW, ZoneOffset.UTC));
+        when(generationRunRepository.findById(any())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -100,6 +107,7 @@ class HistoryQueryServiceTest {
 
         HistoryArtifactDetailDTO detail = service.findById(USER, "sku-1");
         assertEquals("sku", detail.getArtifactType());
+        assertNull(detail.getSessionId());
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> blocks = (List<Map<String, Object>>) detail.getView().get("blocks");
         assertEquals("https://signed.example/m1", blocks.get(0).get("src"));
@@ -160,6 +168,29 @@ class HistoryQueryServiceTest {
 
         BusinessException ex = assertThrows(BusinessException.class, () -> service.findById(USER, "chat-1"));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
+    }
+
+    @Test
+    void findByIdAttachesSessionIdFromGenerationRun() {
+        Artifact sku = Artifact.create(
+                "sku-1", USER, "run-2", ArtifactType.SKU, "ecommerce",
+                null, "Listing", "{\"view\":{},\"data\":{}}", NOW.minus(2, ChronoUnit.DAYS));
+        when(artifactRepository.findById("sku-1")).thenReturn(Optional.of(sku));
+        GenerationRun run = GenerationRun.start(
+                "run-2", USER, "hold-1", "sess-abc", "scene-1", "ecommerce", NOW);
+        when(generationRunRepository.findById("run-2")).thenReturn(Optional.of(run));
+
+        HistoryArtifactDetailDTO detail = service.findById(USER, "sku-1");
+        assertEquals("sess-abc", detail.getSessionId());
+    }
+
+    @Test
+    void findByIdLeavesSessionIdNullWhenRunMissing() {
+        Artifact picklist = picklist(NOW.minus(1, ChronoUnit.DAYS));
+        when(artifactRepository.findById("art-1")).thenReturn(Optional.of(picklist));
+
+        HistoryArtifactDetailDTO detail = service.findById(USER, "art-1");
+        assertNull(detail.getSessionId());
     }
 
     private static Artifact picklist(Instant createdAt) {

@@ -1,6 +1,11 @@
 package com.xmut.ebus;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
+import com.xmut.ebus.application.business.session.query.SessionQueryService;
+import com.xmut.ebus.domain.business.artifact.model.Artifact;
+import com.xmut.ebus.domain.business.artifact.model.ArtifactType;
+import com.xmut.ebus.domain.business.artifact.repository.ArtifactRepository;
 import com.xmut.ebus.interfaces.ratelimit.AuthRateLimitInterceptor;
 import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.agent.session.SessionStore;
@@ -21,6 +26,8 @@ import java.util.Arrays;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -47,11 +54,18 @@ class SessionQueryIntegrationTest {
     @Autowired
     private SessionStore sessionStore;
 
+    @Autowired
+    private SessionQueryService sessionQueryService;
+
+    @Autowired
+    private ArtifactRepository artifactRepository;
+
     @BeforeEach
     void clean() {
         authRateLimitInterceptor.reset();
         jdbcTemplate.update("DELETE FROM pi_session_entry");
         jdbcTemplate.update("DELETE FROM pi_session");
+        jdbcTemplate.update("DELETE FROM ebus_artifact");
         jdbcTemplate.update("DELETE FROM ebus_generation_run");
         jdbcTemplate.update("DELETE FROM ebus_credit_hold");
         jdbcTemplate.update("DELETE FROM ebus_credit_account");
@@ -136,6 +150,50 @@ class SessionQueryIntegrationTest {
         Integer runs = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM ebus_generation_run WHERE session_id = ?", Integer.class, sessionId);
         assertEquals(0, runs.intValue());
+    }
+
+    @Test
+    void latestArtifactSkipsChatAndPicksLatestPicklistOrSku() throws Exception {
+        String username = "sqa_" + shortId();
+        registerAndLogin(username);
+        String userId = userIdOf(username);
+        String sessionId = "sess-art-" + shortId();
+        insertSession(sessionId, userId, Instant.now());
+
+        Instant t1 = Instant.parse("2026-09-20T10:00:00Z");
+        Instant t2 = Instant.parse("2026-09-21T10:00:00Z");
+        Instant t3 = Instant.parse("2026-09-22T10:00:00Z");
+        String pickId = insertArtifactAndRun(userId, sessionId, ArtifactType.PICKLIST, "旧选品", t1);
+        insertArtifactAndRun(userId, sessionId, ArtifactType.CHAT, "聊天", t3);
+        String skuId = insertArtifactAndRun(userId, sessionId, ArtifactType.SKU, "新 Listing", t2);
+
+        HistoryArtifactDetailDTO latest = sessionQueryService.latestArtifact(userId, sessionId).orElse(null);
+        assertTrue(latest != null);
+        assertEquals(skuId, latest.getId());
+        assertEquals("sku", latest.getArtifactType());
+        assertEquals(sessionId, latest.getSessionId());
+        assertFalse(pickId.equals(latest.getId()));
+        assertFalse(sessionQueryService.latestArtifact(userId, "no-such-session").isPresent());
+    }
+
+    private String insertArtifactAndRun(String userId,
+                                        String sessionId,
+                                        ArtifactType type,
+                                        String title,
+                                        Instant createdAt) {
+        String artifactId = UUID.randomUUID().toString();
+        String runId = UUID.randomUUID().toString();
+        String payload = "{\"view\":{\"kind\":\"doc\",\"title\":\"" + title
+                + "\",\"blocks\":[]},\"data\":{}}";
+        artifactRepository.save(Artifact.create(
+                artifactId, userId, runId, type, "ecommerce", null, title, payload, createdAt));
+        Timestamp ts = Timestamp.from(createdAt);
+        jdbcTemplate.update(
+                "INSERT INTO ebus_generation_run (biz_id, user_id, hold_id, session_id, scene_code, "
+                        + "artifact_ref, status, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, 'ecommerce', ?, 'SETTLED', ?, ?)",
+                runId, userId, UUID.randomUUID().toString(), sessionId, artifactId, ts, ts);
+        return artifactId;
     }
 
     private void insertSession(String sessionId, String userId, Instant updatedAt) {

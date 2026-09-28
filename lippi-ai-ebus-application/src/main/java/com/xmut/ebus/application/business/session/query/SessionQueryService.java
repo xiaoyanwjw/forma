@@ -1,11 +1,14 @@
 package com.xmut.ebus.application.business.session.query;
 
+import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
+import com.xmut.ebus.application.business.history.query.HistoryQueryService;
 import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
+import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
 import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.agent.session.SessionStore;
@@ -19,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * SessionQuery：本人近 60 天会话列表与 R1 消息（显式 userId ACL）。
@@ -37,6 +41,8 @@ public class SessionQueryService {
 
     private final PiSessionQueryRepository piSessionQueryRepository;
     private final SessionStore sessionStore;
+    private final GenerationRunRepository generationRunRepository;
+    private final HistoryQueryService historyQueryService;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -83,6 +89,20 @@ public class SessionQueryService {
             out.add(new SessionMessageDTO(role, message.getContent(), null));
         }
         return out;
+    }
+
+    /**
+     * 会话侧栏最近可用成果：本人该 session 上最新 picklist/sku artifact_ref，详情走 HistoryQuery（含 resign / 60 天窗）。
+     */
+    @Transactional(readOnly = true)
+    public Optional<HistoryArtifactDetailDTO> latestArtifact(String userId, String sessionId) {
+        String uid = StringUtils.requireHasText(userId, "userId required");
+        String sid = StringUtils.requireHasText(sessionId, "sessionId required");
+        Optional<String> artifactId = generationRunRepository.findLatestSettledArtifactRefBySession(uid, sid);
+        if (!artifactId.isPresent()) {
+            return Optional.empty();
+        }
+        return Optional.of(historyQueryService.findById(uid, artifactId.get()));
     }
 
     static int clampLimit(Integer limit) {

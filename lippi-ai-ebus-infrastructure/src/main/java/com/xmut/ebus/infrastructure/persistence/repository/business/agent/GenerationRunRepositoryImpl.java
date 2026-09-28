@@ -31,6 +31,12 @@ public class GenerationRunRepositoryImpl implements GenerationRunRepository {
         return Optional.ofNullable(generationRunMapper.selectById(id)).map(this::toDomain);
     }
 
+    @Override
+    public Optional<String> findLatestSettledArtifactRefBySession(String userId, String sessionId) {
+        return Optional.ofNullable(
+                generationRunMapper.selectLatestUsableArtifactRefBySession(userId, sessionId));
+    }
+
     private GenerationRunPO toPo(GenerationRun run) {
         GenerationRunPO po = new GenerationRunPO();
         po.setBizId(run.getId());

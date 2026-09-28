@@ -53,6 +53,7 @@ class FeedbackHistoryIntegrationTest {
         authRateLimitInterceptor.reset();
         jdbcTemplate.update("DELETE FROM ebus_feedback");
         jdbcTemplate.update("DELETE FROM ebus_artifact");
+        jdbcTemplate.update("DELETE FROM ebus_generation_run");
         jdbcTemplate.update("DELETE FROM ebus_credit_hold");
         jdbcTemplate.update("DELETE FROM ebus_credit_account");
         jdbcTemplate.update("DELETE FROM ebus_user");
@@ -190,7 +191,8 @@ class FeedbackHistoryIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(firstId))
                 .andExpect(jsonPath("$.data.title").value("旧成果"))
-                .andExpect(jsonPath("$.data.view").isMap());
+                .andExpect(jsonPath("$.data.view").isMap())
+                .andExpect(jsonPath("$.data.sessionId").value(nullValue()));
 
         mockMvc.perform(get("/api/v1/history/artifacts")
                         .header("Authorization", "Bearer " + token))
@@ -198,6 +200,22 @@ class FeedbackHistoryIntegrationTest {
                 .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].id").value(secondId))
                 .andExpect(jsonPath("$.data[1].id").value(firstId));
+    }
+
+    @Test
+    void historyDetailIncludesSessionIdFromGenerationRun() throws Exception {
+        String username = "hds_" + shortId();
+        String token = registerAndLogin(username);
+        String userId = userIdOf(username);
+        Instant now = Instant.now();
+        String sessionId = UUID.randomUUID().toString();
+        String artifactId = saveOwnedArtifactWithSession(userId, ArtifactType.SKU, now, "带会话 Listing", sessionId);
+
+        mockMvc.perform(get("/api/v1/history/artifacts/" + artifactId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(artifactId))
+                .andExpect(jsonPath("$.data.sessionId").value(sessionId));
     }
 
     @Test
@@ -212,6 +230,14 @@ class FeedbackHistoryIntegrationTest {
     }
 
     private String saveOwnedArtifact(String userId, ArtifactType type, Instant createdAt, String title) {
+        return saveOwnedArtifactWithSession(userId, type, createdAt, title, null);
+    }
+
+    private String saveOwnedArtifactWithSession(String userId,
+                                                ArtifactType type,
+                                                Instant createdAt,
+                                                String title,
+                                                String sessionId) {
         String id = UUID.randomUUID().toString();
         String runId = UUID.randomUUID().toString();
         String payload = "{\"view\":{\"kind\":\"doc\",\"title\":\"" + title
@@ -219,6 +245,14 @@ class FeedbackHistoryIntegrationTest {
         Artifact artifact = Artifact.create(
                 id, userId, runId, type, "ecommerce", null, title, payload, createdAt);
         artifactRepository.save(artifact);
+        if (sessionId != null) {
+            java.sql.Timestamp ts = java.sql.Timestamp.from(createdAt);
+            jdbcTemplate.update(
+                    "INSERT INTO ebus_generation_run (biz_id, user_id, hold_id, session_id, scene_code, "
+                            + "artifact_ref, status, created_at, updated_at) "
+                            + "VALUES (?, ?, ?, ?, 'ecommerce', ?, 'SETTLED', ?, ?)",
+                    runId, userId, UUID.randomUUID().toString(), sessionId, id, ts, ts);
+        }
         return id;
     }
 
