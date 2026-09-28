@@ -20,6 +20,8 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -50,6 +52,7 @@ class SessionQueryIntegrationTest {
         authRateLimitInterceptor.reset();
         jdbcTemplate.update("DELETE FROM pi_session_entry");
         jdbcTemplate.update("DELETE FROM pi_session");
+        jdbcTemplate.update("DELETE FROM ebus_generation_run");
         jdbcTemplate.update("DELETE FROM ebus_credit_hold");
         jdbcTemplate.update("DELETE FROM ebus_credit_account");
         jdbcTemplate.update("DELETE FROM ebus_user");
@@ -107,6 +110,32 @@ class SessionQueryIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].sessionId").value(theirs));
+    }
+
+    @Test
+    void prepareRunRefusesForeignSessionIdBeforeReserve() throws Exception {
+        String ownerName = "sqf_" + shortId();
+        String otherName = "sqx_" + shortId();
+        registerAndLogin(ownerName);
+        String otherToken = registerAndLogin(otherName);
+        String ownerId = userIdOf(ownerName);
+        String otherId = userIdOf(otherName);
+        String sessionId = "sess-foreign-" + shortId();
+        insertSession(sessionId, ownerId, Instant.now());
+
+        mockMvc.perform(post("/api/v1/agent/runs/empty")
+                        .param("sessionId", sessionId)
+                        .param("sceneCode", "ecommerce")
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("会话不存在或无权查看"));
+
+        Integer holds = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ebus_credit_hold WHERE user_id = ?", Integer.class, otherId);
+        assertEquals(0, holds.intValue());
+        Integer runs = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ebus_generation_run WHERE session_id = ?", Integer.class, sessionId);
+        assertEquals(0, runs.intValue());
     }
 
     private void insertSession(String sessionId, String userId, Instant updatedAt) {

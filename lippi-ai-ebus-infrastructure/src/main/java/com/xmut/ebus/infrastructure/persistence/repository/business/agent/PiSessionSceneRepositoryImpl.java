@@ -30,7 +30,8 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
         if (row == null) {
             return Optional.empty();
         }
-        return Optional.of(new SessionSceneBinding(row.getSessionId(), row.getSceneId(), row.getSceneCode()));
+        return Optional.of(new SessionSceneBinding(
+                row.getSessionId(), row.getSceneId(), row.getSceneCode(), row.getUserId()));
     }
 
     @Override
@@ -90,10 +91,13 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
         if (row == null) {
             throw new IllegalStateException("session missing after bind race: " + sessionId);
         }
-        SessionSceneBinding bound = new SessionSceneBinding(row.getSessionId(), row.getSceneId(), row.getSceneCode());
-        if (bound.hasScene()
-                && (!sceneId.equals(bound.getSceneId()) || !sceneCode.equals(bound.getSceneCode()))) {
-            throw new IllegalStateException("session already bound to another scene");
+        SessionSceneBinding bound = new SessionSceneBinding(
+                row.getSessionId(), row.getSceneId(), row.getSceneCode(), row.getUserId());
+        if (bound.hasScene()) {
+            if (!sceneId.equals(bound.getSceneId()) || !sceneCode.equals(bound.getSceneCode())) {
+                throw new IllegalStateException("session already bound to another scene");
+            }
+            return;
         }
         sessionMapper.updateScene(sessionId, sceneId, sceneCode, now);
     }

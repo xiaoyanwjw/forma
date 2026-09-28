@@ -16,6 +16,7 @@ import com.xmut.ebus.application.business.marketplace.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.media.support.ListingMediaMountSupport;
 import com.xmut.ebus.domain.business.media.model.MediaObject;
 import com.xmut.ebus.domain.business.media.store.MediaStore;
+import com.xmut.ebus.application.business.session.query.SessionQueryService;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -325,6 +326,45 @@ class AgentApplicationServiceTest {
                 .build());
 
         verify(piSessionSceneRepository).ensureBound("legacy-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID);
+    }
+
+    @Test
+    void prepareGenerationRunForbiddenWhenSessionOwnedByOtherUser() {
+        stubEcommerceByCode();
+        when(piSessionSceneRepository.findBySessionId("foreign-session"))
+                .thenReturn(Optional.of(new SessionSceneBinding(
+                        "foreign-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, "other-user")));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+                        .userId(USER_ID)
+                        .sessionId("foreign-session")
+                        .sceneCode(ECOM_SCENE_CODE)
+                        .build()));
+        assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
+        assertEquals(SessionQueryService.MSG_UNAVAILABLE, ex.getMessage());
+        verify(creditApplicationService, never()).reserveOne(anyString());
+        verify(generationRunRepository, never()).save(any(GenerationRun.class));
+        verify(piSessionSceneRepository, never()).ensureBound(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void prepareGenerationRunAllowsOwnSessionAndStillEnsureBound() {
+        stubEcommerceByCode();
+        when(piSessionSceneRepository.findBySessionId("own-session"))
+                .thenReturn(Optional.of(new SessionSceneBinding(
+                        "own-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID)));
+        when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
+
+        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+                .userId(USER_ID)
+                .sessionId("own-session")
+                .sceneCode(ECOM_SCENE_CODE)
+                .build());
+
+        assertEquals("own-session", ctx.getSessionId());
+        verify(piSessionSceneRepository).ensureBound("own-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID);
+        verify(creditApplicationService).reserveOne(USER_ID);
     }
 
     @Test

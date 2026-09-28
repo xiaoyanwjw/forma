@@ -8,11 +8,17 @@ public final class SessionSceneBinding {
     private final String sessionId;
     private final String sceneId;
     private final String sceneCode;
+    private final String userId;
 
     public SessionSceneBinding(String sessionId, String sceneId, String sceneCode) {
+        this(sessionId, sceneId, sceneCode, null);
+    }
+
+    public SessionSceneBinding(String sessionId, String sceneId, String sceneCode, String userId) {
         this.sessionId = sessionId;
         this.sceneId = sceneId;
         this.sceneCode = sceneCode;
+        this.userId = userId;
     }
 
     public String getSessionId() {
@@ -25,6 +31,10 @@ public final class SessionSceneBinding {
 
     public String getSceneCode() {
         return sceneCode;
+    }
+
+    public String getUserId() {
+        return userId;
     }
 
     public boolean hasScene() {

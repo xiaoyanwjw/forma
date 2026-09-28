@@ -22,6 +22,7 @@ import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.ViewProjectContext;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
+import com.xmut.ebus.application.business.session.query.SessionQueryService;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.logging.LoggerUtils;
@@ -198,10 +199,14 @@ public class AgentApplicationService {
 
     private void binding(String sessionId, Scene scene, String userId) {
         Optional<SessionSceneBinding> existing = piSessionSceneRepository.findBySessionId(sessionId);
-        if (existing.isPresent() && existing.get().hasScene()) {
+        if (existing.isPresent()) {
             SessionSceneBinding bound = existing.get();
-            if (!scene.getId().equals(bound.getSceneId())
-                    || !scene.getSceneCode().equals(bound.getSceneCode())) {
+            if (StringUtils.hasText(bound.getUserId()) && !userId.equals(bound.getUserId().trim())) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, SessionQueryService.MSG_UNAVAILABLE);
+            }
+            if (bound.hasScene()
+                    && (!scene.getId().equals(bound.getSceneId())
+                    || !scene.getSceneCode().equals(bound.getSceneCode()))) {
                 throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SESSION_SCENE_MISMATCH);
             }
         }
