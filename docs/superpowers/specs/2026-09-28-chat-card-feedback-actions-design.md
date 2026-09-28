@@ -35,7 +35,7 @@
 3. Computer 顶栏结果操作条删除。  
 
 **B. 历史页抽屉**  
-4. 点列表条目 → 大抽屉：上区会话消息（R1），下区成果 Computer 预览。  
+4. 点列表条目 → 大抽屉，用 **Tab** 切换：「对话」（R1 会话气泡）｜「成果」（Computer 预览）；默认「成果」（或上次选中，实现自定默认「成果」）。  
 
 **C. 工作台侧栏**  
 5. 侧栏本人近 60 天会话列表；点选整页切到该 `sessionId`（对话 R1 + Computer 最近成果）；可继续发送/重试。  
@@ -65,8 +65,9 @@
 ```text
 /history 点条目
   → 解析 artifact → run → sessionId
-  → 抽屉上：GET session messages（本人 ACL）
-  → 抽屉下：GET history artifact detail（view 重签）
+  → 抽屉 Tab「对话」：GET session messages（本人 ACL；无会话则空态）
+  → 抽屉 Tab「成果」：GET history artifact detail（view 重签）
+  → 同一抽屉内 Tab 切换，不关抽屉
 ```
 
 ### 3.3 侧栏切会话
@@ -100,7 +101,7 @@ GET 本人会话列表（60d, scene 可滤）
 
 - 历史列表仍以 `ebus_artifact`（picklist/sku、60d）为准。  
 - 详情/抽屉：返回 `sessionId`（经 run 关联）；消息走 SessionQuery。  
-- 无 session 时：上区空态，下区成果仍可用。  
+- 无 session 时：「对话」Tab 空态；「成果」Tab 仍可用。  
 
 ---
 
@@ -114,8 +115,8 @@ GET 本人会话列表（60d, scene 可滤）
 
 ### 5.2 历史页
 
-- 列表点击开抽屉（对话 + 预览），可保留轻量列表选中态。  
-- 空会话 / 加载失败人话提示。  
+- 列表点击开抽屉；抽屉内 Tab：「对话」｜「成果」（默认「成果」）。  
+- 可保留列表选中态；空会话 / 加载失败人话提示。  
 
 ---
 
@@ -123,7 +124,7 @@ GET 本人会话列表（60d, scene 可滤）
 
 1. Given 成功 STATUS 卡，when 查看卡下，then 有重试/赞/踩，且 Computer 顶栏无旧操作。  
 2. Given 成功成果，when 赞或踩（抽屉确认），then 落库对应标签且积分不变；再改另一边则覆盖。  
-3. Given 历史列表有成果，when 点开，then 抽屉上为会话气泡（或无会话空态）、下为成果预览。  
+3. Given 历史列表有成果，when 点开抽屉，then 可用 Tab 在「对话」（气泡或空态）与「成果」预览间切换。  
 4. Given 侧栏有过往会话，when 点选，then 工作台切到该 session 的对话与最近成果，并可继续发送。  
 5. Given 切到旧会话，when 一键重试且余额≥1，then 新 Run+新预占，旧成果保留。  
 
