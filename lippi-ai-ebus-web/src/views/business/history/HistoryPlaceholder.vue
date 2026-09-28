@@ -37,6 +37,8 @@ const computerDoc = computed(() => {
   return parseComputerDocument(detail.value.view)
 })
 
+const sessionId = computed(() => detail.value?.sessionId?.trim() || '')
+
 function sceneLabel(code: string): string {
   if (code === 'ecommerce') return '电商开店'
   return code || '场景'
@@ -116,8 +118,8 @@ async function openItem(item: HistoryArtifactSummary) {
 }
 
 async function loadChat() {
-  const sessionId = detail.value?.sessionId?.trim()
-  if (!sessionId) {
+  const sid = sessionId.value
+  if (!sid) {
     chatMessages.value = []
     chatError.value = ''
     chatLoading.value = false
@@ -127,7 +129,7 @@ async function loadChat() {
   chatLoading.value = true
   chatError.value = ''
   try {
-    const data = await getSessionMessages(sessionId)
+    const data = await getSessionMessages(sid)
     if (seq !== chatRequestSeq) {
       return
     }
@@ -282,7 +284,7 @@ onMounted(() => {
           data-testid="history-chat"
           aria-label="对话回放"
         >
-          <p v-if="!detailLoading && !detail?.sessionId" class="hint" data-testid="history-chat-empty">
+          <p v-if="!detailLoading && !sessionId" class="hint" data-testid="history-chat-empty">
             暂无会话记录
           </p>
           <p v-else-if="chatLoading" class="hint">正在加载对话…</p>
