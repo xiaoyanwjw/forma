@@ -25,7 +25,7 @@ const router = createRouter({
     {
       path: '/me',
       name: 'me',
-      component: () => import('@/views/identity/AuthMe.vue'),
+      component: () => import('@/views/identity/AccountSettings.vue'),
     },
     {
       path: '/credits',

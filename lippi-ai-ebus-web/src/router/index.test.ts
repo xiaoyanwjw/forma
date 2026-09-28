@@ -7,6 +7,7 @@ import AgentDryRun from '@/views/agent/AgentDryRun.vue'
 import SceneGallery from '@/views/business/scene/SceneGallery.vue'
 import EcommerceWorkspacePlaceholder from '@/views/business/scene/EcommerceWorkspacePlaceholder.vue'
 import HistoryPlaceholder from '@/views/business/history/HistoryPlaceholder.vue'
+import AccountSettings from '@/views/identity/AccountSettings.vue'
 
 describe('router root', () => {
   afterEach(() => {
@@ -69,6 +70,17 @@ describe('router agent dry-run', () => {
     expect(typeof loader).toBe('function')
     const mod = await (loader as () => Promise<{ default: unknown }>)()
     expect(mod.default).toBe(AgentDryRun)
+  })
+})
+
+describe('router account settings', () => {
+  it('resolve name me points to AccountSettings at /me', async () => {
+    const resolved = router.resolve({ name: 'me' })
+    expect(resolved.path).toBe('/me')
+    const loader = resolved.matched[0]?.components?.default
+    expect(typeof loader).toBe('function')
+    const mod = await (loader as () => Promise<{ default: unknown }>)()
+    expect(mod.default).toBe(AccountSettings)
   })
 })
 
