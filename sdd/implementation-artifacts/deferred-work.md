@@ -203,3 +203,7 @@
 - source_spec: `sdd/implementation-artifacts/spec-3-8-重试-质量差-反馈与近-60-天历史.md`
   summary: 已有 MySQL named volume 不会自动执行 `013_ebus_feedback.sql`，需手工跑 SQL 或重建库。
   evidence: compose 仅首次 initdb；与既有 bootstrap SQL 运维约定同类。
+
+- source_spec: `docs/superpowers/specs/2026-09-28-chat-card-feedback-actions-design.md`
+  summary: R2 UI 笔录未做——STATUS 过程卡像素级回放 / 独立 UI 笔录表后置；历史与侧栏会话仍按 R1（pi_session 用户/助手气泡，不 1:1 还原过程卡）。
+  evidence: 设计 Non-goals 与 Risks 写明 R2 后置；本轮验收为卡片反馈 + 抽屉 Tab + 侧栏切会话。

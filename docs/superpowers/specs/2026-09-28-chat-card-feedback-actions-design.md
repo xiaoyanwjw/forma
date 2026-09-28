@@ -135,3 +135,13 @@ GET 本人会话列表（60d, scene 可滤）
 - `pi_session.user_id` 若历史行曾为空：列表 ACL 需补写策略或仅展示已绑定 user 的会话（实现计划选定，禁止静默漏数给他人）。  
 - R1 回放观感弱于 STATUS 卡 → 产品文案可提示「过程日志仅当时可见」。  
 - R2 UI 笔录后置，记入 deferred 若评审需要。  
+
+---
+
+## Implementation note（2026-09-28）
+
+- 卡片：成功 STATUS 卡下重试/赞/踩；踩走底部抽屉；Computer 顶栏结果条已删。  
+- Feedback：`质量好`/`质量差` 按 `(user, artifact)` upsert；不经 CreditLedger。  
+- 历史抽屉：Tab「对话」（R1）｜「成果」；详情带 `sessionId`。  
+- 侧栏：近 60 天本人会话列表，点选整页切换并可继续发送。  
+- R2 过程卡笔录见 `sdd/implementation-artifacts/deferred-work.md`。  
