@@ -47,6 +47,12 @@ class AccountProfileIntegrationTest {
     @Autowired
     private AuthRateLimitInterceptor authRateLimitInterceptor;
 
+    @Autowired
+    private com.xmut.ebus.application.business.credit.service.CreditApplicationService creditApplicationService;
+
+    @Autowired
+    private com.xmut.ebus.domain.business.credit.repository.CreditHoldRepository creditHoldRepository;
+
     @BeforeEach
     void clean() {
         authRateLimitInterceptor.reset();
@@ -186,6 +192,80 @@ class AccountProfileIntegrationTest {
     }
 
     @Test
+    void getCreditUsageReturnsSummaryAndEmptyEntriesForFreshAccount() throws Exception {
+        RegisteredUser user = registerAndLogin("usage0");
+
+        mockMvc.perform(get("/api/v1/account/credits/usage")
+                        .header("Authorization", "Bearer " + user.token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.tier").value("FREE"))
+                .andExpect(jsonPath("$.data.available").value(20))
+                .andExpect(jsonPath("$.data.monthlyQuota").value(20))
+                .andExpect(jsonPath("$.data.used").value(0))
+                .andExpect(jsonPath("$.data.nextResetAt").isNotEmpty())
+                .andExpect(jsonPath("$.data.entries").isArray())
+                .andExpect(jsonPath("$.data.entries").isEmpty());
+    }
+
+    @Test
+    void getCreditUsageListsOnlySettledHolds() throws Exception {
+        RegisteredUser user = registerAndLogin("usage1");
+        String holdSettled = creditApplicationService.reserveOne(user.userId);
+        creditApplicationService.settle(user.userId, holdSettled);
+        String holdReleased = creditApplicationService.reserveOne(user.userId);
+        creditApplicationService.release(user.userId, holdReleased);
+        creditApplicationService.reserveOne(user.userId); // ACTIVE，不应出现在流水
+
+        mockMvc.perform(get("/api/v1/account/credits/usage")
+                        .header("Authorization", "Bearer " + user.token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.available").value(18))
+                .andExpect(jsonPath("$.data.monthlyQuota").value(20))
+                .andExpect(jsonPath("$.data.used").value(2))
+                .andExpect(jsonPath("$.data.entries.length()").value(1))
+                .andExpect(jsonPath("$.data.entries[0].holdId").value(holdSettled))
+                .andExpect(jsonPath("$.data.entries[0].title").value("已扣分"))
+                .andExpect(jsonPath("$.data.entries[0].amount").value(1))
+                .andExpect(jsonPath("$.data.entries[0].delta").value(-1))
+                .andExpect(jsonPath("$.data.entries[0].occurredAt").isNotEmpty())
+                .andExpect(jsonPath("$.data.entries[*].holdId",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(holdReleased))));
+    }
+
+    @Test
+    void getCreditUsageOrdersSettledDescAndRespectsLimit() throws Exception {
+        RegisteredUser user = registerAndLogin("usageOrd");
+        String olderHold = creditApplicationService.reserveOne(user.userId);
+        creditApplicationService.settle(user.userId, olderHold);
+        String newerHold = creditApplicationService.reserveOne(user.userId);
+        creditApplicationService.settle(user.userId, newerHold);
+
+        java.sql.Timestamp olderAt = java.sql.Timestamp.from(java.time.Instant.parse("2026-09-20T08:00:00Z"));
+        java.sql.Timestamp newerAt = java.sql.Timestamp.from(java.time.Instant.parse("2026-09-25T08:00:00Z"));
+        jdbcTemplate.update("UPDATE ebus_credit_hold SET updated_at = ? WHERE biz_id = ?", olderAt, olderHold);
+        jdbcTemplate.update("UPDATE ebus_credit_hold SET updated_at = ? WHERE biz_id = ?", newerAt, newerHold);
+
+        mockMvc.perform(get("/api/v1/account/credits/usage")
+                        .header("Authorization", "Bearer " + user.token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.entries.length()").value(2))
+                .andExpect(jsonPath("$.data.entries[0].holdId").value(newerHold))
+                .andExpect(jsonPath("$.data.entries[1].holdId").value(olderHold));
+
+        java.util.List<com.xmut.ebus.domain.business.credit.model.CreditHold> limited =
+                creditHoldRepository.listSettledByUserId(user.userId, 1);
+        org.junit.jupiter.api.Assertions.assertEquals(1, limited.size());
+        org.junit.jupiter.api.Assertions.assertEquals(newerHold, limited.get(0).getId());
+    }
+
+    @Test
+    void getCreditUsageWithoutTokenUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/v1/account/credits/usage"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
     void accountControllerHasNoCreditWriteEndpoints() {
         Class<?> controller = com.xmut.ebus.interfaces.web.identity.AccountController.class;
         for (Method method : controller.getDeclaredMethods()) {
@@ -200,6 +280,25 @@ class AccountProfileIntegrationTest {
         String sourceHint = Arrays.toString(controller.getDeclaredFields());
         assertFalse(sourceHint.toLowerCase().contains("credit"),
                 "AccountController 不得依赖 Credit* 组件: " + sourceHint);
+
+        Class<?> usageController = com.xmut.ebus.interfaces.web.identity.AccountCreditController.class;
+        for (Method method : usageController.getDeclaredMethods()) {
+            if (!java.lang.reflect.Modifier.isPublic(method.getModifiers())) {
+                continue;
+            }
+            String name = method.getName().toLowerCase();
+            assertFalse(name.contains("reserve") || name.contains("settle")
+                            || name.contains("release") || name.contains("tier") || name.contains("change"),
+                    "account 用量面不得含写积分: " + method.getName());
+            assertTrue(method.isAnnotationPresent(org.springframework.web.bind.annotation.GetMapping.class),
+                    "account 用量面仅允许 GET: " + method.getName());
+        }
+        boolean hasPostOrPatchOrPutOrDelete = Arrays.stream(usageController.getDeclaredMethods())
+                .anyMatch(m -> m.isAnnotationPresent(org.springframework.web.bind.annotation.PostMapping.class)
+                        || m.isAnnotationPresent(org.springframework.web.bind.annotation.PatchMapping.class)
+                        || m.isAnnotationPresent(org.springframework.web.bind.annotation.PutMapping.class)
+                        || m.isAnnotationPresent(org.springframework.web.bind.annotation.DeleteMapping.class));
+        assertFalse(hasPostOrPatchOrPutOrDelete, "AccountCreditController 不得暴露写积分 HTTP 动词");
     }
 
     private RegisteredUser registerAndLogin(String prefix) throws Exception {

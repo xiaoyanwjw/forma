@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.Instant;
+import java.util.List;
 
 @Mapper
 public interface CreditHoldMapper {
@@ -17,4 +18,6 @@ public interface CreditHoldMapper {
                              @Param("userId") String userId,
                              @Param("newStatus") String newStatus,
                              @Param("updatedAt") Instant updatedAt);
+
+    List<CreditHoldPO> listSettledByUserId(@Param("userId") String userId, @Param("limit") int limit);
 }

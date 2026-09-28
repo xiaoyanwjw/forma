@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
-import { getAccountProfile, updateAccountProfile } from '@/api/identity/account'
+import { getAccountCreditUsage, getAccountProfile, updateAccountProfile } from '@/api/identity/account'
 import { ApiError } from '@/api/client'
 import { clearToken, getToken } from '@/api/http'
 import type { AccountProfile } from '@/types/identity/account'
+import {
+  formatCreditDelta,
+  formatNextResetAtShanghai,
+  type CreditUsage,
+} from '@/types/business/credit'
 
 type AccountSection = 'profile' | 'usage' | 'security'
 
@@ -26,6 +31,10 @@ const loadError = ref('')
 const saveError = ref('')
 const saveOk = ref(false)
 
+const usage = ref<CreditUsage | null>(null)
+const usageLoading = ref(false)
+const usageError = ref('')
+
 const avatarLetter = computed(() => {
   const name = profile.value?.username?.trim()
   if (!name) {
@@ -38,8 +47,21 @@ const usernameDirty = computed(
   () => profile.value != null && usernameDraft.value.trim() !== profile.value.username,
 )
 
+const usageResetLabel = computed(() => {
+  if (!usage.value?.nextResetAt) {
+    return '—'
+  }
+  return formatNextResetAtShanghai(usage.value.nextResetAt)
+})
+
 onMounted(async () => {
   await loadProfile()
+})
+
+watch(activeSection, (section) => {
+  if (section === 'usage' && profile.value && !usageLoading.value) {
+    void loadUsage()
+  }
 })
 
 async function loadProfile() {
@@ -57,6 +79,9 @@ async function loadProfile() {
     const data = await getAccountProfile()
     profile.value = data
     usernameDraft.value = data.username
+    if (activeSection.value === 'usage') {
+      void loadUsage()
+    }
   } catch (e) {
     loadError.value = e instanceof ApiError ? e.message : '无法加载个人资料'
     if (e instanceof ApiError && e.code === 401) {
@@ -65,6 +90,32 @@ async function loadProfile() {
     }
   } finally {
     loading.value = false
+  }
+}
+
+async function loadUsage() {
+  if (usageLoading.value) {
+    return
+  }
+  usageError.value = ''
+  if (!getToken()) {
+    needsLogin.value = true
+    usageError.value = '未登录，请先登录后查看使用情况'
+    return
+  }
+  usageLoading.value = true
+  try {
+    const data = await getAccountCreditUsage()
+    usage.value = data
+  } catch (e) {
+    usageError.value = e instanceof ApiError ? e.message : '无法加载使用情况'
+    if (e instanceof ApiError && e.code === 401) {
+      clearToken()
+      needsLogin.value = true
+      loadError.value = e.message || '未登录或登录已过期'
+    }
+  } finally {
+    usageLoading.value = false
   }
 }
 
@@ -262,19 +313,73 @@ function logout() {
           >
             <h1 id="title-usage">使用情况</h1>
             <p class="settings-lead">
-              积分余额与近期消耗将在此展示。扣分发生在成功产出可用结果之后。
+              查看积分余额与近期消耗，扣分发生在成功产出可用结果之后。
             </p>
-            <div class="settings-card">
-              <div class="settings-row">
-                <div class="row-body">
-                  <div class="row-label">用量明细</div>
-                  <div class="row-value">即将完善，当前可先到套餐页查看余额。</div>
+
+            <template v-if="usageLoading && !usage">
+              <p>加载中…</p>
+            </template>
+
+            <template v-else-if="usageError && !usage">
+              <p class="error" role="alert">{{ usageError }}</p>
+              <p class="nav">
+                <button type="button" class="btn btn-ghost" @click="loadUsage">重试</button>
+                <router-link class="btn btn-ghost" :to="{ name: 'credits' }">查看套餐</router-link>
+              </p>
+            </template>
+
+            <template v-else-if="usage">
+              <div class="usage-summary" aria-label="本月用量摘要">
+                <div class="usage-stat">
+                  <div class="usage-label">本月剩余</div>
+                  <div class="usage-num">
+                    {{ usage.available }} <span>/ {{ usage.monthlyQuota }}</span>
+                  </div>
                 </div>
-                <router-link class="btn btn-ghost" :to="{ name: 'credits' }">
-                  查看套餐
-                </router-link>
+                <div class="usage-stat">
+                  <div class="usage-label">本月已用</div>
+                  <div class="usage-num">{{ usage.used }}</div>
+                </div>
+                <div class="usage-stat">
+                  <div class="usage-label">下次重置</div>
+                  <div class="usage-num small">{{ usageResetLabel }}</div>
+                </div>
               </div>
-            </div>
+
+              <div v-if="usage.entries.length > 0" class="settings-card">
+                <div
+                  v-for="entry in usage.entries"
+                  :key="entry.holdId"
+                  class="usage-item"
+                >
+                  <div>
+                    <div class="row-value">{{ entry.title }}</div>
+                    <div class="row-label">{{ formatNextResetAtShanghai(entry.occurredAt) }}</div>
+                  </div>
+                  <span class="usage-delta">{{ formatCreditDelta(entry.delta) }}</span>
+                </div>
+              </div>
+              <div v-else class="settings-card">
+                <div class="usage-empty">
+                  <div class="row-value">还没有扣分记录</div>
+                  <div class="row-label">
+                    成功产出可用结果后才会扣分。当前可先到套餐页查看额度与方案。
+                  </div>
+                </div>
+              </div>
+
+              <p class="pricing-note">
+                完整规则见
+                <router-link :to="{ name: 'credits' }">套餐页</router-link>
+                。选品清单与上架素材各扣 1 积分。
+              </p>
+              <template v-if="usageError">
+                <p class="error" role="alert">{{ usageError }}</p>
+                <p class="nav">
+                  <button type="button" class="btn btn-ghost" @click="loadUsage">重试</button>
+                </p>
+              </template>
+            </template>
           </section>
 
           <section
@@ -543,6 +648,84 @@ function logout() {
 
 a {
   color: var(--ink);
+}
+
+.usage-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.usage-stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+}
+
+.usage-label {
+  font-size: 0.75rem;
+  color: var(--mute);
+  margin-bottom: 6px;
+}
+
+.usage-num {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.usage-num span {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--mute);
+}
+
+.usage-num.small {
+  font-size: 1.05rem;
+}
+
+.usage-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-2);
+}
+
+.usage-item:last-child {
+  border-bottom: none;
+}
+
+.usage-delta {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.usage-empty {
+  padding: 14px 16px;
+}
+
+.pricing-note {
+  margin: 12px 0 0;
+  font-size: 0.875rem;
+  color: var(--mute);
+}
+
+.pricing-note a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 800px) {
+  .usage-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 800px) {

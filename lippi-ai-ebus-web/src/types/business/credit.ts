@@ -12,6 +12,27 @@ export interface CreditBalance {
   periodAnchorAt: string
 }
 
+/** GET /api/v1/account/credits/usage 流水行 */
+export interface CreditUsageEntry {
+  holdId: string
+  title: string
+  amount: number
+  /** 负值，如 −1 */
+  delta: number
+  /** ISO-8601 UTC Instant（结算时间） */
+  occurredAt: string
+}
+
+/** GET /api/v1/account/credits/usage 响应 */
+export interface CreditUsage {
+  tier: CreditTier | string
+  available: number
+  monthlyQuota: number
+  used: number
+  nextResetAt: string
+  entries: CreditUsageEntry[]
+}
+
 /** 价目表一行（前端静态；无定价 API） */
 export interface CreditPlanRow {
   tier: CreditTier
@@ -62,4 +83,15 @@ export function formatNextResetAtShanghai(iso: string): string {
   const get = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((p) => p.type === type)?.value ?? ''
   return `${get('year')}/${get('month')}/${get('day')} ${get('hour')}:${get('minute')}`
+}
+
+/** 流水 delta 展示（如 −1） */
+export function formatCreditDelta(delta: number): string {
+  if (delta < 0) {
+    return `−${Math.abs(delta)}`
+  }
+  if (delta > 0) {
+    return `+${delta}`
+  }
+  return '0'
 }

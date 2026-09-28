@@ -9,7 +9,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -30,6 +33,15 @@ public class CreditHoldRepositoryImpl implements CreditHoldRepository {
     @Override
     public int updateStatusIfActive(String holdId, String userId, CreditHoldStatus newStatus, Instant updatedAt) {
         return creditHoldMapper.updateStatusIfActive(holdId, userId, newStatus.name(), updatedAt);
+    }
+
+    @Override
+    public List<CreditHold> listSettledByUserId(String userId, int limit) {
+        List<CreditHoldPO> rows = creditHoldMapper.listSettledByUserId(userId, limit);
+        if (rows == null || rows.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return rows.stream().map(this::toDomain).collect(Collectors.toList());
     }
 
     private CreditHoldPO toPo(CreditHold hold) {

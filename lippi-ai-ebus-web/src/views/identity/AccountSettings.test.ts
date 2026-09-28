@@ -17,10 +17,62 @@ function okProfile(data: Record<string, unknown>) {
   })
 }
 
+function okUsage(overrides: Record<string, unknown> = {}) {
+  return okProfile({
+    tier: 'FREE',
+    available: 14,
+    monthlyQuota: 20,
+    used: 6,
+    nextResetAt: '2026-10-24T10:00:00Z',
+    entries: [
+      {
+        holdId: 'hold-1',
+        title: '已扣分',
+        amount: 1,
+        delta: -1,
+        occurredAt: '2026-09-25T01:12:00Z',
+      },
+    ],
+    ...overrides,
+  })
+}
+
 function failJson(status: number, message: string, code = status) {
   return new Response(JSON.stringify({ success: false, code, message }), {
     status,
     headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+function stubAccountFetch(
+  handlers: (url: string, init?: RequestInit) => Response | Promise<Response> | null,
+) {
+  return vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+    const handled = handlers(url, init)
+    if (handled != null) {
+      return Promise.resolve(handled)
+    }
+    if (String(url).includes('/api/v1/account/profile')) {
+      return Promise.resolve(
+        okProfile({ userId: 'u-1', username: '小陈', email: 'chen@example.com' }),
+      )
+    }
+    if (String(url).includes('/api/v1/account/credits/usage')) {
+      return Promise.resolve(okUsage())
+    }
+    if (String(url).includes('/api/v1/credits')) {
+      return Promise.resolve(
+        okProfile({
+          tier: 'FREE',
+          available: 14,
+          balance: 20,
+          reserved: 0,
+          nextResetAt: '2026-10-24T10:00:00Z',
+          periodAnchorAt: '2026-09-24T10:00:00Z',
+        }),
+      )
+    }
+    return Promise.resolve(failJson(404, 'not found'))
   })
 }
 
@@ -381,29 +433,7 @@ describe('AccountSettings', () => {
 
   it('switches sections via keyboard on tablist', async () => {
     setToken('jwt-account')
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation((url: string) => {
-        if (String(url).includes('/api/v1/account/profile')) {
-          return Promise.resolve(
-            okProfile({ userId: 'u-1', username: '小陈', email: 'chen@example.com' }),
-          )
-        }
-        if (String(url).includes('/api/v1/credits')) {
-          return Promise.resolve(
-            okProfile({
-              tier: 'FREE',
-              available: 14,
-              balance: 20,
-              reserved: 0,
-              nextResetAt: '2026-10-24T10:00:00Z',
-              periodAnchorAt: '2026-09-24T10:00:00Z',
-            }),
-          )
-        }
-        return Promise.resolve(failJson(404, 'not found'))
-      }),
-    )
+    vi.stubGlobal('fetch', stubAccountFetch(() => null))
 
     const mounted = await mountAccount()
     unmount = mounted.unmount
@@ -416,7 +446,166 @@ describe('AccountSettings', () => {
     const usageTab = mounted.root.querySelector('[data-section="usage"]')
     expect(usageTab?.getAttribute('aria-selected')).toBe('true')
     expect(mounted.root.querySelector('#title-usage')).toBeTruthy()
-    expect(mounted.root.textContent).toMatch(/即将完善/)
+    expect(mounted.root.textContent).toMatch(/本月剩余/)
+    expect(mounted.root.textContent).toMatch(/已扣分/)
+  })
+
+  it('loads usage summary and settled entries when opening usage section', async () => {
+    setToken('jwt-account')
+    const fetchMock = stubAccountFetch(() => null)
+    vi.stubGlobal('fetch', fetchMock)
+
+    const mounted = await mountAccount()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const usageTab = mounted.root.querySelector('[data-section="usage"]') as HTMLButtonElement
+    usageTab.click()
+    await flushUi()
+
+    expect(mounted.root.textContent).toMatch(/本月剩余/)
+    expect(mounted.root.textContent).toMatch(/14/)
+    expect(mounted.root.textContent).toMatch(/本月已用/)
+    expect(mounted.root.textContent).toMatch(/已扣分/)
+    expect(mounted.root.textContent).toMatch(/−1/)
+    const usagePanel = mounted.root.querySelector('section[aria-labelledby="title-usage"]')
+    const creditsLink = usagePanel?.querySelector('a[href="/credits"]')
+    expect(creditsLink?.textContent).toMatch(/套餐/)
+    const usageCalls = fetchMock.mock.calls.filter((c) =>
+      String(c[0]).includes('/api/v1/account/credits/usage'),
+    )
+    expect(usageCalls.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('shows empty usage state without white-screening when no settled entries', async () => {
+    setToken('jwt-account')
+    vi.stubGlobal(
+      'fetch',
+      stubAccountFetch((url) => {
+        if (String(url).includes('/api/v1/account/credits/usage')) {
+          return okUsage({ available: 20, used: 0, entries: [] })
+        }
+        return null
+      }),
+    )
+
+    const mounted = await mountAccount()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const usageTab = mounted.root.querySelector('[data-section="usage"]') as HTMLButtonElement
+    usageTab.click()
+    await flushUi()
+
+    expect(mounted.root.textContent).toMatch(/本月剩余/)
+    expect(mounted.root.textContent).toMatch(/还没有扣分记录/)
+    expect(mounted.root.textContent).not.toMatch(/白屏|undefined/)
+    expect(mounted.root.querySelector('#title-usage')).toBeTruthy()
+  })
+
+  it('shows usage error with retry when usage load fails', async () => {
+    setToken('jwt-account')
+    let usageCalls = 0
+    const fetchMock = stubAccountFetch((url) => {
+      if (String(url).includes('/api/v1/account/credits/usage')) {
+        usageCalls += 1
+        if (usageCalls === 1) {
+          return failJson(500, '用量暂时不可用', 500)
+        }
+        return okUsage({ available: 19, used: 1 })
+      }
+      return null
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const mounted = await mountAccount()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const usageTab = mounted.root.querySelector('[data-section="usage"]') as HTMLButtonElement
+    usageTab.click()
+    await flushUi()
+
+    expect(mounted.root.textContent).toMatch(/用量暂时不可用/)
+    const retryBtn = [...mounted.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === '重试',
+    )
+    expect(retryBtn).toBeTruthy()
+    expect(getToken()).toBe('jwt-account')
+
+    retryBtn!.click()
+    await flushUi()
+
+    const usageGets = fetchMock.mock.calls.filter((c) =>
+      String(c[0]).includes('/api/v1/account/credits/usage'),
+    )
+    expect(usageGets.length).toBeGreaterThanOrEqual(2)
+    expect(mounted.root.textContent).toMatch(/本月剩余/)
+    expect(mounted.root.textContent).toMatch(/已扣分/)
+    expect(mounted.root.textContent).not.toMatch(/用量暂时不可用/)
+  })
+
+  it('keeps stale usage and offers retry when refresh fails', async () => {
+    setToken('jwt-account')
+    let usageCalls = 0
+    vi.stubGlobal(
+      'fetch',
+      stubAccountFetch((url) => {
+        if (String(url).includes('/api/v1/account/credits/usage')) {
+          usageCalls += 1
+          if (usageCalls === 1) {
+            return okUsage({ available: 14, used: 6 })
+          }
+          return failJson(500, '刷新失败', 500)
+        }
+        return null
+      }),
+    )
+
+    const mounted = await mountAccount()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const usageTab = mounted.root.querySelector('[data-section="usage"]') as HTMLButtonElement
+    usageTab.click()
+    await flushUi()
+    expect(mounted.root.textContent).toMatch(/已扣分/)
+
+    const profileTab = mounted.root.querySelector('[data-section="profile"]') as HTMLButtonElement
+    profileTab.click()
+    await flushUi()
+    usageTab.click()
+    await flushUi()
+
+    expect(mounted.root.textContent).toMatch(/已扣分/)
+    expect(mounted.root.textContent).toMatch(/刷新失败/)
+    expect(
+      [...mounted.root.querySelectorAll('button')].some((b) => b.textContent?.trim() === '重试'),
+    ).toBe(true)
+  })
+
+  it('clears token on 401 usage load', async () => {
+    setToken('jwt-account')
+    vi.stubGlobal(
+      'fetch',
+      stubAccountFetch((url) => {
+        if (String(url).includes('/api/v1/account/credits/usage')) {
+          return failJson(401, '未登录或登录已过期', 401)
+        }
+        return null
+      }),
+    )
+
+    const mounted = await mountAccount()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const usageTab = mounted.root.querySelector('[data-section="usage"]') as HTMLButtonElement
+    usageTab.click()
+    await flushUi()
+
+    expect(getToken()).toBeNull()
+    expect(mounted.root.textContent).toMatch(/未登录|登录已过期/)
   })
 
   it('security section keeps logout that clears token', async () => {

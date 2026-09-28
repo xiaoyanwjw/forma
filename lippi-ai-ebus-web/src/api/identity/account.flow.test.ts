@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken } from '@/api/http'
-import { getAccountProfile, updateAccountProfile } from '@/api/identity/account'
+import {
+  getAccountCreditUsage,
+  getAccountProfile,
+  updateAccountProfile,
+} from '@/api/identity/account'
 
 describe('account profile api', () => {
   beforeEach(() => {
@@ -48,6 +52,42 @@ describe('account profile api', () => {
     expect(init.method).toBe('PATCH')
     expect(JSON.parse(String(init.body))).toEqual({ username: 'bob' })
     const headers = init.headers as Headers
+    expect(headers.get('Authorization')).toBe('Bearer jwt-account')
+  })
+
+  it('getAccountCreditUsage calls GET /api/v1/account/credits/usage with JWT', async () => {
+    setToken('jwt-account')
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            tier: 'FREE',
+            available: 19,
+            monthlyQuota: 20,
+            used: 1,
+            nextResetAt: '2026-10-24T10:00:00Z',
+            entries: [
+              {
+                holdId: 'h1',
+                title: '已扣分',
+                amount: 1,
+                delta: -1,
+                occurredAt: '2026-09-25T01:00:00Z',
+              },
+            ],
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const usage = await getAccountCreditUsage()
+    expect(usage.used).toBe(1)
+    expect(usage.entries[0]?.title).toBe('已扣分')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/account/credits/usage')
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Headers
     expect(headers.get('Authorization')).toBe('Bearer jwt-account')
   })
 })

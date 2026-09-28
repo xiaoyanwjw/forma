@@ -33,4 +33,13 @@
           AND user_id = #{userId}
           AND status = 'ACTIVE'
     </update>
+
+    <select id="listSettledByUserId" resultMap="CreditHoldResultMap">
+        SELECT id, biz_id, account_id, user_id, amount, status, created_at, updated_at
+        FROM ebus_credit_hold
+        WHERE user_id = #{userId}
+          AND status = 'SETTLED'
+        ORDER BY updated_at DESC
+        LIMIT #{limit}
+    </select>
 </mapper>
