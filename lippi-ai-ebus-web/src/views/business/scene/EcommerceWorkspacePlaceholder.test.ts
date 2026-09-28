@@ -1152,8 +1152,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(thread).toContain('帮我找杯子')
     expect(thread).toContain('这是杯子建议')
     expect(mounted.root.querySelector('.chat-events')).toBeNull()
-    expect(items[1].classList.contains('on')).toBe(true)
-    expect(items[0].classList.contains('on')).toBe(false)
+    expect(items[1]?.classList.contains('on')).toBe(true)
+    expect(items[0]?.classList.contains('on')).toBe(false)
     expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(true)
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('候选1')
 
