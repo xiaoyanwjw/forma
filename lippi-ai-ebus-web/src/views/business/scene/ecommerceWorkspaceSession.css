@@ -185,9 +185,9 @@
   margin: 0 auto 20px;
 }
 
-/* Short user lines: avatar sits on the vertical center of the bubble text */
+/* Avatar top-aligned with message (multi-line handoff prompts stay flush) */
 .msg.user {
-  align-items: center;
+  align-items: flex-start;
 }
 
 .msg .msg-avatar {
