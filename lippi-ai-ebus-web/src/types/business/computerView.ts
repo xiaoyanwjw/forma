@@ -46,6 +46,8 @@ export interface ComputerListLine {
 }
 
 export interface ComputerListItem {
+  /** Picklist artifact item id (e.g. pl-1); same value as artifact items[].id */
+  id?: string
   /** Semantic badge key (e.g. priority) or legacy display text. */
   badge?: string
   title: string
@@ -242,6 +244,9 @@ function parseListItem(raw: unknown): ComputerListItem | null {
     return null
   }
   const item: ComputerListItem = { title: raw.title }
+  if (typeof raw.id === 'string' && raw.id.trim()) {
+    item.id = raw.id.trim()
+  }
   if (typeof raw.badge === 'string') {
     item.badge = raw.badge
   }

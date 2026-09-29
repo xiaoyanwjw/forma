@@ -341,6 +341,25 @@ describe('parseComputerDocument', () => {
     expect(list && list.type === 'list' && list.items[1]?.href).toBeUndefined()
   })
 
+  it('parses trimmed id on list items and drops blank', () => {
+    const parsed = parseComputerDocument({
+      version: 1,
+      title: 'picklist',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            { title: 'A', id: '  pl-1  ' },
+            { title: 'B', id: '   ' },
+          ],
+        },
+      ],
+    })
+    const list = parsed?.blocks.find((b) => b.type === 'list')
+    expect(list && list.type === 'list' && list.items[0]?.id).toBe('pl-1')
+    expect(list && list.type === 'list' && list.items[1]?.id).toBeUndefined()
+  })
+
   it('renders listing plan storyboard as single markdown without platform shell', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
