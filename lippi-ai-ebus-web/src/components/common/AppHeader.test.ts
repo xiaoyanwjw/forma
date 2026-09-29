@@ -133,7 +133,7 @@ describe('AppHeader', () => {
     expect(plans?.getAttribute('aria-current')).toBe('page')
   })
 
-  it('scenes links to scenes gallery; history is not a navigable link', async () => {
+  it('scenes and history are navigable links', async () => {
     const mounted = await mountHeader()
     unmount = mounted.unmount
     await flushUi()
@@ -146,7 +146,7 @@ describe('AppHeader', () => {
     const historyLink = Array.from(mounted.root.querySelectorAll('a')).find(
       (a) => a.textContent?.trim() === '历史',
     )
-    expect(historyLink).toBeUndefined()
+    expect(historyLink?.getAttribute('href')).toBe('/history')
     expect(mounted.root.querySelector('[data-nav="history"]')).toBeTruthy()
   })
 

@@ -8,6 +8,7 @@ import com.xmut.ebus.infrastructure.persistence.mybatis.po.GenerationRunPO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Optional;
 
 @Repository
@@ -29,6 +30,12 @@ public class GenerationRunRepositoryImpl implements GenerationRunRepository {
     @Override
     public Optional<GenerationRun> findById(String id) {
         return Optional.ofNullable(generationRunMapper.selectById(id)).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<String> findLatestSettledArtifactRefBySession(String userId, String sessionId, Instant since) {
+        return Optional.ofNullable(
+                generationRunMapper.selectLatestUsableArtifactRefBySession(userId, sessionId, since));
     }
 
     private GenerationRunPO toPo(GenerationRun run) {

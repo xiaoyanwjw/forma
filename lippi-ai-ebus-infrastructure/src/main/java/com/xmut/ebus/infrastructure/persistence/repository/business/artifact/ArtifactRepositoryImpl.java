@@ -9,6 +9,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -49,6 +54,38 @@ public class ArtifactRepositoryImpl implements ArtifactRepository {
             return Optional.empty();
         }
         return Optional.of(toDomain(po));
+    }
+
+    @Override
+    public List<Artifact> listByUserSince(String userId,
+                                          Instant sinceInclusive,
+                                          Collection<ArtifactType> types,
+                                          String sceneCodeOrNull) {
+        if (!StringUtils.hasText(userId) || sinceInclusive == null) {
+            return Collections.emptyList();
+        }
+        List<String> typeCodes = new ArrayList<String>();
+        if (types != null) {
+            for (ArtifactType type : types) {
+                if (type != null) {
+                    typeCodes.add(type.getCode());
+                }
+            }
+        }
+        if (typeCodes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        String sceneCode = StringUtils.hasText(sceneCodeOrNull) ? sceneCodeOrNull.trim() : null;
+        List<ArtifactPO> rows = artifactMapper.selectByUserSince(
+                userId.trim(), sinceInclusive, typeCodes, sceneCode);
+        if (rows == null || rows.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Artifact> result = new ArrayList<Artifact>(rows.size());
+        for (ArtifactPO po : rows) {
+            result.add(toDomain(po));
+        }
+        return result;
     }
 
     private static Artifact toDomain(ArtifactPO po) {

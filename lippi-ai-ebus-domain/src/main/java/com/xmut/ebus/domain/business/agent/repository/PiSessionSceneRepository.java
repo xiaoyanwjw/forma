@@ -15,7 +15,8 @@ public interface PiSessionSceneRepository {
     Optional<SessionSceneBinding> findBySessionId(String sessionId);
 
     /**
-     * 无则建空会话并写入场景；有则只更新场景列（调用方已做冲突校验）。
+     * 无则建空会话并写入场景与 {@code userId}；有则只更新场景列（调用方已做冲突校验）。
+     * {@code userId} 非空时，仅在行上 {@code user_id} 为空时回填，不覆盖已有归属。
      */
-    void ensureBound(String sessionId, String sceneId, String sceneCode);
+    void ensureBound(String sessionId, String sceneId, String sceneCode, String userId);
 }

@@ -105,6 +105,25 @@
         LIMIT #{limit}
     </select>
 
+    <select id="selectByUserSince" resultMap="PiSessionResultMap">
+        SELECT <include refid="SessionColumns"/>
+        FROM pi_session
+        WHERE user_id = #{userId}
+          AND updated_at &gt;= #{since}
+        <if test="sceneCode != null and sceneCode != ''">
+            AND scene_code = #{sceneCode}
+        </if>
+        ORDER BY updated_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="updateUserIdIfNull">
+        UPDATE pi_session
+        SET user_id = #{userId}
+        WHERE session_id = #{sessionId}
+          AND user_id IS NULL
+    </update>
+
     <select id="selectChildrenRoots" resultMap="PiSessionResultMap">
         SELECT <include refid="SessionColumns"/>
         FROM pi_session

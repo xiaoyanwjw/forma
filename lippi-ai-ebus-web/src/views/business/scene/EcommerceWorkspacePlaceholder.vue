@@ -2,7 +2,15 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
+import { ApiError } from '@/api/client'
+import { getFeedbackByArtifact, submitFeedback } from '@/api/business/feedback/feedback'
 import { getScenes } from '@/api/business/scene/scene'
+import {
+  getLatestSessionArtifact,
+  getSessionMessages,
+  listSessions,
+} from '@/api/business/session/session'
+import type { Page, SessionMessage, SessionSummary } from '@/types/business/session'
 import {
   buildFailureDetail,
   canExpandProcessEvent,
@@ -19,6 +27,10 @@ import {
   DEMO_SESSION_TITLE,
 } from '@/views/business/scene/ecommerceDemoFixtures'
 import type { GenerationArtifactPayload } from '@/types/business/agent'
+import { parseComputerDocument } from '@/types/business/computerView'
+import { FEEDBACK_TAG_GOOD_QUALITY, FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
+import { toReplayBubbles } from '@/utils/sessionReplay'
+import type { HistoryArtifactDetail } from '@/types/business/history'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
 /** Stable scene binding for this workbench — Epic 3 session create must carry it */
@@ -44,13 +56,26 @@ interface ChatMessage {
   /** Failed STATUS expand panel (reason + tool/model dumps) */
   statusDetail?: string
   failed?: boolean
+  /** R1 回放用普通气泡；直播/合成 STATUS 走 console */
+  presentation?: 'bubble' | 'console'
+  /** epoch ms（回放来自 entry.created_at） */
+  at?: number
 }
 
 const sessionPrompt = ref('')
 /** Optional Catalog bizId when list is available; null if unresolved */
 const sceneBizId = ref<string | null>(null)
 const messages = ref<ChatMessage[]>([])
+const sessions = ref<SessionSummary[]>([])
+const sessionsError = ref('')
+const selectedSessionId = ref<string | null>(null)
 const sessionTitle = ref(DEMO_SESSION_TITLE)
+/** 侧栏回放：已加载的原始 R1 行（分页累加） */
+const sessionRawRows = ref<SessionMessage[]>([])
+const sessionHasMore = ref(false)
+const sessionNextToken = ref<string | null>(null)
+const sessionHistoryLoading = ref(false)
+const sessionReplayKind = ref<ComputerKind>(null)
 const computerKind = ref<ComputerKind>(null)
 const livePicklist = ref<GenerationArtifactPayload | null>(null)
 const liveListing = ref<GenerationArtifactPayload | null>(null)
@@ -85,6 +110,22 @@ const {
 const listingSupplementOpen = ref(false)
 const listingSupplementText = ref('')
 
+/** 一键重试用：上次成功计费提示词与类型（勿走 newTask） */
+const lastBilledPrompt = ref('')
+const lastBilledKind = ref<ComputerKind>(null)
+/** 当前计费轮次提示词（含 HITL 续跑成功后回填） */
+const pendingBilledPrompt = ref('')
+const feedbackNote = ref('')
+const feedbackBusy = ref(false)
+const feedbackHint = ref('')
+const feedbackTag = ref<string | null>(null)
+const dislikeDrawerOpen = ref(false)
+/** Monotonic seq so a late GET cannot overwrite a newer local like/dislike. */
+let feedbackOpSeq = 0
+const localFeedbackSubmitSeq = new Map<string, number>()
+/** Ignore stale session-switch HTTP after 新任务 / 连点侧栏 */
+let workspaceSwitchSeq = 0
+
 const generationRunning = computed(() => picklistRunning.value || listingRunning.value)
 const listingAwaitingHuman = computed(() => Boolean(listingPendingHuman.value))
 const sessionBusy = computed(() => generationRunning.value || listingAwaitingHuman.value)
@@ -103,6 +144,32 @@ const sessionSendEnabled = computed(
 
 const picksIsLive = computed(() => Boolean(livePicklist.value?.view))
 const listingIsLive = computed(() => Boolean(liveListing.value?.view))
+
+const activeLiveArtifact = computed(() => {
+  if (computerKind.value === 'listing' && liveListing.value?.artifactRef) {
+    return liveListing.value
+  }
+  if (computerKind.value === 'picks' && livePicklist.value?.artifactRef) {
+    return livePicklist.value
+  }
+  if (liveListing.value?.artifactRef) return liveListing.value
+  if (livePicklist.value?.artifactRef) return livePicklist.value
+  return null
+})
+
+const canOneClickRetry = computed(
+  () =>
+    Boolean(lastBilledPrompt.value.trim()) &&
+    Boolean(lastBilledKind.value) &&
+    !sessionBusy.value,
+)
+
+const canSubmitFeedback = computed(
+  () =>
+    Boolean(activeLiveArtifact.value?.artifactRef) &&
+    !sessionBusy.value &&
+    !feedbackBusy.value,
+)
 
 const activeComputerDoc = computed(() => {
   if (computerKind.value === 'listing') {
@@ -199,7 +266,13 @@ async function finishGenerationMessage(opts: {
       liveListing.value = opts.artifact
     }
     computerKind.value = opts.kind
+    if (opts.kind && pendingBilledPrompt.value.trim()) {
+      lastBilledPrompt.value = pendingBilledPrompt.value.trim()
+      lastBilledKind.value = opts.kind
+    }
+    feedbackHint.value = ''
     revealComputer()
+    void loadSessions()
     const reply = opts.successFallback
     if (idx >= 0) {
       messages.value[idx] = {
@@ -315,7 +388,7 @@ async function confirmListingExecute() {
 }
 
 function openListingSupplement() {
-  listingSupplementOpen.value = true
+  listingSupplementOpen.value = !listingSupplementOpen.value
 }
 
 async function submitListingSupplement() {
@@ -362,12 +435,18 @@ async function sendFromSession() {
     return
   }
 
+  await runBilledGeneration(text, listing ? 'listing' : 'picks')
+}
+
+/** 计费生成（首次发送与一键重试共用；复用 sessionId，新 Run）。 */
+async function runBilledGeneration(text: string, kind: 'picks' | 'listing') {
+  pendingBilledPrompt.value = text
   const thinkingId = nextMsgId()
   thinkingMessageId.value = thinkingId
   messages.value.push({
     id: thinkingId,
     role: 'agent',
-    text: listing ? '正在生成上架素材…' : '正在生成选品清单…',
+    text: kind === 'listing' ? '正在生成上架素材…' : '正在生成选品清单…',
   })
   scrollChatToBottom()
 
@@ -378,7 +457,7 @@ async function sendFromSession() {
     sessionId: sessionId.value ?? undefined,
   }
 
-  if (listing) {
+  if (kind === 'listing') {
     await startListingRun(shared)
     await finishListingAfterStream(thinkingId)
     return
@@ -398,6 +477,67 @@ async function sendFromSession() {
       ? [...picklistProcessEvents.value]
       : undefined,
   })
+}
+
+async function oneClickRetry() {
+  if (!canOneClickRetry.value || !lastBilledKind.value) return
+  const text = lastBilledPrompt.value.trim()
+  const kind = lastBilledKind.value
+  messages.value.push({ id: nextMsgId(), role: 'user', text: `重试：${text}` })
+  scrollChatToBottom()
+  await runBilledGeneration(text, kind)
+}
+
+async function submitLikeFeedback() {
+  const artifactRef = activeLiveArtifact.value?.artifactRef?.trim()
+  if (!artifactRef || !canSubmitFeedback.value) return
+  feedbackBusy.value = true
+  feedbackHint.value = ''
+  try {
+    await submitFeedback({
+      artifactId: artifactRef,
+      tag: FEEDBACK_TAG_GOOD_QUALITY,
+    })
+    markLocalFeedbackSubmit(artifactRef)
+    feedbackTag.value = FEEDBACK_TAG_GOOD_QUALITY
+    feedbackHint.value = '已记录「质量好」反馈，不影响积分。'
+  } catch (e) {
+    feedbackHint.value = e instanceof ApiError ? e.message : '反馈提交失败'
+  } finally {
+    feedbackBusy.value = false
+  }
+}
+
+function openDislikeDrawer() {
+  if (!activeLiveArtifact.value?.artifactRef || sessionBusy.value) return
+  dislikeDrawerOpen.value = true
+}
+
+function closeDislikeDrawer() {
+  dislikeDrawerOpen.value = false
+}
+
+async function submitPoorQualityFeedback() {
+  const artifactRef = activeLiveArtifact.value?.artifactRef?.trim()
+  if (!artifactRef || !canSubmitFeedback.value) return
+  feedbackBusy.value = true
+  feedbackHint.value = ''
+  try {
+    await submitFeedback({
+      artifactId: artifactRef,
+      tag: FEEDBACK_TAG_POOR_QUALITY,
+      commentText: feedbackNote.value.trim() || undefined,
+    })
+    markLocalFeedbackSubmit(artifactRef)
+    feedbackTag.value = FEEDBACK_TAG_POOR_QUALITY
+    feedbackNote.value = ''
+    dislikeDrawerOpen.value = false
+    feedbackHint.value = '已记录「质量差」反馈，不影响积分。'
+  } catch (e) {
+    feedbackHint.value = e instanceof ApiError ? e.message : '反馈提交失败'
+  } finally {
+    feedbackBusy.value = false
+  }
 }
 
 function revealComputer() {
@@ -430,6 +570,51 @@ function canPreviewFromStatus(m: ChatMessage): boolean {
   if (kind === 'picks') return Boolean(livePicklist.value?.view)
   return Boolean(livePicklist.value?.view || liveListing.value?.view)
 }
+
+function currentFeedbackArtifactId() {
+  return activeLiveArtifact.value?.artifactRef?.trim() || ''
+}
+
+function markLocalFeedbackSubmit(artifactId: string) {
+  const seq = ++feedbackOpSeq
+  localFeedbackSubmitSeq.set(artifactId, seq)
+}
+
+function applyFeedbackRestore(seq: number, artifactId: string, tag: string | null) {
+  if (currentFeedbackArtifactId() !== artifactId) return
+  const localSeq = localFeedbackSubmitSeq.get(artifactId) ?? 0
+  if (localSeq > seq) return
+  feedbackTag.value = tag
+}
+
+function isLatestPreviewableStatus(m: ChatMessage): boolean {
+  if (!canPreviewFromStatus(m)) return false
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    const cur = messages.value[i]
+    if (cur && canPreviewFromStatus(cur)) {
+      return cur.id === m.id
+    }
+  }
+  return false
+}
+
+watch(
+  () => activeLiveArtifact.value?.artifactRef?.trim() || '',
+  async (artifactId) => {
+    if (!artifactId) {
+      feedbackOpSeq += 1
+      feedbackTag.value = null
+      return
+    }
+    const seq = ++feedbackOpSeq
+    try {
+      const existing = await getFeedbackByArtifact(artifactId)
+      applyFeedbackRestore(seq, artifactId, existing?.tag?.trim() || null)
+    } catch {
+      applyFeedbackRestore(seq, artifactId, null)
+    }
+  },
+)
 
 /** Preview is showing when Computer is open on the matching live view. */
 function isPreviewOpenFromStatus(m: ChatMessage): boolean {
@@ -470,7 +655,237 @@ function closeComputer() {
   computerKind.value = null
 }
 
+function replayMessagesFromApi(
+  rows: SessionMessage[] | null | undefined,
+  artifactKind: ComputerKind,
+): ChatMessage[] {
+  return toReplayBubbles(rows, artifactKind).map((bubble) => {
+    if (bubble.role === 'user') {
+      return {
+        id: nextMsgId(),
+        role: 'user' as const,
+        text: bubble.content,
+        at: bubble.at,
+      }
+    }
+    if (bubble.kind === 'artifact') {
+      return {
+        id: nextMsgId(),
+        role: 'agent' as const,
+        text: bubble.content,
+        presentation: 'console' as const,
+        at: bubble.at,
+      }
+    }
+    return {
+      id: nextMsgId(),
+      role: 'agent' as const,
+      text: bubble.content,
+      presentation: 'bubble' as const,
+      at: bubble.at,
+    }
+  })
+}
+
+function applyMessagePage(page: Page<SessionMessage> | null | undefined, mode: 'replace' | 'prepend') {
+  const items = Array.isArray(page?.items) ? page!.items : []
+  if (mode === 'replace') {
+    sessionRawRows.value = items
+  } else {
+    sessionRawRows.value = [...items, ...sessionRawRows.value]
+  }
+  const token = page?.nextToken?.trim() || null
+  sessionNextToken.value = token
+  sessionHasMore.value = Boolean(token)
+}
+
+function paintSessionReplay(kind: ComputerKind) {
+  sessionReplayKind.value = kind
+  const replayed = replayMessagesFromApi(sessionRawRows.value, kind)
+  lastBilledKind.value = kind
+  lastBilledPrompt.value = kind
+    ? lastUserPromptFromReplay(replayed, sessionTitle.value || DEMO_SESSION_TITLE)
+    : ''
+  const hasArtifactStatus = replayed.some(
+    (m) => m.role === 'agent' && m.presentation === 'console' && /已生成/.test(m.text),
+  )
+  const status = !hasArtifactStatus ? synthesizePreviewableStatus(kind) : null
+  messages.value = status ? [...replayed, status] : replayed
+}
+
+function isConsoleMessage(m: ChatMessage): boolean {
+  if (m.role !== 'agent') return false
+  if (m.presentation === 'bubble') return false
+  if (m.presentation === 'console') return true
+  return Boolean(
+    m.processEvents?.length ||
+      canPreviewFromStatus(m) ||
+      canExpandStatus(m) ||
+      (generationRunning.value && m.id === thinkingMessageId.value) ||
+      (listingAwaitingHuman.value && m.id === thinkingMessageId.value),
+  )
+}
+
+function kindFromArtifactType(artifactType?: string | null): ComputerKind {
+  if (artifactType === 'sku') return 'listing'
+  if (artifactType === 'picklist') return 'picks'
+  return null
+}
+
+function lastUserPromptFromReplay(rows: ChatMessage[], titleFallback: string): string {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const cur = rows[i]
+    if (cur?.role === 'user' && cur.text.trim()) {
+      return cur.text.trim()
+    }
+  }
+  return titleFallback.trim()
+}
+
+function synthesizePreviewableStatus(kind: ComputerKind): ChatMessage | null {
+  if (kind === 'listing') {
+    return {
+      id: nextMsgId(),
+      role: 'agent',
+      presentation: 'console',
+      text: '已生成上架素材，右侧 Computer 可查看主图位与文案。',
+    }
+  }
+  if (kind === 'picks') {
+    return {
+      id: nextMsgId(),
+      role: 'agent',
+      presentation: 'console',
+      text: '已生成选品成果，右侧 Computer 可查看。',
+    }
+  }
+  return null
+}
+
+function applyLatestArtifact(
+  detail: HistoryArtifactDetail | null | undefined,
+  openComputer = true,
+): ComputerKind {
+  livePicklist.value = null
+  liveListing.value = null
+  computerKind.value = null
+  if (!detail?.id || !detail.view) {
+    return null
+  }
+  const view = parseComputerDocument(detail.view)
+  if (!view) {
+    return null
+  }
+  const kind = kindFromArtifactType(detail.artifactType) || 'picks'
+  const payload: GenerationArtifactPayload = { artifactRef: detail.id, view }
+  if (kind === 'listing') {
+    liveListing.value = payload
+  } else {
+    livePicklist.value = payload
+  }
+  if (openComputer) {
+    computerKind.value = kind
+    revealComputer()
+  }
+  return kind
+}
+
+async function loadSessions() {
+  try {
+    const data = await listSessions(SCENE_CODE)
+    sessions.value = Array.isArray(data) ? data : []
+    sessionsError.value = ''
+  } catch (e) {
+    sessions.value = []
+    sessionsError.value = e instanceof ApiError ? e.message : '会话加载失败'
+  }
+}
+
+async function selectSession(item: SessionSummary) {
+  const sid = item.sessionId?.trim()
+  if (!sid) return
+  const seq = ++workspaceSwitchSeq
+  resetPicklistRun()
+  resetListingRun()
+  listingSupplementOpen.value = false
+  listingSupplementText.value = ''
+  thinkingMessageId.value = null
+  expandedStreamIds.value = new Set()
+  expandedStatusIds.value = new Set()
+  picklistSessionId.value = sid
+  listingSessionId.value = sid
+  selectedSessionId.value = sid
+  sessionTitle.value = item.title || DEMO_SESSION_TITLE
+  messages.value = []
+  sessionRawRows.value = []
+  sessionHasMore.value = false
+  sessionNextToken.value = null
+  sessionHistoryLoading.value = false
+  sessionReplayKind.value = null
+  lastBilledPrompt.value = ''
+  lastBilledKind.value = null
+  pendingBilledPrompt.value = ''
+  feedbackNote.value = ''
+  feedbackHint.value = ''
+  feedbackTag.value = null
+  dislikeDrawerOpen.value = false
+  feedbackBusy.value = false
+  feedbackOpSeq += 1
+  localFeedbackSubmitSeq.clear()
+  applyLatestArtifact(null)
+  try {
+    const [page, latest] = await Promise.all([
+      getSessionMessages(sid),
+      getLatestSessionArtifact(sid),
+    ])
+    if (seq !== workspaceSwitchSeq) return
+    const kind = applyLatestArtifact(latest, false)
+    applyMessagePage(page, 'replace')
+    paintSessionReplay(kind)
+    scrollChatToBottom()
+  } catch (e) {
+    if (seq !== workspaceSwitchSeq) return
+    feedbackHint.value = e instanceof ApiError ? e.message : '会话加载失败'
+  }
+}
+
+async function loadMoreSessionHistory() {
+  const sid = selectedSessionId.value?.trim()
+  const token = sessionNextToken.value
+  if (
+    !sid ||
+    !sessionHasMore.value ||
+    !token ||
+    sessionHistoryLoading.value ||
+    sessionBusy.value
+  ) {
+    return
+  }
+  const switchSeq = workspaceSwitchSeq
+  sessionHistoryLoading.value = true
+  const el = chatScrollEl.value
+  const prevHeight = el?.scrollHeight ?? 0
+  try {
+    const page = await getSessionMessages(sid, { nextToken: token })
+    if (switchSeq !== workspaceSwitchSeq) return
+    applyMessagePage(page, 'prepend')
+    paintSessionReplay(sessionReplayKind.value)
+    await nextTick()
+    if (el) {
+      el.scrollTop = Math.max(0, el.scrollHeight - prevHeight)
+    }
+  } catch (e) {
+    if (switchSeq !== workspaceSwitchSeq) return
+    feedbackHint.value = e instanceof ApiError ? e.message : '加载更多失败'
+  } finally {
+    if (switchSeq === workspaceSwitchSeq) {
+      sessionHistoryLoading.value = false
+    }
+  }
+}
+
 function newTask() {
+  workspaceSwitchSeq += 1
   resetPicklistRun()
   resetListingRun()
   listingSupplementOpen.value = false
@@ -479,11 +894,28 @@ function newTask() {
   expandedStreamIds.value = new Set()
   expandedStatusIds.value = new Set()
   messages.value = []
+  sessionRawRows.value = []
+  sessionHasMore.value = false
+  sessionNextToken.value = null
+  sessionHistoryLoading.value = false
+  sessionReplayKind.value = null
   computerKind.value = null
   livePicklist.value = null
   liveListing.value = null
   sessionPrompt.value = ''
   sessionTitle.value = DEMO_SESSION_TITLE
+  selectedSessionId.value = null
+  lastBilledPrompt.value = ''
+  lastBilledKind.value = null
+  pendingBilledPrompt.value = ''
+  feedbackNote.value = ''
+  feedbackHint.value = ''
+  feedbackTag.value = null
+  dislikeDrawerOpen.value = false
+  feedbackBusy.value = false
+  feedbackOpSeq += 1
+  localFeedbackSubmitSeq.clear()
+  void loadSessions()
 }
 
 function toggleStreamExpand(id: string) {
@@ -542,6 +974,13 @@ watch(processEvents, () => {
   }
 })
 
+watch(sessionId, (id, prev) => {
+  selectedSessionId.value = id
+  if (id && id !== prev) {
+    void loadSessions()
+  }
+})
+
 onMounted(async () => {
   try {
     const data = await getScenes()
@@ -554,6 +993,7 @@ onMounted(async () => {
   } catch {
     // Empty UI still works with sceneCode alone
   }
+  void loadSessions()
 })
 </script>
 
@@ -573,11 +1013,22 @@ onMounted(async () => {
           </svg>
           新任务
         </button>
-        <div class="side-section">当前</div>
-        <button type="button" class="side-item on">
-          {{ sessionTitle }}
-          <span class="sub">进行中 · 电商开店</span>
-        </button>
+        <div class="side-section">会话</div>
+        <p v-if="sessionsError" class="sessions-error" data-testid="sessions-error">{{ sessionsError }}</p>
+        <div class="session-list" data-testid="session-list">
+          <button
+            v-for="s in sessions"
+            :key="s.sessionId"
+            type="button"
+            class="side-item"
+            :class="{ on: selectedSessionId === s.sessionId }"
+            data-testid="session-item"
+            @click="selectSession(s)"
+          >
+            {{ s.title }}
+            <span class="sub">电商开店</span>
+          </button>
+        </div>
       </aside>
 
       <div class="workspace" :class="{ split: computerOpen }">
@@ -586,6 +1037,17 @@ onMounted(async () => {
             <button type="button" class="chat-new-task" @click="newTask">新任务</button>
           </div>
           <div ref="chatScrollEl" class="chat-scroll" role="log" aria-live="polite">
+            <div v-if="sessionHasMore" class="chat-load-more">
+              <button
+                type="button"
+                class="chat-load-more-btn"
+                data-testid="session-load-more"
+                :disabled="sessionHistoryLoading || sessionBusy"
+                @click="loadMoreSessionHistory"
+              >
+                {{ sessionHistoryLoading ? '加载中…' : '加载更多' }}
+              </button>
+            </div>
             <div
               v-for="m in messages"
               :key="m.id"
@@ -611,7 +1073,13 @@ onMounted(async () => {
                 <span v-else class="msg-avatar-letter" aria-hidden="true">A</span>
               </div>
               <div class="body">
-                <p v-if="m.role === 'user'">{{ m.text }}</p>
+                <p v-if="m.role === 'user'" class="msg-text">
+                  {{ m.text }}
+                </p>
+                <p v-else-if="!isConsoleMessage(m)" class="msg-text agent-text">
+                  <span v-if="m.at" class="msg-time">{{ formatEventTime(m.at) }}</span>
+                  {{ m.text }}
+                </p>
                 <div
                   v-else-if="m.processEvents?.length || m.text"
                   class="chat-console"
@@ -676,61 +1144,7 @@ onMounted(async () => {
                     </div>
                   </div>
                   <div
-                    v-if="
-                      listingAwaitingHuman &&
-                      m.id === thinkingMessageId &&
-                      listingPendingHuman
-                    "
-                    class="ask-human"
-                    data-testid="ask-human"
-                  >
-                    <p class="ask-human-q">{{ listingPendingHuman.question }}</p>
-                    <div class="ask-human-actions" role="group" aria-label="确认策划">
-                      <button
-                        type="button"
-                        class="pill"
-                        data-testid="ask-human-confirm"
-                        :disabled="listingRunning"
-                        @click="confirmListingExecute"
-                      >
-                        确认，出执行稿
-                      </button>
-                      <button
-                        type="button"
-                        class="pill"
-                        data-testid="ask-human-supplement"
-                        :disabled="listingRunning"
-                        @click="openListingSupplement"
-                      >
-                        补充需求
-                      </button>
-                    </div>
-                    <div
-                      v-if="listingSupplementOpen"
-                      class="ask-human-supplement"
-                      data-testid="ask-human-supplement-form"
-                    >
-                      <textarea
-                        v-model="listingSupplementText"
-                        class="ask-human-note"
-                        rows="3"
-                        placeholder="写下要改的分镜、标题或详情大纲"
-                        aria-label="补充需求"
-                        :disabled="listingRunning"
-                      />
-                      <button
-                        type="button"
-                        class="pill"
-                        data-testid="ask-human-supplement-submit"
-                        :disabled="listingRunning"
-                        @click="submitListingSupplement"
-                      >
-                        提交补充
-                      </button>
-                    </div>
-                  </div>
-                  <div
-                    v-else-if="m.text && !(generationRunning && m.id === thinkingMessageId)"
+                    v-if="m.text && !(generationRunning && m.id === thinkingMessageId)"
                     class="chat-event chat-event-status"
                     :class="{
                       'is-preview': canPreviewFromStatus(m),
@@ -755,7 +1169,9 @@ onMounted(async () => {
                   >
                     <span class="chat-event-time">{{
                       formatEventTime(
-                        m.processEvents?.[m.processEvents.length - 1]?.at ?? Date.now(),
+                        m.at ??
+                          m.processEvents?.[m.processEvents.length - 1]?.at ??
+                          Date.now(),
                       )
                     }}</span>
                     <span class="chat-event-tag tag-status">{{
@@ -778,6 +1194,66 @@ onMounted(async () => {
                       @click.stop
                     >{{ formatStreamBodyForDisplay(m.statusDetail || m.text) }}</pre>
                   </div>
+                </div>
+                <div
+                  v-if="isLatestPreviewableStatus(m)"
+                  class="card-result-actions"
+                  data-testid="card-result-actions"
+                  @click.stop
+                >
+                  <button
+                    type="button"
+                    class="card-action-icon"
+                    data-testid="one-click-retry"
+                    aria-label="重试"
+                    title="重试"
+                    :disabled="!canOneClickRetry"
+                    @click="oneClickRetry"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5a5 5 0 0 1-9.9 1h-2.02A7 7 0 0 0 12 20c3.87 0 7-3.13 7-7s-3.13-7-7-7z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="card-action-icon"
+                    data-testid="card-like"
+                    aria-label="点赞"
+                    title="点赞"
+                    :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_GOOD_QUALITY }"
+                    :disabled="!canSubmitFeedback"
+                    @click="submitLikeFeedback"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M9 21h9a2 2 0 0 0 1.86-1.26l2.7-7.05A1.5 1.5 0 0 0 21.18 10H14V6a3 3 0 0 0-3-3l-4 9v9zm-6 0h4V12H3v9z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="card-action-icon"
+                    data-testid="card-dislike"
+                    aria-label="点踩"
+                    title="点踩"
+                    :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_POOR_QUALITY }"
+                    :disabled="sessionBusy || feedbackBusy || !activeLiveArtifact?.artifactRef"
+                    @click="openDislikeDrawer"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M15 3H6a2 2 0 0 0-1.86 1.26l-2.7 7.05A1.5 1.5 0 0 0 2.82 14H10v4a3 3 0 0 0 3 3l4-9V3zm6 0h-4v9h4V3z"
+                      />
+                    </svg>
+                  </button>
+                  <p v-if="feedbackHint" class="feedback-hint" data-testid="feedback-hint">
+                    {{ feedbackHint }}
+                  </p>
                 </div>
                 <div v-if="m.role === 'agent' && !picksIsLive && !listingIsLive" class="demo-actions">
                   <button
@@ -803,7 +1279,67 @@ onMounted(async () => {
 
           <div class="chat-input-wrap">
             <div class="chat-composer">
-              <div class="quick-row" role="group" aria-label="快捷任务">
+              <div
+                v-if="listingAwaitingHuman && listingPendingHuman"
+                class="ask-human"
+                data-testid="ask-human"
+              >
+                <div class="ask-human-head">
+                  <span class="ask-human-eyebrow">需要你确认</span>
+                  <span class="ask-human-hint">右侧 Computer 可先看策划</span>
+                </div>
+                <p class="ask-human-q">{{ listingPendingHuman.question }}</p>
+                <div class="ask-human-actions" role="group" aria-label="确认策划">
+                  <button
+                    type="button"
+                    class="ask-human-primary"
+                    data-testid="ask-human-confirm"
+                    :disabled="listingRunning"
+                    @click="confirmListingExecute"
+                  >
+                    确认，出执行稿
+                  </button>
+                  <button
+                    type="button"
+                    class="ask-human-secondary"
+                    data-testid="ask-human-supplement"
+                    :disabled="listingRunning"
+                    @click="openListingSupplement"
+                  >
+                    {{ listingSupplementOpen ? '收起补充' : '补充需求' }}
+                  </button>
+                </div>
+                <div
+                  v-if="listingSupplementOpen"
+                  class="ask-human-supplement"
+                  data-testid="ask-human-supplement-form"
+                >
+                  <textarea
+                    v-model="listingSupplementText"
+                    class="ask-human-note"
+                    rows="3"
+                    placeholder="写下要改的分镜、标题或详情大纲"
+                    aria-label="补充需求"
+                    :disabled="listingRunning"
+                  />
+                  <button
+                    type="button"
+                    class="ask-human-primary ask-human-primary-sm"
+                    data-testid="ask-human-supplement-submit"
+                    :disabled="listingRunning"
+                    @click="submitListingSupplement"
+                  >
+                    提交补充
+                  </button>
+                </div>
+              </div>
+              <div
+                v-else
+                class="quick-row"
+                role="group"
+                aria-label="快捷任务"
+                data-testid="session-quick-row"
+              >
                 <button type="button" class="pill" :disabled="sessionBusy" @click="fillPicksSession">
                   选品清单
                 </button>
@@ -870,52 +1406,43 @@ onMounted(async () => {
       </div>
     </div>
   </div>
+  <div
+    v-if="dislikeDrawerOpen"
+    class="dislike-drawer"
+    data-testid="dislike-drawer"
+    @click.stop
+  >
+    <p class="dislike-drawer-title">这次成果哪里不好？</p>
+    <textarea
+      v-model="feedbackNote"
+      class="dislike-comment"
+      data-testid="dislike-comment"
+      rows="4"
+      maxlength="512"
+      placeholder="可选短文说明"
+      aria-label="质量差短文"
+      :disabled="feedbackBusy"
+    />
+    <div class="dislike-drawer-actions">
+      <button type="button" class="pill" data-testid="dislike-cancel" @click="closeDislikeDrawer">
+        取消
+      </button>
+      <button
+        type="button"
+        class="pill"
+        data-testid="dislike-submit"
+        :disabled="!canSubmitFeedback"
+        @click="submitPoorQualityFeedback"
+      >
+        提交
+      </button>
+    </div>
+  </div>
 </template>
 
 <style scoped>
 .shell {
   min-height: 100vh;
-}
-
-.ask-human {
-  margin-top: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-xl);
-  background: var(--surface);
-}
-
-.ask-human-q {
-  margin: 0 0 10px;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: var(--ink);
-}
-
-.ask-human-actions,
-.ask-human-supplement {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.ask-human-supplement {
-  margin-top: 10px;
-  flex-direction: column;
-}
-
-.ask-human-note {
-  width: 100%;
-  min-height: 72px;
-  resize: vertical;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px 10px;
-  background: transparent;
-  color: var(--ink);
-  font-size: 0.875rem;
-  line-height: 1.6;
 }
 
 .quick-row {
@@ -1038,5 +1565,98 @@ onMounted(async () => {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.card-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 0 2px;
+}
+
+.card-action-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mute);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.card-action-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.card-action-icon:hover:not(:disabled) {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--chip) 80%, transparent);
+}
+
+.card-action-icon.is-on {
+  color: var(--accent);
+}
+
+.card-action-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.card-result-actions .pill.is-on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.feedback-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--mute);
+}
+
+.dislike-drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 16px 18px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.dislike-drawer-title {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.dislike-comment {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+
+.dislike-drawer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
 }
 </style>

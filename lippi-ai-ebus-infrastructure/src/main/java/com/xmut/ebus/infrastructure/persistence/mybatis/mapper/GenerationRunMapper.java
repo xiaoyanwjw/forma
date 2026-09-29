@@ -4,6 +4,8 @@ import com.xmut.ebus.infrastructure.persistence.mybatis.po.GenerationRunPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.Instant;
+
 @Mapper
 public interface GenerationRunMapper {
 
@@ -12,4 +14,8 @@ public interface GenerationRunMapper {
     int update(GenerationRunPO run);
 
     GenerationRunPO selectById(@Param("id") String id);
+
+    String selectLatestUsableArtifactRefBySession(@Param("userId") String userId,
+                                                  @Param("sessionId") String sessionId,
+                                                  @Param("since") Instant since);
 }

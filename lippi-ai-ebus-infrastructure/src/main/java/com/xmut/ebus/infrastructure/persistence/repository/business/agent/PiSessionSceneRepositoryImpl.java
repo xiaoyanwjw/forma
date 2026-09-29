@@ -30,11 +30,12 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
         if (row == null) {
             return Optional.empty();
         }
-        return Optional.of(new SessionSceneBinding(row.getSessionId(), row.getSceneId(), row.getSceneCode()));
+        return Optional.of(new SessionSceneBinding(
+                row.getSessionId(), row.getSceneId(), row.getSceneCode(), row.getUserId()));
     }
 
     @Override
-    public void ensureBound(String sessionId, String sceneId, String sceneCode) {
+    public void ensureBound(String sessionId, String sceneId, String sceneCode, String userId) {
         if (!StringUtils.hasText(sessionId)) {
             throw new IllegalArgumentException("sessionId required");
         }
@@ -44,13 +45,14 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
         String id = sessionId.trim();
         String sid = sceneId.trim();
         String code = sceneCode.trim();
+        String uid = StringUtils.hasText(userId) ? userId.trim() : null;
         Instant now = Instant.now();
 
         PiSessionPO existing = sessionMapper.selectById(id);
         if (existing == null) {
             PiSessionPO created = new PiSessionPO();
             created.setSessionId(id);
-            created.setUserId(null);
+            created.setUserId(uid);
             created.setSceneId(sid);
             created.setSceneCode(code);
             created.setTitle(null);
@@ -66,10 +68,19 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
                 sessionMapper.insert(created);
             } catch (DuplicateKeyException e) {
                 updateSceneIfCompatible(id, sid, code, now);
+                fillUserIdIfAbsent(id, uid);
             }
             return;
         }
         updateSceneIfCompatible(id, sid, code, now);
+        fillUserIdIfAbsent(id, uid);
+    }
+
+    private void fillUserIdIfAbsent(String sessionId, String userId) {
+        if (!StringUtils.hasText(userId)) {
+            return;
+        }
+        sessionMapper.updateUserIdIfNull(sessionId, userId);
     }
 
     /**
@@ -80,10 +91,13 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
         if (row == null) {
             throw new IllegalStateException("session missing after bind race: " + sessionId);
         }
-        SessionSceneBinding bound = new SessionSceneBinding(row.getSessionId(), row.getSceneId(), row.getSceneCode());
-        if (bound.hasScene()
-                && (!sceneId.equals(bound.getSceneId()) || !sceneCode.equals(bound.getSceneCode()))) {
-            throw new IllegalStateException("session already bound to another scene");
+        SessionSceneBinding bound = new SessionSceneBinding(
+                row.getSessionId(), row.getSceneId(), row.getSceneCode(), row.getUserId());
+        if (bound.hasScene()) {
+            if (!sceneId.equals(bound.getSceneId()) || !sceneCode.equals(bound.getSceneCode())) {
+                throw new IllegalStateException("session already bound to another scene");
+            }
+            return;
         }
         sessionMapper.updateScene(sessionId, sceneId, sceneCode, now);
     }

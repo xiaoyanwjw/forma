@@ -53,6 +53,18 @@
         ORDER BY seq ASC
     </select>
 
+    <select id="selectPageDesc" resultMap="PiSessionEntryResultMap">
+        SELECT id, biz_id, session_id, seq, entry_type, parent_id, run_id, payload, created_at
+        FROM pi_session_entry
+        WHERE session_id = #{sessionId}
+          AND seq &gt; #{anchorSeq}
+        <if test="nextToken != null">
+          AND seq &lt; #{nextToken}
+        </if>
+        ORDER BY seq DESC
+        LIMIT #{limit}
+    </select>
+
     <select id="selectAllBySessionId" resultMap="PiSessionEntryResultMap">
         SELECT id, biz_id, session_id, seq, entry_type, parent_id, run_id, payload, created_at
         FROM pi_session_entry

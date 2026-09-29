@@ -108,16 +108,16 @@ onUnmounted(() => {
           场景
         </RouterLink>
 
-        <span
+        <RouterLink
           v-if="!props.hideSecondaryNav"
-          class="nav-link nav-link--static"
+          class="nav-link"
           :class="{ on: props.activeNav === 'history' }"
           :aria-current="props.activeNav === 'history' ? 'page' : undefined"
           data-nav="history"
-          aria-disabled="true"
+          :to="{ name: 'history' }"
         >
           历史
-        </span>
+        </RouterLink>
 
         <RouterLink
           v-if="!props.hideSecondaryNav"
@@ -226,10 +226,6 @@ onUnmounted(() => {
 .nav-link.on {
   color: var(--ink);
   background: var(--line-2);
-}
-
-.nav-link--static {
-  cursor: default;
 }
 
 .scene-switch {

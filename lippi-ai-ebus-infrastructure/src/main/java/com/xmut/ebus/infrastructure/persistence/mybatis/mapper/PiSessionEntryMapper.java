@@ -23,6 +23,14 @@ public interface PiSessionEntryMapper {
     List<PiSessionEntryPO> selectProjected(@Param("sessionId") String sessionId,
                                            @Param("anchorSeq") long anchorSeq);
 
+    /**
+     * 分页：{@code seq > anchor} 且可选 {@code seq < nextToken}，新在前。
+     */
+    List<PiSessionEntryPO> selectPageDesc(@Param("sessionId") String sessionId,
+                                          @Param("anchorSeq") long anchorSeq,
+                                          @Param("nextToken") Long nextToken,
+                                          @Param("limit") int limit);
+
     /** 表内全部 entry（含锚点前）；用于断言「compact 不物理删除」。 */
     List<PiSessionEntryPO> selectAllBySessionId(@Param("sessionId") String sessionId);
 }

@@ -45,6 +45,18 @@ public interface PiSessionMapper {
 
     List<PiSessionPO> selectRecent(@Param("limit") int limit);
 
+    /**
+     * 本人会话：{@code user_id =} 且 {@code updated_at >= since}；不含 null user_id。
+     */
+    List<PiSessionPO> selectByUserSince(@Param("userId") String userId,
+                                        @Param("since") Instant since,
+                                        @Param("sceneCode") String sceneCode,
+                                        @Param("limit") int limit);
+
+    /** 仅当当前 {@code user_id} 为空时回填，不覆盖已有归属。 */
+    int updateUserIdIfNull(@Param("sessionId") String sessionId,
+                           @Param("userId") String userId);
+
     List<PiSessionPO> selectChildrenRoots();
 
     List<PiSessionPO> selectChildrenByParent(@Param("parentSessionId") String parentSessionId);

@@ -2,6 +2,7 @@ package com.xmut.ebus.domain.business.agent.repository;
 
 import com.xmut.ebus.domain.business.agent.model.GenerationRun;
 
+import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -14,4 +15,10 @@ public interface GenerationRunRepository {
     void update(GenerationRun run);
 
     Optional<GenerationRun> findById(String id);
+
+    /**
+     * 该会话下本人最近一次带成果引用、且成果类型为 picklist/sku、
+     * artifact.created_at &gt;= since 的 usable artifact_ref。
+     */
+    Optional<String> findLatestSettledArtifactRefBySession(String userId, String sessionId, Instant since);
 }
