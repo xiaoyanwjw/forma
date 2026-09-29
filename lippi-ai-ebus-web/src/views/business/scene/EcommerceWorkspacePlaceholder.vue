@@ -442,6 +442,8 @@ async function sendFromSession() {
 async function onListingHandoff(payload: { text: string }) {
   const text = payload.text?.trim()
   if (!text || sessionBusy.value) return
+  messages.value.push({ id: nextMsgId(), role: 'user', text })
+  scrollChatToBottom()
   await runBilledGeneration(text, 'listing')
 }
 

@@ -1524,6 +1524,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(body.text).toContain('来源选品条目：pl-1')
     expect(body.sessionId).toBe(pickBody.sessionId ?? 's1')
     expect(body.sessionId).toBe('s1')
+    expect(mounted.root.textContent).toMatch(/来源选品条目：pl-1/)
   })
 
   it('picklist item without id does not start skulist on 做上架素材 click', async () => {

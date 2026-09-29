@@ -20,7 +20,7 @@
 - **Q\* pass:** yes / no
 - **P/H red lines:** 0 failures? yes / no
 - **B averages:**（主路径选品四维均分 / Listing 四维均分）
-- **Any B dimension &lt; 3:** yes / no
+- **Any B dimension < 3:** yes / no
 - **E2E-01～05 execution preview:** all yes / no
 - **Verdict:** SHIP / NO-SHIP
 
