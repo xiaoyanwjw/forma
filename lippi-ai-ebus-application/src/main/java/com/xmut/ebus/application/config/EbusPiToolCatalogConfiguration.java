@@ -3,10 +3,17 @@ package com.xmut.ebus.application.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandler;
+import com.xmut.ebus.application.business.sku.ApifyHttpUrlConnectionTransport;
+import com.xmut.ebus.application.business.sku.ApifyTaobaoSkuSearchClient;
+import com.xmut.ebus.application.business.sku.FallbackSkuSearchClient;
 import com.xmut.ebus.application.business.sku.MockSkuSearchClient;
 import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.sku.SkuSearchPort;
 import com.xmut.ebus.application.business.sku.SkuSearchProperties;
+import com.xmut.ebus.common.logging.LoggerUtils;
+import com.xmut.ebus.common.logging.NameValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import com.xmut.lims.pi.agent.skill.SkillCatalog;
 import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
@@ -31,9 +38,31 @@ import java.util.Arrays;
 @EnableConfigurationProperties(SkuSearchProperties.class)
 public class EbusPiToolCatalogConfiguration {
 
+    private static final Logger log = LoggerFactory.getLogger(EbusPiToolCatalogConfiguration.class);
+
     @Bean
-    public SkuSearchPort skuSearchPort() {
-        return new MockSkuSearchClient();
+    public SkuSearchPort skuSearchPort(SkuSearchProperties props) {
+        MockSkuSearchClient mock = new MockSkuSearchClient();
+        if (!"apify".equalsIgnoreCase(props.getClient())) {
+            return mock;
+        }
+        String actorId = props.getApify().getActorId();
+        String token = props.getApify().getToken();
+        if (token == null || token.trim().isEmpty()) {
+            LoggerUtils.error(
+                    log,
+                    EbusPiToolCatalogConfiguration.class,
+                    "skuSearchPort",
+                    "missing_token",
+                    NameValue.create("client", "apify"),
+                    NameValue.create("actorId", actorId),
+                    NameValue.create("queryLen", 0),
+                    NameValue.create("hitCount", 0));
+            return mock;
+        }
+        ApifyTaobaoSkuSearchClient apify =
+                new ApifyTaobaoSkuSearchClient(props, new ApifyHttpUrlConnectionTransport());
+        return new FallbackSkuSearchClient(apify, mock, actorId);
     }
 
     @Primary

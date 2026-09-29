@@ -27,7 +27,8 @@ class FallbackSkuSearchClientTest {
             fallbackCalls.incrementAndGet();
             return Collections.emptyList();
         };
-        FallbackSkuSearchClient fb = new FallbackSkuSearchClient(primary, mock);
+        FallbackSkuSearchClient fb = new FallbackSkuSearchClient(
+                primary, mock, "zen-studio/taobao-search-scraper");
         List<SkuSearchHit> hits = fb.search("香薰", "taobao_tbk", 5);
         assertEquals(1, hits.size());
         assertEquals("taobao_apify", hits.get(0).getPlatform());
@@ -41,7 +42,8 @@ class FallbackSkuSearchClientTest {
             throw new IllegalStateException("boom");
         };
         SkuSearchPort mock = new MockSkuSearchClient();
-        FallbackSkuSearchClient fb = new FallbackSkuSearchClient(primary, mock);
+        FallbackSkuSearchClient fb = new FallbackSkuSearchClient(
+                primary, mock, "zen-studio/taobao-search-scraper");
         List<SkuSearchHit> hits = fb.search("香薰", "taobao_tbk", 5);
         assertFalse(hits.isEmpty());
         assertTrue(hits.get(0).getDetailUrl().contains("mock.tbk.local"));
@@ -51,7 +53,8 @@ class FallbackSkuSearchClientTest {
     void falls_back_when_primary_returns_empty() {
         SkuSearchPort primary = (q, p, n) -> Collections.emptyList();
         SkuSearchPort mock = new MockSkuSearchClient();
-        FallbackSkuSearchClient fb = new FallbackSkuSearchClient(primary, mock);
+        FallbackSkuSearchClient fb = new FallbackSkuSearchClient(
+                primary, mock, "zen-studio/taobao-search-scraper");
         List<SkuSearchHit> hits = fb.search("香薰", "taobao_tbk", 5);
         assertFalse(hits.isEmpty());
         assertTrue(hits.get(0).getDetailUrl().contains("mock.tbk.local"));

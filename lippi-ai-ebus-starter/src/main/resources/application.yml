@@ -46,6 +46,12 @@ credit:
 
 # 媒体：默认 memory（测试/本地）；Compose 可切 minio（密钥走环境变量）
 ebus:
+  sku-search:
+    client: ${EBUS_SKU_SEARCH_CLIENT:mock}
+    apify:
+      actor-id: zen-studio/taobao-search-scraper
+      timeout-ms: 120000
+      token: ${APIFY_TOKEN:}
   media:
     store: ${EBUS_MEDIA_STORE:memory}
     minio:

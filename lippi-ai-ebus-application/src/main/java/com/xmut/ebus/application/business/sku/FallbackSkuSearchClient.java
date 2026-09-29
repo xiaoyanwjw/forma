@@ -16,10 +16,12 @@ public final class FallbackSkuSearchClient implements SkuSearchPort {
 
     private final SkuSearchPort primary;
     private final SkuSearchPort fallback;
+    private final String actorId;
 
-    public FallbackSkuSearchClient(SkuSearchPort primary, SkuSearchPort fallback) {
+    public FallbackSkuSearchClient(SkuSearchPort primary, SkuSearchPort fallback, String actorId) {
         this.primary = primary;
         this.fallback = fallback;
+        this.actorId = actorId == null ? "" : actorId;
     }
 
     @Override
@@ -62,10 +64,11 @@ public final class FallbackSkuSearchClient implements SkuSearchPort {
         return "http_error";
     }
 
-    private static void logFallback(String reason, String query, int hitCount, RuntimeException e) {
+    private void logFallback(String reason, String query, int hitCount, RuntimeException e) {
         int queryLen = query == null ? 0 : query.length();
         NameValue<?>[] args = new NameValue<?>[] {
                 NameValue.create("client", "apify"),
+                NameValue.create("actorId", actorId),
                 NameValue.create("queryLen", queryLen),
                 NameValue.create("hitCount", hitCount)
         };
