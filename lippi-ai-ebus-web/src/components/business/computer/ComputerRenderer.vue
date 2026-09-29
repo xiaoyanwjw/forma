@@ -198,19 +198,26 @@ function itemTitle(item: { badge?: string; title: string }): string {
   return item.title
 }
 
-function handoffTextFor(item: ComputerListItem): string | null {
+/** Prefer skill `id`; fall back to pl-{n} by list order when model omits id. */
+function resolveHandoffId(item: ComputerListItem, itemIndex: number): string {
+  const raw = item.id?.trim()
+  if (raw) return raw
+  return `pl-${itemIndex + 1}`
+}
+
+function handoffTextFor(item: ComputerListItem, itemIndex: number): string | null {
   return buildListingHandoffText({
     title: item.title,
     href: item.href,
-    id: item.id,
+    id: resolveHandoffId(item, itemIndex),
     niche: lineTextByKind(item.lines, 'niche'),
     painPoint: lineTextByKind(item.lines, 'painPoint'),
     angle: lineTextByKind(item.lines, 'angle'),
   })
 }
 
-function emitHandoff(item: ComputerListItem) {
-  const text = handoffTextFor(item)
+function emitHandoff(item: ComputerListItem, itemIndex: number) {
+  const text = handoffTextFor(item, itemIndex)
   if (text) emit('listing-handoff', { text })
 }
 
@@ -289,16 +296,16 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
                       rel="noopener noreferrer"
                     >{{ itemTitle(item) }}</a>
                     <template v-else>{{ itemTitle(item) }}</template>
+                    <button
+                      v-if="enableListingHandoff"
+                      type="button"
+                      class="listing-handoff-btn"
+                      :disabled="!handoffTextFor(item, itemIndex)"
+                      @click="emitHandoff(item, itemIndex)"
+                    >
+                      做上架素材
+                    </button>
                   </div>
-                  <button
-                    v-if="enableListingHandoff"
-                    type="button"
-                    class="listing-handoff-btn"
-                    :disabled="!handoffTextFor(item)"
-                    @click="emitHandoff(item)"
-                  >
-                    做上架素材
-                  </button>
                   <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
                 </div>
                 <div v-if="factLines(item.lines).length" class="item-lines">
@@ -528,11 +535,16 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
 }
 
 .pick-list .t {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 10px;
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.35;
   color: var(--ink);
   min-width: 0;
+  flex: 1;
 }
 
 .pick-list .item-title-link {
@@ -547,27 +559,31 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
 .listing-handoff-btn {
   flex-shrink: 0;
   appearance: none;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, #0f766e 45%, transparent);
   margin: 0;
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.35;
-  color: var(--ink);
-  background: var(--surface);
+  color: #0f766e;
+  background: color-mix(in srgb, #0f766e 10%, var(--surface, #fff));
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .listing-handoff-btn:hover:not(:disabled) {
-  background: var(--line-2, #f5f5f4);
-  border-color: color-mix(in srgb, var(--line) 70%, var(--ink));
+  background: color-mix(in srgb, #0f766e 18%, var(--surface, #fff));
+  border-color: color-mix(in srgb, #0f766e 70%, transparent);
+  color: #0b5f58;
 }
 
 .listing-handoff-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+  color: var(--mute, #737373);
+  border-color: var(--line);
+  background: var(--surface, #fff);
 }
 
 .item-price {

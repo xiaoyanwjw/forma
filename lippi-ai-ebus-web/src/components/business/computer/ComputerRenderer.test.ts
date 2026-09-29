@@ -332,12 +332,35 @@ describe('ComputerRenderer', () => {
     host.remove()
   })
 
-  it('disables 做上架素材 when list item id is missing', async () => {
+  it('falls back to pl-n when list item id is missing but href is valid', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const onListingHandoff = vi.fn()
     const app = createApp(ComputerRenderer, {
       document: picklistHandoffDocument({ id: undefined }),
+      enableListingHandoff: true,
+      onListingHandoff,
+    })
+    app.mount(host)
+    await nextTick()
+    const btn = host.querySelector('.listing-handoff-btn') as HTMLButtonElement
+    expect(btn).toBeTruthy()
+    expect(btn.disabled).toBe(false)
+    btn.click()
+    await nextTick()
+    expect(onListingHandoff).toHaveBeenCalledTimes(1)
+    const payload = onListingHandoff.mock.calls[0]?.[0] as { text: string }
+    expect(payload.text).toContain('来源选品条目：pl-1')
+    app.unmount()
+    host.remove()
+  })
+
+  it('disables 做上架素材 when https href is missing', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const onListingHandoff = vi.fn()
+    const app = createApp(ComputerRenderer, {
+      document: picklistHandoffDocument({ href: undefined }),
       enableListingHandoff: true,
       onListingHandoff,
     })

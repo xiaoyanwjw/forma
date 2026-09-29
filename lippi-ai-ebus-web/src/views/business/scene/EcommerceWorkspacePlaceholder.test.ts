@@ -1527,14 +1527,14 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.textContent).toMatch(/来源选品条目：pl-1/)
   })
 
-  it('picklist item without id does not start skulist on 做上架素材 click', async () => {
+  it('picklist item without https href does not start skulist on 做上架素材 click', async () => {
     fetchMock = mockCatalogAndCredits({
       onPicklist: () =>
         new Response(
           sseBody([
             'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
             'event: agent_started\ndata: {"label":"agent.start"}\n\n',
-            `event: artifact_ready\ndata: ${JSON.stringify(artifactReadyData(sampleComputerView(SAMPLE_ITEMS, { omitItemIds: true })))}\n\n`,
+            `event: artifact_ready\ndata: ${JSON.stringify(artifactReadyData(sampleComputerView(SAMPLE_ITEMS, { omitItemHrefs: true })))}\n\n`,
             'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
           ]),
           { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
