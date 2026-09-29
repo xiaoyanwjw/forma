@@ -3,7 +3,7 @@ package com.xmut.ebus.application.business.sku;
 import java.util.List;
 
 /**
- * Read-only SKU search port. Real TBK client is Task 6.
+ * Read-only SKU search (Mock / Apify).
  */
 public interface SkuSearchPort {
 
