@@ -116,13 +116,13 @@ public class EbusPiToolCatalogConfiguration {
         parameters.putArray("required").add("query");
         ToolSchema schema = ToolSchema.builder()
                 .name(SearchSkuToolHandler.TOOL_NAME)
-                .description("Search promoted SKU samples; every hit includes an https detailUrl")
+                .description("Search configured SKU samples; every hit includes an https detailUrl")
                 .parametersSchema(parameters)
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(SearchSkuToolHandler.TOOL_NAME)
                 .description("Search SKUs and return hits with https detailUrl")
-                .text("[search_sku] Search promoted SKUs. Use query; never invent detailUrl.")
+                .text("[search_sku] Search configured SKU samples. Use query; never invent detailUrl.")
                 .schema(schema)
                 .handlerClass(SearchSkuToolHandler.class.getName())
                 .build();
