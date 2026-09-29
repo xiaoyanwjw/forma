@@ -123,6 +123,10 @@ public class NormalizeViewProjector implements ComputerViewProjector {
             }
             Map<String, Object> out = new LinkedHashMap<String, Object>();
             out.put("title", item.get("title"));
+            String id = asNonBlankString(item.get("id"));
+            if (id != null) {
+                out.put("id", id);
+            }
             if (item.get("badge") instanceof String) {
                 out.put("badge", item.get("badge"));
             }
@@ -250,5 +254,13 @@ public class NormalizeViewProjector implements ComputerViewProjector {
             return null;
         }
         return text;
+    }
+
+    private static String asNonBlankString(Object value) {
+        if (!(value instanceof String)) {
+            return null;
+        }
+        String text = ((String) value).trim();
+        return StringUtils.hasText(text) ? text : null;
     }
 }
