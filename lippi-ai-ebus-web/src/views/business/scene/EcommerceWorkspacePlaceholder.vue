@@ -439,6 +439,12 @@ async function sendFromSession() {
 }
 
 /** 计费生成（首次发送与一键重试共用；复用 sessionId，新 Run）。 */
+async function onListingHandoff(payload: { text: string }) {
+  const text = payload.text?.trim()
+  if (!text || sessionBusy.value) return
+  await runBilledGeneration(text, 'listing')
+}
+
 async function runBilledGeneration(text: string, kind: 'picks' | 'listing') {
   pendingBilledPrompt.value = text
   const thinkingId = nextMsgId()
@@ -1400,7 +1406,12 @@ onMounted(async () => {
             </button>
           </div>
           <div class="computer-body">
-            <ComputerRenderer v-if="activeComputerDoc" :document="activeComputerDoc" />
+            <ComputerRenderer
+              v-if="activeComputerDoc"
+              :document="activeComputerDoc"
+              :enable-listing-handoff="computerKind === 'picks'"
+              @listing-handoff="onListingHandoff"
+            />
           </div>
         </aside>
       </div>
