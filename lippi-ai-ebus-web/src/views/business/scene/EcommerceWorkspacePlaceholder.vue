@@ -1499,17 +1499,26 @@ onMounted(async () => {
 .prompt-box {
   width: 100%;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
   border-radius: var(--r-xl);
   box-shadow: var(--shadow);
   padding: 14px 14px 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.prompt-box:focus-within {
+  border-color: color-mix(in srgb, #0f766e 35%, var(--line));
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px color-mix(in srgb, #0f766e 12%, transparent);
 }
 
 .prompt-editor {
   border: 0;
+  outline: none;
   resize: none;
   min-height: 56px;
   background: transparent;
@@ -1517,6 +1526,10 @@ onMounted(async () => {
   font-size: 0.95rem;
   line-height: 1.7;
   width: 100%;
+}
+
+.prompt-editor:focus {
+  outline: none;
 }
 
 .prompt-editor::placeholder {
