@@ -6,6 +6,8 @@ import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandler;
 import com.xmut.ebus.application.business.sku.MockSkuSearchClient;
 import com.xmut.ebus.application.business.sku.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.sku.SkuSearchPort;
+import com.xmut.ebus.application.business.sku.SkuSearchProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import com.xmut.lims.pi.agent.skill.SkillCatalog;
 import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.Tool;
@@ -26,6 +28,7 @@ import java.util.Arrays;
  * catalog so {@code search_sku} is registered at startup.
  */
 @Configuration
+@EnableConfigurationProperties(SkuSearchProperties.class)
 public class EbusPiToolCatalogConfiguration {
 
     @Bean
