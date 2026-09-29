@@ -110,7 +110,7 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 | `detailTitle` | `section`「详情标题」 |
 | `detailBody` | `section`「详情正文」 |
 | `displayNotes` | `section`「展示说明」，`tone: mute` |
-| `framePrompts` | **一条** `section`「生图 Prompt」：`body` 有序列表写出与 `artifact.framePrompts` 等长的完整 prompt（可附 negative） |
+| `framePrompts` | **一条** `section`「生图 Prompt」：`body` 有序列表与 `frames` / `artifact.framePrompts` 等长（可附 negative）。界面把 Prompt **并入「主图分镜」**：第 i 条分镜标题下跟第 i 条 prompt，不再单独占一大块标题区 |
 | `driver` | 可选 `note` |
 
 ## 策划示例

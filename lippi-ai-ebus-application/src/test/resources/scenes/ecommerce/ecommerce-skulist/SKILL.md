@@ -87,7 +87,7 @@ metadata:
    - `displayNotes`：主图顺序与禁区（短）；
    - `heroPlan`：首图画面任务 + 短卖点（给系统挂位，不必在 Adam 大图区展示）。
 3. **写 `framePrompts`**：与 `frames` **等长**；每项 `{ "prompt": "…", "negative": "…" }`（`negative` 可选）。只出 Prompt，不调生图。
-4. **写执行 `view`。** hero `media`（对齐 `heroPlan`）+ 分镜 `list` + 三 `section`（详情标题/正文/展示说明）+ **一条** `section`「生图 Prompt」：`body` 用有序列表写出与 `framePrompts` **逐条对应**的完整 `prompt`（可附 `negative:` 行）；勿只写「共 N 条、详见 artifact」。
+4. **写执行 `view`。** hero `media`（对齐 `heroPlan`）+ 分镜 `list` + 三 `section`（详情标题/正文/展示说明）+ **一条** `section`「生图 Prompt」（供界面并入主图分镜展示）：`body` 用有序列表写出与 `framePrompts` **逐条对应**的完整 `prompt`（可附 `negative:` 行）。界面会按「一条分镜描述 + 一条 prompt」成对展示，勿只写「共 N 条、详见 artifact」。
 5. **过 Verification（执行）。** 全部勾上再输出**最终** JSON。
 6. **禁止**输出 `platformCopies` / `preferredPlatform`。
 

@@ -225,14 +225,13 @@ describe('ComputerRenderer', () => {
     expect(host.querySelector('.listing-hero-plan-card')).toBeNull()
     expect(host.textContent).toMatch(/硅胶沥水垫标题/)
     expect(host.textContent).toMatch(/详情段落/)
-    expect(host.textContent).toMatch(/生图 Prompt/)
     expect(host.textContent).toMatch(/white bg product/)
     expect(host.textContent).toMatch(/首图：白底/)
-    // Adam 顺序：生图 Prompt → 详情标题 → 详情正文 → 主图分镜
+    // Adam：主图分镜（含成对 Prompt）→ 详情标题 → 详情正文；不再单独出「生图 Prompt」标题
     const text = host.textContent || ''
-    expect(text.indexOf('生图 Prompt')).toBeLessThan(text.indexOf('详情标题'))
+    expect(text).not.toMatch(/生图 Prompt/)
+    expect(text.indexOf('主图分镜')).toBeLessThan(text.indexOf('详情标题'))
     expect(text.indexOf('详情标题')).toBeLessThan(text.indexOf('详情正文'))
-    expect(text.indexOf('详情正文')).toBeLessThan(text.indexOf('主图分镜'))
     expect(host.textContent).not.toMatch(/素材规范/)
     // 淘宝壳仍用 heroPlan 文案作主图位说明
     const taobao = host.querySelector('.platform-btn.platform-taobao') as HTMLButtonElement
@@ -245,7 +244,7 @@ describe('ComputerRenderer', () => {
     expect(host.textContent).toMatch(/硅胶沥水垫标题/)
     expect(host.textContent).toMatch(/详情段落/)
     expect(host.textContent).toMatch(/立即购买/)
-    expect(host.textContent).toMatch(/生图 Prompt/)
+    expect(host.textContent).toMatch(/主图分镜/)
     expect(host.textContent).toMatch(/white bg product/)
     const xianyu = host.querySelector('.platform-btn.platform-xianyu') as HTMLButtonElement
     xianyu.click()
