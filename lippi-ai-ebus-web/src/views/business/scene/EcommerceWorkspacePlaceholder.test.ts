@@ -42,7 +42,10 @@ const SAMPLE_ITEMS = Array.from({ length: 8 }, (_, i) => ({
   risk: '低｜勿夸大',
 }))
 
-function sampleComputerView(items = SAMPLE_ITEMS) {
+function sampleComputerView(
+  items = SAMPLE_ITEMS,
+  opts?: { omitItemIds?: boolean; omitItemHrefs?: boolean },
+) {
   return {
     version: 1,
     title: 'picklist',
@@ -56,7 +59,9 @@ function sampleComputerView(items = SAMPLE_ITEMS) {
       {
         type: 'list',
         ordered: true,
-        items: items.map((it) => ({
+        items: items.map((it, i) => ({
+          ...(opts?.omitItemIds ? {} : { id: `pl-${i + 1}` }),
+          ...(opts?.omitItemHrefs ? {} : { href: `https://item.example/${i + 1}` }),
           badge: it.title.startsWith('【优先试】') ? 'priority' : undefined,
           title: it.title.replace(/^【优先试】/, ''),
           lines: [
@@ -1483,6 +1488,72 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       /已记录/,
     )
     expect(picklistApiHits(fetchMock).length).toBe(picklistBefore)
+    expect(listingApiHits(fetchMock).length).toBe(listingBefore)
+  })
+
+  it('picklist handoff 做上架素材 starts same-session skulist with handoff text', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root)
+
+    expect(picklistApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
+    const pickBody = JSON.parse(String(picklistApiHits(fetchMock)[0][1].body)) as {
+      sessionId?: string
+    }
+    const listingBefore = listingApiHits(fetchMock).length
+
+    const handoffBtn = mounted.root.querySelector(
+      '.listing-handoff-btn',
+    ) as HTMLButtonElement
+    expect(handoffBtn).toBeTruthy()
+    expect(handoffBtn.disabled).toBe(false)
+    handoffBtn.click()
+    await flushUi()
+    await flushUi()
+
+    const hits = listingApiHits(fetchMock)
+    expect(hits.length).toBeGreaterThan(listingBefore)
+    const body = JSON.parse(String(hits[hits.length - 1][1].body)) as {
+      text?: string
+      sessionId?: string
+      skillId?: string
+    }
+    expect(body.skillId).toBe('ecommerce-skulist')
+    expect(body.text).toContain('原链：')
+    expect(body.text).toContain('https://item.example/1')
+    expect(body.text).toContain('来源选品条目：pl-1')
+    expect(body.sessionId).toBe(pickBody.sessionId ?? 's1')
+    expect(body.sessionId).toBe('s1')
+    expect(mounted.root.textContent).toMatch(/来源选品条目：pl-1/)
+  })
+
+  it('picklist item without https href does not start skulist on 做上架素材 click', async () => {
+    fetchMock = mockCatalogAndCredits({
+      onPicklist: () =>
+        new Response(
+          sseBody([
+            'event: run_started\ndata: {"runId":"r1","sessionId":"s1","holdId":"h1"}\n\n',
+            'event: agent_started\ndata: {"label":"agent.start"}\n\n',
+            `event: artifact_ready\ndata: ${JSON.stringify(artifactReadyData(sampleComputerView(SAMPLE_ITEMS, { omitItemHrefs: true })))}\n\n`,
+            'event: run_settled\ndata: {"runId":"r1","holdId":"h1","artifactRef":"pl-1","amount":1}\n\n',
+          ]),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    })
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root)
+
+    const listingBefore = listingApiHits(fetchMock).length
+    const handoffBtn = mounted.root.querySelector(
+      '.listing-handoff-btn',
+    ) as HTMLButtonElement
+    expect(handoffBtn).toBeTruthy()
+    expect(handoffBtn.disabled).toBe(true)
+    handoffBtn.click()
+    await flushUi()
+    await flushUi()
+
     expect(listingApiHits(fetchMock).length).toBe(listingBefore)
   })
 

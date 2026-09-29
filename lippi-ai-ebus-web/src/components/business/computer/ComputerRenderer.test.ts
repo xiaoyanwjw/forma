@@ -225,14 +225,13 @@ describe('ComputerRenderer', () => {
     expect(host.querySelector('.listing-hero-plan-card')).toBeNull()
     expect(host.textContent).toMatch(/硅胶沥水垫标题/)
     expect(host.textContent).toMatch(/详情段落/)
-    expect(host.textContent).toMatch(/生图 Prompt/)
     expect(host.textContent).toMatch(/white bg product/)
     expect(host.textContent).toMatch(/首图：白底/)
-    // Adam 顺序：生图 Prompt → 详情标题 → 详情正文 → 主图分镜
+    // Adam：主图分镜（含成对 Prompt）→ 详情标题 → 详情正文；不再单独出「生图 Prompt」标题
     const text = host.textContent || ''
-    expect(text.indexOf('生图 Prompt')).toBeLessThan(text.indexOf('详情标题'))
+    expect(text).not.toMatch(/生图 Prompt/)
+    expect(text.indexOf('主图分镜')).toBeLessThan(text.indexOf('详情标题'))
     expect(text.indexOf('详情标题')).toBeLessThan(text.indexOf('详情正文'))
-    expect(text.indexOf('详情正文')).toBeLessThan(text.indexOf('主图分镜'))
     expect(host.textContent).not.toMatch(/素材规范/)
     // 淘宝壳仍用 heroPlan 文案作主图位说明
     const taobao = host.querySelector('.platform-btn.platform-taobao') as HTMLButtonElement
@@ -245,7 +244,7 @@ describe('ComputerRenderer', () => {
     expect(host.textContent).toMatch(/硅胶沥水垫标题/)
     expect(host.textContent).toMatch(/详情段落/)
     expect(host.textContent).toMatch(/立即购买/)
-    expect(host.textContent).toMatch(/生图 Prompt/)
+    expect(host.textContent).toMatch(/主图分镜/)
     expect(host.textContent).toMatch(/white bg product/)
     const xianyu = host.querySelector('.platform-btn.platform-xianyu') as HTMLButtonElement
     xianyu.click()
@@ -270,6 +269,122 @@ describe('ComputerRenderer', () => {
     app.mount(host)
     await nextTick()
     expect(host.querySelector('.platform-switch')).toBeNull()
+    app.unmount()
+    host.remove()
+  })
+
+  function picklistHandoffDocument(overrides?: {
+    id?: string
+    href?: string
+  }) {
+    return {
+      version: 1 as const,
+      title: 'picklist',
+      blocks: [
+        {
+          type: 'list' as const,
+          ordered: true,
+          items: [
+            {
+              badge: 'priority' as const,
+              title: '【优先试】硅胶沥水垫',
+              id: overrides && 'id' in overrides ? overrides.id : 'pl-1',
+              href:
+                overrides && 'href' in overrides
+                  ? overrides.href
+                  : 'https://item.example/1',
+              lines: [
+                { kind: 'niche' as const, text: '租房厨房' },
+                { kind: 'painPoint' as const, text: '水渍' },
+                { kind: 'angle' as const, text: '小户型' },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+  }
+
+  it('emits listing-handoff when 做上架素材 is clicked and handoff is enabled', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const onListingHandoff = vi.fn()
+    const app = createApp(ComputerRenderer, {
+      document: picklistHandoffDocument(),
+      enableListingHandoff: true,
+      onListingHandoff,
+    })
+    app.mount(host)
+    await nextTick()
+    const btn = host.querySelector('.listing-handoff-btn') as HTMLButtonElement
+    expect(btn).toBeTruthy()
+    expect(btn.textContent).toMatch(/做上架素材/)
+    expect(btn.disabled).toBe(false)
+    btn.click()
+    await nextTick()
+    expect(onListingHandoff).toHaveBeenCalledTimes(1)
+    const payload = onListingHandoff.mock.calls[0]?.[0] as { text: string }
+    expect(payload.text).toContain('https://item.example/1')
+    expect(payload.text).toContain('pl-1')
+    expect(payload.text).toContain('租房厨房')
+    app.unmount()
+    host.remove()
+  })
+
+  it('falls back to pl-n when list item id is missing but href is valid', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const onListingHandoff = vi.fn()
+    const app = createApp(ComputerRenderer, {
+      document: picklistHandoffDocument({ id: undefined }),
+      enableListingHandoff: true,
+      onListingHandoff,
+    })
+    app.mount(host)
+    await nextTick()
+    const btn = host.querySelector('.listing-handoff-btn') as HTMLButtonElement
+    expect(btn).toBeTruthy()
+    expect(btn.disabled).toBe(false)
+    btn.click()
+    await nextTick()
+    expect(onListingHandoff).toHaveBeenCalledTimes(1)
+    const payload = onListingHandoff.mock.calls[0]?.[0] as { text: string }
+    expect(payload.text).toContain('来源选品条目：pl-1')
+    app.unmount()
+    host.remove()
+  })
+
+  it('disables 做上架素材 when https href is missing', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const onListingHandoff = vi.fn()
+    const app = createApp(ComputerRenderer, {
+      document: picklistHandoffDocument({ href: undefined }),
+      enableListingHandoff: true,
+      onListingHandoff,
+    })
+    app.mount(host)
+    await nextTick()
+    const btn = host.querySelector('.listing-handoff-btn') as HTMLButtonElement
+    expect(btn).toBeTruthy()
+    expect(btn.disabled).toBe(true)
+    btn.click()
+    await nextTick()
+    expect(onListingHandoff).not.toHaveBeenCalled()
+    app.unmount()
+    host.remove()
+  })
+
+  it('does not render 做上架素材 when enableListingHandoff is false', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: picklistHandoffDocument(),
+      enableListingHandoff: false,
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelector('.listing-handoff-btn')).toBeNull()
     app.unmount()
     host.remove()
   })
@@ -339,6 +454,25 @@ describe('parseComputerDocument', () => {
     const list = parsed?.blocks.find((b) => b.type === 'list')
     expect(list && list.type === 'list' && list.items[0]?.href).toBe('https://item.example/1')
     expect(list && list.type === 'list' && list.items[1]?.href).toBeUndefined()
+  })
+
+  it('parses trimmed id on list items and drops blank', () => {
+    const parsed = parseComputerDocument({
+      version: 1,
+      title: 'picklist',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            { title: 'A', id: '  pl-1  ' },
+            { title: 'B', id: '   ' },
+          ],
+        },
+      ],
+    })
+    const list = parsed?.blocks.find((b) => b.type === 'list')
+    expect(list && list.type === 'list' && list.items[0]?.id).toBe('pl-1')
+    expect(list && list.type === 'list' && list.items[1]?.id).toBeUndefined()
   })
 
   it('renders listing plan storyboard as single markdown without platform shell', async () => {

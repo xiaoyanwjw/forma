@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ListingPlatformSkin, ListingPreviewContent } from './listingPlatform'
+import {
+  buildStoryboardBeats,
+  type ListingPlatformSkin,
+  type ListingPreviewContent,
+} from './listingPlatform'
 
 const props = defineProps<{
   platform: ListingPlatformSkin
   /** skill 产出的一套跨平台公共字段 */
   content: ListingPreviewContent
 }>()
+
+/** 主图分镜短句 + 对应生图 Prompt（一条分镜一条 prompt） */
+const storyboardBeats = computed(() =>
+  buildStoryboardBeats(props.content.frames, props.content.framePromptsSummary),
+)
 
 const titleLen = computed(() => (props.content.detailTitle || '').length)
 const titleHint = computed(() => {
@@ -26,11 +35,17 @@ const bodyOverLimit = computed(() => (props.content.detailBody || '').length > 2
 
 <template>
   <div class="plat-preview" :class="{ 'is-adam': platform === 'adam' }">
-    <!-- Adam：执行稿优先 Prompt + SKU 文案；不要大块假图占位（主图信息看分镜/Prompt） -->
+    <!-- Adam：分镜与 Prompt 成对；不要大块假图占位 -->
     <div v-if="platform === 'adam'" class="adam-doc">
-      <div v-if="content.framePromptsSummary" class="listing-copy is-prompts">
-        <h4>生图 Prompt</h4>
-        <pre class="section-prompts">{{ content.framePromptsSummary }}</pre>
+      <div v-if="storyboardBeats.length" class="listing-copy is-frames">
+        <h4>主图分镜</h4>
+        <ol class="listing-frames">
+          <li v-for="(beat, i) in storyboardBeats" :key="i">
+            <div class="frame-caption">{{ beat.caption }}</div>
+            <pre v-if="beat.prompt" class="frame-prompt">{{ beat.prompt }}</pre>
+            <p v-if="beat.negative" class="frame-negative">negative: {{ beat.negative }}</p>
+          </li>
+        </ol>
       </div>
       <div class="listing-copy is-title">
         <h4>详情标题 <em>{{ titleHint }}</em></h4>
@@ -43,12 +58,6 @@ const bodyOverLimit = computed(() => (props.content.detailBody || '').length > 2
         <p class="section-body" :class="{ warn: bodyOverLimit }">
           {{ content.detailBody || '—' }}
         </p>
-      </div>
-      <div v-if="content.frames.length" class="listing-copy is-frames">
-        <h4>主图分镜</h4>
-        <ol class="listing-frames">
-          <li v-for="(frame, i) in content.frames" :key="i">{{ frame }}</li>
-        </ol>
       </div>
       <div class="listing-copy is-notes">
         <h4>展示说明</h4>
@@ -215,19 +224,19 @@ const bodyOverLimit = computed(() => (props.content.detailBody || '').length > 2
       </div>
     </template>
 
-    <!-- 平台壳外：制作备注顺序与 Adam 主信息一致 -->
+    <!-- 平台壳外：分镜与 Prompt 成对（与 Adam 一致） -->
     <div
-      v-if="platform !== 'adam' && (content.frames.length || content.framePromptsSummary)"
+      v-if="platform !== 'adam' && storyboardBeats.length"
       class="listing-craft"
     >
-      <div v-if="content.framePromptsSummary" class="listing-copy is-prompts">
-        <h4>生图 Prompt</h4>
-        <pre class="section-prompts">{{ content.framePromptsSummary }}</pre>
-      </div>
-      <div v-if="content.frames.length" class="listing-copy is-frames">
+      <div class="listing-copy is-frames">
         <h4>主图分镜</h4>
         <ol class="listing-frames">
-          <li v-for="(frame, i) in content.frames" :key="i">{{ frame }}</li>
+          <li v-for="(beat, i) in storyboardBeats" :key="i">
+            <div class="frame-caption">{{ beat.caption }}</div>
+            <pre v-if="beat.prompt" class="frame-prompt">{{ beat.prompt }}</pre>
+            <p v-if="beat.negative" class="frame-negative">negative: {{ beat.negative }}</p>
+          </li>
         </ol>
       </div>
     </div>
@@ -400,16 +409,21 @@ const bodyOverLimit = computed(() => (props.content.detailBody || '').length > 2
 }
 
 .listing-frames li {
-  margin: 0 0 4px;
+  margin: 0 0 12px;
 }
 
-.listing-copy.is-prompts {
-  margin-top: 4px;
+.listing-frames li:last-child {
+  margin-bottom: 0;
 }
 
-.section-prompts {
-  margin: 0;
-  padding: 10px 12px;
+.frame-caption {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.frame-prompt {
+  margin: 6px 0 0;
+  padding: 8px 10px;
   border-radius: var(--r-md);
   background: #0f172a0a;
   border: 1px solid var(--line-2);
@@ -419,6 +433,13 @@ const bodyOverLimit = computed(() => (props.content.detailBody || '').length > 2
   color: var(--ink);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.frame-negative {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--mute);
 }
 
 .listing-craft {

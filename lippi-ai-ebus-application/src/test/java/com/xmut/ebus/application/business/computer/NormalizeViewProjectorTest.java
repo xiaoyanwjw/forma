@@ -90,4 +90,36 @@ class NormalizeViewProjectorTest {
         assertFalse(outItems.get(1).containsKey("href"));
         assertFalse(outItems.get(2).containsKey("href"));
     }
+
+    @Test
+    void preservesTrimmedListItemIdAndDropsBlank() {
+        List<Object> items = new ArrayList<Object>();
+        Map<String, Object> withId = new LinkedHashMap<String, Object>();
+        withId.put("title", "A");
+        withId.put("id", "  pl-1  ");
+        withId.put("href", "https://item.example/1");
+        items.add(withId);
+        Map<String, Object> blankId = new LinkedHashMap<String, Object>();
+        blankId.put("title", "B");
+        blankId.put("id", "   ");
+        blankId.put("href", "https://item.example/2");
+        items.add(blankId);
+
+        Map<String, Object> listBlock = new LinkedHashMap<String, Object>();
+        listBlock.put("type", "list");
+        listBlock.put("items", items);
+
+        Map<String, Object> raw = new LinkedHashMap<String, Object>();
+        raw.put("version", Integer.valueOf(1));
+        raw.put("title", "picklist");
+        raw.put("blocks", Arrays.asList(listBlock));
+
+        Map<String, Object> view = projector.project(ViewProjectContext.builder().rawView(raw).build());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> outBlocks = (List<Map<String, Object>>) view.get("blocks");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> outItems = (List<Map<String, Object>>) outBlocks.get(0).get("items");
+        assertEquals("pl-1", outItems.get(0).get("id"));
+        assertFalse(outItems.get(1).containsKey("id"));
+    }
 }

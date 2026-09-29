@@ -32,6 +32,7 @@ metadata:
 3. [执行 artifact + view](#执行-artifact--view)
 4. [策划示例](#策划示例)
 5. [执行示例](#执行示例)
+6. [质量对照](#质量对照)
 
 ## 对齐规则
 
@@ -41,7 +42,8 @@ metadata:
 | 主图 | 策划：写进 Markdown「主图分镜」列表（与 `frames` 一致）；执行：业务真相为系统挂载后的 `mediaObjectId`，须写清 `heroPlan` |
 | 风格底 | `templateId` 固定 `domestic-generic-default`（补充需求**不可**改） |
 | 口吻 | 国内电商成交文案；策划偏分镜与大纲，执行偏可搜索标题与商详卖点 |
-| 假设 | 信息不足时写 `assumptions` |
+| 假设 | 信息不足时写 `assumptions`；有交接时写入原链与条目 id 摘要 |
+| 交接 | 输入含「原链」或「来源选品条目」时，`picklistItemId` **必填**且与输入一致（黄金路径） |
 | 禁止 | 伪造销量/榜单/资质；**不要**输出 `platformCopies` / `preferredPlatform` |
 | 确认 | 策划 JSON 后必须 `ask_human`；**禁止**未确认前输出 `framePrompts` 或上架四字段 |
 
@@ -53,12 +55,12 @@ metadata:
 |------|------|
 | `title` | 与 `view.title` 相同 |
 | `templateId` | `domestic-generic-default` |
-| `driver` | 一句成交方向 |
-| `frames` | 3～5 条主图分镜短句（每条 ≤40 字） |
+| `driver` | 一句成交方向（谁 + 场景 + 为什么买） |
+| `frames` | 3～5 条主图分镜短句（每条 ≤40 字；机位不重复） |
 | `modules` | 3～5 条详情大纲短句 |
 | `titleDraft` | 标题草稿一行 |
-| `assumptions` | 可选 |
-| `picklistItemId` | 可选 |
+| `assumptions` | 可选；有交接时建议含原链与条目摘要 |
+| `picklistItemId` | 有交接输入时**必填**（如 `pl-2`）；无交接的口述 Listing 可省略 |
 
 策划阶段**不要**：`heroPlan` / `detailTitle` / `detailBody` / `displayNotes` / `framePrompts` / `mediaObjectIds`（除非应用后挂）。
 
@@ -89,12 +91,13 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 
 | 字段 | 要求 |
 |------|------|
-| 继承 | `templateId` / `driver` / `frames` / `modules` / `titleDraft`（可微调） |
+| 继承 | `templateId` / `driver` / `frames` / `modules` / `titleDraft`（可微调）；`picklistItemId` 原样保留 |
 | `heroPlan` / `detailTitle` / `detailBody` / `displayNotes` | 非空；上架四字段 |
 | `framePrompts` | 与 `frames` 等长：`[{ "prompt": "…", "negative": "…" }]` |
 | `mediaObjectIds` | 可先 `[]`；系统挂载后 settle 前至少 1 个真实 id |
 | `title` | 与 `view.title` 相同 |
-| `assumptions` / `picklistItemId` | 可选 |
+| `assumptions` | 可选 |
+| `picklistItemId` | 有交接时必填且与策划一致 |
 
 不要把 `blocks` 写进 `artifact`。
 
@@ -107,12 +110,14 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 | `detailTitle` | `section`「详情标题」 |
 | `detailBody` | `section`「详情正文」 |
 | `displayNotes` | `section`「展示说明」，`tone: mute` |
-| `framePrompts` | **一条** `section`「生图 Prompt」：`body` 有序列表写出与 `artifact.framePrompts` 等长的完整 prompt（可附 negative） |
+| `framePrompts` | **一条** `section`「生图 Prompt」：`body` 有序列表与 `frames` / `artifact.framePrompts` 等长（可附 negative）。界面把 Prompt **并入「主图分镜」**：第 i 条分镜标题下跟第 i 条 prompt，不再单独占一大块标题区 |
 | `driver` | 可选 `note` |
 
 ## 策划示例
 
 策划 JSON 输出后，**立即**调用 `ask_human`（见 SKILL.md），不要在本 JSON 内嵌确认 UI。
+
+（黄金路径：用户消息含原链与 `来源选品条目：pl-1`。）
 
 ```json
 {
@@ -123,14 +128,14 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
     "blocks": [
       {
         "type": "markdown",
-        "text": "## 成交方向\n台面干爽 + 防滑收纳，打动小户型厨房用户。\n\n## 主图分镜\n1. 首图：沥水动态特写 + 「台面干爽」角标\n2. 图2：碗碟防滑纹理近景\n3. 图3：一卷收纳进抽屉\n\n## 标题草稿\n厨房硅胶沥水垫 防滑易清洗 可折叠收纳\n\n## 详情大纲\n1. 洗完碗碟台面积水？一块垫解决沥干\n2. 防滑纹理 + 食品接触级硅胶，好清洗\n3. 卷折收纳，小户型厨房省空间\n\n## 假设\n按国内电商、优先淘宝语气；未提供实物图。"
+        "text": "## 成交方向\n租房小户型厨房用户：台面干爽 + 防滑收纳，少擦台面。\n\n## 主图分镜\n1. 首图：沥水动态特写 + 「台面干爽」角标\n2. 图2：碗碟防滑纹理近景\n3. 图3：一卷收纳进抽屉\n\n## 标题草稿\n厨房硅胶沥水垫 防滑易清洗 可折叠收纳\n\n## 详情大纲\n1. 洗完碗碟台面积水？一块垫解决沥干\n2. 防滑纹理 + 食品接触级硅胶，好清洗\n3. 卷折收纳，小户型厨房省空间\n\n## 假设\n交接 pl-1；原链 https://item.taobao.com/example-sku-1；参考厨房沥水收纳 / 台面积水 / 租房轻小。"
       }
     ]
   },
   "artifact": {
     "title": "硅胶沥水垫 · 策划分镜",
     "templateId": "domestic-generic-default",
-    "driver": "台面干爽 + 防滑收纳，小户型厨房省心",
+    "driver": "租房小户型厨房用户：台面干爽 + 防滑收纳，少擦台面",
     "frames": [
       "首图：沥水动态特写 + 「台面干爽」角标",
       "图2：碗碟防滑纹理近景",
@@ -142,7 +147,8 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
       "卷折收纳，小户型厨房省空间"
     ],
     "titleDraft": "厨房硅胶沥水垫 防滑易清洗 可折叠收纳",
-    "assumptions": "用户优先适配淘宝；按国内电商成交方向写策划"
+    "picklistItemId": "pl-1",
+    "assumptions": "交接 pl-1；原链 https://item.taobao.com/example-sku-1；参考厨房沥水收纳 / 台面积水 / 租房轻小；优先淘宝语气"
   }
 }
 ```
@@ -199,7 +205,7 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
   "artifact": {
     "title": "硅胶沥水垫 · 上架素材",
     "templateId": "domestic-generic-default",
-    "driver": "台面干爽 + 防滑收纳，小户型厨房省心",
+    "driver": "租房小户型厨房用户：台面干爽 + 防滑收纳，少擦台面",
     "frames": [
       "首图：沥水动态特写 + 「台面干爽」角标",
       "图2：碗碟防滑纹理近景",
@@ -213,12 +219,12 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
     "titleDraft": "厨房硅胶沥水垫 防滑易清洗 可折叠收纳",
     "heroPlan": "首图：沥水垫铺满台面特写，水珠顺槽流走；角标「台面干爽」。续图：碗碟不滑 / 一卷收纳。",
     "detailTitle": "厨房硅胶沥水垫 防滑易清洗 可折叠收纳 多色可选",
-    "detailBody": "洗完碗碟台面积水？铺上一块就能沥干。\n防滑纹理托住碗盘不易滑；食品接触级硅胶，柔软好清洗。\n用完一卷，抽屉里也能塞下，小户型厨房更省事。",
+    "detailBody": "洗完碗碟台面积水，铺上一块就能沥干，抹布不用一直擦。\n防滑纹理托住碗盘不易滑；食品接触级硅胶，柔软好清洗。\n用完一卷塞进抽屉，小户型厨房更省事。",
     "displayNotes": "主图顺序：①首图沥水动态 ②防滑 ③卷折收纳。图内文案宜短。勿写杀菌医疗功效，勿编造月销。",
     "framePrompts": [
       {
         "prompt": "Product photo, silicone dish drying mat on kitchen counter, water droplets draining into grooves, clean bright kitchen, short Chinese text overlay 台面干爽, commercial e-commerce style, soft daylight",
-        "negative": " cluttered props, watermark, medical claims"
+        "negative": "cluttered props, watermark, medical claims"
       },
       {
         "prompt": "Close-up of textured silicone mat surface holding plates and bowls securely, anti-slip pattern visible, kitchen background blur, e-commerce detail shot",
@@ -230,10 +236,35 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
       }
     ],
     "mediaObjectIds": [],
-    "picklistItemId": null,
-    "assumptions": "用户确认策划后生成执行稿与生图 Prompt；主图由系统占位挂载"
+    "picklistItemId": "pl-1",
+    "assumptions": "交接 pl-1；原链 https://item.taobao.com/example-sku-1；用户确认策划后生成执行稿；主图由系统占位挂载"
   }
 }
 ```
 
 失败路径：不要输出本 JSON，只回人话（见 SKILL § Failures）。
+
+## 质量对照
+
+各 1 组；对照 `driver` / `detailBody` / `framePrompt`。
+
+### driver
+
+| | 文案 |
+|--|------|
+| **好** | `租房小户型厨房用户：台面干爽 + 防滑收纳，少擦台面`（谁 + 场景 + 为什么买） |
+| **坏** | `提升生活品质，让厨房更美好`（空泛套话，无受众/场景） |
+
+### detailBody
+
+| | 文案 |
+|--|------|
+| **好** | `洗完碗碟台面积水，铺上一块就能沥干。\n防滑纹理托住碗盘；食品接触级硅胶好清洗。\n用完一卷塞进抽屉，小户型更省事。`（场景 → 卖点 → 可知规格；无编造尺寸数值） |
+| **坏** | `想换垫又怕踩坑？台面总积水怎么办？多久洗一次？会不会发霉？……`（连续 ≥2 问句开场 + 鸡汤腔） |
+
+### framePrompt（一条）
+
+| | 文案 |
+|--|------|
+| **好** | `Product photo, silicone dish drying mat on kitchen counter, water droplets draining into grooves, clean bright kitchen, short Chinese text overlay 台面干爽, commercial e-commerce style, soft daylight`（主体 + 场景 + 约束，对齐首图分镜） |
+| **坏** | `8k, masterpiece, best quality, ultra detailed product`（空壳形容词，无主体/场景） |
