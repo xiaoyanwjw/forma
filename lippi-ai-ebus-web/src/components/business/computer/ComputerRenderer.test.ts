@@ -274,6 +274,99 @@ describe('ComputerRenderer', () => {
     host.remove()
   })
 
+  function picklistHandoffDocument(overrides?: {
+    id?: string
+    href?: string
+  }) {
+    return {
+      version: 1 as const,
+      title: 'picklist',
+      blocks: [
+        {
+          type: 'list' as const,
+          ordered: true,
+          items: [
+            {
+              badge: 'priority' as const,
+              title: '【优先试】硅胶沥水垫',
+              id: overrides && 'id' in overrides ? overrides.id : 'pl-1',
+              href:
+                overrides && 'href' in overrides
+                  ? overrides.href
+                  : 'https://item.example/1',
+              lines: [
+                { kind: 'niche' as const, text: '租房厨房' },
+                { kind: 'painPoint' as const, text: '水渍' },
+                { kind: 'angle' as const, text: '小户型' },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+  }
+
+  it('emits listing-handoff when 做上架素材 is clicked and handoff is enabled', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const onListingHandoff = vi.fn()
+    const app = createApp(ComputerRenderer, {
+      document: picklistHandoffDocument(),
+      enableListingHandoff: true,
+      onListingHandoff,
+    })
+    app.mount(host)
+    await nextTick()
+    const btn = host.querySelector('.listing-handoff-btn') as HTMLButtonElement
+    expect(btn).toBeTruthy()
+    expect(btn.textContent).toMatch(/做上架素材/)
+    expect(btn.disabled).toBe(false)
+    btn.click()
+    await nextTick()
+    expect(onListingHandoff).toHaveBeenCalledTimes(1)
+    const payload = onListingHandoff.mock.calls[0]?.[0] as { text: string }
+    expect(payload.text).toContain('https://item.example/1')
+    expect(payload.text).toContain('pl-1')
+    expect(payload.text).toContain('租房厨房')
+    app.unmount()
+    host.remove()
+  })
+
+  it('disables 做上架素材 when list item id is missing', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const onListingHandoff = vi.fn()
+    const app = createApp(ComputerRenderer, {
+      document: picklistHandoffDocument({ id: undefined }),
+      enableListingHandoff: true,
+      onListingHandoff,
+    })
+    app.mount(host)
+    await nextTick()
+    const btn = host.querySelector('.listing-handoff-btn') as HTMLButtonElement
+    expect(btn).toBeTruthy()
+    expect(btn.disabled).toBe(true)
+    btn.click()
+    await nextTick()
+    expect(onListingHandoff).not.toHaveBeenCalled()
+    app.unmount()
+    host.remove()
+  })
+
+  it('does not render 做上架素材 when enableListingHandoff is false', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: picklistHandoffDocument(),
+      enableListingHandoff: false,
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelector('.listing-handoff-btn')).toBeNull()
+    app.unmount()
+    host.remove()
+  })
+
   it('accepts legacy string lines and tags', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)

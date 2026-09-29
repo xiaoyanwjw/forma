@@ -3,10 +3,12 @@ import { computed, ref, watch } from 'vue'
 import type {
   ComputerBlock,
   ComputerDocument,
+  ComputerListItem,
   ComputerListLine,
   ComputerNoteBlock,
   ComputerTag,
 } from '@/types/business/computerView'
+import { buildListingHandoffText, lineTextByKind } from '@/utils/listingHandoff'
 import {
   resolveComputerBadge,
   resolveComputerStatus,
@@ -22,8 +24,18 @@ import {
   type ListingPlatformSkin,
 } from './listingPlatform'
 
-const props = defineProps<{
-  document: ComputerDocument
+const props = withDefaults(
+  defineProps<{
+    document: ComputerDocument
+    enableListingHandoff?: boolean
+  }>(),
+  {
+    enableListingHandoff: false,
+  },
+)
+
+const emit = defineEmits<{
+  'listing-handoff': [{ text: string }]
 }>()
 
 const platformSkin = ref<ListingPlatformSkin>('adam')
@@ -186,6 +198,22 @@ function itemTitle(item: { badge?: string; title: string }): string {
   return item.title
 }
 
+function handoffTextFor(item: ComputerListItem): string | null {
+  return buildListingHandoffText({
+    title: item.title,
+    href: item.href,
+    id: item.id,
+    niche: lineTextByKind(item.lines, 'niche'),
+    painPoint: lineTextByKind(item.lines, 'painPoint'),
+    angle: lineTextByKind(item.lines, 'angle'),
+  })
+}
+
+function emitHandoff(item: ComputerListItem) {
+  const text = handoffTextFor(item)
+  if (text) emit('listing-handoff', { text })
+}
+
 function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string {
   return (block.placeholder || block.alt || '').trim()
 }
@@ -262,6 +290,15 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
                     >{{ itemTitle(item) }}</a>
                     <template v-else>{{ itemTitle(item) }}</template>
                   </div>
+                  <button
+                    v-if="enableListingHandoff"
+                    type="button"
+                    class="listing-handoff-btn"
+                    :disabled="!handoffTextFor(item)"
+                    @click="emitHandoff(item)"
+                  >
+                    做上架素材
+                  </button>
                   <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
                 </div>
                 <div v-if="factLines(item.lines).length" class="item-lines">
@@ -505,6 +542,32 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
 
 .pick-list .item-title-link:hover {
   text-decoration: underline;
+}
+
+.listing-handoff-btn {
+  flex-shrink: 0;
+  appearance: none;
+  border: 1px solid var(--line);
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.listing-handoff-btn:hover:not(:disabled) {
+  background: var(--line-2, #f5f5f4);
+  border-color: color-mix(in srgb, var(--line) 70%, var(--ink));
+}
+
+.listing-handoff-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .item-price {
