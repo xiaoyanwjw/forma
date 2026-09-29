@@ -83,6 +83,8 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-ebus-media}
+      EBUS_SKU_SEARCH_CLIENT: ${EBUS_SKU_SEARCH_CLIENT:-mock}
+      APIFY_TOKEN: ${APIFY_TOKEN:-}
     ports:
       - "${STARTER_PORT:-8080}:8080"
     networks:

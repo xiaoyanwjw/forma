@@ -1,7 +1,7 @@
 ---
 name: ecommerce-picklist
 description: >-
-  用 search_sku 在淘宝客/多多客推广池检索，产出 8–12 条带原链的可测款选品清单（JSON：view + artifact）。
+  经配置的商品检索（如 Mock / Apify 淘宝搜）用 search_sku 产出 8–12 条带原链的可测款选品清单（JSON：view + artifact）。
   在用户提到选品、卖什么、候选清单、测款方向时使用。
   Listing / 主图详情请改用 ecommerce-skulist。
 allowed-tools: read_skill search_sku
@@ -14,7 +14,7 @@ metadata:
 
 # 选品清单
 
-从推广池搜索结果中，整理 **8–12** 条可测款候选；每条必须带用户能点开的商品原链。
+从商品检索结果中，整理 **8–12** 条可测款候选；每条必须带用户能点开的商品原链。
 
 ## When to use
 
@@ -33,10 +33,12 @@ metadata:
 
 ## Tool: search_sku
 
+商品链接来自本工具返回的 `detailUrl`；实际检索实现由服务端配置 **`ebus.sku-search.client`** 决定（如 `mock` 或 `apify`）。
+
 | 参数 | 说明 |
 |------|------|
 | `query` | 必填；本轮只发这一次调用 |
-| `platform` | 默认 `taobao_tbk`；可选 `pdd_ddk` |
+| `platform` | 传给工具的检索上下文；默认 `taobao_tbk`（具体数据源仍取决于服务端 client） |
 | `pageSize` | 建议 `12`～`20`（一次拿够候选） |
 
 无 `detailUrl` 的 hits 一律丢弃。空结果或工具错误 → Fail（不要再调 `search_sku`）。
@@ -49,6 +51,7 @@ metadata:
 
 - `artifact.items[].sourceUrl` = 工具 `detailUrl`；同条 list `href` = 该 URL；禁止假链
 - disclaimer / note 必须包含字面量：`非实时平台全站行情`
+- 推荐整句：`候选基于配置的商品检索抽样与助手排序，非实时平台全站行情。点击可打开商品页核对。`
 - 两边均为 8–12 条；`view.version` = `1`
 - `view.title` 与 `artifact.title`：本轮生成的中文清单标题（同一文案）
 
@@ -77,5 +80,5 @@ metadata:
 
 ## Boundaries
 
-- 不编造链接，不编造全站实时指标（BSR、生意参谋、实时销量榜等）
+- 不宣称联盟官方推广池或全站实时行情；不编造链接，不编造全站实时指标（BSR、生意参谋、实时销量榜等）
 - 不二次 / 并行调用 `search_sku`
