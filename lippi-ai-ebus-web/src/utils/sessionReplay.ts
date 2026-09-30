@@ -61,7 +61,9 @@ export function inferArtifactKindFromDump(
     /"heroPlan"\s*:/.test(t) ||
     /"detailTitle"\s*:/.test(t) ||
     /"framePrompts"\s*:/.test(t) ||
-    /"displayNotes"\s*:/.test(t)
+    /"displayNotes"\s*:/.test(t) ||
+    /"type"\s*:\s*"media"/.test(t) ||
+    /"type"\s*:\s*"section"/.test(t)
   ) {
     return 'listing'
   }
@@ -126,7 +128,14 @@ function collapseAssistants(
   artifactKind: 'picks' | 'listing' | null | undefined,
 ): ReplayBubble | null {
   if (!assistants.length) return null
-  const dump = assistants.find((a) => isArtifactDumpContent(a.content))
+  // HITL：同一轮可能先有策划 dump、后有执行 dump → 取最后一条成果 JSON
+  let dump: { content: string; at?: number } | undefined
+  for (let i = assistants.length - 1; i >= 0; i--) {
+    if (isArtifactDumpContent(assistants[i].content)) {
+      dump = assistants[i]
+      break
+    }
+  }
   if (dump) {
     const kind = inferArtifactKindFromDump(dump.content, artifactKind)
     return {

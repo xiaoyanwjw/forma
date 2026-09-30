@@ -777,6 +777,14 @@ function applyLatestArtifact(
   livePicklist.value = null
   liveListing.value = null
   computerKind.value = null
+  return mergeSessionArtifact(detail, openComputer)
+}
+
+/** 写入单条会话成果，不清空另一类（选品+上架同会话回放用）。 */
+function mergeSessionArtifact(
+  detail: HistoryArtifactDetail | null | undefined,
+  openComputer = false,
+): ComputerKind {
   if (!detail?.id || !detail.view) {
     return null
   }
@@ -796,6 +804,12 @@ function applyLatestArtifact(
     revealComputer()
   }
   return kind
+}
+
+function clearSessionArtifacts() {
+  livePicklist.value = null
+  liveListing.value = null
+  computerKind.value = null
 }
 
 async function loadSessions() {
@@ -842,12 +856,26 @@ async function selectSession(item: SessionSummary) {
   localFeedbackSubmitSeq.clear()
   applyLatestArtifact(null)
   try {
-    const [page, latest] = await Promise.all([
+    const [page, latest, picksArt, listingArt] = await Promise.all([
       getSessionMessages(sid),
       getLatestSessionArtifact(sid),
+      getLatestSessionArtifact(sid, 'picklist'),
+      getLatestSessionArtifact(sid, 'sku'),
     ])
     if (seq !== workspaceSwitchSeq) return
-    const kind = applyLatestArtifact(latest, false)
+    clearSessionArtifacts()
+    mergeSessionArtifact(picksArt, false)
+    mergeSessionArtifact(listingArt, false)
+    const kind =
+      kindFromArtifactType(latest?.artifactType) ||
+      (listingArt?.view ? 'listing' : picksArt?.view ? 'picks' : null)
+    if (kind === 'listing' && liveListing.value?.view) {
+      computerKind.value = 'listing'
+      revealComputer()
+    } else if (kind === 'picks' && livePicklist.value?.view) {
+      computerKind.value = 'picks'
+      revealComputer()
+    }
     applyMessagePage(page, 'replace')
     paintSessionReplay(kind)
     scrollChatToBottom()

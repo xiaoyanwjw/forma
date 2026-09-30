@@ -105,13 +105,25 @@ public class SessionQueryService {
 
     /**
      * 会话侧栏最近可用成果：本人该 session 上最新 picklist/sku artifact_ref，详情走 HistoryQuery（含 resign / 60 天窗）。
+     * {@code artifactType} 可选：{@code picklist} / {@code sku}；空则两类里取最新一条。
      */
     @Transactional(readOnly = true)
     public Optional<HistoryArtifactDetailDTO> latestArtifact(String userId, String sessionId) {
+        return latestArtifact(userId, sessionId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<HistoryArtifactDetailDTO> latestArtifact(String userId, String sessionId, String artifactType) {
         String uid = StringUtils.requireHasText(userId, "userId required");
         String sid = StringUtils.requireHasText(sessionId, "sessionId required");
-        Optional<String> artifactId = generationRunRepository.findLatestSettledArtifactRefBySession(
-                uid, sid, Instant.now(clock).minus(HistoryQueryService.HISTORY_WINDOW_DAYS, ChronoUnit.DAYS));
+        Instant since = Instant.now(clock).minus(HistoryQueryService.HISTORY_WINDOW_DAYS, ChronoUnit.DAYS);
+        Optional<String> artifactId;
+        if (StringUtils.hasText(artifactType)) {
+            artifactId = generationRunRepository.findLatestSettledArtifactRefBySession(
+                    uid, sid, since, artifactType.trim());
+        } else {
+            artifactId = generationRunRepository.findLatestSettledArtifactRefBySession(uid, sid, since);
+        }
         if (!artifactId.isPresent()) {
             return Optional.empty();
         }

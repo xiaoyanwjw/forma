@@ -31,21 +31,34 @@ class GenerationRunRepositoryImplTest {
     @Test
     void findLatestSettledArtifactRefBySessionDelegatesToMapper() {
         Instant since = Instant.parse("2026-07-30T12:00:00Z");
-        when(generationRunMapper.selectLatestUsableArtifactRefBySession("user-1", "sess-1", since))
+        when(generationRunMapper.selectLatestUsableArtifactRefBySession("user-1", "sess-1", since, null))
                 .thenReturn("art-9");
 
         Optional<String> found = repository.findLatestSettledArtifactRefBySession("user-1", "sess-1", since);
 
         assertEquals("art-9", found.get());
-        verify(generationRunMapper).selectLatestUsableArtifactRefBySession("user-1", "sess-1", since);
+        verify(generationRunMapper).selectLatestUsableArtifactRefBySession("user-1", "sess-1", since, null);
     }
 
     @Test
     void findLatestSettledArtifactRefBySessionEmptyWhenMapperNull() {
         Instant since = Instant.parse("2026-07-30T12:00:00Z");
-        when(generationRunMapper.selectLatestUsableArtifactRefBySession("user-1", "sess-1", since))
+        when(generationRunMapper.selectLatestUsableArtifactRefBySession("user-1", "sess-1", since, null))
                 .thenReturn(null);
 
         assertFalse(repository.findLatestSettledArtifactRefBySession("user-1", "sess-1", since).isPresent());
+    }
+
+    @Test
+    void findLatestSettledArtifactRefBySessionWithTypeDelegates() {
+        Instant since = Instant.parse("2026-07-30T12:00:00Z");
+        when(generationRunMapper.selectLatestUsableArtifactRefBySession(
+                "user-1", "sess-1", since, "picklist"))
+                .thenReturn("art-pick");
+
+        Optional<String> found = repository.findLatestSettledArtifactRefBySession(
+                "user-1", "sess-1", since, "picklist");
+
+        assertEquals("art-pick", found.get());
     }
 }

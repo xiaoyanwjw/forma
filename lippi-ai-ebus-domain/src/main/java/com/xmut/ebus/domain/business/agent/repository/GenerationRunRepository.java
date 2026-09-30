@@ -21,4 +21,12 @@ public interface GenerationRunRepository {
      * artifact.created_at &gt;= since 的 usable artifact_ref。
      */
     Optional<String> findLatestSettledArtifactRefBySession(String userId, String sessionId, Instant since);
+
+    /**
+     * 同上，并限定 {@code artifact_type}（如 {@code picklist} / {@code sku}）。
+     */
+    Optional<String> findLatestSettledArtifactRefBySession(String userId,
+                                                           String sessionId,
+                                                           Instant since,
+                                                           String artifactType);
 }

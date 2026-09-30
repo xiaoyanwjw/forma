@@ -96,6 +96,24 @@ describe('sessionReplay', () => {
     ])
   })
 
+  it('toReplayBubbles prefers last dump when multiple dumps in one turn (HITL plan then final)', () => {
+    const planDump =
+      '```json\n{"view":{"version":1,"blocks":[{"type":"list","items":[{"title":"分镜"}]}]},"artifact":{"title":"策划"}}\n```'
+    const finalDump =
+      '```json\n{"view":{"version":1,"blocks":[{"type":"media"},{"type":"section","heading":"详情","body":"x"}]},"artifact":{"heroPlan":"主图","detailTitle":"t","detailBody":"b","displayNotes":"n","framePrompts":["p"]}}\n```'
+    const bubbles = toReplayBubbles(
+      [
+        { role: 'user', content: '请为商品生成上架素材' },
+        { role: 'assistant', content: planDump },
+        { role: 'assistant', content: finalDump },
+      ],
+      'listing',
+    )
+    expect(bubbles).toHaveLength(2)
+    expect(bubbles[1]?.content).toMatch(/已生成上架素材/)
+    expect(bubbles[1]?.content).not.toMatch(/选品成果/)
+  })
+
   it('toReplayBubbles does not relabel picklist dump as listing when handoff user is missing', () => {
     const pickDump =
       '```json\n{"view":{"version":1,"blocks":[{"type":"list"}]},"artifact":{"items":[{"niche":"香薰","sourceUrl":"https://x"}]}}\n```'

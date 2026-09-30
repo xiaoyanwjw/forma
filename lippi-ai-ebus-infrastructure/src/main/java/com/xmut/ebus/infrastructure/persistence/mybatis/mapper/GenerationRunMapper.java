@@ -17,5 +17,6 @@ public interface GenerationRunMapper {
 
     String selectLatestUsableArtifactRefBySession(@Param("userId") String userId,
                                                   @Param("sessionId") String sessionId,
-                                                  @Param("since") Instant since);
+                                                  @Param("since") Instant since,
+                                                  @Param("artifactType") String artifactType);
 }

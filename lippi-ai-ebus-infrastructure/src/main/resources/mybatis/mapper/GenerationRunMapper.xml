@@ -57,7 +57,14 @@
           AND r.session_id = #{sessionId}
           AND r.artifact_ref IS NOT NULL
           AND r.artifact_ref &lt;&gt; ''
-          AND a.artifact_type IN ('picklist', 'sku')
+          <choose>
+            <when test="artifactType != null and artifactType != ''">
+              AND a.artifact_type = #{artifactType}
+            </when>
+            <otherwise>
+              AND a.artifact_type IN ('picklist', 'sku')
+            </otherwise>
+          </choose>
           AND a.created_at &gt;= #{since}
         ORDER BY r.created_at DESC
         LIMIT 1

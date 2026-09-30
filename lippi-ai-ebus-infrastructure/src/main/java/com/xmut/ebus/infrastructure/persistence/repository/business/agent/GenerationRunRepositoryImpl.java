@@ -34,8 +34,17 @@ public class GenerationRunRepositoryImpl implements GenerationRunRepository {
 
     @Override
     public Optional<String> findLatestSettledArtifactRefBySession(String userId, String sessionId, Instant since) {
+        return findLatestSettledArtifactRefBySession(userId, sessionId, since, null);
+    }
+
+    @Override
+    public Optional<String> findLatestSettledArtifactRefBySession(String userId,
+                                                                   String sessionId,
+                                                                   Instant since,
+                                                                   String artifactType) {
         return Optional.ofNullable(
-                generationRunMapper.selectLatestUsableArtifactRefBySession(userId, sessionId, since));
+                generationRunMapper.selectLatestUsableArtifactRefBySession(
+                        userId, sessionId, since, artifactType));
     }
 
     private GenerationRunPO toPo(GenerationRun run) {

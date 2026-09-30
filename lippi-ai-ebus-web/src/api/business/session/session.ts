@@ -28,8 +28,16 @@ export function getSessionMessages(
   )
 }
 
-export function getLatestSessionArtifact(sessionId: string) {
+export function getLatestSessionArtifact(
+  sessionId: string,
+  artifactType?: 'picklist' | 'sku',
+) {
+  const params = new URLSearchParams()
+  if (artifactType) {
+    params.set('artifactType', artifactType)
+  }
+  const q = params.toString()
   return request<HistoryArtifactDetail | null>(
-    `/api/v1/sessions/${encodeURIComponent(sessionId)}/latest-artifact`,
+    `/api/v1/sessions/${encodeURIComponent(sessionId)}/latest-artifact${q ? `?${q}` : ''}`,
   )
 }

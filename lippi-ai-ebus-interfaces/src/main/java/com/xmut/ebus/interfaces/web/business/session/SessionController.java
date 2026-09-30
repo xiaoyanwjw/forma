@@ -46,9 +46,11 @@ public class SessionController {
 
     @GetMapping("/{sessionId}/latest-artifact")
     public ApiResponse<HistoryArtifactDetailDTO> latestArtifact(
-            @PathVariable("sessionId") String sessionId) {
+            @PathVariable("sessionId") String sessionId,
+            @RequestParam(value = "artifactType", required = false) String artifactType) {
         return ApiResponse.success(
-                sessionQueryService.latestArtifact(SecuritySupport.requireUserId(), sessionId)
+                sessionQueryService.latestArtifact(
+                                SecuritySupport.requireUserId(), sessionId, artifactType)
                         .orElse(null));
     }
 }
