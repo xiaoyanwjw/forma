@@ -191,12 +191,20 @@ export function applyMessageDelta(events: ProcessEvent[], data: Record<string, u
     ''
   if (!chunk) return events
 
-  // 只拼到「末尾仍是 llm」的卡片上；工具/agent 之后开新卡片，避免多轮输出糊成一段。
   const last = events[events.length - 1]
+  // 流式：拼到当前末尾 llm 卡
   if (last?.kind === 'llm') {
     return events.map((e, i) =>
       i === events.length - 1 ? { ...e, body: (e.body || '') + chunk } : e,
     )
+  }
+  // agent_end 之后编排层还会再发一次终稿 MESSAGE_DELTA（与上一轮流式内容重复）→ 写回上一张 llm，不开新卡
+  if (last?.kind === 'agent') {
+    for (let i = events.length - 2; i >= 0; i--) {
+      if (events[i]?.kind === 'llm') {
+        return events.map((e, idx) => (idx === i ? { ...e, body: chunk } : e))
+      }
+    }
   }
   return [
     ...events,

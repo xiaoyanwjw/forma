@@ -82,6 +82,13 @@ describe('agentProgress', () => {
     expect(events[2]?.body).toBe('hello world')
 
     events = applyAgentEnded(events, { label: 'agent.end' })
+    // 终稿 MESSAGE_DELTA（agent_end 之后）应写回上一张 llm，不再多出一张「模型输出」
+    events = applyMessageDelta(events, {
+      text: '{"view":{"version":1,"title":"清单终稿","blocks":[]}}',
+    })
+    expect(events.filter((e) => e.kind === 'llm')).toHaveLength(2)
+    expect(events[events.length - 2]?.kind).toBe('llm')
+    expect(events[events.length - 2]?.body).toContain('清单终稿')
     expect(events[events.length - 1]?.kind).toBe('agent')
     expect(events.map((e) => e.kind)).toEqual(['agent', 'tool', 'llm', 'tool', 'llm', 'agent'])
   })
