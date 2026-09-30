@@ -69,10 +69,21 @@ describe('agentProgress', () => {
     expect(events[2]?.title).toBe('message')
     expect(events[2]?.body).toBe('hello world')
 
+    events = applyToolStarted(events, { toolName: 'search_sku', toolCallId: 'c2' })
+    events = applyToolFinished(events, {
+      toolName: 'search_sku',
+      toolCallId: 'c2',
+      success: true,
+      output: '{"hits":[]}',
+    })
+    events = applyMessageDelta(events, { text: '{"view":{"version":1,"title":"清单","blocks":[]}}' })
+    expect(events.filter((e) => e.kind === 'llm')).toHaveLength(2)
+    expect(events[events.length - 1]?.body).toContain('"title":"清单"')
+    expect(events[2]?.body).toBe('hello world')
+
     events = applyAgentEnded(events, { label: 'agent.end' })
-    expect(events[3]?.kind).toBe('agent')
-    expect(events[3]?.title).toBe('agent.end')
-    expect(events.map((e) => e.kind)).toEqual(['agent', 'tool', 'llm', 'agent'])
+    expect(events[events.length - 1]?.kind).toBe('agent')
+    expect(events.map((e) => e.kind)).toEqual(['agent', 'tool', 'llm', 'tool', 'llm', 'agent'])
   })
 
   it('buildFailureDetail leads with reason and model output before tools', () => {

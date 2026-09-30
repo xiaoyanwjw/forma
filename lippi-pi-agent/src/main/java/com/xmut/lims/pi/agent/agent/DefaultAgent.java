@@ -199,19 +199,31 @@ public final class DefaultAgent implements Agent {
 
     @SuppressWarnings("unchecked")
     static String resolveResponse(GraphState state) {
-        Object llm = state.get(StateKeys.LLM_RESPONSE);
-        if (llm instanceof String && StringUtils.hasText((String) llm)) {
-            return (String) llm;
-        }
         Object raw = state.get(StateKeys.MESSAGES);
         if (raw instanceof List) {
             List<Message> messages = (List<Message>) raw;
+            // 优先：最后一条带 view 的助手正文（终态 JSON），避免 LLM_RESPONSE 停在中间轮叙述
             for (int i = messages.size() - 1; i >= 0; i--) {
                 Message m = messages.get(i);
-                if (m != null && "assistant".equalsIgnoreCase(m.getRole()) && m.getContent() != null) {
+                if (m != null && "assistant".equalsIgnoreCase(m.getRole()) && m.getContent() != null
+                        && m.getContent().contains("\"view\"")) {
                     return m.getContent();
                 }
             }
+            for (int i = messages.size() - 1; i >= 0; i--) {
+                Message m = messages.get(i);
+                if (m != null && "assistant".equalsIgnoreCase(m.getRole()) && m.getContent() != null) {
+                    Object llm = state.get(StateKeys.LLM_RESPONSE);
+                    if (llm instanceof String && StringUtils.hasText((String) llm)) {
+                        return (String) llm;
+                    }
+                    return m.getContent();
+                }
+            }
+        }
+        Object llm = state.get(StateKeys.LLM_RESPONSE);
+        if (llm instanceof String && StringUtils.hasText((String) llm)) {
+            return (String) llm;
         }
         return llm != null ? String.valueOf(llm) : null;
     }

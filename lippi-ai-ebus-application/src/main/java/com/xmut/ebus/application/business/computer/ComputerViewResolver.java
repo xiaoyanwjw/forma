@@ -59,7 +59,8 @@ public class ComputerViewResolver {
             if (!trimmed.contains("\"view\"")) {
                 return "模型终态缺少 view 字段，无法生成成果视图。请展开「模型输出」核对 JSON。";
             }
-            return "模型终态未能解析出合法 view（需含 version / title / blocks 的对象）。请展开「模型输出」核对 JSON。";
+            return "模型终态未能解析出合法 view（需含 version / title / blocks 的对象）。"
+                    + "常见原因：JSON 被截断或不完整。请展开「模型输出」核对，或缩短选品条数后重试。";
         }
         return MSG_VIEW_UNAVAILABLE;
     }

@@ -57,10 +57,35 @@ class GenerationOutputParserTest {
         assertEquals("你好，这是草稿", out.getBusinessPayload().get("text"));
     }
 
-    @Test
-    void fencedJson_supported() {
-        ParsedGenerationOutput out = parser.parse("```json\n{\"view\":{\"version\":1,\"blocks\":[]},\"artifact\":{}}\n```");
-        assertNotNull(out.getRawView());
-        assertTrue(out.getBusinessPayload().isEmpty() || out.getBusinessPayload() != null);
-    }
+  @Test
+  void fencedJson_supported() {
+      ParsedGenerationOutput out = parser.parse("```json\n{\"view\":{\"version\":1,\"blocks\":[]},\"artifact\":{}}\n```");
+      assertNotNull(out.getRawView());
+      assertTrue(out.getBusinessPayload().isEmpty() || out.getBusinessPayload() != null);
+  }
+
+  @Test
+  void proseThenFinalFence_prefersLastJsonWithView() {
+      String raw = "I'll load the skill first.\nI'll search once.\n"
+              + "```json\n{\"view\":{\"version\":1,\"title\":\"厨房小件\",\"blocks\":[]},\"artifact\":{\"items\":[]}}\n```";
+      ParsedGenerationOutput out = parser.parse(raw);
+      assertNotNull(out.getRawView());
+      assertEquals("厨房小件", out.getRawView().get("title"));
+  }
+
+  @Test
+  void prefersLastValidFencedJsonWhenEarlierFenceIsBroken() {
+      String raw = "```json\n{\"view\":{\"version\":1,\"title\":\"broken\",\"blocks\":[\n```\n"
+              + "```json\n{\"view\":{\"version\":1,\"title\":\"完整清单\",\"blocks\":[]},\"artifact\":{}}\n```";
+      ParsedGenerationOutput out = parser.parse(raw);
+      assertNotNull(out.getRawView());
+      assertEquals("完整清单", out.getRawView().get("title"));
+  }
+
+  @Test
+  void truncatedJson_returnsNullRawView() {
+      String raw = "{\"view\":{\"version\":1,\"title\":\"t\",\"blocks\":[{\"type\":\"list\",\"items\":[";
+      ParsedGenerationOutput out = parser.parse(raw);
+      assertNull(out.getRawView());
+  }
 }

@@ -53,32 +53,38 @@ public class GenerationOutputParser {
             return textPayload(trimmed);
         }
 
-        String jsonCandidate = tryExtractJson(trimmed);
-        if (jsonCandidate == null) {
-            return textPayload(trimmed);
+        for (String jsonCandidate : jsonCandidates(trimmed)) {
+            if (!StringUtils.hasText(jsonCandidate)) {
+                continue;
+            }
+            JsonNode root;
+            try {
+                root = objectMapper.readTree(jsonCandidate);
+            } catch (Exception ex) {
+                continue;
+            }
+            if (root == null || !root.isObject()) {
+                continue;
+            }
+            JsonNode viewNode = root.get("view");
+            if (viewNode != null && !viewNode.isObject() && !root.has("artifact")) {
+                // 有 view 但不是对象，继续试下一个候选
+                continue;
+            }
+
+            JsonNode artifactNode = root.get("artifact");
+            boolean artifactObject = artifactNode != null && artifactNode.isObject();
+
+            Map<String, Object> rawView = null;
+            if (viewNode != null && viewNode.isObject()) {
+                rawView = objectMapper.convertValue(viewNode, MAP_TYPE);
+            }
+
+            Map<String, Object> businessPayload = resolveBusinessPayload(root, artifactObject, artifactNode);
+            return new ParsedGenerationOutput(rawView, businessPayload);
         }
 
-        JsonNode root;
-        try {
-            root = objectMapper.readTree(jsonCandidate);
-        } catch (Exception ex) {
-            return textPayload(trimmed);
-        }
-        if (root == null || !root.isObject()) {
-            return textPayload(trimmed);
-        }
-
-        JsonNode artifactNode = root.get("artifact");
-        boolean artifactObject = artifactNode != null && artifactNode.isObject();
-
-        Map<String, Object> rawView = null;
-        JsonNode viewNode = root.get("view");
-        if (viewNode != null && viewNode.isObject()) {
-            rawView = objectMapper.convertValue(viewNode, MAP_TYPE);
-        }
-
-        Map<String, Object> businessPayload = resolveBusinessPayload(root, artifactObject, artifactNode);
-        return new ParsedGenerationOutput(rawView, businessPayload);
+        return textPayload(trimmed);
     }
 
     private Map<String, Object> resolveBusinessPayload(JsonNode root, boolean artifactObject, JsonNode artifactNode) {
@@ -111,19 +117,31 @@ public class GenerationOutputParser {
         return new ParsedGenerationOutput(null, Collections.singletonMap("text", text));
     }
 
-    private static String tryExtractJson(String raw) {
+    /**
+     * 候选顺序：从后往前的 fenced JSON，再尝试整段首尾花括号。
+     * 避免「中间碎 fence / 截断 fence」抢先导致整段解析失败。
+     */
+    static java.util.List<String> jsonCandidates(String raw) {
+        java.util.ArrayList<String> out = new java.util.ArrayList<String>();
         Matcher matcher = FENCED_JSON.matcher(raw);
-        if (matcher.find()) {
+        java.util.ArrayList<String> fences = new java.util.ArrayList<String>();
+        while (matcher.find()) {
             String inner = matcher.group(1).trim();
             if (StringUtils.hasText(inner)) {
-                return inner;
+                fences.add(inner);
             }
+        }
+        for (int i = fences.size() - 1; i >= 0; i--) {
+            out.add(fences.get(i));
         }
         int start = raw.indexOf('{');
         int end = raw.lastIndexOf('}');
         if (start >= 0 && end > start) {
-            return raw.substring(start, end + 1);
+            String braced = raw.substring(start, end + 1);
+            if (!out.contains(braced)) {
+                out.add(braced);
+            }
         }
-        return null;
+        return out;
     }
 }

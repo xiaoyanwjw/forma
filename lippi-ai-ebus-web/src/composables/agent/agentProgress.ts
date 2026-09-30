@@ -191,20 +191,23 @@ export function applyMessageDelta(events: ProcessEvent[], data: Record<string, u
     ''
   if (!chunk) return events
 
-  const idx = events.findIndex((e) => e.kind === 'llm')
-  if (idx < 0) {
-    return [
-      ...events,
-      {
-        id: `message-${events.length}`,
-        kind: 'llm',
-        title: 'message',
-        at: Date.now(),
-        body: chunk,
-      },
-    ]
+  // 只拼到「末尾仍是 llm」的卡片上；工具/agent 之后开新卡片，避免多轮输出糊成一段。
+  const last = events[events.length - 1]
+  if (last?.kind === 'llm') {
+    return events.map((e, i) =>
+      i === events.length - 1 ? { ...e, body: (e.body || '') + chunk } : e,
+    )
   }
-  return events.map((e, i) => (i === idx ? { ...e, body: (e.body || '') + chunk } : e))
+  return [
+    ...events,
+    {
+      id: `message-${events.length}`,
+      kind: 'llm',
+      title: 'message',
+      at: Date.now(),
+      body: chunk,
+    },
+  ]
 }
 
 export function appendMessageDelta(prev: string, data: Record<string, unknown>): string {

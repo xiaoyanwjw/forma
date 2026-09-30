@@ -42,8 +42,9 @@ public final class ApifyTaobaoHitMapper {
         if (!StringUtils.hasText(title)) {
             return java.util.Optional.empty();
         }
+        title = truncate(title.trim(), 120);
         String price = priceAsString(row);
-        String category = resolveCategory(row);
+        String category = truncate(resolveCategory(row), 80);
         String rawRef = itemIdAsString(row);
         return java.util.Optional.of(new SkuSearchHit(
                 PLATFORM,
@@ -129,5 +130,12 @@ public final class ApifyTaobaoHitMapper {
             return node.asText();
         }
         return node.asText();
+    }
+
+    private static String truncate(String value, int maxChars) {
+        if (!StringUtils.hasText(value) || maxChars < 1 || value.length() <= maxChars) {
+            return value;
+        }
+        return value.substring(0, maxChars);
     }
 }

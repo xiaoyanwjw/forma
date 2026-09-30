@@ -36,7 +36,7 @@ public final class InMemoryModelCatalog implements ModelCatalog {
                 .supportsNativeToolCalling(true)
                 .dailyQuotaPerTenant(0)
                 .temperature(0.3)
-                .maxTokens(8192)
+                .maxTokens(16384)
                 .thinkingMode("disabled")
                 .maxAttempts(1)
                 .cacheTtlSeconds(0)
