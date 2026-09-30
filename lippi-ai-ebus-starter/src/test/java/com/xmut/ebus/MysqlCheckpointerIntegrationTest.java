@@ -133,36 +133,28 @@ class MysqlCheckpointerIntegrationTest {
     }
 
     @Test
-    void hitlSuspend_persists_andToolResultResume_continues() {
+    void hitlSuspend_persists_andAskHumanUserResume_continues() {
         AtomicInteger handlerCalls = new AtomicInteger();
         ToolHandler handler = (call, ctx) -> {
             handlerCalls.incrementAndGet();
-            return ToolResult.ok(call.getId(), call.getToolName(), "should-not-run");
+            return ToolResult.interrupt(call.getId(), "ask_human",
+                    "{\"question\":\"确认？\",\"options\":[{\"id\":\"ok\",\"label\":\"好\"}]}");
         };
         InMemoryToolCatalog policy = new InMemoryToolCatalog(Collections.singletonList(
-                new Tool("save",
-                        ToolSchema.builder().name("save").build(),
+                new Tool("ask_human",
+                        ToolSchema.builder().name("ask_human").build(),
                         handler)));
 
+        AtomicInteger visits = new AtomicInteger();
         GraphNode agent = (state, ctx) -> {
+            int visit = visits.incrementAndGet();
             Map<String, Object> updates = new HashMap<>();
-            Object raw = state.get(StateKeys.MESSAGES);
-            boolean hasToolMsg = false;
-            if (raw instanceof java.util.List) {
-                for (Object item : (java.util.List<?>) raw) {
-                    if (item instanceof Message
-                            && "tool".equalsIgnoreCase(((Message) item).getRole())) {
-                        hasToolMsg = true;
-                        break;
-                    }
-                }
-            }
-            if (hasToolMsg) {
+            if (visit == 1) {
+                updates.put(StateKeys.TOOL_CALLS, Collections.singletonList(
+                        new ToolCallEntry("c1", "ask_human", JsonNodeFactory.instance.objectNode())));
+            } else {
                 updates.put(StateKeys.TOOL_CALLS, Collections.emptyList());
                 updates.put(StateKeys.LLM_RESPONSE, "done");
-            } else {
-                updates.put(StateKeys.TOOL_CALLS, Collections.singletonList(
-                        new ToolCallEntry("c1", "save", JsonNodeFactory.instance.objectNode())));
             }
             return updates;
         };
@@ -176,13 +168,14 @@ class MysqlCheckpointerIntegrationTest {
                 null);
 
         PiEventBus bus = new DefaultPiEventBus();
-        new ToolPolicyExtension(policy, true).register(bus);
+        new ToolPolicyExtension(policy, false).register(bus);
 
         ConversationResult first = loop.run(TurnInput.builder()
                 .runId("mysql-hitl")
-                .messages(Collections.singletonList(Message.user("save")))
+                .messages(Collections.singletonList(Message.user("plan")))
                 .build(), bus);
         assertThat(first.getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
+        assertThat(handlerCalls.get()).isEqualTo(1);
         assertThat(mysqlCheckpointer.loadLatest("mysql-hitl")).isPresent();
         Integer rows = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM pi_graph_checkpoint WHERE run_id = ?",
@@ -192,11 +185,14 @@ class MysqlCheckpointerIntegrationTest {
         ConversationResult resumed = loop.resume(ResumeRequest.builder()
                 .runId("mysql-hitl")
                 .toolCallId("c1")
-                .humanInput("option-b")
+                .humanInput("{\"selectedId\":\"confirm_execute\"}")
                 .confirmId("confirm-mysql-1")
                 .build(), bus);
         assertThat(resumed.getStatus()).isEqualTo(ConversationResult.Status.OK);
-        assertThat(handlerCalls.get()).isZero();
+        assertThat(handlerCalls.get()).isEqualTo(1);
+        assertThat(resumed.getMessages()).anyMatch(m ->
+                "user".equalsIgnoreCase(m.getRole())
+                        && m.getContent() != null && m.getContent().contains("confirm_execute"));
         assertThat(mysqlCheckpointer.loadLatest("mysql-hitl")).isEmpty();
     }
 

@@ -87,15 +87,23 @@ public final class ToolNode implements GraphNode {
 
                 // [回调] after_tool_call → tool_execution_end → message_*
                 result = afterToolCall(result, ctx);
-                results.add(result);
                 onToolExecutionEnd(ctx, result, turnId);
+                results.add(result);
                 onToolMessages(ctx, result);
+
+                // handler 声明 interrupt：tool 回执已入 transcript，call 视为完成；后续未跑 call 留 remaining
+                if (result != null && result.isInterrupt()) {
+                    appendRemaining(calls, i + 1, remaining);
+                    interrupted = true;
+                    onSuspended(ctx, call, result,
+                            result.getToolName() != null ? result.getToolName() : "hitl");
+                    break;
+                }
             }
         }
 
         if (!results.isEmpty()) {
-            updates.put(StateKeys.MESSAGES,
-                    Message.withToolResults(state.get(StateKeys.MESSAGES), results));
+            updates.put(StateKeys.MESSAGES, Message.withToolResults(state.get(StateKeys.MESSAGES), results));
         }
         updates.put(StateKeys.TOOL_RESULTS, Collections.emptyList());
         updates.put(StateKeys.TOOL_CALLS, remaining);
@@ -210,16 +218,20 @@ public final class ToolNode implements GraphNode {
     }
 
     /**
-     * [回调] suspended — HITL（ask_human / WRITE）；payload 带 call 供 SSE 映射。
+     * [回调] suspended — HITL（ask_human interrupt / WRITE policy）；payload 带 call（+ 可选 result）供 SSE。
      */
     private void onSuspended(NodeContext ctx, ToolCallEntry call, String reason) {
+        onSuspended(ctx, call, null, reason);
+    }
+
+    private void onSuspended(NodeContext ctx, ToolCallEntry call, ToolResult result, String reason) {
         Emitter emitter = emitterOf(ctx);
         if (emitter == null) {
             return;
         }
         try {
             String runId = ctx != null ? ctx.getRunId() : null;
-            emitter.emit(PiEvent.of(PiEventType.SUSPENDED, ToolSuspendPayload.of(call, runId, reason)));
+            emitter.emit(PiEvent.of(PiEventType.SUSPENDED, ToolSuspendPayload.of(call, runId, reason, result)));
         } catch (RuntimeException ex) {
             log.warn("emitter emit SUSPENDED failed: {}", ex.toString());
         }

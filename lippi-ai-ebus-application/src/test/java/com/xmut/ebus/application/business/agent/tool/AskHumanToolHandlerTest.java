@@ -25,12 +25,21 @@ public class AskHumanToolHandlerTest {
     void handleEchoesQuestionAndOptions() throws Exception {
         ToolResult result = handler.handle(listingAskCall("call-1"), new ToolContext("run-1", "t1"));
         assertTrue(result.isSuccess());
+        assertTrue(result.isInterrupt());
         assertEquals(AskHumanToolHandler.TOOL_NAME, result.getToolName());
         JsonNode root = MAPPER.readTree(result.getOutput());
         assertEquals("策划可以了吗？确认后写出执行稿，或补充需求。", root.get("question").asText());
         assertTrue(root.get("allowFreeText").asBoolean());
         assertEquals("confirm_execute", root.get("options").get(0).get("id").asText());
         assertEquals("supplement", root.get("options").get(1).get("id").asText());
+    }
+
+    @Test
+    void parseOutput_readsNormalizedHandlerJson() throws Exception {
+        ToolResult result = handler.handle(listingAskCall("call-1"), new ToolContext("run-1", "t1"));
+        AskHumanToolHandler.ParsedAsk parsed = AskHumanToolHandler.parseOutput(result.getOutput());
+        assertEquals("策划可以了吗？确认后写出执行稿，或补充需求。", parsed.getQuestion());
+        assertEquals("confirm_execute", parsed.getOptions().get(0).get("id"));
     }
 
     @Test

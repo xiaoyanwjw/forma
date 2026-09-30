@@ -15,8 +15,6 @@ import com.xmut.lims.pi.agent.graph.checkpoint.Checkpoint;
 import com.xmut.lims.pi.agent.graph.checkpoint.Checkpointer;
 import com.xmut.lims.pi.agent.graph.checkpoint.ResumeIdempotencyStore;
 import com.xmut.lims.pi.ai.message.Message;
-import com.xmut.lims.pi.ai.tool.ToolCallEntry;
-import com.xmut.lims.pi.ai.tool.ToolResult;
 import com.xmut.lims.pi.agent.skill.ActiveSkill;
 import com.xmut.lims.pi.agent.skill.SkillCatalog;
 import com.xmut.lims.pi.agent.skill.SkillSelector;
@@ -36,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Agent 默认实现。
  * 功能描述：运行模块内默认 Tool-loop 图（START → agent ⇄ tools → END）。
- * 关键设计：不按 Skill 换图；resume 支持 WRITE 批准与 tool-result 注入双路径；幂等靠 confirmId。
+ * 关键设计：不按 Skill 换图；resume 支持 WRITE 批准与 ask_human（user 消息）双路径；幂等靠 confirmId。
  */
 public final class DefaultAgent implements Agent {
 
@@ -75,20 +73,25 @@ public final class DefaultAgent implements Agent {
         return run(turnInput, null);
     }
 
+    /**
+     * 首跑：编译 Tool-loop 图并 {@code invoke}。
+     *
+     * @param turnInput 本轮输入（messages / skill / context）
+     * @param emitter   可选事件出口；可为 null
+     * @return 图终态映射后的 {@link ConversationResult}
+     */
     @Override
     public ConversationResult run(TurnInput turnInput, Emitter emitter) {
-        if (turnInput == null) {
-            return ConversationResult.failed(null, "request required");
-        }
-
         CancelHandle handle = new CancelHandle();
         String runId = getRunId(turnInput);
 
         try {
+            // 1. 占住 runId（同 run 并发直接失败）
             if (activeRuns.putIfAbsent(runId, handle) != null) {
                 return ConversationResult.failed(runId, "run already active: " + runId);
             }
 
+            // 2. 编译图 + 组装初始 state / RunnableConfig
             CompiledGraph compiled = stateGraph.compile(CompileConfig.builder()
                     .checkpointer(checkpointer)
                     .maxSupersteps(budget.maxTotal())
@@ -104,9 +107,10 @@ public final class DefaultAgent implements Agent {
                     .emitter(emitter)
                     .build();
 
+            // 3. invoke → 映射 GraphOutcome（SUSPENDED 保留 checkpoint）
             GraphOutcome outcome = compiled.invoke(input, runnableConfig);
             return mapOutcome(runId, outcome);
-        } catch (IllegalArgumentException ex) {
+        } catch (Exception ex) {
             return ConversationResult.failed(runId, ex.getMessage());
         } finally {
             activeRuns.remove(runId, handle);
@@ -116,9 +120,27 @@ public final class DefaultAgent implements Agent {
     public Map<String, Object> prepare(TurnInput turnInput,
                                        ToolCatalog toolConfig,
                                        SkillCatalog skillConfig) {
-        Objects.requireNonNull(turnInput, "turn");
+        Objects.requireNonNull(turnInput, "turnInput required");
 
         Map<String, Object> input = new HashMap<>();
+
+        // prepare system prompt
+        ActiveSkill active = SkillSelector.select(turnInput, skillConfig);
+        TurnBindings bindings = TurnBinder.bind(toolConfig, skillConfig, active);
+        bindings.applyTo(input);
+
+        final SystemPromptInput in = SystemPromptInput.builder()
+                .stable(SystemPromptInput.mapOf(
+                        SystemPromptInput.SKILLS, textOrNull(bindings.getSkillsText()),
+                        SystemPromptInput.TOOLS, textOrNull(bindings.getToolsText())))
+                .context(SystemPromptInput.mapOf(
+                        SystemPromptInput.CONTEXT, textOrNull(turnInput.getContext())))
+                .apply(turnInput.getContextModifier())
+                .build();
+
+        input.put(StateKeys.SYSTEM_PROMPT, in.format());
+
+        // prepare messages / sessionId
         List<Message> history = new ArrayList<>();
         for (Message m : turnInput.getMessages()) {
             if (m == null) {
@@ -134,20 +156,6 @@ public final class DefaultAgent implements Agent {
             input.put(StateKeys.SESSION_ID, turnInput.getSessionId().trim());
         }
 
-        ActiveSkill active = SkillSelector.select(turnInput, skillConfig);
-        TurnBindings bindings = TurnBinder.bind(toolConfig, skillConfig, active);
-        bindings.applyTo(input);
-
-        final SystemPromptInput in = SystemPromptInput.builder()
-                .stable(SystemPromptInput.mapOf(
-                        SystemPromptInput.SKILLS, textOrNull(bindings.getSkillsText()),
-                        SystemPromptInput.TOOLS, textOrNull(bindings.getToolsText())))
-                .context(SystemPromptInput.mapOf(
-                        SystemPromptInput.CONTEXT, textOrNull(turnInput.getContext())))
-                .apply(turnInput.getContextModifier())
-                .build();
-
-        input.put(StateKeys.SYSTEM_PROMPT, in.format());
         return input;
     }
 
@@ -253,9 +261,16 @@ public final class DefaultAgent implements Agent {
         return resume(request, null);
     }
 
+    /**
+     * HITL 续跑：confirmId 幂等占位 → tool-result / WRITE 双路径 → {@code compiled.resume}。
+     *
+     * @param request 续跑请求（须含 runId；toolCallId+result 与 WRITE decision 互斥）
+     * @param emitter 可选事件出口；可为 null
+     * @return 图终态映射后的 {@link ConversationResult}
+     */
     @Override
     public ConversationResult resume(ResumeRequest request, Emitter emitter) {
-        if (request == null || !StringUtils.hasText(request.getRunId())) {
+        if (!StringUtils.hasText(request.getRunId())) {
             return ConversationResult.failed(null, "resume requires runId");
         }
 
@@ -265,23 +280,26 @@ public final class DefaultAgent implements Agent {
 
         boolean claimed = false;
         try {
+            // 1. 占住 runId
             if (activeRuns.putIfAbsent(runId, handle) != null) {
                 return ConversationResult.failed(runId, "run already active: " + runId);
             }
 
+            // 2. confirmId 幂等：COMPLETED/IN_PROGRESS 短路；CLAIMED 继续
             Claim claim = claim(runId, confirmId);
             if (claim.result != null) {
                 return claim.result;
             }
-            
             claimed = claim.claimed;
 
+            // 3. 解析续跑模式（tool-result vs WRITE）；非法则 fail-closed
             ResumeResult resumeResult = resolveResumeResult(request, runId);
             if (resumeResult.invalid != null) {
                 complete(claimed, runId, confirmId, resumeResult.invalid);
                 return resumeResult.invalid;
             }
 
+            // 4. 组装 resume input
             final Map<String, Object> input;
             if (resumeResult.toolResultMode) {
                 try {
@@ -295,6 +313,7 @@ public final class DefaultAgent implements Agent {
                 input = prepareWrite(request, resumeResult.decision, runId);
             }
 
+            // 5. 编译图并 resume
             CompiledGraph compiled = stateGraph.compile(CompileConfig.builder()
                     .checkpointer(checkpointer)
                     .maxSupersteps(budget.maxTotal())
@@ -312,7 +331,7 @@ public final class DefaultAgent implements Agent {
             GraphOutcome outcome = compiled.resume(input, runnableConfig);
             ConversationResult result = mapOutcome(runId, outcome);
 
-            // 再次挂起：abandon 释放占位；其余终态（含 fail-closed）→ complete
+            // 6. 收敛幂等占位：再挂起 abandon；其余终态 complete
             complete(claimed, runId, confirmId, result);
             return result;
         } catch (RuntimeException ex) {
@@ -464,66 +483,45 @@ public final class DefaultAgent implements Agent {
     }
 
     /**
-     * tool-result 路径：合成 ToolResult 进 transcript，从挂起 TOOL_CALLS 摘掉该 call，不再执行 handler。
+     * ask_human 续跑：选项/自由文本作为 user 消息追加；tool 回执已在 interrupt 时写入。
+     * 清空 TOOL_CALLS，resume 重入 tools 后无 call → 边到 agent。
      *
-     * @throws IllegalArgumentException 未知 toolCallId（文案含 toolCallId/unknown）；调用方勿 resume 图
+     * @throws IllegalArgumentException transcript 中无对应 tool 回执（未知 toolCallId）
      */
     private Map<String, Object> prepareToolResult(ResumeRequest request, String runId) {
         Map<String, Object> input = new HashMap<>();
         String toolCallId = request.getToolCallId().trim();
-        String output = request.getHumanInput() != null ? request.getHumanInput() : "";
+        String text = request.getHumanInput() != null ? request.getHumanInput() : "";
 
         Checkpoint latest = checkpointer.loadLatest(runId).orElse(null);
         if (latest == null || latest.getState() == null) {
-            // GraphExecutor 会以「No checkpoint」失败；此处仍组装最小 input 保持路径一致
             input.put(StateKeys.TOOL_CALLS, Collections.emptyList());
             return input;
         }
 
         GraphState state = latest.getState();
-        ToolCallEntry matched = findToolCall(state.get(StateKeys.TOOL_CALLS), toolCallId);
-        if (matched == null) {
+        List<Message> messages = Message.copyFrom(state.get(StateKeys.MESSAGES));
+        if (!hasToolReply(messages, toolCallId)) {
             throw new IllegalArgumentException("unknown toolCallId: " + toolCallId);
         }
-        ToolResult injected = ToolResult.ok(toolCallId, matched.getToolName(), output);
-        input.put(StateKeys.MESSAGES,
-                Message.withToolResults(state.get(StateKeys.MESSAGES),
-                        Collections.singletonList(injected)));
-        input.put(StateKeys.TOOL_CALLS, removeToolCall(state.get(StateKeys.TOOL_CALLS), toolCallId));
+        Message.append(messages, null, null, Message.user(text));
+        input.put(StateKeys.MESSAGES, messages);
+        // 丢弃 interrupt 时未跑完的后续 call；人答之后先回 agent
+        input.put(StateKeys.TOOL_CALLS, Collections.emptyList());
         return input;
     }
 
-    private static ToolCallEntry findToolCall(Object rawCalls, String toolCallId) {
-        if (!(rawCalls instanceof List)) {
-            return null;
+    private static boolean hasToolReply(List<Message> messages, String toolCallId) {
+        if (messages == null || !StringUtils.hasText(toolCallId)) {
+            return false;
         }
-        for (Object item : (List<?>) rawCalls) {
-            if (item instanceof ToolCallEntry) {
-                ToolCallEntry call = (ToolCallEntry) item;
-                if (toolCallId.equals(call.getId())) {
-                    return call;
-                }
+        for (Message m : messages) {
+            if (m != null && "tool".equalsIgnoreCase(m.getRole())
+                    && toolCallId.equals(m.getToolCallId())) {
+                return true;
             }
         }
-        return null;
-    }
-
-    private static List<ToolCallEntry> removeToolCall(Object rawCalls, String toolCallId) {
-        if (!(rawCalls instanceof List)) {
-            return Collections.emptyList();
-        }
-        List<ToolCallEntry> remaining = new ArrayList<>();
-        for (Object item : (List<?>) rawCalls) {
-            if (!(item instanceof ToolCallEntry)) {
-                continue;
-            }
-            ToolCallEntry call = (ToolCallEntry) item;
-            if (toolCallId.equals(call.getId())) {
-                continue;
-            }
-            remaining.add(call);
-        }
-        return remaining;
+        return false;
     }
 
     static Duration mapOverallTimeout(IterationBudget budget) {

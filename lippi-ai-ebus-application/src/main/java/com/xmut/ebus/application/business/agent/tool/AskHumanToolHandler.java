@@ -20,8 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Pi tool {@code ask_human}: structured HITL question. Side effects are none;
- * ToolPolicy + ToolNode suspend before {@link #handle} on the live path.
+ * Pi tool {@code ask_human}：校验并规范化 question/options，返回 {@link ToolResult#interrupt}。
+ * ToolNode 先写入 tool 回执再挂起；resume 把人的选项追加为 user 消息后继续。
  */
 public final class AskHumanToolHandler implements ToolHandler {
 
@@ -47,16 +47,33 @@ public final class AskHumanToolHandler implements ToolHandler {
             if (parsed == null || !StringUtils.hasText(parsed.getQuestion()) || parsed.getOptions().isEmpty()) {
                 return ToolResult.failed(callId, TOOL_NAME, "ask_human requires question and options[{id,label}]");
             }
-            return ToolResult.ok(callId, TOOL_NAME, writeEcho(parsed));
+            return ToolResult.interrupt(callId, TOOL_NAME, writeEcho(parsed));
         } catch (Exception ex) {
             log.warn("ask_human failed: {}", ex.toString());
             return ToolResult.failed(callId, TOOL_NAME, "ask_human failed: " + ex.getMessage());
         }
     }
 
+    /** 从模型 tool_call.arguments 解析。 */
     public static ParsedAsk parse(ToolCallEntry call) {
-        JsonNode args = arguments(call);
-        if (args == null) {
+        return parseArgs(arguments(call));
+    }
+
+    /** 从 handler 规范化后的 output JSON 解析（SSE 优先用）。 */
+    public static ParsedAsk parseOutput(String output) {
+        if (!StringUtils.hasText(output)) {
+            return null;
+        }
+        try {
+            JsonNode root = new ObjectMapper().readTree(output.trim());
+            return parseArgs(root);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private static ParsedAsk parseArgs(JsonNode args) {
+        if (args == null || args.isNull() || !args.isObject()) {
             return null;
         }
         String question = text(args.get("question"));

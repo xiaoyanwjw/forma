@@ -121,6 +121,20 @@ class PiEventToAd4MapperTest {
     }
 
     @Test
+    void mapsAskHumanSuspend_prefersHandlerResultOutputOverRawArgs() throws Exception {
+        ToolCallEntry call = AskHumanToolHandlerTest.listingAskCall("call-ask");
+        // 乱改 arguments；handler output 才是真源
+        ToolResult result = ToolResult.interrupt("call-ask", "ask_human",
+                "{\"question\":\"规范化问题\",\"allowFreeText\":false,"
+                        + "\"options\":[{\"id\":\"confirm_execute\",\"label\":\"确认，出执行稿\"}]}");
+        Ad4SseEvent ev = PiEventToAd4Mapper.mapEvent(
+                PiEvent.of(PiEventType.SUSPENDED,
+                        ToolSuspendPayload.of(call, "run-2", "ask_human", result))).get();
+        assertEquals("规范化问题", ev.getData().get("question"));
+        assertEquals(Boolean.FALSE, ev.getData().get("allowFreeText"));
+    }
+
+    @Test
     void doesNotMapWriteHitlSuspendAsHumanInput() {
         ToolCallEntry write = new ToolCallEntry("w1", "save", null);
         assertFalse(PiEventToAd4Mapper.mapEvent(

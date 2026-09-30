@@ -82,7 +82,18 @@ public final class PiEventToAd4Mapper {
         if (call == null || !isAskHuman(call.getToolName())) {
             return Optional.empty();
         }
-        AskHumanToolHandler.ParsedAsk parsed = AskHumanToolHandler.parse(call);
+        AskHumanToolHandler.ParsedAsk parsed = null;
+        if (payload instanceof ToolSuspendPayload) {
+            ToolSuspendPayload suspend = (ToolSuspendPayload) payload;
+            if (suspend.getResult() != null
+                    && suspend.getResult().getOutput() != null
+                    && !suspend.getResult().getOutput().trim().isEmpty()) {
+                parsed = AskHumanToolHandler.parseOutput(suspend.getResult().getOutput());
+            }
+        }
+        if (parsed == null) {
+            parsed = AskHumanToolHandler.parse(call);
+        }
         if (parsed == null) {
             return Optional.empty();
         }

@@ -60,18 +60,14 @@ public final class DefaultAgentSession implements AgentSession {
     }
 
     /**
-     * 一轮对话主路径：hydrate →（可选命令短路）→ 扩 slash → 合并 transcript →
-     * before_agent_start → Agent.run → OK/SUSPENDED 则 append 增量 → agent_end。
+     * 首轮 / 续聊入口：hydrate SessionStore，委托 {@link Agent#run}，按终态落库后发 AGENT_END。
      *
-     * <p>失败/短路也走 {@link #onAgentEnd}，保证订阅方总能收到终态。
+     * @param request 本轮 prompt（sessionId / runId / text / skillId 等）
+     * @return 终态 {@link TurnResult}；失败与命令短路也经 {@link #onAgentEnd}
      */
     @Override
     public TurnResult prompt(PromptRequest request) {
-        if (request == null) {
-            return TurnResult.failed(null, "PromptRequest required");
-        }
-
-        // 稳定 sessionId / runId：空则建会话、缺 runId 则发 UUID（幂等键交给 SessionStore.append）
+        // 1. 解析 sessionId / runId（空则建会话；缺 runId 发 UUID）
         String sessionId = request.getSessionId();
         String runId = getRunId(request);
         final Session session = sessionStore.getOrCreate(Session.Meta
@@ -81,21 +77,20 @@ public final class DefaultAgentSession implements AgentSession {
                 .build());
         sessionId = session.getSessionId();
 
-        // 扩展可吞掉本轮（斜杠命令等）；非 null 即短路，不再进模型
+        // 2. COMMAND 扩展短路：有人返回 TurnResult 则不再进模型
         TurnResult result = command(request);
         if (result != null) {
             return onAgentEnd(withSession(result, sessionId));
         }
 
+        // 3. 扩 slash、合并 transcript（load 为 compact 投影；本类不改写历史）
         final String context = request.getContext();
         final ExpandedTurn expanded = expand(request);
-
-        // load 已是 compact 投影；merge 后把完整 chat 轴交给 Loop（本类不改写历史）
         List<Message> existing = sessionStore.load(sessionId);
         List<Message> user = Session.resolveThisTurnUser(request, expanded.text);
         List<Message> messages = Session.merge(existing, user);
 
-        // 扩展可改写 system/上下文；抛错则本轮失败，不调模型
+        // 4. before_agent_start：可改写 system/上下文；抛错则本轮失败
         ContextModifier overwrite;
         try {
             overwrite = beforeAgentStart(runId, expanded.text, context);
@@ -103,10 +98,19 @@ public final class DefaultAgentSession implements AgentSession {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "before_agent_start failed")));
         }
 
-        TurnInput input = toTurnInput(request, sessionId, runId, expanded.skillId, context, overwrite, messages);
+        final TurnInput input = TurnInput.builder()
+                .sessionId(sessionId)
+                .domain(request.getDomain())
+                .runId(runId)
+                .traceId(request.getTraceId())
+                .context(context)
+                .contextModifier(overwrite)
+                .skillId(expanded.skillId)
+                .messages(messages)
+                .build();
 
+        // 5. 调用 Agent.run
         onAgentStart(sessionId);
-
         try {
             ConversationResult raw = agent.run(input, eventBus);
             result = mapToTurnResult(raw, sessionId);
@@ -114,24 +118,29 @@ public final class DefaultAgentSession implements AgentSession {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "prompt failed")));
         }
 
-        // OK / SUSPENDED 落库：delta 可 append；前缀漂移则 fork。FAILED 不写。
-        if (TurnResult.Status.OK.equals(result.getStatus())
-                || TurnResult.Status.SUSPENDED.equals(result.getStatus())) {
+        // 6a. OK：原地 append 增量（前缀漂移则 fork）
+        if (TurnResult.Status.OK.equals(result.getStatus())) {
             try {
-                final List<Message> updated = result.getMessages();
-                String appendKey = TurnResult.Status.SUSPENDED.equals(result.getStatus())
-                        ? appendKey(runId, APPEND_KEY_SUSPEND)
-                        : runId;
-                sessionId = persistTurnDelta(sessionId, appendKey, existing, updated);
+                sessionId = persistTurnDelta(sessionId, runId, existing, result.getMessages());
                 result = withSession(result, sessionId);
             } catch (Exception ex) {
-                log.warn("append after {} failed sessionId={} runId={}: {}",
-                        result.getStatus(), sessionId, runId, ex.toString());
+                log.warn("append after OK failed sessionId={} runId={}: {}",
+                        sessionId, runId, ex.toString());
+            }
+        }
+        // 6b. SUSPENDED：用 runId:suspend 落库（避开同 runId 幂等跳过）
+        if (TurnResult.Status.SUSPENDED.equals(result.getStatus())) {
+            try {
+                sessionId = persistTurnDelta(sessionId, toRunId(runId, APPEND_KEY_SUSPEND), existing, result.getMessages());
+                result = withSession(result, sessionId);
+            } catch (Exception ex) {
+                log.warn("append after SUSPENDED failed sessionId={} runId={}: {}",
+                        sessionId, runId, ex.toString());
             }
         }
 
+        // 7. 统一终态出口（SUSPENDED → AGENT_END）
         return onAgentEnd(result);
-
     }
 
     /** COMMAND 扩展：有人返回 TurnResult 则吞掉本轮；异常/无人处理 → null 继续主路径。 */
@@ -185,16 +194,21 @@ public final class DefaultAgentSession implements AgentSession {
         return result;
     }
 
+    /**
+     * HITL 续跑入口：委托 {@link Agent#resume}，OK 时用 {@code runId:resume} 落增量。
+     *
+     * @param request 续跑请求（runId / sessionId / toolCallId 或 WRITE decision）
+     * @return 终态 {@link TurnResult}
+     */
     @Override
     public TurnResult resume(ResumeRequest request) {
-        if (request == null) {
-            return onAgentEnd(TurnResult.failed(null, "ResumeRequest required"));
-        }
+        // 1. 解析 sessionId / runId
         String sessionId = request.getSessionId();
         String runId = StringUtils.hasText(request.getRunId())
                 ? request.getRunId().trim()
                 : UUID.randomUUID().toString();
         try {
+            // 2. hydrate SessionStore（作 append 前缀基线）
             if (StringUtils.hasText(sessionId)) {
                 sessionStore.getOrCreate(Session.Meta.builder()
                         .sessionId(sessionId)
@@ -205,17 +219,18 @@ public final class DefaultAgentSession implements AgentSession {
                     ? sessionStore.load(sessionId)
                     : Collections.<Message>emptyList();
 
+            // 3. 调用 Agent.resume
             onAgentStart(sessionId);
-
             ConversationResult raw = agent.resume(request, eventBus);
             TurnResult result = mapToTurnResult(raw, sessionId);
 
+            // 4. OK：用 runId:resume 落 tool-result 及后续增量（前缀漂移则 fork）
             if (TurnResult.Status.OK.equals(result.getStatus())
                     && StringUtils.hasText(sessionId)) {
                 try {
                     sessionId = persistTurnDelta(
                             sessionId,
-                            appendKey(runId, APPEND_KEY_RESUME),
+                            toRunId(runId, APPEND_KEY_RESUME),
                             existing,
                             result.getMessages());
                     result = withSession(result, sessionId);
@@ -225,13 +240,14 @@ public final class DefaultAgentSession implements AgentSession {
                 }
             }
 
+            // 5. 统一终态出口
             return onAgentEnd(result);
         } catch (RuntimeException ex) {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "resume failed")));
         }
     }
 
-    static String appendKey(String runId, String suffix) {
+    static String toRunId(String runId, String suffix) {
         if (!StringUtils.hasText(runId)) {
             return suffix;
         }
@@ -259,13 +275,12 @@ public final class DefaultAgentSession implements AgentSession {
     }
 
     /**
-     * 把本轮产出写回 SessionStore。
+     * 把本轮产出写回 SessionStore：能接前缀则 append，否则 fork 子会话。
      *
-     * <ul>
-     *   <li>新消息能接在 {@code histBase} 后 → {@code append}（同 runId 幂等）</li>
-     *   <li>否则前缀已漂 → fork 子会话写全量非 system，父会话不动</li>
-     * </ul>
-     *
+     * @param sessionId 当前会话
+     * @param runId     append 幂等键（可为 {@code runId:suspend} / {@code runId:resume}）
+     * @param histBase  进 Agent 前的 Store 投影
+     * @param histDelta Agent 返回的完整 messages
      * @return 实际使用的 sessionId（fork 时为新 id）
      */
     private String persistTurnDelta(String sessionId, String runId, List<Message> histBase, List<Message> histDelta) {
@@ -273,13 +288,14 @@ public final class DefaultAgentSession implements AgentSession {
             return sessionId;
         }
 
+        // 1. 前缀匹配：原地 append 后缀差集
         List<Message> delta = Session.computeAppendDelta(histBase, histDelta);
         if (delta != null) {
             sessionStore.append(sessionId, runId, delta);
             return sessionId;
         }
 
-        // Loop 改写了历史前缀：不能原地 append，否则破坏单调 seq / 投影语义
+        // 2. 前缀漂移：fork 子会话写全量非 system，父会话不动
         Session forked = sessionStore.getOrCreate(Session.Meta.builder()
                 .source("api")
                 .parentSessionId(sessionId)
@@ -293,25 +309,6 @@ public final class DefaultAgentSession implements AgentSession {
         }
 
         return forkId;
-    }
-
-    static TurnInput toTurnInput(PromptRequest request,
-                                 String sessionId,
-                                 String runId,
-                                 String skillId,
-                                 String context,
-                                 ContextModifier overwrite,
-                                 List<Message> messages) {
-        return TurnInput.builder()
-                .sessionId(sessionId)
-                .domain(request.getDomain())
-                .runId(runId)
-                .skillId(skillId)
-                .context(context)
-                .contextModifier(overwrite)
-                .messages(messages)
-                .traceId(request.getTraceId())
-                .build();
     }
 
     private ExpandedTurn expand(PromptRequest request) {

@@ -168,36 +168,39 @@ class CheckpointPersistenceHitlTest {
     }
 
     @Test
-    void toolResultResume_injectsResult_handlerNeverRuns() {
+    void askHumanInterrupt_resumeAppendsUserMessage() {
         AtomicInteger handlerCalls = new AtomicInteger();
-        InMemoryToolCatalog policy = writeConfig(handlerCalls);
+        InMemoryToolCatalog policy = askHumanConfig(handlerCalls);
         InMemoryCheckpointer store = new InMemoryCheckpointer();
         DefaultAgent loop = new DefaultAgent(
-                DefaultToolLoopGraph.create(stateAwareAgent("save"), policy),
+                DefaultToolLoopGraph.create(visitingAgent("ask_human"), policy),
                 store,
                 new InMemoryResumeIdempotencyStore(), new IterationBudget(25), policy, null);
 
         com.xmut.lims.pi.agent.event.PiEventBus bus = PiTestBus.withPolicy(policy);
         assertThat(loop.run(TurnInput.builder()
-                .runId("tool-result-run")
-                .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("save")))
+                .runId("ask-human-run")
+                .messages(java.util.Collections.singletonList(com.xmut.lims.pi.ai.message.Message.user("plan")))
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
-        assertThat(handlerCalls.get()).isZero();
+        assertThat(handlerCalls.get()).isEqualTo(1);
 
         ConversationResult resumed = loop.resume(ResumeRequest.builder()
-                .runId("tool-result-run")
+                .runId("ask-human-run")
                 .toolCallId("c1")
-                .humanInput("user-chose-option-a")
+                .humanInput("{\"selectedId\":\"confirm_execute\"}")
                 .confirmId("tr-1")
                 .build(), bus);
 
         assertThat(resumed.getStatus()).isEqualTo(ConversationResult.Status.OK);
-        assertThat(handlerCalls.get()).isZero();
+        assertThat(handlerCalls.get()).isEqualTo(1);
         assertThat(resumed.getMessages()).anyMatch(m ->
                 "tool".equalsIgnoreCase(m.getRole())
                         && "c1".equals(m.getToolCallId())
-                        && "user-chose-option-a".equals(m.getContent()));
-        assertThat(store.listByRun("tool-result-run")).isEmpty();
+                        && m.getContent() != null && m.getContent().contains("question"));
+        assertThat(resumed.getMessages()).anyMatch(m ->
+                "user".equalsIgnoreCase(m.getRole())
+                        && m.getContent() != null && m.getContent().contains("confirm_execute"));
+        assertThat(store.listByRun("ask-human-run")).isEmpty();
     }
 
     @Test
@@ -399,6 +402,16 @@ class CheckpointPersistenceHitlTest {
         };
         return new InMemoryToolCatalog(Collections.singletonList(
                 ToolTestSupport.tool("save", handler)));
+    }
+
+    private static InMemoryToolCatalog askHumanConfig(AtomicInteger handlerCalls) {
+        ToolHandler handler = (call, ctx) -> {
+            handlerCalls.incrementAndGet();
+            return ToolResult.interrupt(call.getId(), "ask_human",
+                    "{\"question\":\"确认？\",\"options\":[{\"id\":\"ok\",\"label\":\"好\"}]}");
+        };
+        return new InMemoryToolCatalog(Collections.singletonList(
+                ToolTestSupport.tool("ask_human", handler)));
     }
 
     private static GraphNode stateAwareAgent(String toolName) {

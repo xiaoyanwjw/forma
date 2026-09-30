@@ -278,6 +278,51 @@ class DefaultAgentSessionTest {
     }
 
     @Test
+    void resume_ok_appends_tool_result_when_ask_human_toolCalls_are_valueEqual_not_sameInstance()
+            throws Exception {
+        // 模拟 MySQL/checkpoint 编解码后 ToolCallEntry 不是同一实例，但字段相同。
+        // 若 ToolCallEntry 无值 equals，prefixMatches 失败会 fork，旧 session 留下未闭合 ask_human。
+        com.fasterxml.jackson.databind.ObjectMapper mapper =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.node.ObjectNode args =
+                mapper.createObjectNode().put("question", "确认策划？");
+        String callId = "call_ask_1";
+
+        sessionStore.getOrCreate(Session.Meta.builder().sessionId("s-ask").build());
+        Message user = Message.user("请为商品生成上架素材");
+        Message askStored = Message.assistant("先确认策划", Collections.singletonList(
+                new com.xmut.lims.pi.ai.tool.ToolCallEntry(callId, "ask_human", args)));
+        sessionStore.append("s-ask", "run-ask:suspend", Arrays.asList(user, askStored));
+
+        Message askFromCheckpoint = Message.assistant("先确认策划", Collections.singletonList(
+                new com.xmut.lims.pi.ai.tool.ToolCallEntry(callId, "ask_human",
+                        mapper.readTree(mapper.writeValueAsString(args)))));
+        Message toolReply = Message.tool(callId, "{\"selectedId\":\"confirm_execute\"}");
+        Message finalAsst = Message.assistant("listing-done", Collections.emptyList());
+
+        when(conversationLoop.resume(any(ResumeRequest.class), any()))
+                .thenReturn(ConversationResult.ok("run-ask", "done",
+                        Arrays.asList(user, askFromCheckpoint, toolReply, finalAsst)));
+
+        TurnResult result = session.resume(ResumeRequest.builder()
+                .runId("run-ask")
+                .sessionId("s-ask")
+                .toolCallId(callId)
+                .humanInput("{\"selectedId\":\"confirm_execute\"}")
+                .build());
+
+        assertThat(result.getStatus()).isEqualTo(TurnResult.Status.OK);
+        assertThat(result.getSessionId()).isEqualTo("s-ask");
+        assertThat(sessionStore.load("s-ask")).extracting(Message::getContent)
+                .containsExactly(
+                        "请为商品生成上架素材",
+                        "先确认策划",
+                        "{\"selectedId\":\"confirm_execute\"}",
+                        "listing-done");
+        assertThat(sessionStore.listChildren("s-ask")).isEmpty();
+    }
+
+    @Test
     void computeAppendDelta_takes_suffix_after_hydrate_base() {
         List<Message> base = Arrays.asList(Message.user("u"), Message.assistant("a", null));
         List<Message> result = Arrays.asList(

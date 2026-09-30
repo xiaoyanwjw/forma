@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.experimental.SuperBuilder;
 
 /**
- * Listing / ask_human HITL 续跑：把选项写入挂起 toolCallId 的 tool-result。
+ * Listing / ask_human HITL 续跑：把选项作为 user 消息追加（tool 回执已在 interrupt 时写入）。
  */
 @Getter
 @SuperBuilder

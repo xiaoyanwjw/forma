@@ -10,6 +10,8 @@ import com.xmut.lims.pi.agent.event.BeforeToolCallResult;
 import com.xmut.lims.pi.agent.event.Emitter;
 import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventType;
+import com.xmut.lims.pi.agent.event.ToolSuspendPayload;
+import com.xmut.lims.pi.agent.extension.ToolPolicyExtension;
 import com.xmut.lims.pi.agent.graph.GraphState;
 import com.xmut.lims.pi.agent.graph.NodeContext;
 import com.xmut.lims.pi.agent.graph.StateKeys;
@@ -234,6 +236,52 @@ class ToolNodeStreamTest {
         assertThat(hits.get()).isGreaterThanOrEqualTo(1);
         assertThat(updates.containsKey(StateKeys.MESSAGES)).isTrue();
         assertThat(updates.get(StateKeys.TOOL_CALLS)).isEqualTo(Collections.emptyList());
+    }
+
+    @Test
+    void handler_interrupt_writesToolMessage_clearsCall_andSuspends() {
+        AtomicInteger handlerCalls = new AtomicInteger();
+        Map<String, ToolHandler> handlers = new HashMap<>();
+        handlers.put("ask_human", (call, ctx) -> {
+            handlerCalls.incrementAndGet();
+            return ToolResult.interrupt(call.getId(), call.getToolName(),
+                    "{\"question\":\"确认？\",\"options\":[{\"id\":\"ok\",\"label\":\"好\"}]}");
+        });
+        handlers.put("save", (call, ctx) -> ToolResult.ok(call.getId(), call.getToolName(), "written"));
+        ToolNode node = new ToolNode(handlers);
+
+        List<PiEvent> events = new ArrayList<>();
+        Map<String, Object> updates = node.execute(
+                GraphState.create(toolTurn(
+                        new ToolCallEntry("ah1", "ask_human", JsonNodeFactory.instance.objectNode()),
+                        new ToolCallEntry("w1", "save", JsonNodeFactory.instance.objectNode()))),
+                new NodeContext("run-ask", "tr1", recording(events)));
+
+        assertThat(handlerCalls.get()).isEqualTo(1);
+        assertThat(updates.get(StateKeys.INTERRUPT)).isEqualTo(Boolean.TRUE);
+        assertThat(updates.get(StateKeys.TOOL_POLICY_ROUTE))
+                .isEqualTo(ToolPolicyExtension.ROUTE_NEEDS_HITL);
+        @SuppressWarnings("unchecked")
+        List<ToolCallEntry> remaining = (List<ToolCallEntry>) updates.get(StateKeys.TOOL_CALLS);
+        // ask_human 已完成；仅后续未执行的 save 留在 remaining
+        assertThat(remaining).extracting(ToolCallEntry::getId).containsExactly("w1");
+        @SuppressWarnings("unchecked")
+        List<Message> msgs = (List<Message>) updates.get(StateKeys.MESSAGES);
+        assertThat(msgs).anyMatch(m -> "tool".equalsIgnoreCase(m.getRole())
+                && "ah1".equals(m.getToolCallId())
+                && m.getContent() != null && m.getContent().contains("确认？"));
+        assertThat(events).extracting(PiEvent::getType).containsExactly(
+                PiEventType.TOOL_EXECUTION_START,
+                PiEventType.BEFORE_TOOL_CALL,
+                PiEventType.AFTER_TOOL_CALL,
+                PiEventType.TOOL_EXECUTION_END,
+                PiEventType.MESSAGE_START,
+                PiEventType.MESSAGE_END,
+                PiEventType.SUSPENDED);
+        ToolSuspendPayload suspend = (ToolSuspendPayload) events.get(6).getPayload();
+        assertThat(suspend.getCall().getId()).isEqualTo("ah1");
+        assertThat(suspend.getResult()).isNotNull();
+        assertThat(suspend.getResult().isInterrupt()).isTrue();
     }
 
     private static Map<String, Object> toolTurn(String callId, String toolName) {

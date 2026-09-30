@@ -313,6 +313,7 @@ public final class CheckpointCodec {
             row.put("callId", r.getCallId());
             row.put("toolName", r.getToolName());
             row.put("success", r.isSuccess());
+            row.put("interrupt", r.isInterrupt());
             row.put("output", r.getOutput());
             row.put("errorMessage", r.getErrorMessage());
             out.add(row);
@@ -332,9 +333,12 @@ public final class CheckpointCodec {
             }
             Map<String, Object> row = (Map<String, Object>) o;
             boolean success = Boolean.TRUE.equals(row.get("success"));
+            boolean interrupt = Boolean.TRUE.equals(row.get("interrupt"));
             String callId = (String) row.get("callId");
             String toolName = (String) row.get("toolName");
-            if (success) {
+            if (interrupt) {
+                out.add(ToolResult.interrupt(callId, toolName, (String) row.get("output")));
+            } else if (success) {
                 out.add(ToolResult.ok(callId, toolName, (String) row.get("output")));
             } else {
                 out.add(ToolResult.failed(callId, toolName, (String) row.get("errorMessage")));

@@ -5,6 +5,7 @@ import com.xmut.lims.pi.ai.model.ToolSchema;
 import com.xmut.lims.pi.agent.skill.Skill;
 import lombok.Builder;
 import lombok.Value;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -20,10 +21,14 @@ import java.util.Map;
 @Builder
 public class TurnBindings {
 
-    /** → PromptBuilder skills 段（入图前编进 SYSTEM_PROMPT，不写 Graph state） */
+    /**
+     * → PromptBuilder skills 段（入图前编进 SYSTEM_PROMPT，不写 Graph state）
+     */
     String skillsText;
 
-    /** → PromptBuilder tools 段（与 skillsText 对称；入图前编进 SYSTEM_PROMPT） */
+    /**
+     * → PromptBuilder tools 段（与 skillsText 对称；入图前编进 SYSTEM_PROMPT）
+     */
     String toolsText;
 
     /**
@@ -36,10 +41,14 @@ public class TurnBindings {
      */
     List<ToolSchema> availableTools;
 
-    /** → {@link StateKeys#ACTIVE_SKILL_ID}（可由 availableSkills 推导；便于测） */
+    /**
+     * → {@link StateKeys#ACTIVE_SKILL_ID}（可由 availableSkills 推导；便于测）
+     */
     String activeSkillId;
 
-    /** → {@link StateKeys#MODEL_USE_CASE}（ActiveSkill.modelUseCase；可空） */
+    /**
+     * → {@link StateKeys#MODEL_USE_CASE}（ActiveSkill.modelUseCase；可空）
+     */
     String modelUseCase;
 
     /**
@@ -57,14 +66,14 @@ public class TurnBindings {
         if (StringUtils.hasText(activeSkillId)) {
             state.put(StateKeys.ACTIVE_SKILL_ID, activeSkillId);
         }
+        if (!CollectionUtils.isEmpty(activeTools)) {
+            state.put(StateKeys.ACTIVE_TOOLS, Collections.unmodifiableList(new ArrayList<>(activeTools)));
+        }
         if (StringUtils.hasText(modelUseCase)) {
             state.put(StateKeys.MODEL_USE_CASE, modelUseCase);
         }
         applyList(state, StateKeys.AVAILABLE_SKILLS, availableSkills);
         applyList(state, StateKeys.AVAILABLE_TOOLS, availableTools);
-        if (activeTools != null) {
-            state.put(StateKeys.ACTIVE_TOOLS, Collections.unmodifiableList(new ArrayList<>(activeTools)));
-        }
     }
 
     private static void applyList(Map<String, Object> state, String key, List<?> list) {

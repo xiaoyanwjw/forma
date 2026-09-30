@@ -59,17 +59,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
- * AgentRuntime 编排：预占 → GenerationRun → AgentSession → AD-4 SSE。
- * <p>
- * 计费双管线（结构对齐，业务特化走 Interceptor / Listener / SuspendedHandler）：
- * <ul>
- *   <li>首跑：{@link #prepareGenerationRun} → {@link #streamGenerationRun}
- *       → dry? {@code streamDryRun} : {@code streamBilledRun}</li>
- *   <li>续跑：{@link #prepareResumeGenerationRun} → {@link #resumeBilledRun}</li>
- * </ul>
- * {@code streamBilledRun} / {@code resumeBilledRun}：
- * onBefore → prompt|resume → SUSPENDED|OK(parse → view → onAfter → settle)。
- * 空跑只 reserve+release，永不 settle。计费须绑定 AVAILABLE 场景（AD-15）。
+ * Agent 运行时应用服务：预占积分、驱动 {@link AgentSession}、经 AD-4 SSE 回传事件并结算。
+ *
+ * <p>入口分两条：首跑 {@link #prepareGenerationRun} + {@link #streamGenerationRun}；
+ * 续跑 {@link #prepareResumeGenerationRun} + {@link #resumeBilledRun}。
+ * 业务差异经 Interceptor / Listener / SuspendedHandler 扩展，勿在计费主路径写 profile 分支。
+ * 空跑只 reserve+release，永不 settle；计费须绑定 AVAILABLE 场景（AD-15）。
  */
 @Slf4j
 @Service
@@ -337,12 +332,15 @@ public class AgentApplicationService {
     }
 
     /**
-     * 通用 billed 管线（与 resume 结构对齐）：
-     * <pre>
-     * run_started → pack → onBefore → subscribe/onEvent → prompt
-     *   → SUSPENDED | !OK | OK(emit → parse → view → onAfter → persist/settle)
-     * </pre>
-     * 业务特化经 Interceptor / Listener / SuspendedHandler，勿在此写 profile 分支。
+     * 执行一次计费首跑，并向 {@code sink} 推送 AD-4 SSE。
+     *
+     * <p>与 {@link #resumeBilledRun} 步骤对齐：前置钩子、订阅 PiEvent、调用
+     * {@link AgentSession#prompt}，再按 {@code SUSPENDED} / 失败 / {@code OK}
+     * 分流（解析终稿、投影 Computer View、后置钩子、落库结算）。
+     * 业务特化经 Interceptor / Listener / SuspendedHandler，本方法不做 profile 分支。
+     *
+     * @param context 已预占并绑定场景的运行上下文
+     * @param sink    SSE 事件消费者
      */
     private void streamBilledRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
         AtomicBoolean aborted = new AtomicBoolean(false);
@@ -514,8 +512,14 @@ public class AgentApplicationService {
     }
 
     /**
-     * ask_human 续跑管线（与 {@link #streamBilledRun} 结构对齐）。
-     * Listing 定制见 {@link SkuHitlInterceptor}；挂起真源为 Checkpoint。
+     * 执行 ask_human 续跑，并向 {@code sink} 推送 AD-4 SSE。
+     *
+     * <p>与 {@link #streamBilledRun} 步骤对齐，将人工选项作为 user 消息经
+     * {@link AgentSession#resume} 续跑（tool 回执已在 interrupt 时写入）。
+     * 挂起真源为 Checkpoint；Listing 定制见 {@link SkuHitlInterceptor}。
+     *
+     * @param command 续跑命令（含 runId、toolCallId、选项或自由文本）
+     * @param sink    SSE 事件消费者，不可为空
      */
     public void resumeBilledRun(ResumeGenerationRunCommand command, Consumer<Ad4SseEvent> sink) {
         ObjectUtils.requireNonNull(sink, "SSE sink 不能为空");
