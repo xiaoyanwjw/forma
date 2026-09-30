@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.sku;
+package com.xmut.ebus.application.business.agent.tool.sku;
 
 /**
  * HTTP transport for Apify Actor sync dataset API (mockable in tests).

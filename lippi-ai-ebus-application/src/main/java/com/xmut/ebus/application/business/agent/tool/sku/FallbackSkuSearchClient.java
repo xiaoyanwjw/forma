@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.sku;
+package com.xmut.ebus.application.business.agent.tool.sku;
 
 import com.xmut.ebus.common.logging.LoggerUtils;
 import com.xmut.ebus.common.logging.NameValue;
