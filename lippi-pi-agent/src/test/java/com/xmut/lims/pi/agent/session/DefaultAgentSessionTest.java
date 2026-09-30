@@ -213,12 +213,68 @@ class DefaultAgentSessionTest {
                 .thenReturn(ConversationResult.ok("r1", "resumed", Collections.emptyList()));
         TurnResult result = session.resume(ResumeRequest.builder()
                 .runId("r1")
+                .sessionId("s-resume")
                 .decision(com.xmut.lims.pi.agent.tool.ToolDecision.APPROVE)
                 .build());
         assertThat(result.getStatus()).isEqualTo(TurnResult.Status.OK);
         assertThat(result.getFinalResponse()).isEqualTo("resumed");
         assertThat(result.getFinalResponse()).doesNotContain("tenantId required");
         verify(conversationLoop).resume(any(ResumeRequest.class), any());
+    }
+
+    @Test
+    void prompt_suspended_appends_user_and_partial_assistant() {
+        when(conversationLoop.run(any(TurnInput.class), any()))
+                .thenAnswer(inv -> {
+                    TurnInput req = inv.getArgument(0);
+                    List<Message> out = new ArrayList<>(req.getMessages());
+                    out.add(Message.assistant("{\"view\":{\"version\":1},\"plan\":\"storyboard\"}", Collections.emptyList()));
+                    return ConversationResult.builder()
+                            .runId(req.getRunId())
+                            .status(ConversationResult.Status.SUSPENDED)
+                            .finalResponse("ask human")
+                            .messages(out)
+                            .build();
+                });
+
+        TurnResult result = session.prompt(PromptRequest.builder()
+                .sessionId("s-hitl")
+                .runId("run-hitl")
+                .text("请为商品「手机」生成上架素材")
+                .build());
+
+        assertThat(result.getStatus()).isEqualTo(TurnResult.Status.SUSPENDED);
+        assertThat(sessionStore.load("s-hitl")).extracting(Message::getContent)
+                .containsExactly(
+                        "请为商品「手机」生成上架素材",
+                        "{\"view\":{\"version\":1},\"plan\":\"storyboard\"}");
+    }
+
+    @Test
+    void resume_ok_appends_messages_after_suspended_prefix() {
+        sessionStore.getOrCreate(Session.Meta.builder().sessionId("s-hitl2").build());
+        Message user = Message.user("handoff listing");
+        Message plan = Message.assistant("plan-json", Collections.emptyList());
+        sessionStore.append("s-hitl2", "run-hitl2:suspend", Arrays.asList(user, plan));
+
+        when(conversationLoop.resume(any(ResumeRequest.class), any()))
+                .thenAnswer(inv -> {
+                    List<Message> full = Arrays.asList(
+                            user,
+                            plan,
+                            Message.assistant("listing-final-json", Collections.emptyList()));
+                    return ConversationResult.ok("run-hitl2", "done", full);
+                });
+
+        TurnResult result = session.resume(ResumeRequest.builder()
+                .runId("run-hitl2")
+                .sessionId("s-hitl2")
+                .decision(com.xmut.lims.pi.agent.tool.ToolDecision.APPROVE)
+                .build());
+
+        assertThat(result.getStatus()).isEqualTo(TurnResult.Status.OK);
+        assertThat(sessionStore.load("s-hitl2")).extracting(Message::getContent)
+                .containsExactly("handoff listing", "plan-json", "listing-final-json");
     }
 
     @Test

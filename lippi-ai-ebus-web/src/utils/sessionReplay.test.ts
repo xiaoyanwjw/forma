@@ -66,4 +66,48 @@ describe('sessionReplay', () => {
       { role: 'assistant', content: '这是杯子建议', kind: 'text' },
     ])
   })
+
+  it('toReplayBubbles labels each dump by content, not only latest artifactKind', () => {
+    const pickDump =
+      '```json\n{"view":{"version":1,"blocks":[{"type":"list","items":[{"id":"pl-1"}]}]},"artifact":{"items":[{"id":"pl-1","niche":"手机","sourceUrl":"https://x"}]}}\n```'
+    const listDump =
+      '```json\n{"view":{"version":1,"blocks":[{"type":"media"}]},"artifact":{"heroPlan":"x","detailTitle":"t","detailBody":"b","displayNotes":"n","framePrompts":["p"]}}\n```'
+    const bubbles = toReplayBubbles(
+      [
+        { role: 'user', content: '请帮我生成手机选品清单' },
+        { role: 'assistant', content: pickDump },
+        {
+          role: 'user',
+          content: '请为选品「荣耀」生成上架素材\nsourceUrl: https://item.taobao.com/1',
+        },
+        { role: 'assistant', content: listDump },
+      ],
+      'listing',
+    )
+    expect(bubbles.map((b) => [b.role, b.kind, b.content])).toEqual([
+      ['user', 'text', '请帮我生成手机选品清单'],
+      ['assistant', 'artifact', '已生成选品成果，右侧 Computer 可查看。'],
+      [
+        'user',
+        'text',
+        '请为选品「荣耀」生成上架素材\nsourceUrl: https://item.taobao.com/1',
+      ],
+      ['assistant', 'artifact', '已生成上架素材，右侧 Computer 可查看主图位与文案。'],
+    ])
+  })
+
+  it('toReplayBubbles does not relabel picklist dump as listing when handoff user is missing', () => {
+    const pickDump =
+      '```json\n{"view":{"version":1,"blocks":[{"type":"list"}]},"artifact":{"items":[{"niche":"香薰","sourceUrl":"https://x"}]}}\n```'
+    const bubbles = toReplayBubbles(
+      [
+        { role: 'user', content: '请帮我生成香薰选品清单' },
+        { role: 'assistant', content: pickDump },
+      ],
+      'listing',
+    )
+    expect(bubbles).toHaveLength(2)
+    expect(bubbles[1]?.content).toMatch(/已生成选品成果/)
+    expect(bubbles[1]?.content).not.toMatch(/上架素材/)
+  })
 })

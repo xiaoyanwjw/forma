@@ -23,11 +23,17 @@ import java.util.function.Consumer;
 /**
  * AgentSession 默认实现。
  * 功能描述：完成 SessionStore hydrate/merge/落库，并委托内部 Agent 执行。
- * 关键设计：成功路径才 append；历史前缀漂移时 fork 子会话；终态统一走 agent_end。
+ * 关键设计：OK / SUSPENDED 落库；resume OK 再落增量；前缀漂移 fork；同逻辑 run 的 suspend/resume
+ * 用不同 append 键（{@code runId:suspend} / {@code runId:resume}），避开 SessionStore 同 runId 幂等整批跳过。
  */
 public final class DefaultAgentSession implements AgentSession {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultAgentSession.class);
+
+    /** append 幂等键后缀：HITL 挂起阶段。 */
+    static final String APPEND_KEY_SUSPEND = ":suspend";
+    /** append 幂等键后缀：HITL resume 完成阶段。 */
+    static final String APPEND_KEY_RESUME = ":resume";
 
     private final Agent agent;
     private final SessionStore sessionStore;
@@ -55,7 +61,7 @@ public final class DefaultAgentSession implements AgentSession {
 
     /**
      * 一轮对话主路径：hydrate →（可选命令短路）→ 扩 slash → 合并 transcript →
-     * before_agent_start → Agent.run → 成功则 append 增量 → agent_end。
+     * before_agent_start → Agent.run → OK/SUSPENDED 则 append 增量 → agent_end。
      *
      * <p>失败/短路也走 {@link #onAgentEnd}，保证订阅方总能收到终态。
      */
@@ -108,14 +114,19 @@ public final class DefaultAgentSession implements AgentSession {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "prompt failed")));
         }
 
-        // 仅 OK 落库：delta 可 append；前缀漂移则 fork 新会话，避免污染原 transcript
-        if (TurnResult.Status.OK.equals(result.getStatus())) {
+        // OK / SUSPENDED 落库：delta 可 append；前缀漂移则 fork。FAILED 不写。
+        if (TurnResult.Status.OK.equals(result.getStatus())
+                || TurnResult.Status.SUSPENDED.equals(result.getStatus())) {
             try {
                 final List<Message> updated = result.getMessages();
-                sessionId = persistTurnDelta(sessionId, runId, existing, updated);
+                String appendKey = TurnResult.Status.SUSPENDED.equals(result.getStatus())
+                        ? appendKey(runId, APPEND_KEY_SUSPEND)
+                        : runId;
+                sessionId = persistTurnDelta(sessionId, appendKey, existing, updated);
                 result = withSession(result, sessionId);
             } catch (Exception ex) {
-                log.warn("append after OK failed sessionId={} runId={}: {}", sessionId, runId, ex.toString());
+                log.warn("append after {} failed sessionId={} runId={}: {}",
+                        result.getStatus(), sessionId, runId, ex.toString());
             }
         }
 
@@ -176,15 +187,55 @@ public final class DefaultAgentSession implements AgentSession {
 
     @Override
     public TurnResult resume(ResumeRequest request) {
+        if (request == null) {
+            return onAgentEnd(TurnResult.failed(null, "ResumeRequest required"));
+        }
+        String sessionId = request.getSessionId();
+        String runId = StringUtils.hasText(request.getRunId())
+                ? request.getRunId().trim()
+                : UUID.randomUUID().toString();
         try {
-            onAgentStart(request.getSessionId());
+            if (StringUtils.hasText(sessionId)) {
+                sessionStore.getOrCreate(Session.Meta.builder()
+                        .sessionId(sessionId)
+                        .source("api")
+                        .build());
+            }
+            List<Message> existing = StringUtils.hasText(sessionId)
+                    ? sessionStore.load(sessionId)
+                    : Collections.<Message>emptyList();
+
+            onAgentStart(sessionId);
 
             ConversationResult raw = agent.resume(request, eventBus);
+            TurnResult result = mapToTurnResult(raw, sessionId);
 
-            return onAgentEnd(mapToTurnResult(raw, request.getSessionId()));
+            if (TurnResult.Status.OK.equals(result.getStatus())
+                    && StringUtils.hasText(sessionId)) {
+                try {
+                    sessionId = persistTurnDelta(
+                            sessionId,
+                            appendKey(runId, APPEND_KEY_RESUME),
+                            existing,
+                            result.getMessages());
+                    result = withSession(result, sessionId);
+                } catch (Exception ex) {
+                    log.warn("append after resume OK failed sessionId={} runId={}: {}",
+                            sessionId, runId, ex.toString());
+                }
+            }
+
+            return onAgentEnd(result);
         } catch (RuntimeException ex) {
-            return onAgentEnd(TurnResult.failed(request.getRunId(), messageOr(ex, "resume failed")));
+            return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "resume failed")));
         }
+    }
+
+    static String appendKey(String runId, String suffix) {
+        if (!StringUtils.hasText(runId)) {
+            return suffix;
+        }
+        return runId.trim() + suffix;
     }
 
     @Override

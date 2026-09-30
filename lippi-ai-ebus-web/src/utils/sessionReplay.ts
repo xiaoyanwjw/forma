@@ -49,9 +49,36 @@ function statusTextFor(artifactKind: 'picks' | 'listing' | null | undefined): st
 }
 
 /**
+ * 从成果 dump 猜类型，避免整段回放共用「最新 Computer kind」导致选品被标成上架。
+ * listing 信号优先；否则有选品条目信号 → picks；再回退到传入的 artifactKind。
+ */
+export function inferArtifactKindFromDump(
+  content: string,
+  fallback?: 'picks' | 'listing' | null,
+): 'picks' | 'listing' | null {
+  const t = content || ''
+  if (
+    /"heroPlan"\s*:/.test(t) ||
+    /"detailTitle"\s*:/.test(t) ||
+    /"framePrompts"\s*:/.test(t) ||
+    /"displayNotes"\s*:/.test(t)
+  ) {
+    return 'listing'
+  }
+  if (/"niche"\s*:/.test(t) || /"sourceUrl"\s*:/.test(t) || /"pl-\d+"/.test(t)) {
+    return 'picks'
+  }
+  if (/"type"\s*:\s*"list"/.test(t)) {
+    return 'picks'
+  }
+  return fallback ?? null
+}
+
+/**
  * 把 pi_session 的 user/assistant/tool 循环收成「用户 ↔ 一条 agent」交错列表。
  * - 丢掉 tool / system / 空 content
  * - 每一轮（一条 user + 其后 assistant*）只产出一条 agent：有成果 JSON → STATUS；否则取最后一条非 JSON 助手文案
+ * - STATUS 文案按该轮 dump 推断 picks/listing，不单靠最新 Computer kind
  */
 export function toReplayBubbles(
   rows: SessionReplayRow[] | null | undefined,
@@ -101,9 +128,10 @@ function collapseAssistants(
   if (!assistants.length) return null
   const dump = assistants.find((a) => isArtifactDumpContent(a.content))
   if (dump) {
+    const kind = inferArtifactKindFromDump(dump.content, artifactKind)
     return {
       role: 'assistant',
-      content: statusTextFor(artifactKind),
+      content: statusTextFor(kind),
       kind: 'artifact',
       at: dump.at,
     }
