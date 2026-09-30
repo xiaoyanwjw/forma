@@ -3,6 +3,8 @@ package com.xmut.ebus.application.business.sku;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.xmut.ebus.application.business.agent.tool.sku.ApifyTaobaoHitMapper;
+import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchHit;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

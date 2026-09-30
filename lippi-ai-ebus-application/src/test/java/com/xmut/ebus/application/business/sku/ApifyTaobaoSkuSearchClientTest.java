@@ -1,5 +1,9 @@
 package com.xmut.ebus.application.business.sku;
 
+import com.xmut.ebus.application.business.agent.tool.sku.ApifyActorTransport;
+import com.xmut.ebus.application.business.agent.tool.sku.ApifyTaobaoSkuSearchClient;
+import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchHit;
+import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

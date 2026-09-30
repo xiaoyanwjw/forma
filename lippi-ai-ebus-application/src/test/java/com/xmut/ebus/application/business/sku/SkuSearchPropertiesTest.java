@@ -1,5 +1,6 @@
 package com.xmut.ebus.application.business.sku;
 
+import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
