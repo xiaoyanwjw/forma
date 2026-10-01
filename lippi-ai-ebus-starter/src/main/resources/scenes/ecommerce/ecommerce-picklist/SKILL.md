@@ -4,7 +4,7 @@ description: >-
   经配置的商品检索（如 Mock / Apify 淘宝搜）用 search_sku 产出 8–12 条带原链与 pl-n item id 的可测款选品清单（JSON：view + artifact）。
   在用户提到选品、卖什么、候选清单、测款方向时使用。
   不要用于 Listing / 主图 / 详情文案——那些请用 ecommerce-skulist。
-allowed-tools: read_skill search_sku
+allowed-tools: read_skill search_sku write_file read_file bash
 metadata:
   output:
     billing: true
@@ -32,8 +32,15 @@ metadata:
 5. **凑齐门槛并写质量字段。** 8–12 条，**≥3 个不同 `niche`**。凑不齐 → Fail；禁止编造补足，禁止为此再搜。  
    每条写可验证的痛点/角度/差异与评分条（见 Quality）。
 6. **分配 id。** 按最终顺序为每条赋 `pl-1`…`pl-n`；`artifact.items[].id` 与 `view.list.items[].id` **同序同值**。
-7. **写终态 JSON。** 先 `artifact`，再用同一事实写 `view`；字段与示例见 [output.md](references/output.md)。
-8. **过 Verification。** 全部勾上再输出；任一不满足 → Fail 或改稿。
+7. **分步写盘（相对 run 工作区根）。** 先 `write_file` → `artifact.json`（**仅** artifact 对象），再 `write_file` → `view.json`（**仅** view 对象）；字段与示例见 [output.md](references/output.md)。可用 `read_file` 自检。
+8. **拼出终态文件。** 用 `bash` 合并为 `final.json`（cwd 已是 run 根）。可复制：
+
+```bash
+python3 -c 'import json; a=json.load(open("artifact.json")); v=json.load(open("view.json")); json.dump({"view":v,"artifact":a}, open("final.json","w"), ensure_ascii=False)'
+```
+
+9. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
+10. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重拼。
 
 ## Tool: search_sku
 
@@ -59,7 +66,7 @@ metadata:
 
 ## Output
 
-成功终态：一个对象 `view` + `artifact`。完整字段、对齐、示例与好坏例 → [output.md](references/output.md)。
+成功终态：**盘上** `final.json`（`view` + `artifact` 信封）+ **对话**指针 `{"output":"final.json"}`。完整字段、对齐、文件示例与好坏例 → [output.md](references/output.md)。
 
 速记：
 
@@ -72,10 +79,12 @@ metadata:
 
 ## Verification
 
-输出前逐项自检（全部通过才允许发 JSON）：
+输出前逐项自检（全部通过才允许发指针）：
 
 - [ ] 本轮恰好 **1** 次 `search_sku`，且成功
-- [ ] `artifact.items` 与 `view` list 均为 **8–12** 条，条数一致、顺序对应
+- [ ] 已写 `artifact.json`、`view.json`，且 `bash` 已生成 **`final.json`**
+- [ ] 终稿对话**仅** `{"output":"final.json"}`；**未**在对话里贴整包大 JSON
+- [ ] `final.json` 内 `artifact.items` 与 `view` list 均为 **8–12** 条，条数一致、顺序对应
 - [ ] 每条 `id` 非空，格式 `pl-n`（从 1 顺序）；list 与 artifact **同 id 同序**
 - [ ] 至少 **3** 个不同 `niche`，且无空泛「日用」「家居」三连凑数
 - [ ] 恰好 **1–2** 条 `artifact.title` 以 `【优先试】` 开头；对应 list `badge: "priority"`（list 标题不加该前缀）
@@ -86,11 +95,11 @@ metadata:
 - [ ] `blocks` 仅白名单类型；含 mute `note` 免责声明
 - [ ] disclaimer / note 含字面量 `非实时平台全站行情`
 - [ ] 未编造 BSR / 生意参谋 / 实时销量榜等全站指标
-- [ ] 成功路径对象外无闲聊；失败路径无人话以外的假 JSON
+- [ ] 成功路径除指针外无闲聊；失败路径无人话以外的假 JSON
 
 ## Failures
 
-下列情况**只回一句人话原因**，不要输出 JSON：
+下列情况**只回一句人话原因**，不要输出 JSON 或指针：
 
 - `search_sku` 失败 / 空 hits，或筛完后无可用 `detailUrl`
 - 筛完后合格条数不足 8（即使想再搜也不允许）

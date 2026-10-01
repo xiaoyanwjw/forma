@@ -1,12 +1,17 @@
 # Output schema
 
-`view` 给界面渲染；`artifact` 落库回显。两边同一事实，不是互相拷贝。
+## 交付方式
 
-成功时只返回**一个** JSON 对象（可用 ` ```json ` 围栏），对象外不要闲聊。
+1. **工作区文件（真源）：** 分步写入 `artifact.json`、`view.json`，合并为 run 根下 **`final.json`**（内容为下方 `{ "view": …, "artifact": … }` 信封）。
+2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
 
 ```json
-{ "view": { }, "artifact": { } }
+{"output":"final.json"}
 ```
+
+不要在对话里再贴整包 `{view, artifact}`。结算由服务端读 `final.json` 后再投影 / 落库。
+
+`view` 给界面渲染；`artifact` 落库回显。两边同一事实，不是互相拷贝。
 
 ## Contents
 
@@ -80,7 +85,7 @@
 
 ## 示例
 
-（各 1 条；交付时两边均 8–12。）
+以下为 **`final.json` 文件内容**（各 1 条；交付时两边均 8–12）。
 
 ```json
 {
@@ -146,7 +151,13 @@
 }
 ```
 
-失败路径：不要输出本 JSON，只回人话（见 SKILL § Failures）。
+**对话终稿指针（单独一行 JSON，非文件内容）：**
+
+```json
+{"output":"final.json"}
+```
+
+失败路径：不要输出指针或本 JSON，只回人话（见 SKILL § Failures）。
 
 ## 质量对照（条目）
 
