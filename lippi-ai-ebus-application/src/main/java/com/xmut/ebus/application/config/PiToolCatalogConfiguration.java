@@ -142,23 +142,8 @@ public class PiToolCatalogConfiguration {
 
     @Bean
     public XhsNoteSearchPort xhsNoteSearchPort(XhsNoteSearchProperties props) {
-        MockXhsNoteSearchClient mock = new MockXhsNoteSearchClient();
         if (!"apify".equalsIgnoreCase(props.getClient())) {
-            return mock;
-        }
-        String actorId = props.getApify().getActorId();
-        String token = props.getApify().getToken();
-        if (token == null || token.trim().isEmpty()) {
-            LoggerUtils.error(
-                    log,
-                    PiToolCatalogConfiguration.class,
-                    "xhsNoteSearchPort",
-                    "missing_token",
-                    NameValue.create("client", "apify"),
-                    NameValue.create("actorId", actorId),
-                    NameValue.create("queryLen", 0),
-                    NameValue.create("hitCount", 0));
-            return mock;
+            return new MockXhsNoteSearchClient();
         }
         return new ApifyXhsNoteSearchClient(props, new ApifyOkHttpTransport());
     }

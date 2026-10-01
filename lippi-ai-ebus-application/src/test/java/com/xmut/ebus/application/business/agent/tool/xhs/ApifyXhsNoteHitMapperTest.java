@@ -38,6 +38,18 @@ class ApifyXhsNoteHitMapperTest {
     }
 
     @Test
+    void keeps_row_when_https_url_present_and_title_empty() {
+        ArrayNode arr = om.createArrayNode();
+        ObjectNode row = arr.addObject();
+        row.put("title", "");
+        row.put("noteUrl", "https://www.xiaohongshu.com/explore/no-title");
+        List<XhsNoteSearchHit> hits = ApifyXhsNoteHitMapper.mapItems(arr);
+        assertEquals(1, hits.size());
+        assertEquals("", hits.get(0).getTitle());
+        assertEquals("https://www.xiaohongshu.com/explore/no-title", hits.get(0).getNoteUrl());
+    }
+
+    @Test
     void maps_url_alias_and_empty_optional_fields() {
         ArrayNode arr = om.createArrayNode();
         ObjectNode row = arr.addObject();

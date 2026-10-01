@@ -39,17 +39,14 @@ public final class ApifyXhsNoteHitMapper {
         if (!StringUtils.hasText(noteUrl) || !noteUrl.startsWith("https://")) {
             return Optional.empty();
         }
-        String title = firstText(row, "title", "noteTitle");
-        if (!StringUtils.hasText(title)) {
-            return Optional.empty();
-        }
+        String title = emptyIfNull(firstText(row, "title", "noteTitle"));
         String noteId = emptyIfNull(firstText(row, "noteId", "id", "note_id"));
         String desc = emptyIfNull(firstText(row, "desc", "description", "content", "summary"));
         String likedCount = emptyIfNull(firstNumericOrText(row, "likedCount", "likes", "likeCount", "liked_count"));
         String author = emptyIfNull(resolveAuthor(row));
         return Optional.of(new XhsNoteSearchHit(
                 noteId,
-                title.trim(),
+                title,
                 desc,
                 noteUrl.trim(),
                 likedCount,
