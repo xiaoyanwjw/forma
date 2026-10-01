@@ -7,11 +7,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.Scanner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +31,19 @@ class GenerationRunRepositoryImplTest {
     @BeforeEach
     void setUp() {
         repository = new GenerationRunRepositoryImpl(generationRunMapper);
+    }
+
+    @Test
+    void untypedLatestArtifactSqlIncludesXhsHistoryTypes() throws Exception {
+        InputStream in = GenerationRunMapper.class.getResourceAsStream(
+                "/mybatis/mapper/GenerationRunMapper.xml");
+        assertNotNull(in);
+        String xml;
+        try (Scanner scanner = new Scanner(in, StandardCharsets.UTF_8.name())) {
+            scanner.useDelimiter("\\A");
+            xml = scanner.hasNext() ? scanner.next() : "";
+        }
+        assertTrue(xml.contains("'picklist', 'sku', 'xhs_topiclist', 'xhs_note', 'xhs_break'"));
     }
 
     @Test

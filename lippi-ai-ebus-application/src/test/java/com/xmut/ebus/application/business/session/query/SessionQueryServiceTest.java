@@ -181,6 +181,24 @@ class SessionQueryServiceTest {
     }
 
     @Test
+    void latestArtifactFetchesSessionWithOnlyXhsArtifact() {
+        HistoryArtifactDetailDTO expected = new HistoryArtifactDetailDTO(
+                "xhs-break-1", "xhs_break", "xiaohongshu", "爆文拆解", NOW,
+                Collections.emptyMap(), SESSION);
+        Instant since = NOW.minus(60, ChronoUnit.DAYS);
+        when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION, since))
+                .thenReturn(Optional.of("xhs-break-1"));
+        when(historyQueryService.findById(USER, "xhs-break-1")).thenReturn(expected);
+
+        Optional<HistoryArtifactDetailDTO> found = service.latestArtifact(USER, SESSION);
+
+        assertTrue(found.isPresent());
+        assertEquals("xhs_break", found.get().getArtifactType());
+        assertEquals("xhs-break-1", found.get().getId());
+        verify(historyQueryService).findById(USER, "xhs-break-1");
+    }
+
+    @Test
     void latestArtifactReturnsHistoryDetailForLatestUsableRef() {
         HistoryArtifactDetailDTO expected = new HistoryArtifactDetailDTO(
                 "sku-9", "sku", "ecommerce", "Listing", NOW, Collections.emptyMap(), SESSION);

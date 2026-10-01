@@ -32,6 +32,21 @@ const NOTE_TEMPLATE = '请为商品「硅胶沥水垫」写一篇小红书种草
 const BREAK_TEMPLATE =
   '请拆解下面这篇笔记（分享链接或正文），并改写成我的商品「硅胶沥水垫」：…'
 
+function sampleBreakView() {
+  return {
+    version: 1,
+    title: '硅胶沥水垫 · 爆文拆解改写',
+    status: 'settled',
+    blocks: [
+      {
+        type: 'markdown',
+        text:
+          '## 拆解要点\n痛点开场（台面积水）→ 低成本方案（一块垫）。\n\n## 骨架\n场景痛点一句 → 方案物件一句 → 2 个可拍使用动作\n\n## 改写稿\n洗完碗水槽边那圈又湿了。我垫了一块硅胶沥水垫。',
+      },
+    ],
+  }
+}
+
 function sampleTopiclistView() {
   return {
     version: 1,
@@ -125,12 +140,14 @@ function mockCatalogAndCredits() {
       const view =
         skillId === 'xhs-topiclist'
           ? sampleTopiclistView()
-          : {
-              version: 1,
-              title: skillId === 'xhs-note' ? '笔记种草稿' : '爆文拆解',
-              status: 'settled',
-              blocks: [{ type: 'markdown', text: '## 草稿\n正文' }],
-            }
+          : skillId === 'xhs-break'
+            ? sampleBreakView()
+            : {
+                version: 1,
+                title: '笔记种草稿',
+                status: 'settled',
+                blocks: [{ type: 'markdown', text: '## 草稿\n正文' }],
+              }
       return new Response(
         sseBody([
           'event: run_started\ndata: {"runId":"r1","sessionId":"s-xhs","holdId":"h1"}\n\n',
@@ -354,6 +371,37 @@ describe('XiaohongshuWorkspace', () => {
     expect(body.sceneCode).toBe('xiaohongshu')
     expect(body.sessionId).toBe('s-xhs')
     expect(body.text).toMatch(/tp-1/)
+  })
+
+  it('按骨架写笔记 starts xhs-note with skeleton and targetProduct', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    const pills = mounted.root.querySelectorAll<HTMLButtonElement>(
+      '[data-testid="session-quick-row"] .pill',
+    )
+    pills[2]!.click()
+    await flushUi()
+    ;(mounted.root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const btn = mounted.root.querySelector(
+      '[data-testid="break-note-handoff"]',
+    ) as HTMLButtonElement
+    expect(btn).toBeTruthy()
+    btn.click()
+    await flushUi()
+    await flushUi()
+
+    const hits = billedRunApiHits(fetchMock, 'xhs-note')
+    expect(hits.length).toBeGreaterThanOrEqual(1)
+    const body = JSON.parse(String((hits.at(-1) as [string, RequestInit])[1].body)) as {
+      text?: string
+      skillId?: string
+    }
+    expect(body.skillId).toBe('xhs-note')
+    expect(body.text).toContain('场景痛点一句')
+    expect(body.text).toContain('硅胶沥水垫')
   })
 
   it('second run in the same session keeps Computer on the in-flight kind', async () => {

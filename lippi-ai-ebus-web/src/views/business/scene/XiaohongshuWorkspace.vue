@@ -24,7 +24,11 @@ import type { GenerationArtifactPayload } from '@/types/business/agent'
 import { parseComputerDocument } from '@/types/business/computerView'
 import { FEEDBACK_TAG_GOOD_QUALITY, FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
 import { toReplayBubbles } from '@/utils/sessionReplay'
-import { buildXhsBreakNoteHandoffText } from '@/utils/xhsNoteHandoff'
+import {
+  buildXhsBreakNoteHandoffText,
+  extractTargetProductFromPrompt,
+  extractXhsBreakHandoffFromView,
+} from '@/utils/xhsNoteHandoff'
 import type { HistoryArtifactDetail } from '@/types/business/history'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
@@ -334,7 +338,15 @@ async function onNoteHandoff(payload: { text: string }) {
 
 function onBreakHandoff() {
   if (sessionBusy.value) return
-  void onNoteHandoff({ text: buildXhsBreakNoteHandoffText() })
+  const fromView = extractXhsBreakHandoffFromView(liveBreak.value?.view)
+  const targetProduct =
+    fromView.targetProduct || extractTargetProductFromPrompt(lastBilledPrompt.value)
+  void onNoteHandoff({
+    text: buildXhsBreakNoteHandoffText({
+      ...fromView,
+      targetProduct,
+    }),
+  })
 }
 
 async function runBilledGeneration(text: string, kind: Exclude<ComputerKind, null>) {

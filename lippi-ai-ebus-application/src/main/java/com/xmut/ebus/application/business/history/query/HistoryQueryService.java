@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * HistoryQuery：只读聚合本人近 60 天 picklist/sku 成果。
+ * HistoryQuery：只读聚合本人近 60 天可用成果（选品 / Listing / 小红书场景）。
  */
 @Service
 @RequiredArgsConstructor
@@ -38,7 +38,12 @@ public class HistoryQueryService {
     public static final String MSG_UNAVAILABLE = "成果不存在或无权查看";
 
     private static final List<ArtifactType> HISTORY_TYPES = Collections.unmodifiableList(
-            Arrays.asList(ArtifactType.PICKLIST, ArtifactType.SKU));
+            Arrays.asList(
+                    ArtifactType.PICKLIST,
+                    ArtifactType.SKU,
+                    ArtifactType.XHS_TOPICLIST,
+                    ArtifactType.XHS_NOTE,
+                    ArtifactType.XHS_BREAK));
 
     private final ArtifactRepository artifactRepository;
     private final GenerationRunRepository generationRunRepository;
@@ -117,7 +122,7 @@ public class HistoryQueryService {
     }
 
     private static boolean isHistoryType(ArtifactType type) {
-        return type == ArtifactType.PICKLIST || type == ArtifactType.SKU;
+        return type != null && HISTORY_TYPES.contains(type);
     }
 
     private static HistoryArtifactSummaryDTO toSummary(Artifact artifact) {

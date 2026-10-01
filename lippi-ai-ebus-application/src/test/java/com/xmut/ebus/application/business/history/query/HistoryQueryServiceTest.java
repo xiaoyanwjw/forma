@@ -79,6 +79,9 @@ class HistoryQueryServiceTest {
         assertEquals(NOW.minus(60, ChronoUnit.DAYS), sinceCaptor.getValue());
         assertTrue(typesCaptor.getValue().contains(ArtifactType.PICKLIST));
         assertTrue(typesCaptor.getValue().contains(ArtifactType.SKU));
+        assertTrue(typesCaptor.getValue().contains(ArtifactType.XHS_TOPICLIST));
+        assertTrue(typesCaptor.getValue().contains(ArtifactType.XHS_NOTE));
+        assertTrue(typesCaptor.getValue().contains(ArtifactType.XHS_BREAK));
     }
 
     @Test
@@ -87,6 +90,28 @@ class HistoryQueryServiceTest {
                 .thenReturn(Collections.emptyList());
         assertTrue(service.list(USER, "ecommerce").isEmpty());
         verify(artifactRepository).listByUserSince(eq(USER), any(Instant.class), any(), eq("ecommerce"));
+    }
+
+    @Test
+    void listPassesXiaohongshuSceneFilter() {
+        when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), any(), eq("xiaohongshu")))
+                .thenReturn(Collections.singletonList(xhsBreak(NOW.minus(1, ChronoUnit.DAYS))));
+        List<HistoryArtifactSummaryDTO> list = service.list(USER, "xiaohongshu");
+        assertEquals(1, list.size());
+        assertEquals("xhs_break", list.get(0).getArtifactType());
+        assertEquals("xiaohongshu", list.get(0).getSceneCode());
+        verify(artifactRepository).listByUserSince(eq(USER), any(Instant.class), any(), eq("xiaohongshu"));
+    }
+
+    @Test
+    void findByIdAllowsXhsBreak() {
+        Artifact breakArt = xhsBreak(NOW.minus(1, ChronoUnit.DAYS));
+        when(artifactRepository.findById("xhs-break-1")).thenReturn(Optional.of(breakArt));
+
+        HistoryArtifactDetailDTO detail = service.findById(USER, "xhs-break-1");
+        assertEquals("xhs_break", detail.getArtifactType());
+        assertEquals("xiaohongshu", detail.getSceneCode());
+        assertEquals("骨架一行", detail.getView().get("title"));
     }
 
     @Test
@@ -197,5 +222,13 @@ class HistoryQueryServiceTest {
         return Artifact.create(
                 "art-1", USER, "run-1", ArtifactType.PICKLIST, "ecommerce",
                 null, "选品", "{\"view\":{\"blocks\":[]},\"data\":{}}", createdAt);
+    }
+
+    private static Artifact xhsBreak(Instant createdAt) {
+        return Artifact.create(
+                "xhs-break-1", USER, "run-xhs", ArtifactType.XHS_BREAK, "xiaohongshu",
+                null, "爆文拆解",
+                "{\"view\":{\"title\":\"骨架一行\",\"blocks\":[]},\"data\":{\"skeleton\":\"场景痛点一句\"}}",
+                createdAt);
     }
 }
