@@ -13,6 +13,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -24,6 +25,9 @@ class SkuSearcherTest {
 
     @Mock
     private SkuSearchPort port;
+
+    @Mock
+    private SkuReranker reranker;
 
     private SkuSearchProperties props;
     private SkuSearcher searcher;
@@ -73,6 +77,17 @@ class SkuSearcherTest {
         when(port.search(eq("q"), eq("p"), eq(5))).thenReturn(Collections.singletonList(hitHttps("A")));
         assertEquals(1, searcher.search("q", "p", 5).size());
         verify(port).search("q", "p", 5);
+    }
+
+    @Test
+    void search_followsMockRerankerOrder() {
+        when(port.search(eq("q"), eq("p"), anyInt())).thenReturn(Arrays.asList(
+                hitHttps("title-h1"),
+                hitHttps("title-h2"),
+                hitHttps("title-h3")));
+        when(reranker.orderIds(anyString(), anyList())).thenReturn(Arrays.asList("h3", "h1"));
+        List<SkuSearchHit> out = newSearcher(port, reranker).search("q", "p", 3);
+        assertEquals("title-h3", out.get(0).getTitle());
     }
 
     private SkuSearcher newSearcher(SkuSearchPort searchPort, SkuReranker reranker) {
