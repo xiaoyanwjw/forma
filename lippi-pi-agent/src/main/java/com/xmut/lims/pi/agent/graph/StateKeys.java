@@ -46,6 +46,7 @@ public final class StateKeys {
      * {@code String} — 本 run 工作区绝对路径（模型不可改）。
      *
      * <p>由 {@code DefaultAgent.prepare} 从 {@code TurnInput.workspaceRoot} 写入；
+     * HITL resume 时由 {@code ResumeRequest.workspaceRoot} 覆盖写入（优先于 checkpoint）；
      * {@code ToolContext.from} 读出供沙箱工具 I/O。
      */
     public static final String WORKSPACE_ROOT = "workspace_root";

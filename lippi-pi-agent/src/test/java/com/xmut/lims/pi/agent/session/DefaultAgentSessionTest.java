@@ -241,6 +241,21 @@ class DefaultAgentSessionTest {
     }
 
     @Test
+    void resume_forwards_workspaceRoot_to_agent() {
+        when(conversationLoop.resume(any(ResumeRequest.class), any()))
+                .thenReturn(ConversationResult.ok("r-ws", "resumed", Collections.emptyList()));
+        session.resume(ResumeRequest.builder()
+                .runId("r-ws")
+                .sessionId("s-ws")
+                .decision(com.xmut.lims.pi.agent.tool.ToolDecision.APPROVE)
+                .workspaceRoot("/tmp/ws/sessions/s/r")
+                .build());
+        ArgumentCaptor<ResumeRequest> cap = ArgumentCaptor.forClass(ResumeRequest.class);
+        verify(conversationLoop).resume(cap.capture(), any());
+        assertThat(cap.getValue().getWorkspaceRoot()).isEqualTo("/tmp/ws/sessions/s/r");
+    }
+
+    @Test
     void prompt_suspended_appends_user_and_partial_assistant() {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenAnswer(inv -> {

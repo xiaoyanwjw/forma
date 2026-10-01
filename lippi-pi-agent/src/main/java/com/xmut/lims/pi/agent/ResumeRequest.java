@@ -63,4 +63,10 @@ public class ResumeRequest {
      *（仍受同 run {@code activeRuns} 互斥保护）。生产 HITL 客户端<strong>应传</strong>本字段。
      */
     String confirmId;
+
+    /**
+     * 本 run 工作区绝对路径；可空。
+     * 有值时写入 {@code StateKeys.WORKSPACE_ROOT}，覆盖 checkpoint 中缺失或过期的根。
+     */
+    String workspaceRoot;
 }

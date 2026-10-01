@@ -185,6 +185,41 @@ class GraphExecutorTest {
     }
 
     @Test
+    void resume_input_workspaceRoot_overrides_stale_checkpoint() {
+        InMemoryCheckpointer store = new InMemoryCheckpointer();
+
+        StateGraph graph = new StateGraph()
+                .addNode("prepare", (state, ctx) -> Collections.singletonMap(
+                        StateKeys.WORKSPACE_ROOT, "/stale/from/first-prompt"))
+                .addNode("confirm", (state, ctx) -> Collections.singletonMap(
+                        "seenRoot", state.get(StateKeys.WORKSPACE_ROOT)))
+                .addEdge(StateGraph.START, "prepare")
+                .addEdge("prepare", "confirm")
+                .addEdge("confirm", StateGraph.END);
+
+        CompileConfig config = CompileConfig.builder()
+                .checkpointer(store)
+                .interruptBefore(Collections.singletonList("confirm"))
+                .maxSupersteps(4)
+                .build();
+
+        CompiledGraph compiled = graph.compile(config);
+        GraphOutcome outcome = compiled.invoke(Collections.emptyMap(), runConfig);
+        assertThat(outcome.isSuspended()).isTrue();
+        assertThat(outcome.getFinalState().get(StateKeys.WORKSPACE_ROOT, String.class))
+                .isEqualTo("/stale/from/first-prompt");
+
+        GraphOutcome resumed = compiled.resume(
+                Collections.singletonMap(StateKeys.WORKSPACE_ROOT, "/tmp/ws/sessions/s/r"),
+                runConfig);
+        assertThat(resumed.isSuccess()).isTrue();
+        assertThat(resumed.getFinalState().get(StateKeys.WORKSPACE_ROOT, String.class))
+                .isEqualTo("/tmp/ws/sessions/s/r");
+        assertThat(resumed.getFinalState().get("seenRoot", String.class))
+                .isEqualTo("/tmp/ws/sessions/s/r");
+    }
+
+    @Test
     void nodeException_returnsFailed() {
         StateGraph graph = new StateGraph()
                 .addNode("bomb", (state, ctx) -> {

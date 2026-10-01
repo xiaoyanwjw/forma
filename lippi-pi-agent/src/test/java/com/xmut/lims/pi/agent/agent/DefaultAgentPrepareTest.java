@@ -1,6 +1,7 @@
 package com.xmut.lims.pi.agent.agent;
 
 import com.xmut.lims.pi.agent.IterationBudget;
+import com.xmut.lims.pi.agent.ResumeRequest;
 import com.xmut.lims.pi.agent.TurnInput;
 import com.xmut.lims.pi.agent.graph.StateKeys;
 import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryCheckpointer;
@@ -9,6 +10,7 @@ import com.xmut.lims.pi.agent.graph.node.AgentTurnNode;
 import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,5 +31,23 @@ class DefaultAgentPrepareTest {
                 InMemoryToolCatalog.empty(),
                 null);
         assertThat(input.get(StateKeys.WORKSPACE_ROOT)).isEqualTo("/tmp/ws/sessions/s/r");
+    }
+
+    @Test
+    void applyWorkspaceRoot_request_overrides_stale_checkpoint_value() {
+        Map<String, Object> input = new HashMap<>();
+        input.put(StateKeys.WORKSPACE_ROOT, "/stale/from/checkpoint");
+        DefaultAgent.applyWorkspaceRoot(
+                ResumeRequest.builder().workspaceRoot(" /tmp/ws/sessions/s/r ").build(),
+                input);
+        assertThat(input.get(StateKeys.WORKSPACE_ROOT)).isEqualTo("/tmp/ws/sessions/s/r");
+    }
+
+    @Test
+    void applyWorkspaceRoot_blank_request_keeps_checkpoint_value() {
+        Map<String, Object> input = new HashMap<>();
+        input.put(StateKeys.WORKSPACE_ROOT, "/stale/from/checkpoint");
+        DefaultAgent.applyWorkspaceRoot(ResumeRequest.builder().build(), input);
+        assertThat(input.get(StateKeys.WORKSPACE_ROOT)).isEqualTo("/stale/from/checkpoint");
     }
 }

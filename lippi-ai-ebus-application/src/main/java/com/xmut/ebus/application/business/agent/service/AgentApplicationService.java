@@ -574,6 +574,7 @@ public class AgentApplicationService {
                     .toolCallId(toolCallId)
                     .humanInput(humanInput)
                     .confirmId(command.getConfirmId())
+                    .workspaceRoot(runDir.toAbsolutePath().toString())
                     .build());
 
             loggingAgentUsage(context, result);

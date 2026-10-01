@@ -155,11 +155,23 @@ public final class DefaultAgent implements Agent {
         if (StringUtils.hasText(turnInput.getSessionId())) {
             input.put(StateKeys.SESSION_ID, turnInput.getSessionId().trim());
         }
-        if (StringUtils.hasText(turnInput.getWorkspaceRoot())) {
-            input.put(StateKeys.WORKSPACE_ROOT, turnInput.getWorkspaceRoot().trim());
-        }
+        applyWorkspaceRoot(turnInput.getWorkspaceRoot(), input);
 
         return input;
+    }
+
+    /** 请求侧工作区根覆盖写入；有值时优先于 checkpoint 旧值。 */
+    static void applyWorkspaceRoot(ResumeRequest request, Map<String, Object> input) {
+        if (request == null) {
+            return;
+        }
+        applyWorkspaceRoot(request.getWorkspaceRoot(), input);
+    }
+
+    static void applyWorkspaceRoot(String workspaceRoot, Map<String, Object> input) {
+        if (input != null && StringUtils.hasText(workspaceRoot)) {
+            input.put(StateKeys.WORKSPACE_ROOT, workspaceRoot.trim());
+        }
     }
 
     ConversationResult mapOutcome(String runId, GraphOutcome outcome) {
@@ -315,6 +327,7 @@ public final class DefaultAgent implements Agent {
             } else {
                 input = prepareWrite(request, resumeResult.decision, runId);
             }
+            applyWorkspaceRoot(request, input);
 
             // 5. 编译图并 resume
             CompiledGraph compiled = stateGraph.compile(CompileConfig.builder()

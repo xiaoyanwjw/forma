@@ -895,6 +895,39 @@ class AgentApplicationServiceTest {
     }
 
     @Test
+    void resumeReceivesWorkspaceRoot() throws Exception {
+        GenerationRunContext ctx = listingCtx("run-ws-resume", "session-ws-resume");
+        GenerationRun run = GenerationRun.start("run-ws-resume", USER_ID, HOLD_ID,
+                "session-ws-resume", ECOM_SCENE_ID, ECOM_SCENE_CODE,
+                SceneCapabilityPackLoader.SKILL_SKULIST, NOW);
+        when(generationRunRepository.findById("run-ws-resume")).thenReturn(Optional.of(run));
+        stubEcommercePack();
+        stubListingAskHumanSuspend("run-ws-resume", "session-ws-resume",
+                VALID_PLAN_JSON, ASK_CALL_ID);
+
+        service.streamGenerationRun(ctx, new ArrayList<Ad4SseEvent>()::add);
+
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.resume(any(ResumeRequest.class))).thenReturn(
+                TurnResult.ok("run-ws-resume", "session-ws-resume", VALID_LISTING_JSON,
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(creditApplicationService.reserveOne(USER_ID)).thenReturn(EXEC_HOLD_ID);
+
+        service.resumeBilledRun(ResumeGenerationRunCommand.builder()
+                .userId(USER_ID)
+                .runId("run-ws-resume")
+                .toolCallId(ASK_CALL_ID)
+                .optionId(ListingHitlOptions.CONFIRM_EXECUTE)
+                .build(), new ArrayList<Ad4SseEvent>()::add);
+
+        ArgumentCaptor<ResumeRequest> resumeCaptor = ArgumentCaptor.forClass(ResumeRequest.class);
+        verify(agentSession).resume(resumeCaptor.capture());
+        assertEquals(tempWorkspace.toAbsolutePath().toString(), resumeCaptor.getValue().getWorkspaceRoot());
+        verify(runWorkspaceService, times(2)).ensureRunDir("session-ws-resume", "run-ws-resume");
+    }
+
+    @Test
     void outputPointerMissing_releasesWithoutSettle() {
         GenerationRunContext ctx = picklistCtx("run-ptr-miss", "session-ptr-miss");
         stubEcommercePack();
