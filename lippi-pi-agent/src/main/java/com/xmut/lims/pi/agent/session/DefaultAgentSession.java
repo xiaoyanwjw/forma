@@ -67,6 +67,9 @@ public final class DefaultAgentSession implements AgentSession {
      */
     @Override
     public TurnResult prompt(PromptRequest request) {
+        if (request == null) {
+            return onAgentEnd(TurnResult.failed(null, "PromptRequest required"));
+        }
         // 1. 解析 sessionId / runId（空则建会话；缺 runId 发 UUID）
         String sessionId = request.getSessionId();
         String runId = getRunId(request);
@@ -107,6 +110,7 @@ public final class DefaultAgentSession implements AgentSession {
                 .contextModifier(overwrite)
                 .skillId(expanded.skillId)
                 .messages(messages)
+                .workspaceRoot(request.getWorkspaceRoot())
                 .build();
 
         // 5. 调用 Agent.run

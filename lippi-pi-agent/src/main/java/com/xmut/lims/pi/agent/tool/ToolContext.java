@@ -7,7 +7,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * 工具执行上下文。
- * 功能描述：携带 runId / traceId / activeSkillId。
+ * 功能描述：携带 runId / traceId / activeSkillId / workspaceRoot。
  * 关键设计：不携带 tenant / user。
  */
 public final class ToolContext {
@@ -15,15 +15,21 @@ public final class ToolContext {
     private final String runId;
     private final String traceId;
     private final String activeSkillId;
+    private final String workspaceRoot;
 
     public ToolContext(String runId, String traceId) {
         this(runId, traceId, null);
     }
 
     public ToolContext(String runId, String traceId, String activeSkillId) {
+        this(runId, traceId, activeSkillId, null);
+    }
+
+    public ToolContext(String runId, String traceId, String activeSkillId, String workspaceRoot) {
         this.runId = runId;
         this.traceId = traceId;
         this.activeSkillId = StringUtils.hasText(activeSkillId) ? activeSkillId.trim() : null;
+        this.workspaceRoot = StringUtils.hasText(workspaceRoot) ? workspaceRoot.trim() : null;
     }
 
     public static ToolContext from(NodeContext nodeContext) {
@@ -32,19 +38,25 @@ public final class ToolContext {
 
     public static ToolContext from(NodeContext nodeContext, GraphState state) {
         String active = null;
+        String workspaceRoot = null;
         if (state != null) {
             Object raw = state.get(StateKeys.ACTIVE_SKILL_ID);
             if (raw instanceof String && StringUtils.hasText((String) raw)) {
                 active = ((String) raw).trim();
             }
+            Object ws = state.get(StateKeys.WORKSPACE_ROOT);
+            if (ws instanceof String && StringUtils.hasText((String) ws)) {
+                workspaceRoot = ((String) ws).trim();
+            }
         }
         if (nodeContext == null) {
-            return new ToolContext(null, null, active);
+            return new ToolContext(null, null, active, workspaceRoot);
         }
         return new ToolContext(
                 nodeContext.getRunId(),
                 nodeContext.getTraceId(),
-                active);
+                active,
+                workspaceRoot);
     }
 
     public String getRunId() {
@@ -58,5 +70,10 @@ public final class ToolContext {
     /** 本轮 ActiveSkill id；可空（无 Active 时不限制 read_skill 目标）。 */
     public String getActiveSkillId() {
         return activeSkillId;
+    }
+
+    /** 本 run 工作区绝对路径；可空（未注入时沙箱工具应失败）。 */
+    public String getWorkspaceRoot() {
+        return workspaceRoot;
     }
 }

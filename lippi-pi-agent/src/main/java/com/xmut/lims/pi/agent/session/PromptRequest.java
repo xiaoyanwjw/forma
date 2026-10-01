@@ -40,6 +40,9 @@ public class PromptRequest {
     /** 页面上下文 → Context 段。 */
     String context;
 
+    /** 本 run 工作区绝对路径；可空。 */
+    String workspaceRoot;
+
     PromptRequest(String runId,
                   String text,
                   List<Message> messages,
@@ -47,7 +50,8 @@ public class PromptRequest {
                   String traceId,
                   String skillId,
                   String domain,
-                  String context) {
+                  String context,
+                  String workspaceRoot) {
         this.runId = runId;
         this.text = text;
         this.messages = messages == null
@@ -58,6 +62,7 @@ public class PromptRequest {
         this.skillId = skillId;
         this.domain = domain;
         this.context = context;
+        this.workspaceRoot = workspaceRoot;
     }
 
 }

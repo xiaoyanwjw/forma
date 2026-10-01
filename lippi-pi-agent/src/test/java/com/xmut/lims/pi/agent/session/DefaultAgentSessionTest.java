@@ -93,6 +93,24 @@ class DefaultAgentSessionTest {
     }
 
     @Test
+    void prompt_forwards_workspaceRoot_to_turnInput() {
+        when(conversationLoop.run(any(TurnInput.class), any()))
+                .thenAnswer(inv -> {
+                    TurnInput req = inv.getArgument(0);
+                    return ConversationResult.ok(req.getRunId(), "ok", req.getMessages());
+                });
+
+        session.prompt(PromptRequest.builder()
+                .text("hi")
+                .workspaceRoot("/tmp/ws/sessions/s/r")
+                .build());
+
+        ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
+        verify(conversationLoop).run(cap.capture(), any());
+        assertThat(cap.getValue().getWorkspaceRoot()).isEqualTo("/tmp/ws/sessions/s/r");
+    }
+
+    @Test
     void prompt_text_becomes_user_history_when_messages_empty() {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenAnswer(inv -> {

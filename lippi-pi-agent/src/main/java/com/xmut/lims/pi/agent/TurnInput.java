@@ -41,6 +41,9 @@ public class TurnInput {
     /** {@code before_agent_start} 对三槽的 overwrite / append。 */
     ContextModifier contextModifier;
 
+    /** 本 run 工作区绝对路径；可空。 */
+    String workspaceRoot;
+
     TurnInput(String runId,
               List<Message> messages,
               String taskId,
@@ -49,7 +52,8 @@ public class TurnInput {
               String skillId,
               String domain,
               String context,
-              ContextModifier contextModifier) {
+              ContextModifier contextModifier,
+              String workspaceRoot) {
         this.runId = runId;
         this.messages = messages == null
                 ? Collections.emptyList()
@@ -61,6 +65,7 @@ public class TurnInput {
         this.domain = domain;
         this.context = context;
         this.contextModifier = contextModifier;
+        this.workspaceRoot = workspaceRoot;
     }
 
     /**

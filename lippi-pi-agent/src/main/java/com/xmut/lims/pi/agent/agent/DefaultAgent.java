@@ -155,6 +155,9 @@ public final class DefaultAgent implements Agent {
         if (StringUtils.hasText(turnInput.getSessionId())) {
             input.put(StateKeys.SESSION_ID, turnInput.getSessionId().trim());
         }
+        if (StringUtils.hasText(turnInput.getWorkspaceRoot())) {
+            input.put(StateKeys.WORKSPACE_ROOT, turnInput.getWorkspaceRoot().trim());
+        }
 
         return input;
     }

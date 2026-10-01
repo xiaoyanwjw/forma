@@ -43,6 +43,14 @@ public final class StateKeys {
     public static final String ACTIVE_SKILL_ID = "active_skill_id";
 
     /**
+     * {@code String} — 本 run 工作区绝对路径（模型不可改）。
+     *
+     * <p>由 {@code DefaultAgent.prepare} 从 {@code TurnInput.workspaceRoot} 写入；
+     * {@code ToolContext.from} 读出供沙箱工具 I/O。
+     */
+    public static final String WORKSPACE_ROOT = "workspace_root";
+
+    /**
      * {@code String} — 本轮模型 useCase（取自 ActiveSkill.modelUseCase）。
      *
      * <p>由 {@link TurnBinder} 写入；{@code AgentTurnNode} 读入
