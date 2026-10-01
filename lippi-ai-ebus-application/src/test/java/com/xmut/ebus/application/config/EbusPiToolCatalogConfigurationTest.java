@@ -1,8 +1,11 @@
 package com.xmut.ebus.application.config;
 
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
+import com.xmut.ebus.application.business.agent.tool.xhs.ApifyXhsNoteFetchClient;
 import com.xmut.ebus.application.business.agent.tool.xhs.ApifyXhsNoteSearchClient;
+import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteFetchClient;
 import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteSearchClient;
+import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteFetchPort;
 import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteSearchPort;
 import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
 import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
@@ -42,6 +45,30 @@ class EbusPiToolCatalogConfigurationTest {
                 .run(context -> {
                     XhsNoteSearchPort port = context.getBean(XhsNoteSearchPort.class);
                     assertTrue(port instanceof ApifyXhsNoteSearchClient);
+                });
+    }
+
+    @Test
+    void xhsNoteFetchPort_apify_binds_apify_client_even_without_token() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(PiToolCatalogConfiguration.class)
+                .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, EbusPiToolCatalogConfigurationTest::sealedSkillCatalog)
+                .withPropertyValues("ebus.xhs-note-fetch.client=apify")
+                .run(context -> {
+                    XhsNoteFetchPort port = context.getBean(XhsNoteFetchPort.class);
+                    assertTrue(port instanceof ApifyXhsNoteFetchClient);
+                });
+    }
+
+    @Test
+    void xhsNoteFetchPort_mock_binds_mock_client() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(PiToolCatalogConfiguration.class)
+                .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, EbusPiToolCatalogConfigurationTest::sealedSkillCatalog)
+                .withPropertyValues("ebus.xhs-note-fetch.client=mock")
+                .run(context -> {
+                    XhsNoteFetchPort port = context.getBean(XhsNoteFetchPort.class);
+                    assertTrue(port instanceof MockXhsNoteFetchClient);
                 });
     }
 

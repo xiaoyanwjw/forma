@@ -16,10 +16,15 @@ import com.xmut.ebus.application.business.agent.tool.sku.SkuReranker;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchPort;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearcher;
+import com.xmut.ebus.application.business.agent.tool.xhs.ApifyXhsNoteFetchClient;
 import com.xmut.ebus.application.business.agent.tool.xhs.ApifyXhsNoteSearchClient;
+import com.xmut.ebus.application.business.agent.tool.xhs.FetchXhsNoteToolHandler;
+import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteFetchClient;
 import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteSearchClient;
 import com.xmut.ebus.application.business.agent.tool.xhs.ModelXhsNoteReranker;
 import com.xmut.ebus.application.business.agent.tool.xhs.SearchXhsNoteToolHandler;
+import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteFetchPort;
+import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteFetchProperties;
 import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteReranker;
 import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteSearchPort;
 import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteSearchProperties;
@@ -51,13 +56,13 @@ import java.util.Arrays;
 
 /**
  * Primary {@link ToolCatalog} for Adam: {@code read_skill} + {@code search_sku} + {@code search_xhs_note}
- * + {@code ask_human} + workspace {@code write_file} / {@code read_file} / {@code bash}.
+ * + {@code fetch_xhs_note} + {@code ask_human} + workspace {@code write_file} / {@code read_file} / {@code bash}.
  *
  * <p>Not {@code @ConditionalOnMissingBean} — this bean must replace pi-agent's default
  * catalog so {@code search_sku} is registered at startup.
  */
 @Configuration
-@EnableConfigurationProperties({SkuSearchProperties.class, XhsNoteSearchProperties.class})
+@EnableConfigurationProperties({SkuSearchProperties.class, XhsNoteSearchProperties.class, XhsNoteFetchProperties.class})
 public class PiToolCatalogConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(PiToolCatalogConfiguration.class);
@@ -162,13 +167,26 @@ public class PiToolCatalogConfiguration {
         return new XhsNoteSearcher(port, props, reranker);
     }
 
+    @Bean
+    public XhsNoteFetchPort xhsNoteFetchPort(XhsNoteFetchProperties props) {
+        if (!"apify".equalsIgnoreCase(props.getClient())) {
+            return new MockXhsNoteFetchClient();
+        }
+        return new ApifyXhsNoteFetchClient(props, new ApifyOkHttpTransport());
+    }
+
     @Primary
     @Bean
-    public ToolCatalog toolCatalog(SkillCatalog skillCatalog, SkuSearcher skuSearcher, XhsNoteSearcher xhsNoteSearcher) {
+    public ToolCatalog toolCatalog(
+            SkillCatalog skillCatalog,
+            SkuSearcher skuSearcher,
+            XhsNoteSearcher xhsNoteSearcher,
+            XhsNoteFetchPort xhsNoteFetchPort) {
         return InMemoryToolCatalog.of(Arrays.asList(
                 readSkillTool(skillCatalog),
                 searchSkuTool(skuSearcher),
                 searchXhsNoteTool(xhsNoteSearcher),
+                fetchXhsNoteTool(xhsNoteFetchPort),
                 askHumanTool(),
                 writeFileTool(),
                 readFileTool(),
@@ -251,6 +269,32 @@ public class PiToolCatalogConfiguration {
                 .handlerClass(SearchXhsNoteToolHandler.class.getName())
                 .build();
         return new Tool(definition, new SearchXhsNoteToolHandler(xhsNoteSearcher));
+    }
+
+    static Tool fetchXhsNoteTool(XhsNoteFetchPort xhsNoteFetchPort) {
+        ObjectNode parameters = new ObjectMapper().createObjectNode();
+        parameters.put("type", "object");
+        ObjectNode properties = parameters.putObject("properties");
+        ObjectNode url = properties.putObject("url");
+        url.put("type", "string");
+        url.put("description", "小红书笔记 URL 或分享短链");
+        ObjectNode noteUrl = properties.putObject("noteUrl");
+        noteUrl.put("type", "string");
+        noteUrl.put("description", "url 的别名");
+        parameters.putArray("required").add("url");
+        ToolSchema schema = ToolSchema.builder()
+                .name(FetchXhsNoteToolHandler.TOOL_NAME)
+                .description("按 URL 拉取一篇小红书笔记正文；失败不编造原文")
+                .parametersSchema(parameters)
+                .build();
+        ToolDefinition definition = ToolDefinition.builder()
+                .id(FetchXhsNoteToolHandler.TOOL_NAME)
+                .description("拉取小红书笔记详情，返回 title/body/noteUrl")
+                .text("[fetch_xhs_note] 按 url（或 noteUrl）拉取一篇笔记正文。禁止编造正文。")
+                .schema(schema)
+                .handlerClass(FetchXhsNoteToolHandler.class.getName())
+                .build();
+        return new Tool(definition, new FetchXhsNoteToolHandler(xhsNoteFetchPort));
     }
 
     static Tool askHumanTool() {

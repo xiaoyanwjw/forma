@@ -103,6 +103,7 @@ class SearchSkuToolHandlerTest {
                 .run(context -> {
                     assertTrue(context.getBean(ToolCatalog.class).resolve("search_sku").isPresent());
                     assertTrue(context.getBean(ToolCatalog.class).resolve("search_xhs_note").isPresent());
+                    assertTrue(context.getBean(ToolCatalog.class).resolve("fetch_xhs_note").isPresent());
                     assertTrue(context.getBean(ToolCatalog.class).resolve("read_skill").isPresent());
                     assertTrue(context.getBean(ModelCatalog.class).resolve("ebus.sku.rerank") != null);
                 });

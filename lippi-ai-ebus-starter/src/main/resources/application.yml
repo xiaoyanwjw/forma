@@ -58,6 +58,12 @@ ebus:
       actor-id: opspilot.cc/xiaohongshu-keyword-search-scraper
       timeout-ms: 120000
       token: ${APIFY_TOKEN:}
+  xhs-note-fetch:
+    client: ${EBUS_XHS_NOTE_FETCH_CLIENT:mock}
+    apify:
+      actor-id: khadinakbar/xiaohongshu-note-detail-scraper
+      timeout-ms: 120000
+      token: ${APIFY_TOKEN:}
   media:
     store: ${EBUS_MEDIA_STORE:memory}
     minio:
