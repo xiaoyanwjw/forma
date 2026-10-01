@@ -54,12 +54,11 @@ metadata:
 1. **读懂商品。** 优先用 Handoff；信息不够时按国内厨房/日用默认假设，写入 `assumptions`。用户说「优先淘宝」等 → 记入假设；语气仍按国内电商成交方向写。**禁止**在未出策划前调用 `ask_human`。
 2. **固定底。** `templateId` = `domestic-generic-default`（全程不可改，补充需求也不得改 `templateId`）。
 3. **定成交驱动力。** 写入 `driver`（一句：谁 + 场景 + 为什么买）；家居日用多选「痛点/效率」或「视觉/质感」。
-4. **写策划短字段。** `frames`（3～5 条主图分镜短句，每条 ≤40 字）、`modules`（3～5 条详情大纲短句）、`titleDraft`（标题草稿一行）。详见 [output.md](references/output.md) §策划。
-5. **写策划 `view`。** `blocks` **只含 1 个** `markdown`：固定小标题 `## 成交方向` / `## 主图分镜`（有序列表，与 `frames` 一致）/ `## 标题草稿` / `## 详情大纲`（有序列表，与 `modules` 一致）/ 可选 `## 假设`。正文与 `artifact` 同一事实。策划阶段**不要**多块 `note`/`list`/`media`/`section` 拼盘，**不要**「详情标题/正文/展示说明」三 section。
-6. **分步写盘（策划，相对 run 工作区根）。** `write_file` → `plan/artifact.json`（**仅**策划 artifact 对象），`write_file` → `plan/view.json`（**仅**策划 view 对象）；可用 `read_file` 自检。字段见 [output.md](references/output.md) §策划。
-7. **拼出策划终态。** 用 `write_file` 把策划 view 与 artifact 合并写入 `plan/final.json`（相对 run 根）。内容是一个 JSON 对象：`view` 取 `plan/view.json` 的对象，`artifact` 取 `plan/artifact.json` 的对象。这是支持的合并方式。环境里若已有 `bash` / `python3` 可以用它们拼文件，但不要依赖 `python3`；没有它们时仍用 `write_file` 写 `plan/final.json`。
-8. **策划终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"plan/final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
-9. **立刻调用 `ask_human`**（参数与下方一致，勿在 Computer / JSON 里自造确认按钮）：
+4. **构造领域实体（策划）。** 按 [output.md](references/output.md) §策划拼出完整策划 **artifact**（`driver` / `frames` 3～5 条≤40 字 / `modules` 3～5 条 / `titleDraft` / `assumptions` / 交接字段等），再 `write_file` → `plan/artifact.json`（相对 run 根，**仅**策划 artifact 对象）。可用 `read_file` 自检。
+5. **构造视图实体（策划）。** 按同一事实拼出策划 **view**：`blocks` **只含 1 个** `markdown`（固定小标题 `## 成交方向` / `## 主图分镜`（有序列表，与 `frames` 一致）/ `## 标题草稿` / `## 详情大纲`（与 `modules` 一致）/ 可选 `## 假设`）。策划阶段**不要**多块 `note`/`list`/`media`/`section` 拼盘，**不要**「详情标题/正文/展示说明」三 section。再 `write_file` → `plan/view.json`（相对 run 根，**仅**策划 view 对象）。可用 `read_file` 自检。
+6. **拼出策划终态。** 用 `write_file` 把策划 view 与 artifact 合并写入 `plan/final.json`（相对 run 根）。内容是一个 JSON 对象：`view` 取 `plan/view.json` 的对象，`artifact` 取 `plan/artifact.json` 的对象。这是支持的合并方式。环境里若已有 `bash` / `python3` 可以用它们拼文件，但不要依赖 `python3`；没有它们时仍用 `write_file` 写 `plan/final.json`。
+7. **策划终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"plan/final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
+8. **立刻调用 `ask_human`**（参数与下方一致，勿在 Computer / JSON 里自造确认按钮）：
 
 ```json
 {
@@ -77,24 +76,23 @@ metadata:
 | 用户选择 | Agent 行为 |
 |----------|------------|
 | `confirm_execute` | 进入 Phase C；**禁止**在未收到此选项前写 `framePrompts` 或上架四字段 |
-| `supplement` 和/或自由文本 | **只改策划**（`driver` / `frames` / `modules` / `titleDraft` / `assumptions`；**不得**改 `templateId` / `picklistItemId`）；**覆盖** `plan/artifact.json` / `plan/view.json`，再用 `write_file` 重写 `plan/final.json`，再发指针 `{"output":"plan/final.json"}`；**再次** `ask_human`（同上参数） |
+| `supplement` 和/或自由文本 | **只改策划**（`driver` / `frames` / `modules` / `titleDraft` / `assumptions`；**不得**改 `templateId` / `picklistItemId`）；重新构造领域实体 → `plan/artifact.json`、视图实体 → `plan/view.json`，再用 `write_file` 重写 `plan/final.json`，再发指针 `{"output":"plan/final.json"}`；**再次** `ask_human`（同上参数） |
 | 仅自由文本（无 option） | 视为补充说明，同 `supplement` |
 
 ### Phase C — 执行（仅 `confirm_execute` 后）
 
 1. **继承策划字段**（可微调 `titleDraft` / `frames` / `modules`，仍须满足条数与门禁；`picklistItemId` 原样保留）。
-2. **写上架四字段**（像真实淘宝详情，不要鸡汤问答腔）：
-   - `detailTitle`：品类词 + 2～4 个卖点词，可检索、可读；
-   - `detailBody`：3～6 短段或条目——先一句场景/痛点，再写核心卖点与使用感受，可带 1～2 句规格/材质（未知勿编造具体参数）；少用「想换机又怕踩坑」式长提问开场；
-   - `displayNotes`：主图顺序与禁区（短）；
-   - `heroPlan`：首图画面任务 + 短卖点（给系统挂位，不必在 Adam 大图区展示）。
-3. **写 `framePrompts`**：与 `frames` **等长**；每项 `{ "prompt": "…", "negative": "…" }`（`negative` 可选）。只出 Prompt，不调生图。
-4. **写执行 `view`。** hero `media`（对齐 `heroPlan`）+ 分镜 `list` + 三 `section`（详情标题/正文/展示说明）+ **一条** `section`「生图 Prompt」（供界面并入主图分镜展示）：`body` 用有序列表写出与 `framePrompts` **逐条对应**的完整 `prompt`（可附 `negative:` 行）。界面会按「一条分镜描述 + 一条 prompt」成对展示，勿只写「共 N 条、详见 artifact」。
-5. **分步写盘（执行，相对 run 工作区根）。** `write_file` → `exec/artifact.json`（**仅**完整执行 artifact），`write_file` → `exec/view.json`（**仅**执行 view）；可用 `read_file` 自检。
-6. **拼出执行终态。** 用 `write_file` 把执行 view 与 artifact 合并写入 `exec/final.json`。内容是一个 JSON 对象：`view` 取 `exec/view.json` 的对象，`artifact` 取 `exec/artifact.json` 的对象。支持的合并是 `write_file`；`bash` / `python3` 仅在环境里已有时可选。
-7. **过 Verification（执行）。** 全部勾上再发指针。
-8. **执行终稿只输出指针。** 对话里**仅** `{"output":"exec/final.json"}`（无围栏、无整包 JSON）。
-9. **禁止**输出 `platformCopies` / `preferredPlatform`。
+2. **构造领域实体（执行）。** 在继承字段上补齐完整执行 **artifact**：上架四字段（像真实淘宝详情，不要鸡汤问答腔）+ 与 `frames` **等长**的 `framePrompts`（每项 `{ "prompt": "…", "negative": "…" }`，`negative` 可选；只出 Prompt，不调生图）。  
+   - `detailTitle`：品类词 + 2～4 个卖点词，可检索、可读；  
+   - `detailBody`：3～6 短段或条目——先一句场景/痛点，再写核心卖点与使用感受，可带 1～2 句规格/材质（未知勿编造具体参数）；少用「想换机又怕踩坑」式长提问开场；  
+   - `displayNotes`：主图顺序与禁区（短）；  
+   - `heroPlan`：首图画面任务 + 短卖点（给系统挂位，不必在 Adam 大图区展示）。  
+   再 `write_file` → `exec/artifact.json`（相对 run 根，**仅**完整执行 artifact）。可用 `read_file` 自检。字段见 [output.md](references/output.md) §执行。
+3. **构造视图实体（执行）。** 拼出执行 **view**：hero `media`（对齐 `heroPlan`）+ 分镜 `list` + 三 `section`（详情标题/正文/展示说明）+ **一条** `section`「生图 Prompt」（`body` 用有序列表写出与 `framePrompts` **逐条对应**的完整 `prompt`，可附 `negative:` 行；界面会按「一条分镜描述 + 一条 prompt」成对展示，勿只写「共 N 条、详见 artifact」）。再 `write_file` → `exec/view.json`（相对 run 根，**仅**执行 view）。可用 `read_file` 自检。
+4. **拼出执行终态。** 用 `write_file` 把执行 view 与 artifact 合并写入 `exec/final.json`。内容是一个 JSON 对象：`view` 取 `exec/view.json` 的对象，`artifact` 取 `exec/artifact.json` 的对象。支持的合并是 `write_file`；`bash` / `python3` 仅在环境里已有时可选。
+5. **过 Verification（执行）。** 全部勾上再发指针。
+6. **执行终稿只输出指针。** 对话里**仅** `{"output":"exec/final.json"}`（无围栏、无整包 JSON）。
+7. **禁止**输出 `platformCopies` / `preferredPlatform`。
 
 ## Quality
 

@@ -2,17 +2,17 @@
 
 ## 交付方式
 
-1. **工作区文件（真源）：** 分步写入子目录，再用 `write_file` 合并为信封 JSON（支持的合并；`bash` / `python3` 仅在环境里已有时可选）：
-   - **策划：** `plan/artifact.json`、`plan/view.json` → **`plan/final.json`**（内容为下方策划 `{ "view": …, "artifact": … }`）。
-   - **执行**（仅 `confirm_execute` 后）：`exec/artifact.json`、`exec/view.json` → **`exec/final.json`**（完整 SKU 信封）。
-   - **`supplement`：** 覆盖 `plan/*` 后用 `write_file` 重写 `plan/final.json`，再发策划指针并 `ask_human`（同一 `runId` 工作区）。
+1. **工作区文件（真源）：** 先构造领域实体，再构造视图实体，再用 `write_file` 合并为信封 JSON（支持的合并；`bash` / `python3` 仅在环境里已有时可选）：
+   - **策划：** 领域实体 → `plan/artifact.json`，视图实体 → `plan/view.json` → **`plan/final.json`**（内容为下方策划 `{ "view": …, "artifact": … }`）。
+   - **执行**（仅 `confirm_execute` 后）：领域实体 → `exec/artifact.json`，视图实体 → `exec/view.json` → **`exec/final.json`**（完整 SKU 信封）。
+   - **`supplement`：** 重新构造策划领域/视图实体并覆盖 `plan/*` 后，用 `write_file` 重写 `plan/final.json`，再发策划指针并 `ask_human`（同一 `runId` 工作区）。
 2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
    - 策划（含补充后重出）：`{"output":"plan/final.json"}`
    - 执行终态：`{"output":"exec/final.json"}`
 
 不要在对话里再贴整包 `{view, artifact}`。结算由服务端读对应 `final.json` 后再投影 / 落库。
 
-`view` 给界面渲染；`artifact` 落库回显。两边同一事实，不是互相拷贝。
+`artifact` 是领域实体（落库事实）；`view` 是视图实体（界面渲染）。两边同一事实，不是互相拷贝。
 
 本 Skill **两阶段**输出：
 

@@ -166,9 +166,6 @@ public class EbusPiToolCatalogConfiguration {
         ObjectNode query = properties.putObject("query");
         query.put("type", "string");
         query.put("description", "Search keyword, e.g. 香薰");
-        ObjectNode platform = properties.putObject("platform");
-        platform.put("type", "string");
-        platform.put("description", "Marketplace id; default taobao_tbk");
         ObjectNode pageSize = properties.putObject("pageSize");
         pageSize.put("type", "integer");
         pageSize.put("description", "Page size, default 10, max 20");
@@ -181,7 +178,7 @@ public class EbusPiToolCatalogConfiguration {
         ToolDefinition definition = ToolDefinition.builder()
                 .id(SearchSkuToolHandler.TOOL_NAME)
                 .description("Search SKUs and return hits with https detailUrl")
-                .text("[search_sku] Search configured SKU samples. Use query; never invent detailUrl.")
+                .text("[search_sku] Search configured SKU samples. Use query and optional pageSize; never invent detailUrl.")
                 .schema(schema)
                 .handlerClass(SearchSkuToolHandler.class.getName())
                 .build();

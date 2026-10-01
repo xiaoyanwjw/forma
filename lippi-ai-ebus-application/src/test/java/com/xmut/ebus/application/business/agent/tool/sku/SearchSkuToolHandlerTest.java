@@ -41,12 +41,12 @@ class SearchSkuToolHandlerTest {
     void handle_callsSearcherNotPort() {
         SkuSearchHit hit = new SkuSearchHit(
                 "taobao_tbk", "香薰蜡烛", "1", "cat", "https://example.com/1", "ref");
-        when(searcher.search(eq("香薰"), anyString(), eq(10))).thenReturn(Collections.singletonList(hit));
+        when(searcher.search(eq("香薰"), eq(10))).thenReturn(Collections.singletonList(hit));
 
         ToolResult r = handler.handle(callWithQuery("香薰"), new ToolContext("r1", "t1"));
 
         assertTrue(r.isSuccess());
-        verify(searcher).search(eq("香薰"), anyString(), eq(10));
+        verify(searcher).search(eq("香薰"), eq(10));
         verify(port, never()).search(anyString(), anyString(), anyInt());
     }
 

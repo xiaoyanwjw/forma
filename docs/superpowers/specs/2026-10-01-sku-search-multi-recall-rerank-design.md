@@ -5,7 +5,7 @@
 **Decision（P0 / Demo）：**  
 - **检索管线 + LLM-as-reranker** 下沉到 `search_sku`；主 agent / skill **仍只调一次**  
 - 重排是 **管线内另一次 pi-ai 调用**（独立 useCase），**不**占用主 agent 对话上下文、**不**写进 skill  
-- Tool **对外合同基本不变**（`query` + `platform` + `pageSize`）  
+- Tool **对外合同**：`query` + `pageSize`（平台由服务端固定，不进工具入参）  
 - 回传 **Top-K 瘦字段**  
 - **Demo 收窄：** `expandQuery` **不扩词**（只返回原始 query 单元素列表）；`doSearch` **只跑一路**检索  
 - **无独立去重步骤**（Demo 单路重复少；日后若多路需要，并入 `doCheck` 或 `doSearch`，不单开方法）  
@@ -59,10 +59,10 @@
 ```text
 主 agent（ecommerce-picklist）
   → 提炼一个 query
-  → search_sku(query, platform, pageSize)
-        → SkuSearcher.search(query, platform, pageSize)
+  → search_sku(query, pageSize)
+        → SkuSearcher.search(query, pageSize)
               → expandQuery(query)              // Demo: [query]
-              → doSearch(queries, …)            // Demo: 单路 Port
+              → doSearch(queries, …)            // Demo: 单路 Port（平台由 Searcher 固定）
               → doCheck(hits)                   // 合法性过滤
               → pooling(hits)             // 见 §3.2：限制送入 LLM 的条数
               → rerank(intent, pool)            // pi-ai
@@ -77,9 +77,9 @@
 
 | 方法 | 概念签名 | Demo 行为 | 日后 |
 |------|----------|-----------|------|
-| `search` | `List<SkuSearchHit> search(String query, String platform, int pageSize)` | 编排下列步骤；Handler **只调这个** | 不变 |
+| `search` | `List<SkuSearchHit> search(String query, int pageSize)` | 编排下列步骤；Handler **只调这个**；平台不进参数 | 不变 |
 | `expandQuery` | `List<String> expandQuery(String query)` | `singletonList(trim(query))` | 规则扩词，最多 3 路 |
-| `doSearch` | `List<SkuCandidate> doSearch(List<String> queries, String platform, int sourcePageSize)` | 只对 `queries.get(0)` 调一次 Port | 并行多路 |
+| `doSearch` | `List<SkuCandidate> doSearch(List<String> queries, int sourcePageSize)` | 只对 `queries.get(0)` 调一次 Port（内部固定平台） | 并行多路 |
 | `doCheck` | `List<SkuCandidate> doCheck(List<SkuCandidate> hits)` | 丢空标题、非 https、违禁词 | 可顺带轻量去重 |
 | `pooling` | `List<SkuCandidate> pooling(List<SkuCandidate> hits)` | 截到 `rerankPoolSize`（默认 40） | 同左 |
 | `rerank` | `List<SkuCandidate> rerank(String intent, List<SkuCandidate> pool)` | pi-ai 重排；失败返回原 `pool` 序 | 同左 |
@@ -102,11 +102,11 @@ List<String> expandQuery(String query) {
   return Collections.singletonList(query.trim());
 }
 
-List<SkuCandidate> doSearch(List<String> queries, String platform, int sourcePageSize) {
+List<SkuCandidate> doSearch(List<String> queries, int sourcePageSize) {
   if (queries == null || queries.isEmpty()) {
     return Collections.emptyList();
   }
-  List<SkuSearchHit> hits = skuSearchPort.search(queries.get(0), platform, sourcePageSize);
+  List<SkuSearchHit> hits = skuSearchPort.search(queries.get(0), DEFAULT_PLATFORM, sourcePageSize);
   return toCandidates(hits, "L0");
 }
 ```
@@ -134,8 +134,9 @@ Demo 单路 + `sourcePageSize=20` 时，池子往往已 ≤40，`pooling` 接近
 | 参数 | Demo 行为 |
 |------|-----------|
 | `query` | 必填；intent |
-| `platform` | 透传 Port |
 | `pageSize` | `topHits` 的 K |
+
+平台由 `SkuSearcher` 内部固定（`taobao_tbk`），不进工具入参；命中行仍可带 `platform` 字段。
 
 ### 4.2 `expandQuery` / `doSearch`
 

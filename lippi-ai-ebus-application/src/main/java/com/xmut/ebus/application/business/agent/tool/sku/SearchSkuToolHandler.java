@@ -22,7 +22,6 @@ public final class SearchSkuToolHandler implements ToolHandler {
     private static final Logger log = LoggerFactory.getLogger(SearchSkuToolHandler.class);
 
     public static final String TOOL_NAME = "search_sku";
-    public static final String DEFAULT_PLATFORM = "taobao_tbk";
     public static final int DEFAULT_PAGE_SIZE = 10;
     public static final int MAX_PAGE_SIZE = 20;
 
@@ -46,9 +45,8 @@ public final class SearchSkuToolHandler implements ToolHandler {
             if (!StringUtils.hasText(query)) {
                 return ToolResult.failed(callId, TOOL_NAME, "query required");
             }
-            String platform = extractPlatform(call);
-            int pageSize = extractPageSize(call);
-            List<SkuSearchHit> hits = skuSearcher.search(query.trim(), platform, pageSize);
+
+            List<SkuSearchHit> hits = skuSearcher.search(query, DEFAULT_PAGE_SIZE);
             if (hits == null || hits.isEmpty()) {
                 return ToolResult.failed(callId, TOOL_NAME, "search_sku empty hits");
             }
@@ -86,29 +84,6 @@ public final class SearchSkuToolHandler implements ToolHandler {
         }
         JsonNode query = args.get("query");
         return query == null || query.isNull() ? null : query.asText(null);
-    }
-
-    static String extractPlatform(ToolCallEntry call) {
-        JsonNode args = arguments(call);
-        if (args != null && args.has("platform") && !args.get("platform").isNull()) {
-            String platform = args.get("platform").asText(null);
-            if (StringUtils.hasText(platform)) {
-                return platform.trim();
-            }
-        }
-        return DEFAULT_PLATFORM;
-    }
-
-    static int extractPageSize(ToolCallEntry call) {
-        JsonNode args = arguments(call);
-        int pageSize = DEFAULT_PAGE_SIZE;
-        if (args != null && args.has("pageSize") && !args.get("pageSize").isNull()) {
-            pageSize = args.get("pageSize").asInt(DEFAULT_PAGE_SIZE);
-        }
-        if (pageSize < 1) {
-            return 1;
-        }
-        return Math.min(pageSize, MAX_PAGE_SIZE);
     }
 
     private static JsonNode arguments(ToolCallEntry call) {

@@ -64,29 +64,30 @@ class SkuSearcherTest {
 
     @Test
     void search_demo_callsPortOnce_andRespectsPageSize() {
-        when(port.search(eq("q"), anyString(), anyInt()))
+        when(port.search(eq("q"), eq(SkuSearcher.DEFAULT_PLATFORM), anyInt()))
                 .thenReturn(Arrays.asList(hitHttps("A"), hitHttps("B"), hitHttps("C")));
-        List<SkuSearchHit> out = searcher.search("q", "taobao_tbk", 2);
-        verify(port, times(1)).search(eq("q"), anyString(), anyInt());
+        List<SkuSearchHit> out = searcher.search("q", 2);
+        verify(port, times(1)).search(eq("q"), eq(SkuSearcher.DEFAULT_PLATFORM), anyInt());
         assertEquals(2, out.size());
     }
 
     @Test
     void search_disabled_bypassToPortPageSize() {
         props.getSearcher().setEnabled(false);
-        when(port.search(eq("q"), eq("p"), eq(5))).thenReturn(Collections.singletonList(hitHttps("A")));
-        assertEquals(1, searcher.search("q", "p", 5).size());
-        verify(port).search("q", "p", 5);
+        when(port.search(eq("q"), eq(SkuSearcher.DEFAULT_PLATFORM), eq(5)))
+                .thenReturn(Collections.singletonList(hitHttps("A")));
+        assertEquals(1, searcher.search("q", 5).size());
+        verify(port).search("q", SkuSearcher.DEFAULT_PLATFORM, 5);
     }
 
     @Test
     void search_followsMockRerankerOrder() {
-        when(port.search(eq("q"), eq("p"), anyInt())).thenReturn(Arrays.asList(
+        when(port.search(eq("q"), eq(SkuSearcher.DEFAULT_PLATFORM), anyInt())).thenReturn(Arrays.asList(
                 hitHttps("title-h1"),
                 hitHttps("title-h2"),
                 hitHttps("title-h3")));
         when(reranker.orderIds(anyString(), anyList())).thenReturn(Arrays.asList("h3", "h1"));
-        List<SkuSearchHit> out = newSearcher(port, reranker).search("q", "p", 3);
+        List<SkuSearchHit> out = newSearcher(port, reranker).search("q", 3);
         assertEquals("title-h3", out.get(0).getTitle());
     }
 

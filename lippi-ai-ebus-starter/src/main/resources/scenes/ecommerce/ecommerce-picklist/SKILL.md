@@ -14,7 +14,7 @@ metadata:
 
 # 选品清单
 
-帮卖家做**测款筛选**：从一次检索结果里挑可行动候选，不是复读工具标题。每条必须带用户能点开的商品原链。
+帮卖家做**测款选品**：从一次检索返回的候选里写出可行动清单，不是复读工具标题。每条必须带用户能点开的商品原链。
 
 ## When to use
 
@@ -24,18 +24,16 @@ metadata:
 ## Workflow
 
 1. **提炼搜索词。** 信息不够时把假设写入 `artifact.assumptions`，仍先搜，勿先追问。收成**一个**最稳 `query`。
-2. **只调用 `search_sku` 一次。** 服务端可能对同一次调用做商品检索与独立模型重排；你仍只发这一遍。禁止并行、禁止换词连搜。失败或空 hits → Fail。
-3. **筛选。** 只留带有效 `https` `detailUrl` 的条目。无链丢弃。
-4. **排名。** 优先：轻小、好发、可视觉差异、可小批量。  
-   用户未点名则默认避开：重货/泡货、强季节、高退货尺码服饰、大牌极透明价、特殊资质、侵权/假认证/违禁功效。  
-   同质微差最多留 1 条代表；为凑数塞违禁/假功效 → 禁止。
-5. **凑齐门槛并写质量字段。** 8–12 条，**≥3 个不同 `niche`**。凑不齐 → Fail；禁止编造补足，禁止为此再搜。  
-   每条写可验证的痛点/角度/差异与评分条（见 Quality）。
-6. **分配 id。** 按最终顺序为每条赋 `pl-1`…`pl-n`；`artifact.items[].id` 与 `view.list.items[].id` **同序同值**。
-7. **分步写盘（相对 run 工作区根）。** 先 `write_file` → `artifact.json`（**仅** artifact 对象），再 `write_file` → `view.json`（**仅** view 对象）；字段与示例见 [output.md](references/output.md)。可用 `read_file` 自检。
-8. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`（相对 run 根）。内容是一个 JSON 对象：`view` 取 `view.json` 的对象，`artifact` 取 `artifact.json` 的对象。这是支持的合并方式。环境里若已有 `bash` / `python3` 可以用它们拼文件，但不要依赖 `python3`；没有它们时仍用 `write_file` 写 `final.json`。
-9. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
-10. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重拼。
+2. **只调用 `search_sku` 一次。** 检索、合法校验与模型重排在服务端完成；你只发这一遍。禁止并行、禁止换词连搜。失败或空 hits → Fail。
+3. **从返回候选写清单。** 工具 hits 已是可用候选（含 `https` `detailUrl`）。在其中选出 **8–12** 条写入 view/artifact，并写质量字段（见 Quality）。  
+   要求：**≥3 个不同 `niche`**；同质微差最多 1 条代表；凑不齐 → Fail；禁止编造补足，禁止为此再搜。  
+   默认避开（用户未点名时）：重货/泡货、强季节、高退货尺码服饰、大牌极透明价、特殊资质、侵权/假认证/违禁功效。
+4. **分配 id。** 按最终清单顺序为每条赋 `pl-1`…`pl-n`；后续领域实体与视图实体的 `id` **同序同值**。
+5. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**（测款领域对象：条目、质量字段、assumptions 等），再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
+6. **构造视图实体。** 按同一批 `pl-n` 与顺序拼出完整 **view**（展示用：list / blocks / note 等），再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
+7. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`（相对 run 根）。内容是一个 JSON 对象：`view` 取 `view.json` 的对象，`artifact` 取 `artifact.json` 的对象。这是支持的合并方式。环境里若已有 `bash` / `python3` 可以用它们拼文件，但不要依赖 `python3`；没有它们时仍用 `write_file` 写 `final.json`。
+8. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
+9. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重拼。
 
 ## Tool: search_sku
 
@@ -44,14 +42,13 @@ metadata:
 | 参数 | 说明 |
 |------|------|
 | `query` | 必填；本轮只发这一次调用 |
-| `platform` | 传给工具的检索上下文；默认 `taobao_tbk`（具体数据源仍取决于服务端 client） |
-| `pageSize` | 返回候选条数上限（重排后）；建议 `12`～`20` |
+| `pageSize` | 返回候选条数上限（服务端重排后）；建议 `12`～`20` |
 
 空结果或工具错误 → Fail（不要再调 `search_sku`）。
 
 ## Quality
 
-在**工具返回的候选**中挑选条目并撰写下列字段；勿臆造工具未返回的商品。
+在**工具返回的候选**中选出条目并撰写下列字段；勿臆造工具未返回的商品。不必再做一次「检索式筛选/排名」——排序与合法链路由服务端处理；你负责测款叙事与门槛。
 
 原则（好坏对照见 [output.md §质量对照](references/output.md#质量对照条目)）：
 
@@ -70,7 +67,7 @@ metadata:
 - 每条 `id` = `pl-{n}`；list 与 artifact **同 id 同序**
 - `artifact.items[].sourceUrl` = 工具 `detailUrl`；同条 list `href` = 该 URL；绝对 `https:`；禁止假链
 - disclaimer / note 必须包含字面量：`非实时平台全站行情`
-- 推荐整句：`候选基于配置的商品检索抽样与助手排序，非实时平台全站行情。点击可打开商品页核对。`
+- 推荐整句：`候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。`
 - 两边均为 8–12 条；`view.version` = `1`
 - `view.title` 与 `artifact.title`：本轮生成的中文清单标题（同一文案）
 
@@ -98,8 +95,8 @@ metadata:
 
 下列情况**只回一句人话原因**，不要输出 JSON 或指针：
 
-- `search_sku` 失败 / 空 hits，或筛完后无可用 `detailUrl`
-- 筛完后合格条数不足 8（即使想再搜也不允许）
+- `search_sku` 失败 / 空 hits，或返回候选不足 8 条可用
+- 候选不足以凑齐 8 条合格清单（即使想再搜也不允许）
 
 ## Boundaries
 

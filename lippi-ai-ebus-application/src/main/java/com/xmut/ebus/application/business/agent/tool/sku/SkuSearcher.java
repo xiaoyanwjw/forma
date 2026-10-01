@@ -20,6 +20,9 @@ public class SkuSearcher {
 
     private static final Logger log = LoggerFactory.getLogger(SkuSearcher.class);
 
+    /** Demo fixed marketplace for {@link SkuSearchPort}; not part of the public search API. */
+    static final String DEFAULT_PLATFORM = "taobao_tbk";
+
     private final SkuSearchPort skuSearchPort;
     private final SkuSearchProperties properties;
     private final SkuReranker skuReranker;
@@ -32,21 +35,20 @@ public class SkuSearcher {
         this.skuReranker = skuReranker;
     }
 
-    public List<SkuSearchHit> search(String query, String platform, int pageSize) {
+    public List<SkuSearchHit> search(String query, int pageSize) {
         SkuSearchProperties.Searcher searcher = properties.getSearcher();
         if (!searcher.isEnabled()) {
-            List<SkuSearchHit> hits = skuSearchPort.search(query, platform, pageSize);
+            List<SkuSearchHit> hits = skuSearchPort.search(query, DEFAULT_PLATFORM, pageSize);
             if (hits == null) {
                 return Collections.emptyList();
             }
             return hits;
         }
         List<String> queries = expandQuery(query);
-        List<SkuCandidate> raw = doSearch(queries, platform, searcher.getSourcePageSize());
+        List<SkuCandidate> raw = doSearch(queries, pageSize);
         List<SkuCandidate> checked = doCheck(raw);
         List<SkuCandidate> pool = pooling(checked);
-        String intent = query != null ? query.trim() : "";
-        List<SkuCandidate> ranked = rerank(intent, pool);
+        List<SkuCandidate> ranked = rerank(query, pool);
         return topHits(ranked, pageSize);
     }
 
@@ -57,11 +59,11 @@ public class SkuSearcher {
         return Collections.singletonList(query.trim());
     }
 
-    public List<SkuCandidate> doSearch(List<String> queries, String platform, int sourcePageSize) {
+    public List<SkuCandidate> doSearch(List<String> queries, int sourcePageSize) {
         if (queries == null || queries.isEmpty()) {
             return Collections.emptyList();
         }
-        List<SkuSearchHit> hits = skuSearchPort.search(queries.get(0), platform, sourcePageSize);
+        List<SkuSearchHit> hits = skuSearchPort.search(queries.get(0), DEFAULT_PLATFORM, sourcePageSize);
         return toCandidates(hits, "L0");
     }
 
