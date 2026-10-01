@@ -13,6 +13,8 @@ public class SkuSearchProperties {
 
     private final Apify apify = new Apify();
 
+    private final Searcher searcher = new Searcher();
+
     public String getClient() {
         return client;
     }
@@ -23,6 +25,89 @@ public class SkuSearchProperties {
 
     public Apify getApify() {
         return apify;
+    }
+
+    public Searcher getSearcher() {
+        return searcher;
+    }
+
+    /**
+     * {@code ebus.sku-search.searcher.*}
+     */
+    public static class Searcher {
+        private boolean enabled = true;
+        private int maxLegs = 1;
+        private int sourcePageSize = 20;
+        private int rerankPoolSize = 40;
+        private String rerankUseCase = "ebus.sku.rerank";
+        private long rerankTimeoutMs = 12_000L;
+        private boolean exposeReasons = false;
+        /** Comma-separated; empty means no filter. */
+        private String bannedTitleKeywords = "";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getMaxLegs() {
+            return maxLegs;
+        }
+
+        public void setMaxLegs(int maxLegs) {
+            this.maxLegs = maxLegs;
+        }
+
+        public int getSourcePageSize() {
+            return sourcePageSize;
+        }
+
+        public void setSourcePageSize(int sourcePageSize) {
+            this.sourcePageSize = sourcePageSize;
+        }
+
+        public int getRerankPoolSize() {
+            return rerankPoolSize;
+        }
+
+        public void setRerankPoolSize(int rerankPoolSize) {
+            this.rerankPoolSize = rerankPoolSize;
+        }
+
+        public String getRerankUseCase() {
+            return rerankUseCase;
+        }
+
+        public void setRerankUseCase(String rerankUseCase) {
+            this.rerankUseCase = rerankUseCase;
+        }
+
+        public long getRerankTimeoutMs() {
+            return rerankTimeoutMs;
+        }
+
+        public void setRerankTimeoutMs(long rerankTimeoutMs) {
+            this.rerankTimeoutMs = rerankTimeoutMs;
+        }
+
+        public boolean isExposeReasons() {
+            return exposeReasons;
+        }
+
+        public void setExposeReasons(boolean exposeReasons) {
+            this.exposeReasons = exposeReasons;
+        }
+
+        public String getBannedTitleKeywords() {
+            return bannedTitleKeywords;
+        }
+
+        public void setBannedTitleKeywords(String bannedTitleKeywords) {
+            this.bannedTitleKeywords = bannedTitleKeywords;
+        }
     }
 
     public static class Apify {
