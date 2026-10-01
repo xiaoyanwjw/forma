@@ -1,11 +1,23 @@
 # Output schema
 
+## 交付方式
+
+1. **工作区文件（真源）：** 分步写入子目录，再合并为信封 JSON：
+   - **策划：** `plan/artifact.json`、`plan/view.json` → **`plan/final.json`**（内容为下方策划 `{ "view": …, "artifact": … }`）。
+   - **执行**（仅 `confirm_execute` 后）：`exec/artifact.json`、`exec/view.json` → **`exec/final.json`**（完整 SKU 信封）。
+   - **`supplement`：** 覆盖 `plan/*` 后重拼 `plan/final.json`，再发策划指针并 `ask_human`（同一 `runId` 工作区）。
+2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
+   - 策划（含补充后重出）：`{"output":"plan/final.json"}`
+   - 执行终态：`{"output":"exec/final.json"}`
+
+不要在对话里再贴整包 `{view, artifact}`。结算由服务端读对应 `final.json` 后再投影 / 落库。
+
 `view` 给界面渲染；`artifact` 落库回显。两边同一事实，不是互相拷贝。
 
 本 Skill **两阶段**输出：
 
-1. **策划**：短字段 JSON → 随后 **`ask_human`**（非 JSON 的一部分）。
-2. **执行**（用户 `confirm_execute` 后）：完整 SKU 字段 + `framePrompts` 的 JSON 终态。
+1. **策划**：盘上 `plan/final.json` + 指针 → 随后 **`ask_human`**（非 JSON 的一部分）。
+2. **执行**（用户 `confirm_execute` 后）：盘上 `exec/final.json` + 指针（完整 SKU 字段 + `framePrompts`）。
 
 Skill 元数据（`SKILL.md` front matter）：
 
@@ -19,11 +31,7 @@ metadata:
 
 说明：应用层在首次 `ask_human` 前，将解析到的**策划** payload 以 `listing_plan` 落库并结算策划积分；用户确认后的**终态**仍按 `persistAs: sku` 落库。
 
-每次阶段成功时返回**一个** JSON 对象（可用 ` ```json ` 围栏），对象外不要闲聊（`ask_human` 工具调用除外）。
-
-```json
-{ "view": { }, "artifact": { } }
-```
+合并后的 `plan/final.json` / `exec/final.json` 内容为 `{ "view": { }, "artifact": { } }` 信封（见下方示例）。对话里只发指针，对象外不要闲聊（`ask_human` 工具调用除外）。
 
 ## Contents
 
@@ -115,7 +123,7 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 
 ## 策划示例
 
-策划 JSON 输出后，**立即**调用 `ask_human`（见 SKILL.md），不要在本 JSON 内嵌确认 UI。
+以下为 **`plan/final.json` 文件内容**（写入盘后合并）。发指针 `{"output":"plan/final.json"}` 后，**立即**调用 `ask_human`（见 SKILL.md），不要在内嵌确认 UI。
 
 （黄金路径：用户消息含原链与 `来源选品条目：pl-1`。）
 
@@ -155,7 +163,7 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 
 ## 执行示例
 
-仅在用户选择 `confirm_execute` 后输出（终态 `persistAs: sku`）。
+仅在用户选择 `confirm_execute` 后写入 **`exec/final.json`** 并输出指针 `{"output":"exec/final.json"}`（终态 `persistAs: sku`）。
 
 ```json
 {

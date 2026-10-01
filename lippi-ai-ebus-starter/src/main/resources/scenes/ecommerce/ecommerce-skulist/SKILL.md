@@ -4,7 +4,7 @@ description: >-
   生成上架素材：先策划分镜（短字段 + view），经 ask_human 确认或补充后，再出执行稿与生图 Prompt（view + artifact）。
   在用户提到上架、主图、详情文案、商品素材，或从选品候选点「做上架素材」时使用。
   不要用于选品清单 / 测款候选——那些请用 ecommerce-picklist。
-allowed-tools: ask_human, read_skill
+allowed-tools: ask_human, read_skill, write_file, read_file, bash
 metadata:
   output:
     billing: true
@@ -56,8 +56,15 @@ metadata:
 3. **定成交驱动力。** 写入 `driver`（一句：谁 + 场景 + 为什么买）；家居日用多选「痛点/效率」或「视觉/质感」。
 4. **写策划短字段。** `frames`（3～5 条主图分镜短句，每条 ≤40 字）、`modules`（3～5 条详情大纲短句）、`titleDraft`（标题草稿一行）。详见 [output.md](references/output.md) §策划。
 5. **写策划 `view`。** `blocks` **只含 1 个** `markdown`：固定小标题 `## 成交方向` / `## 主图分镜`（有序列表，与 `frames` 一致）/ `## 标题草稿` / `## 详情大纲`（有序列表，与 `modules` 一致）/ 可选 `## 假设`。正文与 `artifact` 同一事实。策划阶段**不要**多块 `note`/`list`/`media`/`section` 拼盘，**不要**「详情标题/正文/展示说明」三 section。
-6. **输出策划 JSON。** 一个 `{ "view": …, "artifact": … }` 对象（策划字段 only）。
-7. **立刻调用 `ask_human`**（参数与下方一致，勿在 Computer / JSON 里自造确认按钮）：
+6. **分步写盘（策划，相对 run 工作区根）。** `write_file` → `plan/artifact.json`（**仅**策划 artifact 对象），`write_file` → `plan/view.json`（**仅**策划 view 对象）；可用 `read_file` 自检。字段见 [output.md](references/output.md) §策划。
+7. **拼出策划终态。** 用 `bash` 合并为 `plan/final.json`（cwd 已是 run 根）。可复制：
+
+```bash
+python3 -c 'import json; a=json.load(open("plan/artifact.json")); v=json.load(open("plan/view.json")); json.dump({"view":v,"artifact":a}, open("plan/final.json","w"), ensure_ascii=False)'
+```
+
+8. **策划终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"plan/final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
+9. **立刻调用 `ask_human`**（参数与下方一致，勿在 Computer / JSON 里自造确认按钮）：
 
 ```json
 {
@@ -75,7 +82,7 @@ metadata:
 | 用户选择 | Agent 行为 |
 |----------|------------|
 | `confirm_execute` | 进入 Phase C；**禁止**在未收到此选项前写 `framePrompts` 或上架四字段 |
-| `supplement` 和/或自由文本 | **只改策划**（`driver` / `frames` / `modules` / `titleDraft` / `assumptions`；**不得**改 `templateId` / `picklistItemId`）；重输出策划 `{view, artifact}`；**再次** `ask_human`（同上参数） |
+| `supplement` 和/或自由文本 | **只改策划**（`driver` / `frames` / `modules` / `titleDraft` / `assumptions`；**不得**改 `templateId` / `picklistItemId`）；**覆盖** `plan/artifact.json` / `plan/view.json`，重拼 `plan/final.json`，再发指针 `{"output":"plan/final.json"}`；**再次** `ask_human`（同上参数） |
 | 仅自由文本（无 option） | 视为补充说明，同 `supplement` |
 
 ### Phase C — 执行（仅 `confirm_execute` 后）
@@ -88,8 +95,16 @@ metadata:
    - `heroPlan`：首图画面任务 + 短卖点（给系统挂位，不必在 Adam 大图区展示）。
 3. **写 `framePrompts`**：与 `frames` **等长**；每项 `{ "prompt": "…", "negative": "…" }`（`negative` 可选）。只出 Prompt，不调生图。
 4. **写执行 `view`。** hero `media`（对齐 `heroPlan`）+ 分镜 `list` + 三 `section`（详情标题/正文/展示说明）+ **一条** `section`「生图 Prompt」（供界面并入主图分镜展示）：`body` 用有序列表写出与 `framePrompts` **逐条对应**的完整 `prompt`（可附 `negative:` 行）。界面会按「一条分镜描述 + 一条 prompt」成对展示，勿只写「共 N 条、详见 artifact」。
-5. **过 Verification（执行）。** 全部勾上再输出**最终** JSON。
-6. **禁止**输出 `platformCopies` / `preferredPlatform`。
+5. **分步写盘（执行，相对 run 工作区根）。** `write_file` → `exec/artifact.json`（**仅**完整执行 artifact），`write_file` → `exec/view.json`（**仅**执行 view）；可用 `read_file` 自检。
+6. **拼出执行终态。** 用 `bash` 合并为 `exec/final.json`：
+
+```bash
+python3 -c 'import json; a=json.load(open("exec/artifact.json")); v=json.load(open("exec/view.json")); json.dump({"view":v,"artifact":a}, open("exec/final.json","w"), ensure_ascii=False)'
+```
+
+7. **过 Verification（执行）。** 全部勾上再发指针。
+8. **执行终稿只输出指针。** 对话里**仅** `{"output":"exec/final.json"}`（无围栏、无整包 JSON）。
+9. **禁止**输出 `platformCopies` / `preferredPlatform`。
 
 ## Quality
 
@@ -104,10 +119,10 @@ metadata:
 
 ## Output
 
-- **策划中间态**：`view` + 策划 `artifact`（短字段）→ 随后 `ask_human`。
-- **执行终态**：`view` + 完整 `artifact`（策划字段 + 四字段 + `framePrompts`）。字段、示例与好坏例 → [output.md](references/output.md)。
+- **策划中间态（盘上真源）：** `plan/final.json`（策划 `{view, artifact}` 信封）+ 对话指针 `{"output":"plan/final.json"}` → 随后 `ask_human`。
+- **执行终态（盘上真源）：** `exec/final.json`（完整 `{view, artifact}`）+ 对话指针 `{"output":"exec/final.json"}`。字段、示例与好坏例 → [output.md](references/output.md)。
 
-应用层：策划可用成果在首次 `ask_human` 前以 `listing_plan` 落库；确认后的终态仍按 Skill 元数据 `persistAs: sku` 落库。
+应用层：策划可用成果在首次 `ask_human` 前以 `listing_plan` 落库（读 `plan/final.json`）；确认后的终态仍按 Skill 元数据 `persistAs: sku` 落库（读 `exec/final.json`）。同一 `runId` 工作区在挂起策划 settle 后**保留**，供 `supplement` / `confirm_execute` 继续写盘。
 
 ## Verification
 
@@ -120,7 +135,9 @@ metadata:
 - [ ] 若输入含「来源选品条目」或「原链」→ `picklistItemId` 非空且与输入一致；`assumptions` 含原链或交接摘要
 - [ ] 策划 `view.blocks` **恰好 1 个** `markdown`（含上述小标题）；**无**「详情标题/正文/展示说明」三 section；**无** `framePrompts` / 上架四字段
 - [ ] Markdown 与 `artifact` 短字段同一事实
-- [ ] 输出策划 JSON 后**必须**调用 `ask_human`（未确认前禁止 Phase C）
+- [ ] 已写 `plan/artifact.json`、`plan/view.json`，且 `bash` 已生成 **`plan/final.json`**
+- [ ] 策划终稿对话**仅** `{"output":"plan/final.json"}`；**未**在对话里贴整包大 JSON
+- [ ] 发策划指针后**必须**调用 `ask_human`（未确认前禁止 Phase C）
 - [ ] 未编造 BSR / 销量 / 资质；未宣称违禁功效
 
 ### 执行 JSON（Phase C，终态）
@@ -132,7 +149,9 @@ metadata:
 - [ ] 执行 `view` 含 hero `media` + 三详情 `section` + Prompt 摘要 `section`
 - [ ] `mediaObjectIds` 可 `[]`（系统挂载后 settle 前须有真实 id）
 - [ ] **不要** `platformCopies`
-- [ ] 成功路径对象外无闲聊
+- [ ] 已写 `exec/artifact.json`、`exec/view.json`，且 `bash` 已生成 **`exec/final.json`**
+- [ ] 执行终稿对话**仅** `{"output":"exec/final.json"}`；**未**在对话里贴整包大 JSON
+- [ ] 成功路径除指针外无闲聊（`ask_human` 工具调用除外）
 
 ## Failures
 
