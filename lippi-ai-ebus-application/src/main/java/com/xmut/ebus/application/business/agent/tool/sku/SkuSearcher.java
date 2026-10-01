@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * Demo SKU search pipeline: expand → search → check → pool → rerank → top hits.
  */
-public final class SkuSearcher {
+public class SkuSearcher {
 
     private static final Logger log = LoggerFactory.getLogger(SkuSearcher.class);
 

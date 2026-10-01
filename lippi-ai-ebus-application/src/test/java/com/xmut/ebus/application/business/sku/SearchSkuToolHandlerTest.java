@@ -6,6 +6,10 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.ebus.application.business.agent.tool.sku.MockSkuSearchClient;
 import com.xmut.ebus.application.business.agent.tool.sku.SearchSkuToolHandler;
+import com.xmut.ebus.application.business.agent.tool.sku.SkuReranker;
+import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchPort;
+import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
+import com.xmut.ebus.application.business.agent.tool.sku.SkuSearcher;
 import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
 import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
@@ -31,7 +35,7 @@ class SearchSkuToolHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new SearchSkuToolHandler(new MockSkuSearchClient());
+        handler = handlerFor(new MockSkuSearchClient());
     }
 
     @Test
@@ -57,7 +61,7 @@ class SearchSkuToolHandlerTest {
 
     @Test
     void emptyHitsReturnsFailedResult() {
-        handler = new SearchSkuToolHandler((query, platform, pageSize) -> Collections.emptyList());
+        handler = handlerFor((query, platform, pageSize) -> Collections.emptyList());
         ObjectNode args = JsonNodeFactory.instance.objectNode();
         args.put("query", "无货关键词");
         ToolResult result = handler.handle(
@@ -98,5 +102,9 @@ class SearchSkuToolHandlerTest {
                     assertTrue(context.getBean(ToolCatalog.class).resolve("search_sku").isPresent());
                     assertTrue(context.getBean(ToolCatalog.class).resolve("read_skill").isPresent());
                 });
+    }
+
+    private static SearchSkuToolHandler handlerFor(SkuSearchPort port) {
+        return new SearchSkuToolHandler(new SkuSearcher(port, new SkuSearchProperties(), SkuReranker.identity()));
     }
 }

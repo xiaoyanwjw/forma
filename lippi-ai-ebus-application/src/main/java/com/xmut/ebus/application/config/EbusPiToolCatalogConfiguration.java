@@ -10,9 +10,12 @@ import com.xmut.ebus.application.business.agent.tool.sku.ApifyOkHttpTransport;
 import com.xmut.ebus.application.business.agent.tool.sku.ApifyTaobaoSkuSearchClient;
 import com.xmut.ebus.application.business.agent.tool.sku.FallbackSkuSearchClient;
 import com.xmut.ebus.application.business.agent.tool.sku.MockSkuSearchClient;
+import com.xmut.ebus.application.business.agent.tool.sku.ModelSkuReranker;
 import com.xmut.ebus.application.business.agent.tool.sku.SearchSkuToolHandler;
+import com.xmut.ebus.application.business.agent.tool.sku.SkuReranker;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchPort;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
+import com.xmut.ebus.application.business.agent.tool.sku.SkuSearcher;
 import com.xmut.ebus.common.logging.LoggerUtils;
 import com.xmut.ebus.common.logging.NameValue;
 import org.slf4j.Logger;
@@ -24,7 +27,9 @@ import com.xmut.lims.pi.agent.tool.Tool;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
+import com.xmut.lims.pi.ai.model.ModelProvider;
 import com.xmut.lims.pi.ai.model.ToolSchema;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -69,12 +74,26 @@ public class EbusPiToolCatalogConfiguration {
         return new FallbackSkuSearchClient(apify, mock, actorId);
     }
 
+    @Bean
+    public SkuReranker skuReranker(ObjectProvider<ModelProvider> models, SkuSearchProperties props) {
+        ModelProvider mp = models.getIfAvailable();
+        if (mp == null) {
+            return SkuReranker.identity();
+        }
+        return new ModelSkuReranker(mp, props);
+    }
+
+    @Bean
+    public SkuSearcher skuSearcher(SkuSearchPort port, SkuSearchProperties props, SkuReranker reranker) {
+        return new SkuSearcher(port, props, reranker);
+    }
+
     @Primary
     @Bean
-    public ToolCatalog toolCatalog(SkillCatalog skillCatalog, SkuSearchPort skuSearchPort) {
+    public ToolCatalog toolCatalog(SkillCatalog skillCatalog, SkuSearcher skuSearcher) {
         return InMemoryToolCatalog.of(Arrays.asList(
                 readSkillTool(skillCatalog),
-                searchSkuTool(skuSearchPort),
+                searchSkuTool(skuSearcher),
                 askHumanTool(),
                 writeFileTool(),
                 readFileTool(),
@@ -107,7 +126,7 @@ public class EbusPiToolCatalogConfiguration {
         return new Tool(definition, new ReadSkill(skillCatalog));
     }
 
-    static Tool searchSkuTool(SkuSearchPort port) {
+    static Tool searchSkuTool(SkuSearcher skuSearcher) {
         ObjectNode parameters = new ObjectMapper().createObjectNode();
         parameters.put("type", "object");
         ObjectNode properties = parameters.putObject("properties");
@@ -133,7 +152,7 @@ public class EbusPiToolCatalogConfiguration {
                 .schema(schema)
                 .handlerClass(SearchSkuToolHandler.class.getName())
                 .build();
-        return new Tool(definition, new SearchSkuToolHandler(port));
+        return new Tool(definition, new SearchSkuToolHandler(skuSearcher));
     }
 
     static Tool askHumanTool() {

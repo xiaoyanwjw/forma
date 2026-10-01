@@ -15,7 +15,7 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 
 /**
- * Pi tool {@code search_sku}: query SKUs via {@link SkuSearchPort}.
+ * Pi tool {@code search_sku}: query SKUs via {@link SkuSearcher}.
  */
 public final class SearchSkuToolHandler implements ToolHandler {
 
@@ -26,15 +26,15 @@ public final class SearchSkuToolHandler implements ToolHandler {
     public static final int DEFAULT_PAGE_SIZE = 10;
     public static final int MAX_PAGE_SIZE = 20;
 
-    private final SkuSearchPort skuSearchPort;
+    private final SkuSearcher skuSearcher;
     private final ObjectMapper objectMapper;
 
-    public SearchSkuToolHandler(SkuSearchPort skuSearchPort) {
-        this(skuSearchPort, new ObjectMapper());
+    public SearchSkuToolHandler(SkuSearcher skuSearcher) {
+        this(skuSearcher, new ObjectMapper());
     }
 
-    SearchSkuToolHandler(SkuSearchPort skuSearchPort, ObjectMapper objectMapper) {
-        this.skuSearchPort = skuSearchPort;
+    SearchSkuToolHandler(SkuSearcher skuSearcher, ObjectMapper objectMapper) {
+        this.skuSearcher = skuSearcher;
         this.objectMapper = objectMapper;
     }
 
@@ -48,7 +48,7 @@ public final class SearchSkuToolHandler implements ToolHandler {
             }
             String platform = extractPlatform(call);
             int pageSize = extractPageSize(call);
-            List<SkuSearchHit> hits = skuSearchPort.search(query.trim(), platform, pageSize);
+            List<SkuSearchHit> hits = skuSearcher.search(query.trim(), platform, pageSize);
             if (hits == null || hits.isEmpty()) {
                 return ToolResult.failed(callId, TOOL_NAME, "search_sku empty hits");
             }
