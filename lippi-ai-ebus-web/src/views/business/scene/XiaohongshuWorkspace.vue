@@ -94,6 +94,8 @@ const {
 const lastBilledPrompt = ref('')
 const lastBilledKind = ref<ComputerKind>(null)
 const pendingBilledPrompt = ref('')
+/** Kind of the billed run currently streaming; do not attribute live artifacts via stale computerKind. */
+const inFlightKind = ref<Exclude<ComputerKind, null> | null>(null)
 const feedbackNote = ref('')
 const feedbackBusy = ref(false)
 const feedbackHint = ref('')
@@ -337,6 +339,8 @@ function onBreakHandoff() {
 
 async function runBilledGeneration(text: string, kind: Exclude<ComputerKind, null>) {
   pendingBilledPrompt.value = text
+  inFlightKind.value = kind
+  computerKind.value = kind
   const thinkingId = nextMsgId()
   thinkingMessageId.value = thinkingId
   messages.value.push({
@@ -346,20 +350,24 @@ async function runBilledGeneration(text: string, kind: Exclude<ComputerKind, nul
   })
   scrollChatToBottom()
 
-  await startSkillRun({
-    text,
-    skillId: SKILL_BY_KIND[kind],
-    sceneCode: SCENE_CODE,
-    sceneId: sceneBizId.value ?? undefined,
-    sessionId: sessionId.value ?? undefined,
-  })
-  await finishGenerationMessage({
-    thinkingId,
-    error: skillError.value,
-    artifact: skillArtifact.value,
-    kind,
-    processSnapshot: processEvents.value.length ? [...processEvents.value] : undefined,
-  })
+  try {
+    await startSkillRun({
+      text,
+      skillId: SKILL_BY_KIND[kind],
+      sceneCode: SCENE_CODE,
+      sceneId: sceneBizId.value ?? undefined,
+      sessionId: sessionId.value ?? undefined,
+    })
+    await finishGenerationMessage({
+      thinkingId,
+      error: skillError.value,
+      artifact: skillArtifact.value,
+      kind,
+      processSnapshot: processEvents.value.length ? [...processEvents.value] : undefined,
+    })
+  } finally {
+    inFlightKind.value = null
+  }
 }
 
 async function oneClickRetry() {
@@ -532,8 +540,7 @@ function replayMessagesFromApi(
   rows: SessionMessage[] | null | undefined,
   artifactKind: ComputerKind,
 ): ChatMessage[] {
-  const mapped = artifactKind === 'note' ? 'listing' : 'picks'
-  return toReplayBubbles(rows, mapped).map((bubble) => {
+  return toReplayBubbles(rows, artifactKind).map((bubble) => {
     if (bubble.role === 'user') {
       return {
         id: nextMsgId(),
@@ -546,7 +553,7 @@ function replayMessagesFromApi(
       return {
         id: nextMsgId(),
         role: 'agent' as const,
-        text: synthesizePreviewableStatus(artifactKind)?.text || bubble.content,
+        text: bubble.content,
         presentation: 'console' as const,
         at: bubble.at,
       }
@@ -685,6 +692,7 @@ async function selectSession(item: SessionSummary) {
   lastBilledPrompt.value = ''
   lastBilledKind.value = null
   pendingBilledPrompt.value = ''
+  inFlightKind.value = null
   feedbackNote.value = ''
   feedbackHint.value = ''
   feedbackTag.value = null
@@ -779,6 +787,7 @@ function newTask() {
   lastBilledPrompt.value = ''
   lastBilledKind.value = null
   pendingBilledPrompt.value = ''
+  inFlightKind.value = null
   feedbackNote.value = ''
   feedbackHint.value = ''
   feedbackTag.value = null
@@ -820,8 +829,10 @@ function eventTitle(e: ProcessEvent): string {
 }
 
 watch(skillArtifact, (value) => {
-  if (value?.view && computerKind.value) {
-    setLiveArtifact(computerKind.value, value)
+  const kind = inFlightKind.value
+  if (value?.view && kind) {
+    setLiveArtifact(kind, value)
+    computerKind.value = kind
   }
 })
 

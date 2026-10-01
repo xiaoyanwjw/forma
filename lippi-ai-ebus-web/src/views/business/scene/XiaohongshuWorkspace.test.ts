@@ -355,4 +355,154 @@ describe('XiaohongshuWorkspace', () => {
     expect(body.sessionId).toBe('s-xhs')
     expect(body.text).toMatch(/tp-1/)
   })
+
+  it('second run in the same session keeps Computer on the in-flight kind', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    const pills = mounted.root.querySelectorAll<HTMLButtonElement>(
+      '[data-testid="session-quick-row"] .pill',
+    )
+    const send = () =>
+      mounted.root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement
+
+    pills[0]!.click()
+    await flushUi()
+    send().click()
+    await flushUi()
+    await flushUi()
+    expect(mounted.root.querySelector('.note-handoff-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
+      '租房党厨房收纳第一篇',
+    )
+
+    pills[1]!.click()
+    await flushUi()
+    send().click()
+    await flushUi()
+    await flushUi()
+    expect(mounted.root.querySelector('.note-handoff-btn')).toBeNull()
+    expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('笔记种草稿')
+    expect(mounted.root.querySelector('.computer-body')?.textContent).not.toContain(
+      '租房党厨房收纳第一篇',
+    )
+
+    const topicStatus = Array.from(mounted.root.querySelectorAll('.chat-result-text')).find((el) =>
+      el.textContent?.includes('选题清单'),
+    )
+    expect(topicStatus).toBeTruthy()
+    ;(topicStatus!.closest('.chat-event-status') as HTMLElement).click()
+    await flushUi()
+    expect(mounted.root.querySelector('.note-handoff-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
+      '租房党厨房收纳第一篇',
+    )
+  })
+
+  it('session replay maps xhs artifact types to the matching Computer', async () => {
+    const topicView = sampleTopiclistView()
+    const noteView = {
+      version: 1,
+      title: '笔记种草稿',
+      status: 'settled',
+      blocks: [{ type: 'markdown', text: '## 正文\n硅胶沥水垫分享' }],
+    }
+    const topicDump = JSON.stringify({
+      artifactType: 'xhs_topiclist',
+      view: topicView,
+      artifact: { items: [{ id: 'tp-1', title: '租房党厨房收纳第一篇' }] },
+    })
+    const noteDump = JSON.stringify({
+      artifactType: 'xhs_note',
+      view: noteView,
+      artifact: { titleOptions: ['硅胶沥水垫怎么用'], body: '正文' },
+    })
+    const baseImpl = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.includes('/api/v1/sessions/') && url.includes('/messages')) {
+        return okScenes({
+          items: [
+            { role: 'user', content: TOPIC_TEMPLATE, createdAt: '2026-10-01T08:00:00Z' },
+            {
+              role: 'assistant',
+              content: '```json\n' + topicDump + '\n```',
+              createdAt: '2026-10-01T08:00:10Z',
+            },
+            { role: 'user', content: NOTE_TEMPLATE, createdAt: '2026-10-01T08:01:00Z' },
+            {
+              role: 'assistant',
+              content: '```json\n' + noteDump + '\n```',
+              createdAt: '2026-10-01T08:01:10Z',
+            },
+          ],
+          nextToken: null,
+        })
+      }
+      if (url.includes('/api/v1/sessions/') && url.includes('/latest-artifact')) {
+        const parsed = new URL(url, 'http://local.test')
+        const artifactType = parsed.searchParams.get('artifactType')
+        const meta = {
+          sceneCode: 'xiaohongshu',
+          createdAt: '2026-10-01T08:01:10Z',
+          sessionId: 'sess-xhs',
+        }
+        if (artifactType === 'xhs_topiclist') {
+          return okScenes({
+            id: 'art-topic',
+            artifactType: 'xhs_topiclist',
+            title: '选题清单',
+            view: topicView,
+            ...meta,
+          })
+        }
+        if (artifactType === 'xhs_break') {
+          return okScenes(null)
+        }
+        return okScenes({
+          id: 'art-note',
+          artifactType: 'xhs_note',
+          title: '笔记种草稿',
+          view: noteView,
+          ...meta,
+        })
+      }
+      if (url.includes('/api/v1/sessions') && !url.includes('/api/v1/sessions/')) {
+        return okScenes([
+          {
+            sessionId: 'sess-xhs',
+            title: '厨房收纳种草',
+            sceneCode: 'xiaohongshu',
+            updatedAt: '2026-10-01T08:01:10Z',
+          },
+        ])
+      }
+      return baseImpl(input, init)
+    })
+
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await flushUi()
+    ;(mounted.root.querySelector('[data-testid="session-item"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const chat = mounted.root.querySelector('.chat-scroll')?.textContent || ''
+    expect(chat).toContain('已生成选题清单')
+    expect(chat).toContain('已生成笔记草稿')
+    expect(chat).not.toMatch(/已生成选品成果|已生成上架素材/)
+    expect(mounted.root.querySelector('.note-handoff-btn')).toBeNull()
+    expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('笔记种草稿')
+    expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('硅胶沥水垫分享')
+
+    const topicStatus = Array.from(mounted.root.querySelectorAll('.chat-result-text')).find((el) =>
+      el.textContent?.includes('选题清单'),
+    )
+    expect(topicStatus).toBeTruthy()
+    ;(topicStatus!.closest('.chat-event-status') as HTMLElement).click()
+    await flushUi()
+    expect(mounted.root.querySelector('.note-handoff-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
+      '租房党厨房收纳第一篇',
+    )
+  })
 })

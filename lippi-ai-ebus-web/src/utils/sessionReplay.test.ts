@@ -128,4 +128,32 @@ describe('sessionReplay', () => {
     expect(bubbles[1]?.content).toMatch(/已生成选品成果/)
     expect(bubbles[1]?.content).not.toMatch(/上架素材/)
   })
+
+  it('toReplayBubbles maps xhs artifactType dumps to topiclist/note/break status', () => {
+    const topicDump =
+      '```json\n{"artifactType":"xhs_topiclist","view":{"version":1,"blocks":[{"type":"list","items":[{"id":"tp-1"}]}]},"artifact":{"items":[{"id":"tp-1"}]}}\n```'
+    const noteDump =
+      '```json\n{"artifactType":"xhs_note","view":{"version":1,"blocks":[{"type":"markdown","text":"正文"}]},"artifact":{"titleOptions":["a"],"body":"b"}}\n```'
+    const breakDump =
+      '```json\n{"artifactType":"xhs_break","view":{"version":1,"blocks":[{"type":"markdown","text":"拆解"}]},"artifact":{"skeleton":"骨架","rewrite":"改写","sourceBody":"原文"}}\n```'
+    const bubbles = toReplayBubbles(
+      [
+        { role: 'user', content: '请帮我生成厨房收纳选题清单' },
+        { role: 'assistant', content: topicDump },
+        { role: 'user', content: '请为商品写一篇种草笔记' },
+        { role: 'assistant', content: noteDump },
+        { role: 'user', content: '请拆解这篇笔记' },
+        { role: 'assistant', content: breakDump },
+      ],
+      'note',
+    )
+    expect(bubbles.map((b) => [b.role, b.kind, b.content])).toEqual([
+      ['user', 'text', '请帮我生成厨房收纳选题清单'],
+      ['assistant', 'artifact', '已生成选题清单，右侧 Computer 可查看。'],
+      ['user', 'text', '请为商品写一篇种草笔记'],
+      ['assistant', 'artifact', '已生成笔记草稿，右侧 Computer 可查看。'],
+      ['user', 'text', '请拆解这篇笔记'],
+      ['assistant', 'artifact', '已生成爆文拆解，右侧 Computer 可查看。'],
+    ])
+  })
 })

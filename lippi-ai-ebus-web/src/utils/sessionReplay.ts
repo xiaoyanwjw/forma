@@ -41,22 +41,58 @@ export function parseReplayTime(createdAt?: string | null): number | undefined {
   return Number.isNaN(ms) ? undefined : ms
 }
 
-function statusTextFor(artifactKind: 'picks' | 'listing' | null | undefined): string {
+export type ReplayArtifactKind = 'picks' | 'listing' | 'topiclist' | 'note' | 'break'
+
+function statusTextFor(artifactKind: ReplayArtifactKind | null | undefined): string {
   if (artifactKind === 'listing') {
     return '已生成上架素材，右侧 Computer 可查看主图位与文案。'
+  }
+  if (artifactKind === 'note') {
+    return '已生成笔记草稿，右侧 Computer 可查看。'
+  }
+  if (artifactKind === 'break') {
+    return '已生成爆文拆解，右侧 Computer 可查看。'
+  }
+  if (artifactKind === 'topiclist') {
+    return '已生成选题清单，右侧 Computer 可查看。'
   }
   return '已生成选品成果，右侧 Computer 可查看。'
 }
 
+function inferXhsKindFromDump(content: string): 'topiclist' | 'note' | 'break' | null {
+  const t = content || ''
+  if (/"artifactType"\s*:\s*"xhs_note"/.test(t) || /"persistAs"\s*:\s*"xhs_note"/.test(t)) {
+    return 'note'
+  }
+  if (/"artifactType"\s*:\s*"xhs_break"/.test(t) || /"persistAs"\s*:\s*"xhs_break"/.test(t)) {
+    return 'break'
+  }
+  if (/"artifactType"\s*:\s*"xhs_topiclist"/.test(t) || /"persistAs"\s*:\s*"xhs_topiclist"/.test(t)) {
+    return 'topiclist'
+  }
+  if (/"titleOptions"\s*:/.test(t) || /"imageHints"\s*:/.test(t)) {
+    return 'note'
+  }
+  if (/"skeleton"\s*:/.test(t) || /"sourceBody"\s*:/.test(t) || /"rewrite"\s*:/.test(t)) {
+    return 'break'
+  }
+  if (/"id"\s*:\s*"tp-\d+"/.test(t) || /"sourceNoteUrl"\s*:/.test(t)) {
+    return 'topiclist'
+  }
+  return null
+}
+
 /**
- * 从成果 dump 猜类型，避免整段回放共用「最新 Computer kind」导致选品被标成上架。
- * listing 信号优先；否则有选品条目信号 → picks；再回退到传入的 artifactKind。
+ * 从成果 dump 猜类型，避免整段回放共用「最新 Computer kind」。
+ * 小红书 artifactType 优先；再 listing / 选品信号；最后回退传入的 artifactKind。
  */
 export function inferArtifactKindFromDump(
   content: string,
-  fallback?: 'picks' | 'listing' | null,
-): 'picks' | 'listing' | null {
+  fallback?: ReplayArtifactKind | null,
+): ReplayArtifactKind | null {
   const t = content || ''
+  const xhs = inferXhsKindFromDump(t)
+  if (xhs) return xhs
   if (
     /"heroPlan"\s*:/.test(t) ||
     /"detailTitle"\s*:/.test(t) ||
@@ -80,11 +116,11 @@ export function inferArtifactKindFromDump(
  * 把 pi_session 的 user/assistant/tool 循环收成「用户 ↔ 一条 agent」交错列表。
  * - 丢掉 tool / system / 空 content
  * - 每一轮（一条 user + 其后 assistant*）只产出一条 agent：有成果 JSON → STATUS；否则取最后一条非 JSON 助手文案
- * - STATUS 文案按该轮 dump 推断 picks/listing，不单靠最新 Computer kind
+ * - STATUS 文案按该轮 dump 推断类型，不单靠最新 Computer kind
  */
 export function toReplayBubbles(
   rows: SessionReplayRow[] | null | undefined,
-  artifactKind?: 'picks' | 'listing' | null,
+  artifactKind?: ReplayArtifactKind | null,
 ): ReplayBubble[] {
   const cleaned: { role: 'user' | 'assistant'; content: string; at?: number }[] = []
   if (!rows) return []
@@ -125,7 +161,7 @@ export function toReplayBubbles(
 
 function collapseAssistants(
   assistants: { content: string; at?: number }[],
-  artifactKind: 'picks' | 'listing' | null | undefined,
+  artifactKind: ReplayArtifactKind | null | undefined,
 ): ReplayBubble | null {
   if (!assistants.length) return null
   // HITL：同一轮可能先有策划 dump、后有执行 dump → 取最后一条成果 JSON
