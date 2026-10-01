@@ -44,8 +44,8 @@ public final class BashToolHandler implements ToolHandler {
             builder.directory(runDir.toFile());
             builder.redirectErrorStream(true);
             Process process = builder.start();
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            Thread reader = new Thread(copyStream(process.getInputStream(), buffer), "bash-tool-stdout");
+            CappedOutput capture = new CappedOutput();
+            Thread reader = new Thread(copyStream(process.getInputStream(), capture), "bash-tool-stdout");
             reader.setDaemon(true);
             reader.start();
             boolean finished = process.waitFor(TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -55,9 +55,10 @@ public final class BashToolHandler implements ToolHandler {
                 return ToolResult.failed(callId, TOOL_NAME, "command timed out");
             }
             reader.join(TIMEOUT_MS);
-            String output = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
-            if (output.length() > MAX_OUTPUT_CHARS) {
-                output = output.substring(0, MAX_OUTPUT_CHARS) + "\n...[truncated]";
+            String output = capture.toTruncatedString();
+            int exit = process.exitValue();
+            if (exit != 0) {
+                return ToolResult.failed(callId, TOOL_NAME, "exit " + exit + ": " + output);
             }
             return ToolResult.ok(callId, TOOL_NAME, output);
         } catch (InterruptedException ex) {
@@ -69,7 +70,7 @@ public final class BashToolHandler implements ToolHandler {
         }
     }
 
-    private static Runnable copyStream(final InputStream in, final ByteArrayOutputStream out) {
+    private static Runnable copyStream(final InputStream in, final CappedOutput out) {
         return new Runnable() {
             @Override
             public void run() {
@@ -77,12 +78,47 @@ public final class BashToolHandler implements ToolHandler {
                 try {
                     int n;
                     while ((n = in.read(chunk)) >= 0) {
-                        out.write(chunk, 0, n);
+                        out.accept(chunk, n);
                     }
                 } catch (IOException ignored) {
                     // process closed
                 }
             }
         };
+    }
+
+    /**
+     * Captures at most {@link #MAX_OUTPUT_CHARS} bytes; extra stdout is discarded, not buffered.
+     */
+    static final class CappedOutput {
+        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        private boolean truncated;
+
+        synchronized void accept(byte[] chunk, int n) {
+            if (n <= 0) {
+                return;
+            }
+            if (buffer.size() >= MAX_OUTPUT_CHARS) {
+                truncated = true;
+                return;
+            }
+            int allowed = MAX_OUTPUT_CHARS - buffer.size();
+            int toWrite = Math.min(n, allowed);
+            buffer.write(chunk, 0, toWrite);
+            if (toWrite < n) {
+                truncated = true;
+            }
+        }
+
+        synchronized String toTruncatedString() {
+            String output = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+            if (truncated) {
+                if (output.length() > MAX_OUTPUT_CHARS) {
+                    output = output.substring(0, MAX_OUTPUT_CHARS);
+                }
+                return output + "\n...[truncated]";
+            }
+            return output;
+        }
     }
 }

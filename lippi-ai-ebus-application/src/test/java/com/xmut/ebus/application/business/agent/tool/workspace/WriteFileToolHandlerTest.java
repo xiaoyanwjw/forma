@@ -7,7 +7,10 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.junit.jupiter.api.Assumptions;
+
 import static com.xmut.ebus.application.business.agent.tool.workspace.WorkspaceToolTestSupport.call;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,5 +44,44 @@ class WriteFileToolHandlerTest {
                 new ToolContext("r", "t", null, null));
         assertFalse(r.isSuccess());
         assertTrue(r.getErrorMessage().contains("workspace root missing"));
+    }
+
+    @Test
+    void write_emptyContent_createsEmptyFile() throws Exception {
+        Path run = Files.createTempDirectory("ws-");
+        ToolContext ctx = new ToolContext("r", "t", null, run.toString());
+        ToolResult w = new WriteFileToolHandler().handle(
+                call("write_file", "{\"path\":\"empty.txt\",\"content\":\"\"}"), ctx);
+        assertTrue(w.isSuccess());
+        Path written = run.resolve("empty.txt");
+        assertTrue(Files.isRegularFile(written));
+        assertEquals(0, Files.size(written));
+    }
+
+    @Test
+    void write_rejectsMissingContent() throws Exception {
+        Path run = Files.createTempDirectory("ws-");
+        ToolResult r = new WriteFileToolHandler().handle(
+                call("write_file", "{\"path\":\"a.txt\"}"),
+                new ToolContext("r", "t", null, run.toString()));
+        assertFalse(r.isSuccess());
+    }
+
+    @Test
+    void write_rejectsSymlinkEscape() throws Exception {
+        Path run = Files.createTempDirectory("ws-");
+        Path outside = Files.createTempFile("ws-outside-", ".txt");
+        Path link = run.resolve("leak");
+        try {
+            Files.createSymbolicLink(link, outside);
+        } catch (Exception ex) {
+            Assumptions.assumeTrue(false, "symbolic links not available: " + ex);
+        }
+        ToolResult r = new WriteFileToolHandler().handle(
+                call("write_file", "{\"path\":\"leak\",\"content\":\"x\"}"),
+                new ToolContext("r", "t", null, run.toString()));
+        assertFalse(r.isSuccess());
+        assertTrue(r.getErrorMessage().contains("escapes"));
+        assertEquals("", new String(Files.readAllBytes(outside)));
     }
 }

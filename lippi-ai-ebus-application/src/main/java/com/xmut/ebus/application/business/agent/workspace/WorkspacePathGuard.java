@@ -2,6 +2,8 @@ package com.xmut.ebus.application.business.agent.workspace;
 
 import com.xmut.ebus.common.util.StringUtils;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -26,6 +28,35 @@ public final class WorkspacePathGuard {
         if (!normalized.startsWith(normalizedRun)) {
             throw new IllegalArgumentException("path escapes run directory");
         }
+        assertNoSymlinkEscape(normalizedRun, normalized);
         return normalized;
+    }
+
+    /**
+     * After lexical normalize, reject targets whose real path (or a symlink parent)
+     * resolves outside the run directory.
+     */
+    static void assertNoSymlinkEscape(Path runDirNormalized, Path target) {
+        try {
+            Path realRun = Files.exists(runDirNormalized)
+                    ? runDirNormalized.toRealPath()
+                    : runDirNormalized.toAbsolutePath().normalize();
+            Path cursor = target;
+            while (cursor != null) {
+                if (Files.isSymbolicLink(cursor) || Files.exists(cursor)) {
+                    Path real = cursor.toRealPath();
+                    if (!real.startsWith(realRun)) {
+                        throw new IllegalArgumentException("path escapes run directory");
+                    }
+                    break;
+                }
+                if (cursor.normalize().equals(runDirNormalized)) {
+                    break;
+                }
+                cursor = cursor.getParent();
+            }
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("path escapes run directory");
+        }
     }
 }

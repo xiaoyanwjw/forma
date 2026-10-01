@@ -31,8 +31,7 @@ final class WorkspaceToolSupport {
         if (node == null || node.isNull()) {
             return null;
         }
-        String value = node.asText(null);
-        return StringUtils.hasText(value) ? value : null;
+        return node.asText(null);
     }
 
     static Path resolve(String workspaceRoot, String relative) {

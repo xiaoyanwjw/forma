@@ -28,4 +28,17 @@ class WorkspacePathGuardTest {
         assertTrue(out.startsWith(run));
         assertEquals("final.json", out.getFileName().toString());
     }
+
+    @Test
+    void rejectsSymlinkEscape() throws Exception {
+        Path run = Files.createTempDirectory("ebus-ws-");
+        Path outside = Files.createTempFile("ebus-outside-", ".txt");
+        try {
+            Files.createSymbolicLink(run.resolve("leak"), outside);
+        } catch (Exception ex) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false, "symbolic links not available: " + ex);
+        }
+        assertThrows(IllegalArgumentException.class,
+                () -> WorkspacePathGuard.resolveUnder(run, "leak"));
+    }
 }

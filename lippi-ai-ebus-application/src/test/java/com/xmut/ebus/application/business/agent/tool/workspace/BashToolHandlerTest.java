@@ -31,4 +31,15 @@ class BashToolHandlerTest {
         assertFalse(r.isSuccess());
         assertTrue(r.getErrorMessage().contains("workspace root missing"));
     }
+
+    @Test
+    void bash_nonZeroExit_fails() throws Exception {
+        Path run = Files.createTempDirectory("ws-");
+        ToolResult r = new BashToolHandler().handle(
+                call("bash", "{\"command\":\"echo boom >&2; exit 7\"}"),
+                new ToolContext("r", "t", null, run.toString()));
+        assertFalse(r.isSuccess());
+        assertTrue(r.getErrorMessage().contains("exit 7"));
+        assertTrue(r.getErrorMessage().contains("boom"));
+    }
 }
