@@ -10,6 +10,7 @@ import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.logging.LoggerUtils;
 import com.xmut.ebus.common.logging.NameValue;
 import com.xmut.ebus.common.util.StringUtils;
+import com.xmut.ebus.application.business.agent.workspace.RunWorkspaceService;
 import com.xmut.ebus.domain.business.agent.model.GenerationRun;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import com.xmut.lims.pi.ai.message.Message;
 
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -42,19 +44,22 @@ public class SkuHitlInterceptor
     private final ComputerViewResolver computerViewResolver;
     private final GenerationRunRepository generationRunRepository;
     private final Clock clock;
+    private final RunWorkspaceService runWorkspaceService;
 
     public SkuHitlInterceptor(CreditHoldSupport creditHoldSupport,
                               GenerationOutputParser generationOutputParser,
                               ArtifactPersistPlugin artifactPersistPlugin,
                               ComputerViewResolver computerViewResolver,
                               GenerationRunRepository generationRunRepository,
-                              Clock clock) {
+                              Clock clock,
+                              RunWorkspaceService runWorkspaceService) {
         this.creditHoldSupport = creditHoldSupport;
         this.generationOutputParser = generationOutputParser;
         this.artifactPersistPlugin = artifactPersistPlugin;
         this.computerViewResolver = computerViewResolver;
         this.generationRunRepository = generationRunRepository;
         this.clock = clock;
+        this.runWorkspaceService = runWorkspaceService;
     }
 
     @Override
@@ -152,7 +157,7 @@ public class SkuHitlInterceptor
         if (!StringUtils.hasText(planText)) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
         }
-        ParsedGenerationOutput parsed = generationOutputParser.parse(planText);
+        ParsedGenerationOutput parsed = parsePlan(planText, billedCtx);
         if (parsed.getRawView() == null
                 || !ArtifactPersistPlugin.isUsableSkuPlanPayload(parsed.getBusinessPayload())) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
@@ -199,7 +204,14 @@ public class SkuHitlInterceptor
         if (!StringUtils.hasText(text)) {
             return false;
         }
-        ParsedGenerationOutput parsed = generationOutputParser.parse(text);
+        ParsedGenerationOutput parsed;
+        try {
+            parsed = generationOutputParser.parse(text, runDir(ctx));
+        } catch (IllegalArgumentException ex) {
+            // 指针已出现但文件未就绪：记下原文，挂起落库时再解析并走失败收尾。
+            ctx.setAssistantTextCandidate(text.trim());
+            return true;
+        }
         if (parsed.getRawView() == null || parsed.getRawView().isEmpty()) {
             return false;
         }
@@ -208,6 +220,20 @@ public class SkuHitlInterceptor
         }
         ctx.setAssistantTextCandidate(text.trim());
         return true;
+    }
+
+    private Path runDir(BilledRunContext ctx) {
+        GenerationRunContext run = ctx.getRun();
+        return runWorkspaceService.runDir(run.getSessionId(), run.getRunId());
+    }
+
+    private ParsedGenerationOutput parsePlan(String text, BilledRunContext ctx) {
+        try {
+            return generationOutputParser.parse(text, runDir(ctx));
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID,
+                    StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果文件无效");
+        }
     }
 
     private static Map<String, Object> toArtifactReady(PersistedGenerationArtifact persisted,

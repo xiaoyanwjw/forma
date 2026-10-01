@@ -18,6 +18,7 @@ import com.xmut.ebus.application.business.agent.support.ParsedGenerationOutput;
 import com.xmut.ebus.application.business.agent.support.PersistedGenerationArtifact;
 import com.xmut.ebus.application.business.agent.support.SkuHitlInterceptor;
 import com.xmut.ebus.application.business.agent.support.SkillRunProfile;
+import com.xmut.ebus.application.business.agent.workspace.RunWorkspaceService;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.ViewProjectContext;
 import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
@@ -48,6 +49,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -104,6 +107,7 @@ public class AgentApplicationService {
     private final List<BilledSuspendedHandler> billedSuspendedHandlers;
     private final Checkpointer checkpointer;
     private final Clock clock;
+    private final RunWorkspaceService runWorkspaceService;
 
     /**
      * 首跑同步门闩：场景绑定 + 预占 + 落 GenerationRun；随后由 Controller 开 SSE 调 {@link #streamGenerationRun}。
@@ -291,12 +295,8 @@ public class AgentApplicationService {
 
             subscription = agentSession.subscribe(listener);
 
-            agentSession.prompt(PromptRequest.builder()
-                    .runId(context.getRunId())
-                    .sessionId(context.getSessionId())
-                    .text(context.getPromptText())
-                    .skillId(profile.getSkillId())
-                    .build());
+            Path runDir = ensureRunWorkspace(context.getSessionId(), context.getRunId());
+            agentSession.prompt(promptRequest(context, profile, runDir));
 
             if (aborted.get()) {
                 boolean releaseOk = creditHoldSupport.release(context.getUserId(), context.getHoldId(), context.getRunId());
@@ -388,12 +388,8 @@ public class AgentApplicationService {
             });
 
             // 5. 调用 AgentSession.prompt
-            TurnResult result = agentSession.prompt(PromptRequest.builder()
-                    .runId(context.getRunId())
-                    .sessionId(context.getSessionId())
-                    .text(context.getPromptText())
-                    .skillId(profile.getSkillId())
-                    .build());
+            Path runDir = ensureRunWorkspace(context.getSessionId(), context.getRunId());
+            TurnResult result = agentSession.prompt(promptRequest(context, profile, runDir));
 
             loggingAgentUsage(context, result);
 
@@ -427,7 +423,7 @@ public class AgentApplicationService {
                 emit(sink, Ad4SseEvent.of(Ad4EventName.MESSAGE_DELTA, delta));
             }
 
-            ParsedGenerationOutput parsed = generationOutputParser.parse(finalResponse);
+            ParsedGenerationOutput parsed = parseFinalOutput(finalResponse, runDir);
             Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                     .skillBound(profile.isSkillBound())
                     .finalResponse(finalResponse)
@@ -570,7 +566,8 @@ public class AgentApplicationService {
                 }
             });
 
-            // 5. 调用 AgentSession.resume
+            // 5. 确保同 run 工作区仍在，再调用 AgentSession.resume
+            Path runDir = ensureRunWorkspace(context.getSessionId(), context.getRunId());
             TurnResult result = agentSession.resume(ResumeRequest.builder()
                     .runId(runId)
                     .sessionId(context.getSessionId())
@@ -610,7 +607,7 @@ public class AgentApplicationService {
                 delta.put("text", finalResponse);
                 emit(sink, Ad4SseEvent.of(Ad4EventName.MESSAGE_DELTA, delta));
             }
-            ParsedGenerationOutput parsed = generationOutputParser.parse(finalResponse);
+            ParsedGenerationOutput parsed = parseFinalOutput(finalResponse, runDir);
             Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                     .skillBound(profile.isSkillBound())
                     .finalResponse(finalResponse)
@@ -773,12 +770,42 @@ public class AgentApplicationService {
                     NameValue.create("artifactRef", persisted.getArtifactRef()));
         }
 
+        runWorkspaceService.deleteRunDirQuietly(context.getSessionId(), context.getRunId());
+
         LoggerUtils.success(log, AgentApplicationService.class, "streamGenerationRun",
                 NameValue.create("userId", context.getUserId()),
                 NameValue.create("runId", context.getRunId()),
                 NameValue.create("artifactRef", persisted.getArtifactRef()),
                 NameValue.create("skillId", profile.getSkillId()),
                 NameValue.create("skillBound", profile.isSkillBound()));
+    }
+
+    private Path ensureRunWorkspace(String sessionId, String runId) {
+        try {
+            return runWorkspaceService.ensureRunDir(sessionId, runId);
+        } catch (IOException ex) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR,
+                    StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "工作区创建失败");
+        }
+    }
+
+    private static PromptRequest promptRequest(GenerationRunContext context, SkillRunProfile profile, Path runDir) {
+        return PromptRequest.builder()
+                .runId(context.getRunId())
+                .sessionId(context.getSessionId())
+                .text(context.getPromptText())
+                .skillId(profile.getSkillId())
+                .workspaceRoot(runDir.toAbsolutePath().toString())
+                .build();
+    }
+
+    private ParsedGenerationOutput parseFinalOutput(String finalResponse, Path runDir) {
+        try {
+            return generationOutputParser.parse(finalResponse, runDir);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID,
+                    StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果文件无效");
+        }
     }
 
     private static String resolveResumeOptionId(String optionId, String freeText) {

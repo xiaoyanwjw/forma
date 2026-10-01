@@ -5,6 +5,7 @@ import com.xmut.ebus.application.business.agent.command.StartGenerationRunComman
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
 import com.xmut.ebus.application.business.agent.support.*;
 import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
+import com.xmut.ebus.application.business.agent.workspace.RunWorkspaceService;
 import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
 import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandlerTest;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
@@ -44,11 +45,15 @@ import com.xmut.lims.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -107,19 +112,28 @@ class AgentApplicationServiceTest {
     private ArtifactPersistPlugin artifactPersistPlugin;
     @Mock
     private Checkpointer checkpointer;
+    @Mock
+    private RunWorkspaceService runWorkspaceService;
+
+    @TempDir
+    Path tempWorkspace;
 
     private MediaStore mediaStore;
     private ListingMediaMountSupport listingMediaMountSupport;
     private AgentApplicationService service;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         org.mockito.Mockito.lenient().when(artifactPersistPlugin.persist(
                         anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap()))
                 .thenReturn(new PersistedGenerationArtifact("art-1", Collections.<String, Object>emptyMap()));
         org.mockito.Mockito.lenient().when(checkpointer.loadLatest(anyString()))
                 .thenReturn(Optional.of(new Checkpoint(
                         "cp-1", "run", 1, "tools", null, NOW, Collections.<String, Object>emptyMap())));
+        org.mockito.Mockito.lenient().when(runWorkspaceService.ensureRunDir(anyString(), anyString()))
+                .thenReturn(tempWorkspace);
+        org.mockito.Mockito.lenient().when(runWorkspaceService.runDir(anyString(), anyString()))
+                .thenReturn(tempWorkspace);
         mediaStore = new FakeMediaStore();
         listingMediaMountSupport = new ListingMediaMountSupport(mediaStore);
         service = newService(defaultViewResolver());
@@ -134,7 +148,8 @@ class AgentApplicationServiceTest {
                 artifactPersistPlugin,
                 viewResolver,
                 generationRunRepository,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                runWorkspaceService);
         return new AgentApplicationService(
                 new CreditHoldSupport(creditApplicationService),
                 generationRunRepository,
@@ -151,7 +166,8 @@ class AgentApplicationServiceTest {
                 java.util.Collections.<BilledRunListener>singletonList(listingHitl),
                 java.util.Collections.<BilledSuspendedHandler>singletonList(listingHitl),
                 checkpointer,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                runWorkspaceService);
     }
 
     private static ComputerViewResolver defaultViewResolver() {
@@ -832,6 +848,122 @@ class AgentApplicationServiceTest {
         verify(creditApplicationService, never()).release(anyString(), anyString());
         verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-nosearch"), eq(ECOM_SCENE_CODE),
                 eq(SkillRunProfile.PERSIST_PICKLIST), anyMap(), anyMap());
+        verify(runWorkspaceService).deleteRunDirQuietly("session-pl-nosearch", "run-pl-nosearch");
+    }
+
+    @Test
+    void promptReceivesWorkspaceRoot() throws Exception {
+        GenerationRunContext ctx = picklistCtx("run-ws", "session-ws");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-ws", "session-ws", VALID_PICKLIST_JSON,
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-ws")).thenReturn(Optional.of(
+                GenerationRun.start("run-ws", USER_ID, HOLD_ID, "session-ws",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        service.streamGenerationRun(ctx, new ArrayList<Ad4SseEvent>()::add);
+
+        ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
+        verify(agentSession).prompt(promptCaptor.capture());
+        assertEquals(tempWorkspace.toAbsolutePath().toString(), promptCaptor.getValue().getWorkspaceRoot());
+        verify(runWorkspaceService).ensureRunDir("session-ws", "run-ws");
+    }
+
+    @Test
+    void dryPromptReceivesWorkspaceRoot() throws Exception {
+        GenerationRunContext ctx = emptyCtx("run-ws-dry", "session-ws-dry");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-ws-dry", "session-ws-dry", "stub",
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-ws-dry")).thenReturn(Optional.of(
+                GenerationRun.start("run-ws-dry", USER_ID, HOLD_ID, "session-ws-dry",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        service.streamGenerationRun(ctx, new ArrayList<Ad4SseEvent>()::add);
+
+        ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
+        verify(agentSession).prompt(promptCaptor.capture());
+        assertEquals(tempWorkspace.toAbsolutePath().toString(), promptCaptor.getValue().getWorkspaceRoot());
+        verify(runWorkspaceService).ensureRunDir("session-ws-dry", "run-ws-dry");
+        verify(runWorkspaceService, never()).deleteRunDirQuietly(anyString(), anyString());
+    }
+
+    @Test
+    void outputPointerMissing_releasesWithoutSettle() {
+        GenerationRunContext ctx = picklistCtx("run-ptr-miss", "session-ptr-miss");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-ptr-miss", "session-ptr-miss", "{\"output\":\"missing.json\"}",
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-ptr-miss")).thenReturn(Optional.of(
+                GenerationRun.start("run-ptr-miss", USER_ID, HOLD_ID, "session-ptr-miss",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        assertEquals("output file missing: missing.json", failed.getData().get("reason"));
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
+        verify(runWorkspaceService, never()).deleteRunDirQuietly(anyString(), anyString());
+    }
+
+    @Test
+    void outputPointerFile_settlesAndDeletesWorkspace() throws Exception {
+        Files.write(tempWorkspace.resolve("final.json"),
+                VALID_PICKLIST_JSON.getBytes(StandardCharsets.UTF_8));
+        GenerationRunContext ctx = picklistCtx("run-ptr-ok", "session-ptr-ok");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-ptr-ok", "session-ptr-ok", "{\"output\":\"final.json\"}",
+                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+        when(generationRunRepository.findById("run-ptr-ok")).thenReturn(Optional.of(
+                GenerationRun.start("run-ptr-ok", USER_ID, HOLD_ID, "session-ptr-ok",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        assertEquals(Ad4EventName.RUN_SETTLED, events.get(events.size() - 1).getName());
+        verify(creditApplicationService).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).release(anyString(), anyString());
+        verify(runWorkspaceService).deleteRunDirQuietly("session-ptr-ok", "run-ptr-ok");
+    }
+
+    @Test
+    void listingPlanPointerMissing_releasesWithoutSettle() {
+        GenerationRunContext ctx = listingCtx("run-plan-ptr", "session-plan-ptr");
+        stubEcommercePack();
+        stubListingAskHumanSuspend("run-plan-ptr", "session-plan-ptr",
+                "{\"output\":\"plan/final.json\"}", ASK_CALL_ID);
+        when(generationRunRepository.findById("run-plan-ptr")).thenReturn(Optional.of(
+                GenerationRun.start("run-plan-ptr", USER_ID, HOLD_ID, "session-plan-ptr",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE,
+                        SceneCapabilityPackLoader.SKILL_SKULIST, NOW)));
+
+        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        service.streamGenerationRun(ctx, events::add);
+
+        Ad4SseEvent failed = events.get(events.size() - 1);
+        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        assertEquals("output file missing: plan/final.json", failed.getData().get("reason"));
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(runWorkspaceService, never()).deleteRunDirQuietly(anyString(), anyString());
     }
 
     @Test
@@ -1225,6 +1357,7 @@ class AgentApplicationServiceTest {
                 eq(USER_ID), eq("run-listing-plan"), eq(ECOM_SCENE_CODE),
                 eq(SkillRunProfile.PERSIST_LISTING_PLAN), anyMap(), anyMap());
         assertTrue(ctx.isSettledOnSuspended());
+        verify(runWorkspaceService, never()).deleteRunDirQuietly(anyString(), anyString());
     }
 
     @Test
@@ -1317,7 +1450,7 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void listing_confirm_reservesExec_andSettlesSku() {
+    void listing_confirm_reservesExec_andSettlesSku() throws Exception {
         GenerationRunContext ctx = listingCtx("run-listing-confirm", "session-listing-confirm");
         GenerationRun run = GenerationRun.start("run-listing-confirm", USER_ID, HOLD_ID,
                 "session-listing-confirm", ECOM_SCENE_ID, ECOM_SCENE_CODE,
@@ -1363,6 +1496,8 @@ class AgentApplicationServiceTest {
                 eq(USER_ID), eq("run-listing-confirm"), eq(ECOM_SCENE_CODE),
                 eq(SkillRunProfile.PERSIST_SKU), anyMap(), anyMap());
         assertEquals(GenerationRunStatus.SETTLED, run.getStatus());
+        verify(runWorkspaceService, times(2)).ensureRunDir("session-listing-confirm", "run-listing-confirm");
+        verify(runWorkspaceService, times(1)).deleteRunDirQuietly("session-listing-confirm", "run-listing-confirm");
     }
 
     @Test
