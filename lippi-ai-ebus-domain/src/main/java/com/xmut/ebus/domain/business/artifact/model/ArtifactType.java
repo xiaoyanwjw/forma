@@ -8,7 +8,10 @@ public enum ArtifactType {
     PICKLIST("picklist"),
     SKU("sku"),
     LISTING_PLAN("listing_plan"),
-    CHAT("chat");
+    CHAT("chat"),
+    XHS_TOPICLIST("xhs_topiclist"),
+    XHS_NOTE("xhs_note"),
+    XHS_BREAK("xhs_break");
 
     private final String code;
 

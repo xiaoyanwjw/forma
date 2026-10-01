@@ -145,6 +145,39 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
+    void persist_xhsTopiclist_mapsType_andRequiresNonEmptyViewAndArtifact() {
+        Map<String, Object> artifact = new LinkedHashMap<String, Object>();
+        artifact.put("title", "选题清单");
+        PersistedGenerationArtifact out = plugin.persist(
+                "u1", "r1", "xiaohongshu", SkillRunProfile.PERSIST_XHS_TOPICLIST,
+                listViewMap(), artifact);
+        assertNotNull(out.getArtifactRef());
+        ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
+        verify(artifactRepository).save(cap.capture());
+        assertEquals(ArtifactType.XHS_TOPICLIST, cap.getValue().getType());
+    }
+
+    @Test
+    void persist_xhsNote_rejectsEmptyArtifact() {
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "xiaohongshu", SkillRunProfile.PERSIST_XHS_NOTE,
+                        listViewMap(), Collections.<String, Object>emptyMap()));
+        assertEquals(ArtifactPersistPlugin.MSG_XHS_UNUSABLE, ex.getMessage());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_xhsBreak_rejectsEmptyView() {
+        Map<String, Object> artifact = new LinkedHashMap<String, Object>();
+        artifact.put("title", "爆文拆解");
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "xiaohongshu", SkillRunProfile.PERSIST_XHS_BREAK,
+                        Collections.<String, Object>emptyMap(), artifact));
+        assertEquals(ArtifactPersistPlugin.MSG_XHS_UNUSABLE, ex.getMessage());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
     void persist_listingPlan_acceptsMinimalPlan() {
         PersistedGenerationArtifact out = plugin.persist(
                 "u1", "r1", "ecommerce", SkillRunProfile.PERSIST_LISTING_PLAN, planView(), usablePlanPayload());

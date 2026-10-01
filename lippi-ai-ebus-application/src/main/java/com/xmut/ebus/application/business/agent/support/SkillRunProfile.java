@@ -14,6 +14,9 @@ public final class SkillRunProfile {
     public static final String PERSIST_PICKLIST = "picklist";
     public static final String PERSIST_SKU = "sku";
     public static final String PERSIST_LISTING_PLAN = "listing_plan";
+    public static final String PERSIST_XHS_TOPICLIST = "xhs_topiclist";
+    public static final String PERSIST_XHS_NOTE = "xhs_note";
+    public static final String PERSIST_XHS_BREAK = "xhs_break";
 
     private final String skillId;
     private final boolean settleEnabled;
@@ -57,6 +60,21 @@ public final class SkillRunProfile {
                 SceneCapabilityPackLoader.SKILL_SKULIST, true, PERSIST_SKU, true, false, true);
     }
 
+    public static SkillRunProfile billedXhsTopiclist() {
+        return new SkillRunProfile(
+                SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST, true, PERSIST_XHS_TOPICLIST, true, false, true);
+    }
+
+    public static SkillRunProfile billedXhsNote() {
+        return new SkillRunProfile(
+                SceneCapabilityPackLoader.SKILL_XHS_NOTE, true, PERSIST_XHS_NOTE, true, false, true);
+    }
+
+    public static SkillRunProfile billedXhsBreak() {
+        return new SkillRunProfile(
+                SceneCapabilityPackLoader.SKILL_XHS_BREAK, true, PERSIST_XHS_BREAK, true, false, true);
+    }
+
     /**
      * Resolve profile from API flags.
      * <ul>
@@ -78,6 +96,15 @@ public final class SkillRunProfile {
         }
         if (SceneCapabilityPackLoader.SKILL_SKULIST.equals(id)) {
             return billedListing();
+        }
+        if (SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST.equals(id)) {
+            return billedXhsTopiclist();
+        }
+        if (SceneCapabilityPackLoader.SKILL_XHS_NOTE.equals(id)) {
+            return billedXhsNote();
+        }
+        if (SceneCapabilityPackLoader.SKILL_XHS_BREAK.equals(id)) {
+            return billedXhsBreak();
         }
         throw new BusinessException(ErrorCode.PARAM_INVALID, "暂不支持该 Skill 计费生成: " + id);
     }
@@ -114,5 +141,17 @@ public final class SkillRunProfile {
     /** Billed Listing：persist sku；系统挂载占位主图后再 settle. */
     public boolean isBilledSku() {
         return settleEnabled && PERSIST_SKU.equals(persistAs);
+    }
+
+    public boolean isBilledXhsTopiclist() {
+        return settleEnabled && PERSIST_XHS_TOPICLIST.equals(persistAs);
+    }
+
+    public boolean isBilledXhsNote() {
+        return settleEnabled && PERSIST_XHS_NOTE.equals(persistAs);
+    }
+
+    public boolean isBilledXhsBreak() {
+        return settleEnabled && PERSIST_XHS_BREAK.equals(persistAs);
     }
 }

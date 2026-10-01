@@ -218,3 +218,6 @@ VALUES
     ('a1000001-0001-4000-8000-000000000004', 'local_life', '本地生活', 'COMING_SOON', 4,
      '到店、团购与周边生意：帮你整理套餐卖点与上架说法。',
      TIMESTAMP '2026-09-26 00:00:00', TIMESTAMP '2026-09-26 00:00:00');
+
+-- 与 015_xhs_scene_available.sql 同语义：亮小红书卡
+UPDATE ebus_scene SET status = 'AVAILABLE' WHERE scene_code = 'xiaohongshu';

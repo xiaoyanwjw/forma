@@ -29,6 +29,19 @@ class SceneCapabilityPackBootstrapTest {
         assertTrue(loader.load("ecommerce").hasSkill(SceneCapabilityPackLoader.SKILL_SKULIST));
     }
 
+    @Test
+    void starterXiaohongshuSkillsRegisterAndPackLoads() {
+        SkillCatalog skills = loadStarterSkills();
+        assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST).isPresent());
+        assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_XHS_NOTE).isPresent());
+        assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_XHS_BREAK).isPresent());
+
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+        assertTrue(loader.load("xiaohongshu").hasSkill(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST));
+        assertTrue(loader.load("xiaohongshu").hasSkill(SceneCapabilityPackLoader.SKILL_XHS_NOTE));
+        assertTrue(loader.load("xiaohongshu").hasSkill(SceneCapabilityPackLoader.SKILL_XHS_BREAK));
+    }
+
     private static SkillCatalog loadStarterSkills() {
         InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
         Skills.loadFromClasspath(skills);

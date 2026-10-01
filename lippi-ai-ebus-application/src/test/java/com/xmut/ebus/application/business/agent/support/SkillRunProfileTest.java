@@ -53,4 +53,35 @@ class SkillRunProfileTest {
     void unknownSkillStillRejected() {
         assertThrows(BusinessException.class, () -> SkillRunProfile.resolve("unknown-skill", false));
     }
+
+    @Test
+    void xhsTopiclistResolvesToPersistXhsTopiclist() {
+        SkillRunProfile profile = SkillRunProfile.resolve(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST, false);
+        assertEquals(SkillRunProfile.PERSIST_XHS_TOPICLIST, profile.getPersistAs());
+        assertEquals(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST, profile.getSkillId());
+        assertTrue(profile.isSettleEnabled());
+        assertTrue(profile.isRequireUserText());
+        assertTrue(profile.isBilledXhsTopiclist());
+        assertEquals(SkillRunProfile.billedXhsTopiclist().getPersistAs(), profile.getPersistAs());
+    }
+
+    @Test
+    void xhsNoteResolvesToPersistXhsNote() {
+        SkillRunProfile profile = SkillRunProfile.resolve(SceneCapabilityPackLoader.SKILL_XHS_NOTE, false);
+        assertEquals(SkillRunProfile.PERSIST_XHS_NOTE, profile.getPersistAs());
+        assertEquals(SceneCapabilityPackLoader.SKILL_XHS_NOTE, profile.getSkillId());
+        assertTrue(profile.isSettleEnabled());
+        assertTrue(profile.isBilledXhsNote());
+        assertEquals(SkillRunProfile.billedXhsNote().getPersistAs(), profile.getPersistAs());
+    }
+
+    @Test
+    void xhsBreakResolvesToPersistXhsBreak() {
+        SkillRunProfile profile = SkillRunProfile.resolve(SceneCapabilityPackLoader.SKILL_XHS_BREAK, false);
+        assertEquals(SkillRunProfile.PERSIST_XHS_BREAK, profile.getPersistAs());
+        assertEquals(SceneCapabilityPackLoader.SKILL_XHS_BREAK, profile.getSkillId());
+        assertTrue(profile.isSettleEnabled());
+        assertTrue(profile.isBilledXhsBreak());
+        assertEquals(SkillRunProfile.billedXhsBreak().getPersistAs(), profile.getPersistAs());
+    }
 }

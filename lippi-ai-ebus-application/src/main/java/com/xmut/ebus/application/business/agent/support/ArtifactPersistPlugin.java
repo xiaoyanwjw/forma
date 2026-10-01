@@ -35,6 +35,7 @@ public class ArtifactPersistPlugin {
     public static final String MSG_SKU_UNUSABLE = "上架素材不合格：需含详情文案、展示说明与主图位（mediaObjectId）";
     public static final String MSG_LISTING_PLAN_UNUSABLE =
             "策划分镜不合格：需含 templateId、成交方向、3～5 条分镜与详情大纲、标题草稿";
+    public static final String MSG_XHS_UNUSABLE = "小红书成果不合格：需含非空 view 与 artifact";
 
     private final ArtifactRepository artifactRepository;
     private final ObjectMapper objectMapper;
@@ -65,6 +66,8 @@ public class ArtifactPersistPlugin {
             requireUsableSkuPlanPayload(data);
         } else if (type == ArtifactType.SKU) {
             requireUsableSkuPayload(data);
+        } else if (isXhsType(type)) {
+            requireUsableXhsPayload(projectedView, data);
         }
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         Map<String, Object> view = projectedView != null ? projectedView : Collections.<String, Object>emptyMap();
@@ -106,7 +109,28 @@ public class ArtifactPersistPlugin {
         if (SkillRunProfile.PERSIST_LISTING_PLAN.equals(persistAs)) {
             return ArtifactType.LISTING_PLAN;
         }
+        if (SkillRunProfile.PERSIST_XHS_TOPICLIST.equals(persistAs)) {
+            return ArtifactType.XHS_TOPICLIST;
+        }
+        if (SkillRunProfile.PERSIST_XHS_NOTE.equals(persistAs)) {
+            return ArtifactType.XHS_NOTE;
+        }
+        if (SkillRunProfile.PERSIST_XHS_BREAK.equals(persistAs)) {
+            return ArtifactType.XHS_BREAK;
+        }
         throw new BusinessException(ErrorCode.PARAM_INVALID, "未支持的成果类型: " + persistAs);
+    }
+
+    private static boolean isXhsType(ArtifactType type) {
+        return type == ArtifactType.XHS_TOPICLIST
+                || type == ArtifactType.XHS_NOTE
+                || type == ArtifactType.XHS_BREAK;
+    }
+
+    static void requireUsableXhsPayload(Map<String, Object> view, Map<String, Object> data) {
+        if (view == null || view.isEmpty() || data == null || data.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_XHS_UNUSABLE);
+        }
     }
 
     /**

@@ -55,6 +55,33 @@ class SceneCapabilityPackLoaderTest {
     }
 
     @Test
+    void loadXiaohongshuRequiresThreeSkillsFromSkillCatalog() {
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("xiaohongshu")).thenReturn(Arrays.asList(
+                xhsSkill("xhs-topiclist"), xhsSkill("xhs-note"), xhsSkill("xhs-break")));
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+
+        SceneCapabilityPack pack = loader.load("xiaohongshu");
+
+        assertThat(pack.getSceneCode()).isEqualTo("xiaohongshu");
+        assertThat(pack.hasSkill(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST)).isTrue();
+        assertThat(pack.hasSkill(SceneCapabilityPackLoader.SKILL_XHS_NOTE)).isTrue();
+        assertThat(pack.hasSkill(SceneCapabilityPackLoader.SKILL_XHS_BREAK)).isTrue();
+    }
+
+    @Test
+    void loadFailsWhenXhsNoteMissing() {
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("xiaohongshu")).thenReturn(Arrays.asList(
+                xhsSkill("xhs-topiclist"), xhsSkill("xhs-break")));
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+
+        assertThatThrownBy(() -> loader.load("xiaohongshu"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
+    }
+
+    @Test
     void loadBlankSceneCodeFailsWithHumanMessage() {
         SkillCatalog skills = mock(SkillCatalog.class);
         SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
@@ -85,6 +112,16 @@ class SceneCapabilityPackLoaderTest {
                 .promptRef(promptRef)
                 .allowedTools(Collections.singletonList("read_skill"))
                 .sceneCode("ecommerce")
+                .build();
+    }
+
+    private static Skill xhsSkill(String id) {
+        return Skill.builder()
+                .id(id)
+                .description(id)
+                .promptRef("classpath:scenes/xiaohongshu/" + id + "/SKILL.md")
+                .allowedTools(Collections.singletonList("read_skill"))
+                .sceneCode("xiaohongshu")
                 .build();
     }
 }
