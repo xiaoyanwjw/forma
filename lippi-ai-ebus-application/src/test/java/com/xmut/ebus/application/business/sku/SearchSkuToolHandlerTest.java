@@ -13,6 +13,7 @@ import com.xmut.ebus.application.business.agent.tool.sku.SkuSearcher;
 import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
 import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
+import com.xmut.lims.pi.ai.model.ModelCatalog;
 import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
@@ -101,6 +102,7 @@ class SearchSkuToolHandlerTest {
                 .run(context -> {
                     assertTrue(context.getBean(ToolCatalog.class).resolve("search_sku").isPresent());
                     assertTrue(context.getBean(ToolCatalog.class).resolve("read_skill").isPresent());
+                    assertTrue(context.getBean(ModelCatalog.class).resolve("ebus.sku.rerank") != null);
                 });
     }
 

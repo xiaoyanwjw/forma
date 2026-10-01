@@ -27,12 +27,17 @@ import com.xmut.lims.pi.agent.tool.Tool;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
+import com.xmut.lims.pi.ai.model.InMemoryModelCatalog;
+import com.xmut.lims.pi.ai.model.ModelCatalog;
+import com.xmut.lims.pi.ai.model.ModelDescriptor;
 import com.xmut.lims.pi.ai.model.ModelProvider;
+import com.xmut.lims.pi.ai.model.OverlayModelCatalog;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 
@@ -48,6 +53,34 @@ import java.util.Arrays;
 public class EbusPiToolCatalogConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(EbusPiToolCatalogConfiguration.class);
+
+    /**
+     * Live {@link ModelCatalog} used by pi-ai routing. pi-agent / pi-ai only register
+     * {@code pi.default}; SKU rerank needs {@code ebus.sku.rerank} on the same catalog.
+     */
+    @Primary
+    @Bean
+    public ModelCatalog ebusModelCatalog(SkuSearchProperties props) {
+        return overlayWithSkuRerank(props);
+    }
+
+    static ModelCatalog overlayWithSkuRerank(SkuSearchProperties props) {
+        OverlayModelCatalog overlay = new OverlayModelCatalog(InMemoryModelCatalog.defaults());
+        String useCase = props != null ? props.getSearcher().getRerankUseCase() : null;
+        if (!StringUtils.hasText(useCase)) {
+            useCase = "ebus.sku.rerank";
+        }
+        overlay.putOverride(useCase, skuRerankDescriptor(useCase));
+        return overlay;
+    }
+
+    static ModelDescriptor skuRerankDescriptor(String useCase) {
+        return InMemoryModelCatalog.defaultChatDescriptor().toBuilder()
+                .useCase(useCase)
+                .temperature(0.0)
+                .maxTokens(512)
+                .build();
+    }
 
     @Bean
     public SkuSearchPort skuSearchPort(SkuSearchProperties props) {
