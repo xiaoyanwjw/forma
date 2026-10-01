@@ -126,7 +126,7 @@ python3 -c 'import json; a=json.load(open("exec/artifact.json")); v=json.load(op
 
 ## Verification
 
-### 策划 JSON（Phase A / 补充后重出）
+### 策划终稿 / 指针（Phase A，`plan/final.json`）
 
 - [ ] `view.version` = `1`；`view.title` / `artifact.title` 为同一中文标题
 - [ ] `artifact.templateId` = `domestic-generic-default`
@@ -140,7 +140,7 @@ python3 -c 'import json; a=json.load(open("exec/artifact.json")); v=json.load(op
 - [ ] 发策划指针后**必须**调用 `ask_human`（未确认前禁止 Phase C）
 - [ ] 未编造 BSR / 销量 / 资质；未宣称违禁功效
 
-### 执行 JSON（Phase C，终态）
+### 执行终稿 / 指针（Phase C，`exec/final.json`）
 
 - [ ] 继承策划必填字段（含交接路径下的 `picklistItemId`）；四字段均非空，读起来像上架素材
 - [ ] `framePrompts.length` = `frames.length`；每条 `prompt` 非空；非空壳「8k/杰作/最佳质量」

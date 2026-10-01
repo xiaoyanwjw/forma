@@ -53,7 +53,7 @@ metadata:
 | 假设 | 信息不足时写 `assumptions`；有交接时写入原链与条目 id 摘要 |
 | 交接 | 输入含「原链」或「来源选品条目」时，`picklistItemId` **必填**且与输入一致（黄金路径） |
 | 禁止 | 伪造销量/榜单/资质；**不要**输出 `platformCopies` / `preferredPlatform` |
-| 确认 | 策划 JSON 后必须 `ask_human`；**禁止**未确认前输出 `framePrompts` 或上架四字段 |
+| 确认 | 盘上 `plan/final.json` 就绪并发出指针 `{"output":"plan/final.json"}` 后必须 `ask_human`；**禁止**未确认前输出 `framePrompts` 或上架四字段 |
 
 ## 策划 artifact + view
 
