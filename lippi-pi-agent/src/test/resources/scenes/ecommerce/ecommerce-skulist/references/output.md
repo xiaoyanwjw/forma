@@ -2,10 +2,10 @@
 
 ## 交付方式
 
-1. **工作区文件（真源）：** 分步写入子目录，再合并为信封 JSON：
+1. **工作区文件（真源）：** 分步写入子目录，再用 `write_file` 合并为信封 JSON（支持的合并；`bash` / `python3` 仅在环境里已有时可选）：
    - **策划：** `plan/artifact.json`、`plan/view.json` → **`plan/final.json`**（内容为下方策划 `{ "view": …, "artifact": … }`）。
    - **执行**（仅 `confirm_execute` 后）：`exec/artifact.json`、`exec/view.json` → **`exec/final.json`**（完整 SKU 信封）。
-   - **`supplement`：** 覆盖 `plan/*` 后重拼 `plan/final.json`，再发策划指针并 `ask_human`（同一 `runId` 工作区）。
+   - **`supplement`：** 覆盖 `plan/*` 后用 `write_file` 重写 `plan/final.json`，再发策划指针并 `ask_human`（同一 `runId` 工作区）。
 2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
    - 策划（含补充后重出）：`{"output":"plan/final.json"}`
    - 执行终态：`{"output":"exec/final.json"}`
@@ -31,7 +31,7 @@ metadata:
 
 说明：应用层在首次 `ask_human` 前，将解析到的**策划** payload 以 `listing_plan` 落库并结算策划积分；用户确认后的**终态**仍按 `persistAs: sku` 落库。
 
-合并后的 `plan/final.json` / `exec/final.json` 内容为 `{ "view": { }, "artifact": { } }` 信封（见下方示例）。对话里只发指针，对象外不要闲聊（`ask_human` 工具调用除外）。
+用 `write_file` 合并后的 `plan/final.json` / `exec/final.json` 内容为 `{ "view": { }, "artifact": { } }` 信封（见下方示例）。对话里只发指针，对象外不要闲聊（`ask_human` 工具调用除外）。
 
 ## Contents
 

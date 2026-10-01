@@ -57,12 +57,7 @@ metadata:
 4. **写策划短字段。** `frames`（3～5 条主图分镜短句，每条 ≤40 字）、`modules`（3～5 条详情大纲短句）、`titleDraft`（标题草稿一行）。详见 [output.md](references/output.md) §策划。
 5. **写策划 `view`。** `blocks` **只含 1 个** `markdown`：固定小标题 `## 成交方向` / `## 主图分镜`（有序列表，与 `frames` 一致）/ `## 标题草稿` / `## 详情大纲`（有序列表，与 `modules` 一致）/ 可选 `## 假设`。正文与 `artifact` 同一事实。策划阶段**不要**多块 `note`/`list`/`media`/`section` 拼盘，**不要**「详情标题/正文/展示说明」三 section。
 6. **分步写盘（策划，相对 run 工作区根）。** `write_file` → `plan/artifact.json`（**仅**策划 artifact 对象），`write_file` → `plan/view.json`（**仅**策划 view 对象）；可用 `read_file` 自检。字段见 [output.md](references/output.md) §策划。
-7. **拼出策划终态。** 用 `bash` 合并为 `plan/final.json`（cwd 已是 run 根）。可复制：
-
-```bash
-python3 -c 'import json; a=json.load(open("plan/artifact.json")); v=json.load(open("plan/view.json")); json.dump({"view":v,"artifact":a}, open("plan/final.json","w"), ensure_ascii=False)'
-```
-
+7. **拼出策划终态。** 用 `write_file` 把策划 view 与 artifact 合并写入 `plan/final.json`（相对 run 根）。内容是一个 JSON 对象：`view` 取 `plan/view.json` 的对象，`artifact` 取 `plan/artifact.json` 的对象。这是支持的合并方式。环境里若已有 `bash` / `python3` 可以用它们拼文件，但不要依赖 `python3`；没有它们时仍用 `write_file` 写 `plan/final.json`。
 8. **策划终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"plan/final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
 9. **立刻调用 `ask_human`**（参数与下方一致，勿在 Computer / JSON 里自造确认按钮）：
 
@@ -82,7 +77,7 @@ python3 -c 'import json; a=json.load(open("plan/artifact.json")); v=json.load(op
 | 用户选择 | Agent 行为 |
 |----------|------------|
 | `confirm_execute` | 进入 Phase C；**禁止**在未收到此选项前写 `framePrompts` 或上架四字段 |
-| `supplement` 和/或自由文本 | **只改策划**（`driver` / `frames` / `modules` / `titleDraft` / `assumptions`；**不得**改 `templateId` / `picklistItemId`）；**覆盖** `plan/artifact.json` / `plan/view.json`，重拼 `plan/final.json`，再发指针 `{"output":"plan/final.json"}`；**再次** `ask_human`（同上参数） |
+| `supplement` 和/或自由文本 | **只改策划**（`driver` / `frames` / `modules` / `titleDraft` / `assumptions`；**不得**改 `templateId` / `picklistItemId`）；**覆盖** `plan/artifact.json` / `plan/view.json`，再用 `write_file` 重写 `plan/final.json`，再发指针 `{"output":"plan/final.json"}`；**再次** `ask_human`（同上参数） |
 | 仅自由文本（无 option） | 视为补充说明，同 `supplement` |
 
 ### Phase C — 执行（仅 `confirm_execute` 后）
@@ -96,12 +91,7 @@ python3 -c 'import json; a=json.load(open("plan/artifact.json")); v=json.load(op
 3. **写 `framePrompts`**：与 `frames` **等长**；每项 `{ "prompt": "…", "negative": "…" }`（`negative` 可选）。只出 Prompt，不调生图。
 4. **写执行 `view`。** hero `media`（对齐 `heroPlan`）+ 分镜 `list` + 三 `section`（详情标题/正文/展示说明）+ **一条** `section`「生图 Prompt」（供界面并入主图分镜展示）：`body` 用有序列表写出与 `framePrompts` **逐条对应**的完整 `prompt`（可附 `negative:` 行）。界面会按「一条分镜描述 + 一条 prompt」成对展示，勿只写「共 N 条、详见 artifact」。
 5. **分步写盘（执行，相对 run 工作区根）。** `write_file` → `exec/artifact.json`（**仅**完整执行 artifact），`write_file` → `exec/view.json`（**仅**执行 view）；可用 `read_file` 自检。
-6. **拼出执行终态。** 用 `bash` 合并为 `exec/final.json`：
-
-```bash
-python3 -c 'import json; a=json.load(open("exec/artifact.json")); v=json.load(open("exec/view.json")); json.dump({"view":v,"artifact":a}, open("exec/final.json","w"), ensure_ascii=False)'
-```
-
+6. **拼出执行终态。** 用 `write_file` 把执行 view 与 artifact 合并写入 `exec/final.json`。内容是一个 JSON 对象：`view` 取 `exec/view.json` 的对象，`artifact` 取 `exec/artifact.json` 的对象。支持的合并是 `write_file`；`bash` / `python3` 仅在环境里已有时可选。
 7. **过 Verification（执行）。** 全部勾上再发指针。
 8. **执行终稿只输出指针。** 对话里**仅** `{"output":"exec/final.json"}`（无围栏、无整包 JSON）。
 9. **禁止**输出 `platformCopies` / `preferredPlatform`。
@@ -135,7 +125,7 @@ python3 -c 'import json; a=json.load(open("exec/artifact.json")); v=json.load(op
 - [ ] 若输入含「来源选品条目」或「原链」→ `picklistItemId` 非空且与输入一致；`assumptions` 含原链或交接摘要
 - [ ] 策划 `view.blocks` **恰好 1 个** `markdown`（含上述小标题）；**无**「详情标题/正文/展示说明」三 section；**无** `framePrompts` / 上架四字段
 - [ ] Markdown 与 `artifact` 短字段同一事实
-- [ ] 已写 `plan/artifact.json`、`plan/view.json`，且 `bash` 已生成 **`plan/final.json`**
+- [ ] 已写 `plan/artifact.json`、`plan/view.json`，且已用 `write_file` 写出 **`plan/final.json`**
 - [ ] 策划终稿对话**仅** `{"output":"plan/final.json"}`；**未**在对话里贴整包大 JSON
 - [ ] 发策划指针后**必须**调用 `ask_human`（未确认前禁止 Phase C）
 - [ ] 未编造 BSR / 销量 / 资质；未宣称违禁功效
@@ -149,7 +139,7 @@ python3 -c 'import json; a=json.load(open("exec/artifact.json")); v=json.load(op
 - [ ] 执行 `view` 含 hero `media` + 三详情 `section` + Prompt 摘要 `section`
 - [ ] `mediaObjectIds` 可 `[]`（系统挂载后 settle 前须有真实 id）
 - [ ] **不要** `platformCopies`
-- [ ] 已写 `exec/artifact.json`、`exec/view.json`，且 `bash` 已生成 **`exec/final.json`**
+- [ ] 已写 `exec/artifact.json`、`exec/view.json`，且已用 `write_file` 写出 **`exec/final.json`**
 - [ ] 执行终稿对话**仅** `{"output":"exec/final.json"}`；**未**在对话里贴整包大 JSON
 - [ ] 成功路径除指针外无闲聊（`ask_human` 工具调用除外）
 

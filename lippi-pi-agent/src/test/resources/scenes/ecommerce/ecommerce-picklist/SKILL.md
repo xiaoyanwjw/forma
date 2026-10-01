@@ -33,12 +33,7 @@ metadata:
    每条写可验证的痛点/角度/差异与评分条（见 Quality）。
 6. **分配 id。** 按最终顺序为每条赋 `pl-1`…`pl-n`；`artifact.items[].id` 与 `view.list.items[].id` **同序同值**。
 7. **分步写盘（相对 run 工作区根）。** 先 `write_file` → `artifact.json`（**仅** artifact 对象），再 `write_file` → `view.json`（**仅** view 对象）；字段与示例见 [output.md](references/output.md)。可用 `read_file` 自检。
-8. **拼出终态文件。** 用 `bash` 合并为 `final.json`（cwd 已是 run 根）。可复制：
-
-```bash
-python3 -c 'import json; a=json.load(open("artifact.json")); v=json.load(open("view.json")); json.dump({"view":v,"artifact":a}, open("final.json","w"), ensure_ascii=False)'
-```
-
+8. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`（相对 run 根）。内容是一个 JSON 对象：`view` 取 `view.json` 的对象，`artifact` 取 `artifact.json` 的对象。这是支持的合并方式。环境里若已有 `bash` / `python3` 可以用它们拼文件，但不要依赖 `python3`；没有它们时仍用 `write_file` 写 `final.json`。
 9. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
 10. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重拼。
 
@@ -82,7 +77,7 @@ python3 -c 'import json; a=json.load(open("artifact.json")); v=json.load(open("v
 输出前逐项自检（全部通过才允许发指针）：
 
 - [ ] 本轮恰好 **1** 次 `search_sku`，且成功
-- [ ] 已写 `artifact.json`、`view.json`，且 `bash` 已生成 **`final.json`**
+- [ ] 已写 `artifact.json`、`view.json`，且已用 `write_file` 写出 **`final.json`**
 - [ ] 终稿对话**仅** `{"output":"final.json"}`；**未**在对话里贴整包大 JSON
 - [ ] `final.json` 内 `artifact.items` 与 `view` list 均为 **8–12** 条，条数一致、顺序对应
 - [ ] 每条 `id` 非空，格式 `pl-n`（从 1 顺序）；list 与 artifact **同 id 同序**

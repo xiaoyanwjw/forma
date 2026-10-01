@@ -2,7 +2,7 @@
 
 ## 交付方式
 
-1. **工作区文件（真源）：** 分步写入 `artifact.json`、`view.json`，合并为 run 根下 **`final.json`**（内容为下方 `{ "view": …, "artifact": … }` 信封）。
+1. **工作区文件（真源）：** 分步写入 `artifact.json`、`view.json`，再用 `write_file` 合并为 run 根下 **`final.json`**（内容为下方 `{ "view": …, "artifact": … }` 信封）。支持的合并是 `write_file`；`bash` / `python3` 仅在环境里已有时可选，不是必须。
 2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
 
 ```json

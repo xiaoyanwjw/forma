@@ -225,17 +225,17 @@ public class EbusPiToolCatalogConfiguration {
         ObjectNode properties = parameters.putObject("properties");
         ObjectNode command = properties.putObject("command");
         command.put("type", "string");
-        command.put("description", "Shell command; cwd is the run workspace");
+        command.put("description", "Shell command; cwd is the run workspace. Still runs on the host filesystem.");
         parameters.putArray("required").add("command");
         ToolSchema schema = ToolSchema.builder()
                 .name(BashToolHandler.TOOL_NAME)
-                .description("Run a bash command in the run workspace")
+                .description("Run a bash command in the run workspace. The command still runs on the host filesystem.")
                 .parametersSchema(parameters)
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(BashToolHandler.TOOL_NAME)
-                .description("Run bash in the run workspace")
-                .text("[bash] Run a command with cwd = run workspace. Output is truncated at 64KiB.")
+                .description("Run bash in the run workspace. The command still runs on the host filesystem.")
+                .text("[bash] Run a command with cwd = run workspace. The process still runs on the host filesystem; env is only PATH, LANG, and HOME. Output is truncated at 64KiB.")
                 .schema(schema)
                 .handlerClass(BashToolHandler.class.getName())
                 .build();

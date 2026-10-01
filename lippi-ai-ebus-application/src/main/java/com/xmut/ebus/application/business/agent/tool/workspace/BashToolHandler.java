@@ -14,10 +14,13 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Pi tool {@code bash}: run a command with cwd = run workspace, timeout, truncated output.
+ * The child still sees the host filesystem. Its environment is scrubbed to PATH, LANG, and HOME
+ * so JVM secrets (DB, JWT, model keys) are not inherited.
  */
 public final class BashToolHandler implements ToolHandler {
 
@@ -26,6 +29,18 @@ public final class BashToolHandler implements ToolHandler {
     public static final String TOOL_NAME = "bash";
     public static final int TIMEOUT_MS = 30_000;
     public static final int MAX_OUTPUT_CHARS = 64 * 1024;
+    static final String DEFAULT_PATH = "/usr/local/bin:/usr/bin:/bin";
+
+    private final int timeoutMs;
+
+    public BashToolHandler() {
+        this(TIMEOUT_MS);
+    }
+
+    /** Test hook so timeout coverage does not wait the production 30s. */
+    BashToolHandler(int timeoutMs) {
+        this.timeoutMs = timeoutMs;
+    }
 
     @Override
     public ToolResult handle(ToolCallEntry call, ToolContext ctx) {
@@ -43,12 +58,13 @@ public final class BashToolHandler implements ToolHandler {
             ProcessBuilder builder = new ProcessBuilder("/bin/bash", "-c", command);
             builder.directory(runDir.toFile());
             builder.redirectErrorStream(true);
+            scrubEnvironment(builder, runDir);
             Process process = builder.start();
             CappedOutput capture = new CappedOutput();
             Thread reader = new Thread(copyStream(process.getInputStream(), capture), "bash-tool-stdout");
             reader.setDaemon(true);
             reader.start();
-            boolean finished = process.waitFor(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            boolean finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
             if (!finished) {
                 process.destroyForcibly();
                 reader.join(1000);
@@ -68,6 +84,22 @@ public final class BashToolHandler implements ToolHandler {
             log.warn("bash failed: {}", ex.toString());
             return ToolResult.failed(callId, TOOL_NAME, "bash failed: " + ex.getMessage());
         }
+    }
+
+    /**
+     * Start from an empty environment. Put back only PATH (inherited value, or a minimal default),
+     * {@code LANG=C.UTF-8}, and {@code HOME} pointing at the run directory.
+     */
+    static void scrubEnvironment(ProcessBuilder builder, Path runDir) {
+        Map<String, String> env = builder.environment();
+        String path = env.get("PATH");
+        if (!StringUtils.hasText(path)) {
+            path = DEFAULT_PATH;
+        }
+        env.clear();
+        env.put("PATH", path);
+        env.put("LANG", "C.UTF-8");
+        env.put("HOME", runDir.toAbsolutePath().normalize().toString());
     }
 
     private static Runnable copyStream(final InputStream in, final CappedOutput out) {
