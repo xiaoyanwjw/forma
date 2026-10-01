@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.stream.Stream;
 
 /**
  * Per-run workspace directories under {@code {root}/sessions/{sessionId}/{runId}/}.
@@ -37,9 +38,8 @@ public class RunWorkspaceService {
         if (!Files.exists(dir)) {
             return;
         }
-        try {
-            Files.walk(dir)
-                    .sorted(Comparator.reverseOrder())
+        try (Stream<Path> walk = Files.walk(dir)) {
+            walk.sorted(Comparator.reverseOrder())
                     .forEach(path -> {
                         try {
                             Files.delete(path);
