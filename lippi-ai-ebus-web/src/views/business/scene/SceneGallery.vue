@@ -9,8 +9,8 @@ import { ApiError } from '@/api/client'
 import { clearToken } from '@/api/http'
 import type { Scene } from '@/types/business/scene'
 
-/** Live card target — ecommerce workbench empty state (2.5) */
 const ECOMMERCE_WORKSPACE = { name: 'scene-ecommerce' } as const
+const XHS_WORKSPACE = { name: 'scene-xiaohongshu' } as const
 const TOAST_MS = 4500
 
 const router = useRouter()
@@ -27,8 +27,14 @@ const sortedScenes = computed(() =>
 )
 
 function workspaceTarget(scene: Scene) {
-  if (scene.status === 'AVAILABLE' && scene.sceneCode === 'ecommerce') {
+  if (scene.status !== 'AVAILABLE') {
+    return undefined
+  }
+  if (scene.sceneCode === 'ecommerce') {
     return ECOMMERCE_WORKSPACE
+  }
+  if (scene.sceneCode === 'xiaohongshu') {
+    return XHS_WORKSPACE
   }
   return undefined
 }

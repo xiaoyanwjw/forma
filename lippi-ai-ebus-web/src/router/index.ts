@@ -43,6 +43,11 @@ const router = createRouter({
       component: () => import('@/views/business/scene/EcommerceWorkspacePlaceholder.vue'),
     },
     {
+      path: '/scenes/xiaohongshu',
+      name: 'scene-xiaohongshu',
+      component: () => import('@/views/business/scene/XiaohongshuWorkspace.vue'),
+    },
+    {
       path: '/history',
       name: 'history',
       component: () => import('@/views/business/history/HistoryPlaceholder.vue'),

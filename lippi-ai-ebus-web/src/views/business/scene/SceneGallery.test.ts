@@ -70,6 +70,11 @@ async function mountGallery(startPath = '/scenes') {
         name: 'scene-ecommerce',
         component: EcommerceWorkspacePlaceholder,
       },
+      {
+        path: '/scenes/xiaohongshu',
+        name: 'scene-xiaohongshu',
+        component: { template: '<div>xhs</div>' },
+      },
       { path: '/history', name: 'history', component: { template: '<div />' } },
     ],
   })
@@ -267,6 +272,44 @@ describe('SceneGallery', () => {
     live?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
     await flushUi()
     expect(mounted.router.currentRoute.value.name).toBe('scene-ecommerce')
+  })
+
+  it('AVAILABLE xiaohongshu card navigates to Xiaohongshu workspace', async () => {
+    setToken('jwt')
+    const scenes = FOUR_SCENES.map((s) =>
+      s.sceneCode === 'xiaohongshu' ? { ...s, status: 'AVAILABLE' } : s,
+    )
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (String(url).includes('/api/v1/scenes')) {
+          return Promise.resolve(okScenes(scenes))
+        }
+        return Promise.resolve(
+          okScenes({
+            tier: 'FREE',
+            available: 14,
+            balance: 20,
+            reserved: 0,
+            nextResetAt: '2026-10-24T10:00:00Z',
+            periodAnchorAt: '2026-09-24T10:00:00Z',
+          }),
+        )
+      }),
+    )
+
+    const mounted = await mountGallery()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const liveCards = Array.from(mounted.root.querySelectorAll('a.scene-card.live'))
+    const xhs = liveCards.find((c) => c.textContent?.includes('小红书种草')) as
+      | HTMLAnchorElement
+      | undefined
+    expect(xhs?.getAttribute('href')).toBe('/scenes/xiaohongshu')
+    xhs?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    await flushUi()
+    expect(mounted.router.currentRoute.value.name).toBe('scene-xiaohongshu')
   })
 
   it('401 clears token and shows login guide without fake cards', async () => {

@@ -6,6 +6,7 @@ import LandingPage from '@/views/marketing/LandingPage.vue'
 import AgentDryRun from '@/views/agent/AgentDryRun.vue'
 import SceneGallery from '@/views/business/scene/SceneGallery.vue'
 import EcommerceWorkspacePlaceholder from '@/views/business/scene/EcommerceWorkspacePlaceholder.vue'
+import XiaohongshuWorkspace from '@/views/business/scene/XiaohongshuWorkspace.vue'
 import HistoryPlaceholder from '@/views/business/history/HistoryPlaceholder.vue'
 import AccountSettings from '@/views/identity/AccountSettings.vue'
 
@@ -104,6 +105,15 @@ describe('router scene/history shell placeholders', () => {
     expect(typeof loader).toBe('function')
     const mod = await (loader as () => Promise<{ default: unknown }>)()
     expect(mod.default).toBe(EcommerceWorkspacePlaceholder)
+  })
+
+  it('resolve /scenes/xiaohongshu points to XiaohongshuWorkspace', async () => {
+    const resolved = router.resolve({ name: 'scene-xiaohongshu' })
+    expect(resolved.path).toBe('/scenes/xiaohongshu')
+    const loader = resolved.matched[0]?.components?.default
+    expect(typeof loader).toBe('function')
+    const mod = await (loader as () => Promise<{ default: unknown }>)()
+    expect(mod.default).toBe(XiaohongshuWorkspace)
   })
 
   it('resolve /history points to HistoryPlaceholder', async () => {

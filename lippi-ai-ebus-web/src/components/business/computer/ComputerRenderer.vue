@@ -9,6 +9,7 @@ import type {
   ComputerTag,
 } from '@/types/business/computerView'
 import { buildListingHandoffText, lineTextByKind } from '@/utils/listingHandoff'
+import { buildXhsNoteHandoffText } from '@/utils/xhsNoteHandoff'
 import {
   resolveComputerBadge,
   resolveComputerStatus,
@@ -28,14 +29,17 @@ const props = withDefaults(
   defineProps<{
     document: ComputerDocument
     enableListingHandoff?: boolean
+    enableNoteHandoff?: boolean
   }>(),
   {
     enableListingHandoff: false,
+    enableNoteHandoff: false,
   },
 )
 
 const emit = defineEmits<{
   'listing-handoff': [{ text: string }]
+  'note-handoff': [{ text: string }]
 }>()
 
 const platformSkin = ref<ListingPlatformSkin>('adam')
@@ -198,27 +202,42 @@ function itemTitle(item: { badge?: string; title: string }): string {
   return item.title
 }
 
-/** Prefer skill `id`; fall back to pl-{n} by list order when model omits id. */
-function resolveHandoffId(item: ComputerListItem, itemIndex: number): string {
+/** Prefer skill `id`; fall back to pl-{n} / tp-{n} by list order when model omits id. */
+function resolveHandoffId(item: ComputerListItem, itemIndex: number, prefix: 'pl' | 'tp'): string {
   const raw = item.id?.trim()
   if (raw) return raw
-  return `pl-${itemIndex + 1}`
+  return `${prefix}-${itemIndex + 1}`
 }
 
-function handoffTextFor(item: ComputerListItem, itemIndex: number): string | null {
+function listingHandoffTextFor(item: ComputerListItem, itemIndex: number): string | null {
   return buildListingHandoffText({
     title: item.title,
     href: item.href,
-    id: resolveHandoffId(item, itemIndex),
+    id: resolveHandoffId(item, itemIndex, 'pl'),
     niche: lineTextByKind(item.lines, 'niche'),
     painPoint: lineTextByKind(item.lines, 'painPoint'),
     angle: lineTextByKind(item.lines, 'angle'),
   })
 }
 
-function emitHandoff(item: ComputerListItem, itemIndex: number) {
-  const text = handoffTextFor(item, itemIndex)
+function noteHandoffTextFor(item: ComputerListItem, itemIndex: number): string | null {
+  return buildXhsNoteHandoffText({
+    title: item.title,
+    href: item.href,
+    id: resolveHandoffId(item, itemIndex, 'tp'),
+    hook: lineTextByKind(item.lines, 'hook'),
+    angle: lineTextByKind(item.lines, 'angle'),
+  })
+}
+
+function emitListingHandoff(item: ComputerListItem, itemIndex: number) {
+  const text = listingHandoffTextFor(item, itemIndex)
   if (text) emit('listing-handoff', { text })
+}
+
+function emitNoteHandoff(item: ComputerListItem, itemIndex: number) {
+  const text = noteHandoffTextFor(item, itemIndex)
+  if (text) emit('note-handoff', { text })
 }
 
 function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string {
@@ -300,10 +319,19 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
                       v-if="enableListingHandoff"
                       type="button"
                       class="listing-handoff-btn"
-                      :disabled="!handoffTextFor(item, itemIndex)"
-                      @click="emitHandoff(item, itemIndex)"
+                      :disabled="!listingHandoffTextFor(item, itemIndex)"
+                      @click="emitListingHandoff(item, itemIndex)"
                     >
                       做上架素材
+                    </button>
+                    <button
+                      v-else-if="enableNoteHandoff"
+                      type="button"
+                      class="note-handoff-btn"
+                      :disabled="!noteHandoffTextFor(item, itemIndex)"
+                      @click="emitNoteHandoff(item, itemIndex)"
+                    >
+                      写成笔记
                     </button>
                   </div>
                   <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
@@ -556,7 +584,8 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   text-decoration: underline;
 }
 
-.listing-handoff-btn {
+.listing-handoff-btn,
+.note-handoff-btn {
   flex-shrink: 0;
   appearance: none;
   border: 1px solid color-mix(in srgb, #0f766e 45%, transparent);
@@ -572,13 +601,15 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.listing-handoff-btn:hover:not(:disabled) {
+.listing-handoff-btn:hover:not(:disabled),
+.note-handoff-btn:hover:not(:disabled) {
   background: color-mix(in srgb, #0f766e 18%, var(--surface, #fff));
   border-color: color-mix(in srgb, #0f766e 70%, transparent);
   color: #0b5f58;
 }
 
-.listing-handoff-btn:disabled {
+.listing-handoff-btn:disabled,
+.note-handoff-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
   color: var(--mute, #737373);
