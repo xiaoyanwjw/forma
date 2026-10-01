@@ -3,6 +3,9 @@ package com.xmut.ebus.application.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandler;
+import com.xmut.ebus.application.business.agent.tool.workspace.BashToolHandler;
+import com.xmut.ebus.application.business.agent.tool.workspace.ReadFileToolHandler;
+import com.xmut.ebus.application.business.agent.tool.workspace.WriteFileToolHandler;
 import com.xmut.ebus.application.business.agent.tool.sku.ApifyOkHttpTransport;
 import com.xmut.ebus.application.business.agent.tool.sku.ApifyTaobaoSkuSearchClient;
 import com.xmut.ebus.application.business.agent.tool.sku.FallbackSkuSearchClient;
@@ -29,7 +32,8 @@ import org.springframework.context.annotation.Primary;
 import java.util.Arrays;
 
 /**
- * Primary {@link ToolCatalog} for Adam: {@code read_skill} + {@code search_sku} + {@code ask_human}.
+ * Primary {@link ToolCatalog} for Adam: {@code read_skill} + {@code search_sku} + {@code ask_human}
+ * + workspace {@code write_file} / {@code read_file} / {@code bash}.
  *
  * <p>Not {@code @ConditionalOnMissingBean} — this bean must replace pi-agent's default
  * catalog so {@code search_sku} is registered at startup.
@@ -71,7 +75,10 @@ public class EbusPiToolCatalogConfiguration {
         return InMemoryToolCatalog.of(Arrays.asList(
                 readSkillTool(skillCatalog),
                 searchSkuTool(skuSearchPort),
-                askHumanTool()));
+                askHumanTool(),
+                writeFileTool(),
+                readFileTool(),
+                bashTool()));
     }
 
     /**
@@ -161,5 +168,77 @@ public class EbusPiToolCatalogConfiguration {
                 .handlerClass(AskHumanToolHandler.class.getName())
                 .build();
         return new Tool(definition, new AskHumanToolHandler());
+    }
+
+    static Tool writeFileTool() {
+        ObjectNode parameters = new ObjectMapper().createObjectNode();
+        parameters.put("type", "object");
+        ObjectNode properties = parameters.putObject("properties");
+        ObjectNode path = properties.putObject("path");
+        path.put("type", "string");
+        path.put("description", "Relative path under the run workspace");
+        ObjectNode content = properties.putObject("content");
+        content.put("type", "string");
+        content.put("description", "UTF-8 text to write");
+        parameters.putArray("required").add("path").add("content");
+        ToolSchema schema = ToolSchema.builder()
+                .name(WriteFileToolHandler.TOOL_NAME)
+                .description("Write a UTF-8 text file under the run workspace")
+                .parametersSchema(parameters)
+                .build();
+        ToolDefinition definition = ToolDefinition.builder()
+                .id(WriteFileToolHandler.TOOL_NAME)
+                .description("Write a file under the run workspace")
+                .text("[write_file] Write UTF-8 text to a relative path. Paths cannot escape the workspace.")
+                .schema(schema)
+                .handlerClass(WriteFileToolHandler.class.getName())
+                .build();
+        return new Tool(definition, new WriteFileToolHandler());
+    }
+
+    static Tool readFileTool() {
+        ObjectNode parameters = new ObjectMapper().createObjectNode();
+        parameters.put("type", "object");
+        ObjectNode properties = parameters.putObject("properties");
+        ObjectNode path = properties.putObject("path");
+        path.put("type", "string");
+        path.put("description", "Relative path under the run workspace");
+        parameters.putArray("required").add("path");
+        ToolSchema schema = ToolSchema.builder()
+                .name(ReadFileToolHandler.TOOL_NAME)
+                .description("Read a UTF-8 text file under the run workspace")
+                .parametersSchema(parameters)
+                .build();
+        ToolDefinition definition = ToolDefinition.builder()
+                .id(ReadFileToolHandler.TOOL_NAME)
+                .description("Read a file under the run workspace")
+                .text("[read_file] Read UTF-8 text from a relative path. Files larger than 2MiB fail.")
+                .schema(schema)
+                .handlerClass(ReadFileToolHandler.class.getName())
+                .build();
+        return new Tool(definition, new ReadFileToolHandler());
+    }
+
+    static Tool bashTool() {
+        ObjectNode parameters = new ObjectMapper().createObjectNode();
+        parameters.put("type", "object");
+        ObjectNode properties = parameters.putObject("properties");
+        ObjectNode command = properties.putObject("command");
+        command.put("type", "string");
+        command.put("description", "Shell command; cwd is the run workspace");
+        parameters.putArray("required").add("command");
+        ToolSchema schema = ToolSchema.builder()
+                .name(BashToolHandler.TOOL_NAME)
+                .description("Run a bash command in the run workspace")
+                .parametersSchema(parameters)
+                .build();
+        ToolDefinition definition = ToolDefinition.builder()
+                .id(BashToolHandler.TOOL_NAME)
+                .description("Run bash in the run workspace")
+                .text("[bash] Run a command with cwd = run workspace. Output is truncated at 64KiB.")
+                .schema(schema)
+                .handlerClass(BashToolHandler.class.getName())
+                .build();
+        return new Tool(definition, new BashToolHandler());
     }
 }
