@@ -16,6 +16,14 @@ import com.xmut.ebus.application.business.agent.tool.sku.SkuReranker;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchPort;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearcher;
+import com.xmut.ebus.application.business.agent.tool.xhs.ApifyXhsNoteSearchClient;
+import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteSearchClient;
+import com.xmut.ebus.application.business.agent.tool.xhs.ModelXhsNoteReranker;
+import com.xmut.ebus.application.business.agent.tool.xhs.SearchXhsNoteToolHandler;
+import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteReranker;
+import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteSearchPort;
+import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteSearchProperties;
+import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteSearcher;
 import com.xmut.ebus.common.logging.LoggerUtils;
 import com.xmut.ebus.common.logging.NameValue;
 import org.slf4j.Logger;
@@ -42,14 +50,14 @@ import org.springframework.util.StringUtils;
 import java.util.Arrays;
 
 /**
- * Primary {@link ToolCatalog} for Adam: {@code read_skill} + {@code search_sku} + {@code ask_human}
- * + workspace {@code write_file} / {@code read_file} / {@code bash}.
+ * Primary {@link ToolCatalog} for Adam: {@code read_skill} + {@code search_sku} + {@code search_xhs_note}
+ * + {@code ask_human} + workspace {@code write_file} / {@code read_file} / {@code bash}.
  *
  * <p>Not {@code @ConditionalOnMissingBean} — this bean must replace pi-agent's default
  * catalog so {@code search_sku} is registered at startup.
  */
 @Configuration
-@EnableConfigurationProperties(SkuSearchProperties.class)
+@EnableConfigurationProperties({SkuSearchProperties.class, XhsNoteSearchProperties.class})
 public class PiToolCatalogConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(PiToolCatalogConfiguration.class);
@@ -60,21 +68,32 @@ public class PiToolCatalogConfiguration {
      */
     @Primary
     @Bean
-    public ModelCatalog modelCatalog(SkuSearchProperties props) {
-        return overlayWithSkuRerank(props);
+    public ModelCatalog modelCatalog(SkuSearchProperties skuProps, XhsNoteSearchProperties xhsProps) {
+        return overlayRerankUseCases(skuProps, xhsProps);
     }
 
     static ModelCatalog overlayWithSkuRerank(SkuSearchProperties props) {
+        return overlayRerankUseCases(props, new XhsNoteSearchProperties());
+    }
+
+    static ModelCatalog overlayRerankUseCases(SkuSearchProperties skuProps, XhsNoteSearchProperties xhsProps) {
         OverlayModelCatalog overlay = new OverlayModelCatalog(InMemoryModelCatalog.defaults());
-        String useCase = props != null ? props.getSearcher().getRerankUseCase() : null;
-        if (!StringUtils.hasText(useCase)) {
-            useCase = "ebus.sku.rerank";
-        }
-        overlay.putOverride(useCase, skuRerankDescriptor(useCase));
+        overlay.putOverride(
+                resolveUseCase(skuProps == null ? null : skuProps.getSearcher().getRerankUseCase(), "ebus.sku.rerank"),
+                rerankDescriptor(resolveUseCase(
+                        skuProps == null ? null : skuProps.getSearcher().getRerankUseCase(), "ebus.sku.rerank")));
+        overlay.putOverride(
+                resolveUseCase(xhsProps == null ? null : xhsProps.getSearcher().getRerankUseCase(), "ebus.xhs.rerank"),
+                rerankDescriptor(resolveUseCase(
+                        xhsProps == null ? null : xhsProps.getSearcher().getRerankUseCase(), "ebus.xhs.rerank")));
         return overlay;
     }
 
-    static ModelDescriptor skuRerankDescriptor(String useCase) {
+    private static String resolveUseCase(String configured, String fallback) {
+        return StringUtils.hasText(configured) ? configured : fallback;
+    }
+
+    static ModelDescriptor rerankDescriptor(String useCase) {
         return InMemoryModelCatalog.defaultChatDescriptor().toBuilder()
                 .useCase(useCase)
                 .temperature(0.0)
@@ -121,12 +140,50 @@ public class PiToolCatalogConfiguration {
         return new SkuSearcher(port, props, reranker);
     }
 
+    @Bean
+    public XhsNoteSearchPort xhsNoteSearchPort(XhsNoteSearchProperties props) {
+        MockXhsNoteSearchClient mock = new MockXhsNoteSearchClient();
+        if (!"apify".equalsIgnoreCase(props.getClient())) {
+            return mock;
+        }
+        String actorId = props.getApify().getActorId();
+        String token = props.getApify().getToken();
+        if (token == null || token.trim().isEmpty()) {
+            LoggerUtils.error(
+                    log,
+                    PiToolCatalogConfiguration.class,
+                    "xhsNoteSearchPort",
+                    "missing_token",
+                    NameValue.create("client", "apify"),
+                    NameValue.create("actorId", actorId),
+                    NameValue.create("queryLen", 0),
+                    NameValue.create("hitCount", 0));
+            return mock;
+        }
+        return new ApifyXhsNoteSearchClient(props, new ApifyOkHttpTransport());
+    }
+
+    @Bean
+    public XhsNoteReranker xhsNoteReranker(ObjectProvider<ModelProvider> models, XhsNoteSearchProperties props) {
+        ModelProvider mp = models.getIfAvailable();
+        if (mp == null) {
+            return XhsNoteReranker.identity();
+        }
+        return new ModelXhsNoteReranker(mp, props);
+    }
+
+    @Bean
+    public XhsNoteSearcher xhsNoteSearcher(XhsNoteSearchPort port, XhsNoteSearchProperties props, XhsNoteReranker reranker) {
+        return new XhsNoteSearcher(port, props, reranker);
+    }
+
     @Primary
     @Bean
-    public ToolCatalog toolCatalog(SkillCatalog skillCatalog, SkuSearcher skuSearcher) {
+    public ToolCatalog toolCatalog(SkillCatalog skillCatalog, SkuSearcher skuSearcher, XhsNoteSearcher xhsNoteSearcher) {
         return InMemoryToolCatalog.of(Arrays.asList(
                 readSkillTool(skillCatalog),
                 searchSkuTool(skuSearcher),
+                searchXhsNoteTool(xhsNoteSearcher),
                 askHumanTool(),
                 writeFileTool(),
                 readFileTool(),
@@ -183,6 +240,32 @@ public class PiToolCatalogConfiguration {
                 .handlerClass(SearchSkuToolHandler.class.getName())
                 .build();
         return new Tool(definition, new SearchSkuToolHandler(skuSearcher));
+    }
+
+    static Tool searchXhsNoteTool(XhsNoteSearcher xhsNoteSearcher) {
+        ObjectNode parameters = new ObjectMapper().createObjectNode();
+        parameters.put("type", "object");
+        ObjectNode properties = parameters.putObject("properties");
+        ObjectNode query = properties.putObject("query");
+        query.put("type", "string");
+        query.put("description", "搜索关键词，例如 厨房收纳");
+        ObjectNode pageSize = properties.putObject("pageSize");
+        pageSize.put("type", "integer");
+        pageSize.put("description", "每页条数，默认 10，最大 20");
+        parameters.putArray("required").add("query");
+        ToolSchema schema = ToolSchema.builder()
+                .name(SearchXhsNoteToolHandler.TOOL_NAME)
+                .description("按配置检索小红书笔记样本；每条命中含 https noteUrl")
+                .parametersSchema(parameters)
+                .build();
+        ToolDefinition definition = ToolDefinition.builder()
+                .id(SearchXhsNoteToolHandler.TOOL_NAME)
+                .description("检索小红书笔记，返回带 https noteUrl 的 hits")
+                .text("[search_xhs_note] 按配置检索小红书笔记样本。使用 query，可选 pageSize；禁止编造 noteUrl。")
+                .schema(schema)
+                .handlerClass(SearchXhsNoteToolHandler.class.getName())
+                .build();
+        return new Tool(definition, new SearchXhsNoteToolHandler(xhsNoteSearcher));
     }
 
     static Tool askHumanTool() {

@@ -52,6 +52,12 @@ ebus:
       actor-id: zen-studio/taobao-search-scraper
       timeout-ms: 120000
       token: ${APIFY_TOKEN:}
+  xhs-note-search:
+    client: ${EBUS_XHS_NOTE_SEARCH_CLIENT:mock}
+    apify:
+      actor-id: opspilot.cc/xiaohongshu-keyword-search-scraper
+      timeout-ms: 120000
+      token: ${APIFY_TOKEN:}
   media:
     store: ${EBUS_MEDIA_STORE:memory}
     minio:

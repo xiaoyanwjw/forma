@@ -25,6 +25,8 @@ class EbusPiToolCatalogConfigurationTest {
         assertEquals(0.0, rerank.getTemperature());
         assertEquals(512, rerank.getMaxTokens());
         assertNotNull(catalog.resolve(InMemoryModelCatalog.DEFAULT_USE_CASE));
+        assertNotNull(catalog.resolve("ebus.xhs.rerank"));
+        assertEquals("ebus.xhs.rerank", catalog.resolve("ebus.xhs.rerank").getUseCase());
     }
 
     @Test
@@ -39,6 +41,7 @@ class EbusPiToolCatalogConfigurationTest {
                 .run(context -> {
                     ModelCatalog catalog = context.getBean(ModelCatalog.class);
                     assertNotNull(catalog.resolve("ebus.sku.rerank"));
+                    assertNotNull(catalog.resolve("ebus.xhs.rerank"));
                     assertNotNull(catalog.resolve(InMemoryModelCatalog.DEFAULT_USE_CASE));
                 });
     }
