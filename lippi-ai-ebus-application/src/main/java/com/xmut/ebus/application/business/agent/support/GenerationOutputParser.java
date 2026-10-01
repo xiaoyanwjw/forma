@@ -3,9 +3,14 @@ package com.xmut.ebus.application.business.agent.support;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xmut.ebus.application.business.agent.workspace.WorkspacePathGuard;
 import com.xmut.ebus.common.util.StringUtils;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -45,6 +50,20 @@ public class GenerationOutputParser {
     }
 
     public ParsedGenerationOutput parse(String finalResponse) {
+        return parseEnvelope(finalResponse, null, false);
+    }
+
+    /**
+     * Dual-track parse; if the root JSON has a textual {@code output} pointer,
+     * only the workspace file is trusted (root view/artifact ignored).
+     * File content is parsed without following a nested {@code output} pointer.
+     */
+    public ParsedGenerationOutput parse(String finalResponse, Path runWorkspaceRoot) {
+        return parseEnvelope(finalResponse, runWorkspaceRoot, true);
+    }
+
+    private ParsedGenerationOutput parseEnvelope(String finalResponse, Path runWorkspaceRoot,
+            boolean allowPointer) {
         if (finalResponse == null) {
             return textPayload("");
         }
@@ -66,6 +85,14 @@ public class GenerationOutputParser {
             if (root == null || !root.isObject()) {
                 continue;
             }
+
+            if (allowPointer) {
+                ParsedGenerationOutput fromPointer = tryResolveOutputPointer(root, runWorkspaceRoot);
+                if (fromPointer != null) {
+                    return fromPointer;
+                }
+            }
+
             JsonNode viewNode = root.get("view");
             if (viewNode != null && !viewNode.isObject() && !root.has("artifact")) {
                 // 有 view 但不是对象，继续试下一个候选
@@ -85,6 +112,36 @@ public class GenerationOutputParser {
         }
 
         return textPayload(trimmed);
+    }
+
+    /**
+     * @return parsed file envelope, or {@code null} when root has no textual output pointer
+     */
+    private ParsedGenerationOutput tryResolveOutputPointer(JsonNode root, Path runWorkspaceRoot) {
+        JsonNode outputNode = root.get("output");
+        if (outputNode == null || !outputNode.isTextual() || !StringUtils.hasText(outputNode.asText())) {
+            return null;
+        }
+        if (runWorkspaceRoot == null) {
+            throw new IllegalArgumentException("workspace required for output pointer");
+        }
+        Path file;
+        try {
+            file = WorkspacePathGuard.resolveUnder(runWorkspaceRoot, outputNode.asText().trim());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("invalid output path");
+        }
+        if (!Files.isRegularFile(file)) {
+            throw new IllegalArgumentException("output file missing: " + outputNode.asText());
+        }
+        String fileText;
+        try {
+            byte[] bytes = Files.readAllBytes(file);
+            fileText = new String(bytes, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("invalid output path");
+        }
+        return parseEnvelope(fileText, runWorkspaceRoot, false);
     }
 
     private Map<String, Object> resolveBusinessPayload(JsonNode root, boolean artifactObject, JsonNode artifactNode) {

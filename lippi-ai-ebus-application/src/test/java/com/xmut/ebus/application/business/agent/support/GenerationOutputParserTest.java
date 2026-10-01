@@ -4,12 +4,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GenerationOutputParserTest {
@@ -88,4 +92,68 @@ class GenerationOutputParserTest {
       ParsedGenerationOutput out = parser.parse(raw);
       assertNull(out.getRawView());
   }
+
+    @Test
+    void outputPointer_readsFileForDualTrack() throws Exception {
+        Path run = Files.createTempDirectory("parse-ws-");
+        String body = "{\"view\":{\"version\":1,\"title\":\"t\",\"blocks\":[]},\"artifact\":{\"items\":[]}}";
+        Files.write(run.resolve("final.json"), body.getBytes(StandardCharsets.UTF_8));
+        ParsedGenerationOutput out = parser.parse("{\"output\":\"final.json\"}", run);
+        assertNotNull(out.getRawView());
+        assertEquals("t", out.getRawView().get("title"));
+    }
+
+    @Test
+    void outputPointer_missingFile_throws() throws Exception {
+        Path run = Files.createTempDirectory("parse-ws-");
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> parser.parse("{\"output\":\"nope.json\"}", run));
+        assertTrue(ex.getMessage().contains("output file missing"));
+    }
+
+    @Test
+    void inlineWithoutPointer_unchanged() throws Exception {
+        ParsedGenerationOutput out = parser.parse(
+                "{\"view\":{\"version\":1,\"blocks\":[]},\"artifact\":{}}",
+                Files.createTempDirectory("x"));
+        assertNotNull(out.getRawView());
+    }
+
+    @Test
+    void outputPointer_nullWorkspace_throws() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> parser.parse("{\"output\":\"final.json\"}", null));
+        assertEquals("workspace required for output pointer", ex.getMessage());
+    }
+
+    @Test
+    void outputPointer_ignoresRootViewAndFollowsFileOnly() throws Exception {
+        Path run = Files.createTempDirectory("parse-ws-");
+        String body = "{\"view\":{\"version\":1,\"title\":\"from-disk\",\"blocks\":[]},\"artifact\":{\"items\":[]}}";
+        Files.write(run.resolve("final.json"), body.getBytes(StandardCharsets.UTF_8));
+        ParsedGenerationOutput out = parser.parse(
+                "{\"output\":\"final.json\",\"view\":{\"version\":1,\"title\":\"from-root\",\"blocks\":[]}}",
+                run);
+        assertEquals("from-disk", out.getRawView().get("title"));
+    }
+
+    @Test
+    void outputPointer_nestedPointerInFile_ignored() throws Exception {
+        Path run = Files.createTempDirectory("parse-ws-");
+        Files.write(run.resolve("inner.json"),
+                "{\"view\":{\"version\":1,\"title\":\"nested\",\"blocks\":[]},\"artifact\":{}}"
+                        .getBytes(StandardCharsets.UTF_8));
+        Files.write(run.resolve("outer.json"),
+                "{\"output\":\"inner.json\",\"view\":{\"version\":1,\"title\":\"outer-file\",\"blocks\":[]}}"
+                        .getBytes(StandardCharsets.UTF_8));
+        ParsedGenerationOutput out = parser.parse("{\"output\":\"outer.json\"}", run);
+        assertEquals("outer-file", out.getRawView().get("title"));
+    }
+
+    @Test
+    void parseString_stillIgnoresOutputPointer() {
+        ParsedGenerationOutput out = parser.parse("{\"output\":\"final.json\"}");
+        assertNull(out.getRawView());
+        assertEquals("final.json", out.getBusinessPayload().get("output"));
+    }
 }
