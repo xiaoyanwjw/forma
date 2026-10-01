@@ -2,22 +2,25 @@
 
 ## 交付方式
 
-1. **工作区文件（真源）：** 先构造领域实体写入 `artifact.json`，再构造视图实体写入 `view.json`，再用 `write_file` 合并为 run 根下 **`final.json`**（内容为下方 `{ "view": …, "artifact": … }` 信封）。支持的合并是 `write_file`；`bash` / `python3` 仅在环境里已有时可选，不是必须。
+1. **工作区文件（真源，分步）：**
+   - 领域实体 → `artifact.json`（**仅** artifact 对象，见下方示例）
+   - 视图实体 → `view.json`（**仅** view 对象，见下方示例）
+   - 再用 `write_file` 合并为 run 根下 **`final.json`**：`{ "view": <view.json 根对象>, "artifact": <artifact.json 根对象> }`。支持的合并是 `write_file`；勿依赖 `python3`。
 2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
 
 ```json
 {"output":"final.json"}
 ```
 
-不要在对话里再贴整包 `{view, artifact}`。结算由服务端读 `final.json` 后再投影 / 落库。
+不要在对话里贴整包 `{view, artifact}`，也不要在对话里贴 `artifact.json` / `view.json` 全文。结算由服务端读 `final.json` 后再投影 / 落库。
 
-`artifact` 是领域实体（测款事实）；`view` 是视图实体（界面渲染）。两边同一事实，不是互相拷贝。
+`artifact` = 领域实体（测款事实）；`view` = 视图实体（界面渲染）。两边同一事实，不是互相拷贝。
 
 ## Contents
 
 1. [对齐规则](#对齐规则)
-2. [view](#view)
-3. [artifact](#artifact)
+2. [artifact（领域实体）](#artifact领域实体)
+3. [view（视图实体）](#view视图实体)
 4. [示例](#示例)
 5. [质量对照（条目）](#质量对照条目)
 
@@ -31,35 +34,9 @@
 | 条数 | 成功时两边均为 **8–12**（下方示例为简洁只写 1 条） |
 | 免责声明 | 非空，且必须包含字面量 **`非实时平台全站行情`**。推荐整句：`候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。` |
 
-## view
+## artifact（领域实体）
 
-| 字段 | 要求 |
-|------|------|
-| `version` | `1` |
-| `title` | **给人看的中文标题**（由本轮生成，建议与 `artifact.title` 一致，如「厨房小件 19–39 元选品清单」）；勿写裸 key `report` / `picklist` |
-| `status` | 可选；成功可写 `ready`（界面不展示） |
-| `blocks` | 仅 `note` / `list` / `markdown` / `media` / `section` |
-
-选品常用两块：
-
-1. `note`（`tone: mute`）：放免责声明（含 `非实时平台全站行情`）
-2. `list`（`ordered: true`）：每条候选一行
-
-### list.items[]
-
-| 字段 | 要求 |
-|------|------|
-| `id` | 必填；本清单内唯一；格式 `pl-{n}` 从 1 顺序；与对应 `artifact.items[].id` 同序同值 |
-| `title` | 商品名；此处**不加** `【优先试】` |
-| `href` | = 对应 `artifact.items[].sourceUrl` |
-| `badge` | 优先试条目用 `"priority"`（全清单 1–2 条） |
-| `lines` | 短事实；`kind` 如 `priceBand` / `painPoint` / `angle` / `diff` / `niche` |
-| `tags` | 评分条；`kind`：`demand` / `competition` / `margin` / `risk` |
-
-`tone` 仅：`mute` / `positive` / `warning` / `neutral`。  
-验收：每条 list 的 `href` 能打开真实商品页。
-
-## artifact
+写入 **`artifact.json` 的根对象**（文件里不要再包一层 `"artifact":`）。
 
 | 字段 | 要求 |
 |------|------|
@@ -83,75 +60,121 @@
 
 不要把 `blocks` / `badge` / `lines` / `tags` 写进 `artifact`。
 
+## view（视图实体）
+
+写入 **`view.json` 的根对象**（文件里不要再包一层 `"view":`）。
+
+| 字段 | 要求 |
+|------|------|
+| `version` | `1` |
+| `title` | **给人看的中文标题**（由本轮生成，建议与 `artifact.title` 一致）；勿写裸 key `report` / `picklist` |
+| `status` | 可选；成功可写 `ready`（界面不展示） |
+| `blocks` | 仅 `note` / `list` / `markdown` / `media` / `section` |
+
+选品常用两块：
+
+1. `note`（`tone: mute`）：放免责声明（含 `非实时平台全站行情`）
+2. `list`（`ordered: true`）：每条候选一行
+
+### list.items[]
+
+| 字段 | 要求 |
+|------|------|
+| `id` | 必填；本清单内唯一；格式 `pl-{n}` 从 1 顺序；与对应 `artifact.items[].id` 同序同值 |
+| `title` | 商品名；此处**不加** `【优先试】` |
+| `href` | = 对应 `artifact.items[].sourceUrl` |
+| `badge` | 优先试条目用 `"priority"`（全清单 1–2 条） |
+| `lines` | 短事实；`kind` 如 `priceBand` / `painPoint` / `angle` / `diff` / `niche` |
+| `tags` | 评分条；`kind`：`demand` / `competition` / `margin` / `risk` |
+
+`tone` 仅：`mute` / `positive` / `warning` / `neutral`。  
+验收：每条 list 的 `href` 能打开真实商品页。
+
 ## 示例
 
-以下为 **`final.json` 文件内容**（各 1 条；交付时两边均 8–12）。
+各 1 条示意（交付时两边均 8–12）。先写领域实体，再写视图实体，最后合并。
+
+### `artifact.json`（领域实体）
 
 ```json
 {
-  "view": {
-    "version": 1,
-    "title": "厨房小件 19–39 元选品清单",
-    "status": "ready",
-    "blocks": [
-      {
-        "type": "note",
-        "tone": "mute",
-        "text": "候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。"
-      },
-      {
-        "type": "list",
-        "ordered": true,
-        "items": [
-          {
-            "id": "pl-1",
-            "badge": "priority",
-            "title": "硅胶沥水垫（多色）",
-            "href": "https://item.taobao.com/example-sku-1",
-            "lines": [
-              { "kind": "priceBand", "text": "19–39 元", "emphasis": "price" },
-              { "kind": "painPoint", "text": "水槽边易积水难打理" },
-              { "kind": "angle", "text": "租房厨房刚需且轻小好发" },
-              { "kind": "diff", "text": "多色套装+厚度对比主图" },
-              { "kind": "niche", "text": "厨房沥水收纳" }
-            ],
-            "tags": [
-              { "kind": "demand", "text": "高｜台面积水刚需、搜索意图清晰", "tone": "positive" },
-              { "kind": "competition", "text": "中｜供给多但同质，视觉差异可切", "tone": "neutral" },
-              { "kind": "margin", "text": "中｜低客单测款友好，注意包邮后毛利", "tone": "neutral" },
-              { "kind": "risk", "text": "低｜勿夸大功效；材质合规表述", "tone": "positive" }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  "artifact": {
-    "title": "厨房小件 19–39 元选品清单",
-    "templateId": "domestic-generic-default",
-    "disclaimer": "候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。",
-    "assumptions": "未指定品类时按国内小件家居日用测款默认",
-    "items": [
-      {
-        "id": "pl-1",
-        "title": "【优先试】硅胶沥水垫（多色）",
-        "priceBand": "19–39 元",
-        "painPoint": "水槽边易积水难打理",
-        "angle": "租房厨房刚需且轻小好发",
-        "diff": "多色套装+厚度对比主图",
-        "niche": "厨房沥水收纳",
-        "demand": "高｜台面积水刚需、搜索意图清晰",
-        "competition": "中｜供给多但同质，视觉差异可切",
-        "margin": "中｜低客单测款友好，注意包邮后毛利",
-        "risk": "低｜勿夸大功效；材质合规表述",
-        "sourceUrl": "https://item.taobao.com/example-sku-1"
-      }
-    ]
-  }
+  "title": "厨房小件 19–39 元选品清单",
+  "templateId": "domestic-generic-default",
+  "disclaimer": "候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。",
+  "assumptions": "未指定品类时按国内小件家居日用测款默认",
+  "items": [
+    {
+      "id": "pl-1",
+      "title": "【优先试】硅胶沥水垫（多色）",
+      "priceBand": "19–39 元",
+      "painPoint": "水槽边易积水难打理",
+      "angle": "租房厨房刚需且轻小好发",
+      "diff": "多色套装+厚度对比主图",
+      "niche": "厨房沥水收纳",
+      "demand": "高｜台面积水刚需、搜索意图清晰",
+      "competition": "中｜供给多但同质，视觉差异可切",
+      "margin": "中｜低客单测款友好，注意包邮后毛利",
+      "risk": "低｜勿夸大功效；材质合规表述",
+      "sourceUrl": "https://item.taobao.com/example-sku-1"
+    }
+  ]
 }
 ```
 
-**对话终稿指针（单独一行 JSON，非文件内容）：**
+### `view.json`（视图实体）
+
+```json
+{
+  "version": 1,
+  "title": "厨房小件 19–39 元选品清单",
+  "status": "ready",
+  "blocks": [
+    {
+      "type": "note",
+      "tone": "mute",
+      "text": "候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。"
+    },
+    {
+      "type": "list",
+      "ordered": true,
+      "items": [
+        {
+          "id": "pl-1",
+          "badge": "priority",
+          "title": "硅胶沥水垫（多色）",
+          "href": "https://item.taobao.com/example-sku-1",
+          "lines": [
+            { "kind": "priceBand", "text": "19–39 元", "emphasis": "price" },
+            { "kind": "painPoint", "text": "水槽边易积水难打理" },
+            { "kind": "angle", "text": "租房厨房刚需且轻小好发" },
+            { "kind": "diff", "text": "多色套装+厚度对比主图" },
+            { "kind": "niche", "text": "厨房沥水收纳" }
+          ],
+          "tags": [
+            { "kind": "demand", "text": "高｜台面积水刚需、搜索意图清晰", "tone": "positive" },
+            { "kind": "competition", "text": "中｜供给多但同质，视觉差异可切", "tone": "neutral" },
+            { "kind": "margin", "text": "中｜低客单测款友好，注意包邮后毛利", "tone": "neutral" },
+            { "kind": "risk", "text": "低｜勿夸大功效；材质合规表述", "tone": "positive" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### `final.json`（合并，非手写第二套事实）
+
+把上面两个**根对象**包进信封即可（不要改写字段）：
+
+```json
+{
+  "view": { "...同 view.json 根对象..." },
+  "artifact": { "...同 artifact.json 根对象..." }
+}
+```
+
+**对话终稿指针：**
 
 ```json
 {"output":"final.json"}

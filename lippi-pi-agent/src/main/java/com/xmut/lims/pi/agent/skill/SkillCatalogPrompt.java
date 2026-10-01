@@ -11,10 +11,9 @@ import java.util.List;
 public final class SkillCatalogPrompt {
 
     public static final String READ_SKILL_HINT =
-            "If the active skill body is not already in a recent tool result, "
-                    + "call read_skill once with skill_id, then follow that body and output the final answer. "
-                    + "If the skill body is already present in tool results, do not call read_skill again. "
-                    + "Do not invent skill content.";
+            "若近期工具结果中尚无当前技能正文，先调用一次 read_skill（传入 skill_id），再按正文执行并给出最终答案；"
+                    + "若工具结果中已有技能正文，勿再次调用 read_skill。"
+                    + "禁止编造技能内容。";
 
     private SkillCatalogPrompt() {}
 
@@ -26,24 +25,25 @@ public final class SkillCatalogPrompt {
     public static String build(List<Skill> available, String activeSkillId) {
         if (available == null || available.isEmpty()) {
             if (StringUtils.hasText(activeSkillId)) {
-                return "Active skill: " + activeSkillId.trim() + ". " + READ_SKILL_HINT;
+                return "当前技能：" + activeSkillId.trim() + "。" + READ_SKILL_HINT;
             }
             return null;
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("## Skills catalog\n");
+        sb.append("## 技能目录\n");
         for (Skill m : available) {
             if (m == null || !StringUtils.hasText(m.getId())) {
                 continue;
             }
             sb.append("- ").append(m.getId().trim());
             if (StringUtils.hasText(m.getDescription())) {
-                sb.append(": ").append(m.getDescription().trim());
+                // 目录一行一条：折叠空白，避免 >- 多行描述把版面撑乱
+                sb.append(": ").append(m.getDescription().trim().replaceAll("\\s+", " "));
             }
             sb.append('\n');
         }
         if (StringUtils.hasText(activeSkillId)) {
-            sb.append("\nActive skill: ").append(activeSkillId.trim()).append('.');
+            sb.append("\n当前技能：").append(activeSkillId.trim()).append('。');
         }
         sb.append('\n').append(READ_SKILL_HINT);
         return sb.toString().trim();

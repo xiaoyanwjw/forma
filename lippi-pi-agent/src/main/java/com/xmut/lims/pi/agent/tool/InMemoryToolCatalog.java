@@ -212,7 +212,7 @@ public final class InMemoryToolCatalog implements ToolCatalog {
                 return null;
             }
         }
-        StringBuilder sb = new StringBuilder();
+        StringBuilder body = new StringBuilder();
         for (ToolBinding b : byName.values()) {
             if (allow != null && !allow.contains(b.getId())) {
                 continue;
@@ -221,12 +221,15 @@ public final class InMemoryToolCatalog implements ToolCatalog {
             if (!StringUtils.hasText(t)) {
                 continue;
             }
-            if (sb.length() > 0) {
-                sb.append('\n');
+            if (body.length() > 0) {
+                body.append('\n');
             }
-            sb.append(t.trim());
+            body.append(t.trim());
         }
-        return sb.length() == 0 ? null : sb.toString();
+        if (body.length() == 0) {
+            return null;
+        }
+        return "## 工具\n" + body;
     }
 
     @Override

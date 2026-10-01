@@ -5,7 +5,7 @@ package com.xmut.ebus.application.business.agent.sse;
  * <p>
  * 枚举常量全大写下划线；{@link #wireName()} 为对外 SSE {@code event:} 名（小写下划线，与 FE 对齐）。
  */
-public enum Ad4EventName {
+public enum SseEventName {
 
     RUN_STARTED("run_started"),
     AGENT_STARTED("agent_started"),
@@ -20,7 +20,7 @@ public enum Ad4EventName {
 
     private final String wireName;
 
-    Ad4EventName(String wireName) {
+    SseEventName(String wireName) {
         this.wireName = wireName;
     }
 

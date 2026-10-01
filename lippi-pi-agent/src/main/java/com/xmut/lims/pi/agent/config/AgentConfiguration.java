@@ -153,17 +153,17 @@ public class AgentConfiguration {
         ObjectNode properties = parameters.putObject("properties");
         ObjectNode skillId = properties.putObject("skill_id");
         skillId.put("type", "string");
-        skillId.put("description", "Registered skill id, e.g. ecommerce-picklist");
+        skillId.put("description", "已注册的技能 id，例如 ecommerce-picklist");
         parameters.putArray("required").add("skill_id");
         ToolSchema schema = ToolSchema.builder()
                 .name(ReadSkill.TOOL_ID)
-                .description("Read the full skill markdown/instructions for a skill_id from the Skills catalog")
+                .description("按 skill_id 从技能目录读取完整技能正文")
                 .parametersSchema(parameters)
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(ReadSkill.TOOL_ID)
-                .description("Load the full markdown body of a registered skill by skill_id")
-                .text("[read_skill] Load skill body by skill_id. Never invent skill content.")
+                .description("按 skill_id 加载已注册技能的完整 Markdown 正文")
+                .text("[read_skill] 按 skill_id 加载技能正文。禁止编造技能内容。")
                 .schema(schema)
                 .handlerClass(ReadSkill.class.getName())
                 .build();

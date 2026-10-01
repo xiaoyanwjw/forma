@@ -1,6 +1,6 @@
 package com.xmut.ebus.application.business.agent.support;
 
-import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
+import com.xmut.ebus.application.business.agent.sse.SseEvent;
 
 /**
  * Billed 流式 AD-4 事件旁路（emit 前）。
@@ -8,7 +8,7 @@ import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
  */
 public interface BilledRunListener {
 
-    default void onEvent(BilledRunContext ctx, Ad4SseEvent event) {
+    default void onEvent(BilledRunContext ctx, SseEvent event) {
         // no-op
     }
 }

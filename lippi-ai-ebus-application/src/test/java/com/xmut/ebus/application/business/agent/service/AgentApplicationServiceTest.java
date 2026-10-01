@@ -4,9 +4,9 @@ import com.xmut.ebus.application.business.agent.command.ResumeGenerationRunComma
 import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
 import com.xmut.ebus.application.business.agent.support.*;
-import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
+import com.xmut.ebus.application.business.agent.sse.SseEventName;
 import com.xmut.ebus.application.business.agent.workspace.RunWorkspaceService;
-import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
+import com.xmut.ebus.application.business.agent.sse.SseEvent;
 import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandlerTest;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
 import com.xmut.ebus.application.business.computer.ComputerViewProjector;
@@ -456,17 +456,17 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-1", USER_ID, HOLD_ID, "session-1",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent started = events.get(0);
-        assertEquals(Ad4EventName.RUN_STARTED, started.getName());
+        SseEvent started = events.get(0);
+        assertEquals(SseEventName.RUN_STARTED, started.getName());
         assertEquals("run-1", started.getData().get("runId"));
         assertEquals(HOLD_ID, started.getData().get("holdId"));
         assertEquals("session-1", started.getData().get("sessionId"));
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
         assertEquals(AgentApplicationService.EMPTY_RUN_FAIL_REASON, failed.getData().get("reason"));
 
@@ -494,12 +494,12 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-3", USER_ID, HOLD_ID, "session-3",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.MESSAGE_DELTA));
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.MESSAGE_DELTA));
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
         assertEquals(AgentApplicationService.EMPTY_RUN_FAIL_REASON, failed.getData().get("reason"));
     }
@@ -516,11 +516,11 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-2", USER_ID, HOLD_ID, "session-2",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_STARTED, events.get(0).getName());
-        assertEquals(Ad4EventName.RUN_FAILED, events.get(events.size() - 1).getName());
+        assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
+        assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).release(eq(USER_ID), eq(HOLD_ID));
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
@@ -540,11 +540,11 @@ class AgentApplicationServiceTest {
         org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID))
                 .when(creditApplicationService).release(USER_ID, HOLD_ID);
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
         assertEquals(AgentApplicationService.RELEASE_FAILED_REASON, failed.getData().get("reason"));
         assertFalse(String.valueOf(failed.getData().get("reason")).contains("预占已释放"));
@@ -571,7 +571,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         AtomicInteger accepts = new AtomicInteger();
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, event -> {
             int n = accepts.incrementAndGet();
             if (n == 2) {
@@ -581,8 +581,8 @@ class AgentApplicationServiceTest {
         });
 
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(AgentApplicationService.SSE_SEND_FAILED_RELEASED, failed.getData().get("reason"));
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
@@ -597,12 +597,12 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pack-miss", USER_ID, HOLD_ID, "session-pack-miss",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_STARTED, events.get(0).getName());
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE, failed.getData().get("reason"));
         assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
         verify(agentSession, never()).prompt(any(PromptRequest.class));
@@ -622,11 +622,11 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-default-miss", USER_ID, HOLD_ID, "session-default-miss",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE, failed.getData().get("reason"));
         assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
         verify(agentSession, never()).prompt(any(PromptRequest.class));
@@ -647,11 +647,11 @@ class AgentApplicationServiceTest {
         org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID))
                 .when(creditApplicationService).release(USER_ID, HOLD_ID);
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(AgentApplicationService.RELEASE_FAILED_REASON, failed.getData().get("reason"));
         assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
         verify(agentSession, never()).prompt(any(PromptRequest.class));
@@ -705,12 +705,12 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ns-ok", USER_ID, HOLD_ID, "session-ns-ok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_STARTED, events.get(0).getName());
-        Ad4SseEvent ready = events.stream()
-                .filter(e -> e.getName() == Ad4EventName.ARTIFACT_READY)
+        assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
+        SseEvent ready = events.stream()
+                .filter(e -> e.getName() == SseEventName.ARTIFACT_READY)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("missing artifact_ready"));
         assertNotNull(ready.getData().get("view"));
@@ -726,8 +726,8 @@ class AgentApplicationServiceTest {
         assertEquals("markdown", blocks.get(0).get("type"));
         assertEquals("这是一段草稿回复", blocks.get(0).get("text"));
 
-        assertEquals(Ad4EventName.RUN_SETTLED, events.get(events.size() - 1).getName());
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_FAILED));
+        assertEquals(SseEventName.RUN_SETTLED, events.get(events.size() - 1).getName());
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
         verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-ns-ok"), eq(ECOM_SCENE_CODE),
@@ -759,12 +759,12 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ns-noview", USER_ID, HOLD_ID, "session-ns-noview",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         gated.streamGenerationRun(ctx, events::add);
 
-        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.RUN_FAILED));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(artifactPersistPlugin, never()).persist(
                 anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
         verify(creditApplicationService, never()).settle(anyString(), anyString());
@@ -788,14 +788,14 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ns-settle", USER_ID, HOLD_ID, "session-ns-settle",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(AgentApplicationService.SETTLE_FAILED, failed.getData().get("reason"));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
     }
@@ -814,14 +814,14 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ns-fail", USER_ID, HOLD_ID, "session-ns-fail",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals("模型超时", failed.getData().get("reason"));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
@@ -840,10 +840,10 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pl-nosearch", USER_ID, HOLD_ID, "session-pl-nosearch",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_SETTLED, events.get(events.size() - 1).getName());
+        assertEquals(SseEventName.RUN_SETTLED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
         verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-nosearch"), eq(ECOM_SCENE_CODE),
@@ -864,7 +864,7 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ws", USER_ID, HOLD_ID, "session-ws",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        service.streamGenerationRun(ctx, new ArrayList<Ad4SseEvent>()::add);
+        service.streamGenerationRun(ctx, new ArrayList<SseEvent>()::add);
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
@@ -885,7 +885,7 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ws-dry", USER_ID, HOLD_ID, "session-ws-dry",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        service.streamGenerationRun(ctx, new ArrayList<Ad4SseEvent>()::add);
+        service.streamGenerationRun(ctx, new ArrayList<SseEvent>()::add);
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
@@ -905,7 +905,7 @@ class AgentApplicationServiceTest {
         stubListingAskHumanSuspend("run-ws-resume", "session-ws-resume",
                 VALID_PLAN_JSON, ASK_CALL_ID);
 
-        service.streamGenerationRun(ctx, new ArrayList<Ad4SseEvent>()::add);
+        service.streamGenerationRun(ctx, new ArrayList<SseEvent>()::add);
 
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
@@ -919,7 +919,7 @@ class AgentApplicationServiceTest {
                 .runId("run-ws-resume")
                 .toolCallId(ASK_CALL_ID)
                 .optionId(ListingHitlOptions.CONFIRM_EXECUTE)
-                .build(), new ArrayList<Ad4SseEvent>()::add);
+                .build(), new ArrayList<SseEvent>()::add);
 
         ArgumentCaptor<ResumeRequest> resumeCaptor = ArgumentCaptor.forClass(ResumeRequest.class);
         verify(agentSession).resume(resumeCaptor.capture());
@@ -940,11 +940,11 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ptr-miss", USER_ID, HOLD_ID, "session-ptr-miss",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals("output file missing: missing.json", failed.getData().get("reason"));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
@@ -968,10 +968,10 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ptr-ok", USER_ID, HOLD_ID, "session-ptr-ok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_SETTLED, events.get(events.size() - 1).getName());
+        assertEquals(SseEventName.RUN_SETTLED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
         verify(runWorkspaceService).deleteRunDirQuietly("session-ptr-ok", "run-ptr-ok");
@@ -988,11 +988,11 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE,
                         SceneCapabilityPackLoader.SKILL_SKULIST, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals("output file missing: plan/final.json", failed.getData().get("reason"));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
@@ -1008,10 +1008,10 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pl-searchok", USER_ID, HOLD_ID, "session-pl-searchok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_SETTLED, events.get(events.size() - 1).getName());
+        assertEquals(SseEventName.RUN_SETTLED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
         verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-searchok"), eq(ECOM_SCENE_CODE),
@@ -1027,12 +1027,12 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pl-ok", USER_ID, HOLD_ID, "session-pl-ok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_STARTED, events.get(0).getName());
-        Ad4SseEvent ready = events.stream()
-                .filter(e -> e.getName() == Ad4EventName.ARTIFACT_READY)
+        assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
+        SseEvent ready = events.stream()
+                .filter(e -> e.getName() == SseEventName.ARTIFACT_READY)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("missing artifact_ready"));
         assertEquals("art-1", ready.getData().get("artifactRef"));
@@ -1042,7 +1042,7 @@ class AgentApplicationServiceTest {
         Map<String, Object> view = (Map<String, Object>) ready.getData().get("view");
         assertEquals(Integer.valueOf(1), view.get("version"));
         assertEquals("picklist", view.get("title"));
-        assertEquals(Ad4EventName.RUN_SETTLED, events.get(events.size() - 1).getName());
+        assertEquals(SseEventName.RUN_SETTLED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
         ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
@@ -1066,11 +1066,11 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pl-view", USER_ID, HOLD_ID, "session-pl-view",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent ready = events.stream()
-                .filter(e -> e.getName() == Ad4EventName.ARTIFACT_READY)
+        SseEvent ready = events.stream()
+                .filter(e -> e.getName() == SseEventName.ARTIFACT_READY)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("missing artifact_ready"));
         @SuppressWarnings("unchecked")
@@ -1095,12 +1095,12 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pl-noview", USER_ID, HOLD_ID, "session-pl-noview",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         gated.streamGenerationRun(ctx, events::add);
 
-        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.RUN_FAILED));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
         verify(artifactPersistPlugin, never()).persist(
@@ -1118,14 +1118,14 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pl-settle", USER_ID, HOLD_ID, "session-pl-settle",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(AgentApplicationService.SETTLE_FAILED, failed.getData().get("reason"));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
         ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
@@ -1142,9 +1142,9 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pl-emit", USER_ID, HOLD_ID, "session-pl-emit",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, event -> {
-            if (Ad4EventName.ARTIFACT_READY.equals(event.getName())) {
+            if (SseEventName.ARTIFACT_READY.equals(event.getName())) {
                 throw new IllegalStateException("sse broken after settle");
             }
             events.add(event);
@@ -1156,7 +1156,7 @@ class AgentApplicationServiceTest {
         verify(generationRunRepository).update(captor.capture());
         assertEquals(1, captor.getAllValues().size());
         assertEquals(GenerationRunStatus.SETTLED, captor.getValue().getStatus());
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_FAILED));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_FAILED));
     }
 
     @Test
@@ -1173,11 +1173,11 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pl-bad", USER_ID, HOLD_ID, "session-pl-bad",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         gated.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(ComputerViewResolver.MSG_VIEW_UNAVAILABLE, failed.getData().get("reason"));
         assertFalse(Boolean.TRUE.equals(failed.getData().get("emptyRun")));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
@@ -1198,11 +1198,11 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-pl-fail", USER_ID, HOLD_ID, "session-pl-fail",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals("模型超时", failed.getData().get("reason"));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
@@ -1223,12 +1223,12 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-empty-no-settle", USER_ID, HOLD_ID, "session-empty-no-settle",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
-        assertEquals(Ad4EventName.RUN_FAILED, events.get(events.size() - 1).getName());
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
+        assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
@@ -1246,11 +1246,11 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-listing-ok", USER_ID, HOLD_ID, "session-listing-ok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(artifactPersistPlugin).persist(
                 eq(USER_ID), eq("run-listing-ok"), eq(ECOM_SCENE_CODE),
@@ -1259,8 +1259,8 @@ class AgentApplicationServiceTest {
                     Object ids = payload.get("mediaObjectIds");
                     return ids instanceof List && !((List<?>) ids).isEmpty();
                 }));
-        Ad4SseEvent ready = events.stream()
-                .filter(e -> e.getName() == Ad4EventName.ARTIFACT_READY)
+        SseEvent ready = events.stream()
+                .filter(e -> e.getName() == SseEventName.ARTIFACT_READY)
                 .findFirst()
                 .orElseThrow(IllegalStateException::new);
         @SuppressWarnings("unchecked")
@@ -1288,10 +1288,10 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-listing-media-fail", USER_ID, HOLD_ID, "session-listing-media-fail",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_FAILED, events.get(events.size() - 1).getName());
+        assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
         assertTrue(String.valueOf(events.get(events.size() - 1).getData().get("reason")).contains("服务繁忙"));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
@@ -1314,10 +1314,10 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-listing-bad", USER_ID, HOLD_ID, "session-listing-bad",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_FAILED, events.get(events.size() - 1).getName());
+        assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
@@ -1337,14 +1337,14 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-listing-settle", USER_ID, HOLD_ID, "session-listing-settle",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        Ad4SseEvent failed = events.get(events.size() - 1);
-        assertEquals(Ad4EventName.RUN_FAILED, failed.getName());
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(AgentApplicationService.SETTLE_FAILED, failed.getData().get("reason"));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
     }
@@ -1361,10 +1361,10 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-listing-fail", USER_ID, HOLD_ID, "session-listing-fail",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertEquals(Ad4EventName.RUN_FAILED, events.get(events.size() - 1).getName());
+        assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
         verify(artifactPersistPlugin, never()).persist(
@@ -1377,13 +1377,13 @@ class AgentApplicationServiceTest {
         stubEcommercePack();
         stubListingAskHumanSuspend("run-listing-plan", "session-listing-plan", VALID_PLAN_JSON, ASK_CALL_ID);
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.HUMAN_INPUT_REQUIRED));
-        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_FAILED));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.HUMAN_INPUT_REQUIRED));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         verify(creditApplicationService, times(1)).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
         verify(artifactPersistPlugin).persist(
@@ -1420,11 +1420,11 @@ class AgentApplicationServiceTest {
                     .build();
         });
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_FAILED));
-        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_FAILED));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
         verify(artifactPersistPlugin).persist(
                 eq(USER_ID), eq("run-listing-chunks"), eq(ECOM_SCENE_CODE),
                 eq(SkillRunProfile.PERSIST_LISTING_PLAN), anyMap(), anyMap());
@@ -1454,11 +1454,11 @@ class AgentApplicationServiceTest {
                     .build();
         });
 
-        List<Ad4SseEvent> events = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, events::add);
 
-        assertTrue(events.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_FAILED));
-        assertTrue(events.stream().anyMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_FAILED));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
         verify(artifactPersistPlugin).persist(
                 eq(USER_ID), eq("run-listing-final"), eq(ECOM_SCENE_CODE),
                 eq(SkillRunProfile.PERSIST_LISTING_PLAN), anyMap(), anyMap());
@@ -1493,7 +1493,7 @@ class AgentApplicationServiceTest {
         stubListingAskHumanSuspend("run-listing-confirm", "session-listing-confirm",
                 VALID_PLAN_JSON, ASK_CALL_ID);
 
-        List<Ad4SseEvent> first = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> first = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, first::add);
         assertTrue(ctx.isSettledOnSuspended());
 
@@ -1512,7 +1512,7 @@ class AgentApplicationServiceTest {
                     Collections.<com.xmut.lims.pi.ai.message.Message>emptyList());
         });
 
-        List<Ad4SseEvent> second = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> second = new ArrayList<SseEvent>();
         service.resumeBilledRun(ResumeGenerationRunCommand.builder()
                 .userId(USER_ID)
                 .runId("run-listing-confirm")
@@ -1520,8 +1520,8 @@ class AgentApplicationServiceTest {
                 .optionId(ListingHitlOptions.CONFIRM_EXECUTE)
                 .build(), second::add);
 
-        assertTrue(second.stream().anyMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(second.stream().anyMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
+        assertTrue(second.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(second.stream().anyMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).reserveOne(USER_ID);
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService).settle(USER_ID, EXEC_HOLD_ID);
@@ -1544,7 +1544,7 @@ class AgentApplicationServiceTest {
         stubListingAskHumanSuspend("run-listing-supp", "session-listing-supp",
                 VALID_PLAN_JSON, ASK_CALL_ID);
 
-        List<Ad4SseEvent> first = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> first = new ArrayList<SseEvent>();
         service.streamGenerationRun(ctx, first::add);
 
         AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
@@ -1568,7 +1568,7 @@ class AgentApplicationServiceTest {
                     .build();
         });
 
-        List<Ad4SseEvent> second = new ArrayList<Ad4SseEvent>();
+        List<SseEvent> second = new ArrayList<SseEvent>();
         service.resumeBilledRun(ResumeGenerationRunCommand.builder()
                 .userId(USER_ID)
                 .runId("run-listing-supp")
@@ -1577,9 +1577,9 @@ class AgentApplicationServiceTest {
                 .freeText("主图再突出颜色")
                 .build(), second::add);
 
-        assertTrue(second.stream().anyMatch(e -> e.getName() == Ad4EventName.HUMAN_INPUT_REQUIRED));
-        assertTrue(second.stream().anyMatch(e -> e.getName() == Ad4EventName.ARTIFACT_READY));
-        assertTrue(second.stream().noneMatch(e -> e.getName() == Ad4EventName.RUN_SETTLED));
+        assertTrue(second.stream().anyMatch(e -> e.getName() == SseEventName.HUMAN_INPUT_REQUIRED));
+        assertTrue(second.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(second.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService, times(1)).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).reserveOne(anyString());
         verify(creditApplicationService, never()).settle(eq(USER_ID), eq(EXEC_HOLD_ID));

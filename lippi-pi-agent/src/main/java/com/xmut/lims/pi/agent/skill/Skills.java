@@ -146,22 +146,83 @@ public final class Skills {
         }
         String block = normalized.substring(4, end);
         Map<String, String> out = new LinkedHashMap<String, String>();
-        for (String rawLine : block.split("\n", -1)) {
-            String line = rawLine.trim();
-            if (!StringUtils.hasText(line) || line.startsWith("#")) {
+        String[] lines = block.split("\n", -1);
+        for (int i = 0; i < lines.length; ) {
+            String rawLine = lines[i];
+            String trimmed = rawLine.trim();
+            if (!StringUtils.hasText(trimmed) || trimmed.startsWith("#")) {
+                i++;
                 continue;
             }
-            int colon = line.indexOf(':');
+            // 嵌套字段（如 metadata.output）跳过，只收顶层 key
+            if (rawLine.startsWith(" ") || rawLine.startsWith("\t")) {
+                i++;
+                continue;
+            }
+            int colon = rawLine.indexOf(':');
             if (colon <= 0) {
+                i++;
                 continue;
             }
-            String key = line.substring(0, colon).trim();
-            String value = unquote(line.substring(colon + 1).trim());
-            if (StringUtils.hasText(key)) {
-                out.put(key, value);
+            String key = rawLine.substring(0, colon).trim();
+            String value = rawLine.substring(colon + 1).trim();
+            if (!StringUtils.hasText(key)) {
+                i++;
+                continue;
+            }
+            if (isYamlBlockScalarIndicator(value)) {
+                boolean folded = value.startsWith(">");
+                i++;
+                StringBuilder body = new StringBuilder();
+                while (i < lines.length) {
+                    String cont = lines[i];
+                    String contTrim = cont.trim();
+                    if (StringUtils.hasText(contTrim)
+                            && !cont.startsWith(" ")
+                            && !cont.startsWith("\t")) {
+                        break;
+                    }
+                    if (!StringUtils.hasText(contTrim)) {
+                        if (body.length() > 0) {
+                            body.append('\n');
+                        }
+                        i++;
+                        continue;
+                    }
+                    String content = cont.replaceFirst("^[ \\t]+", "");
+                    if (folded) {
+                        if (body.length() > 0 && body.charAt(body.length() - 1) != '\n') {
+                            body.append(' ');
+                        }
+                        body.append(content);
+                    } else {
+                        if (body.length() > 0) {
+                            body.append('\n');
+                        }
+                        body.append(content);
+                    }
+                    i++;
+                }
+                out.put(key, body.toString().trim());
+            } else {
+                out.put(key, unquote(value));
+                i++;
             }
         }
         return out;
+    }
+
+    /** YAML block scalar 指示符：{@code >} / {@code >-} / {@code |} / {@code |-} 等。 */
+    static boolean isYamlBlockScalarIndicator(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        return ">".equals(value)
+                || ">-".equals(value)
+                || ">+".equals(value)
+                || "|".equals(value)
+                || "|-".equals(value)
+                || "|+".equals(value);
     }
 
     static List<String> parseAllowedTools(String raw) {

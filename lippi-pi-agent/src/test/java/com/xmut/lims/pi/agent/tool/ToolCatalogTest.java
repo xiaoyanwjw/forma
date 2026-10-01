@@ -46,6 +46,7 @@ class ToolCatalogTest {
                 ToolTestSupport.tool("d", (c, ctx) -> null)));
 
         assertThat(policy.textForModel())
+                .startsWith("## 工具\n")
                 .contains("Use a for lookups.")
                 .contains("Use b to save.");
     }
@@ -59,7 +60,7 @@ class ToolCatalogTest {
                 ToolBinding.of(ToolDefinition.builder()
                         .id("b").text("tb")
                         .schema(ToolSchema.builder().name("b").description("b").build()).build(), null)));
-        assertThat(policy.textForModel(java.util.Collections.singletonList("a"))).isEqualTo("ta");
+        assertThat(policy.textForModel(java.util.Collections.singletonList("a"))).isEqualTo("## 工具\nta");
         assertThat(policy.textForModel(java.util.Collections.emptyList())).isNull();
         assertThat(policy.schemasForModel(java.util.Arrays.asList("a", "missing")))
                 .extracting(ToolSchema::getName).containsExactly("a");

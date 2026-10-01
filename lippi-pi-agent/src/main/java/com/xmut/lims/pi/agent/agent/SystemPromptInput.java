@@ -30,7 +30,10 @@ public final class SystemPromptInput {
     public static final int DEFAULT_STABLE_MAX_CHARS = 8_000;
     public static final String TRUNCATION_MARKER = "...[truncated]";
     public static final String DEFAULT_SOUL =
-            "You are Pi assistant. Follow tenant policy and tool-use rules.";
+            "你是 Adam 智能助手，用中文思考与回复。"
+                    + "过程旁白、步骤说明、工具调用前后的说明一律使用简体中文"
+                    + "（工具名、文件路径、JSON 键名，以及生图等必须的英文内容除外）。"
+                    + "禁止用英文碎碎念。遵守租户策略与工具调用规则。";
 
     private final Map<String, String> stable;
     private final Map<String, String> context;

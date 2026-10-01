@@ -10,5 +10,5 @@ public interface ApifyActorTransport {
      * @param jsonBody     Actor input JSON
      * @return raw response body (dataset items JSON array or error object)
      */
-    String postSyncDatasetItems(String actorIdSlash, String token, long timeoutMs, String jsonBody);
+    String post(String actorIdSlash, String token, long timeoutMs, String jsonBody);
 }

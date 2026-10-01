@@ -15,13 +15,13 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Proves Adam's {@link EbusPiToolCatalogConfiguration} wins over pi {@code AgentConfiguration.toolConfig}
+ * Proves Adam's {@link PiToolCatalogConfiguration} wins over pi {@code AgentConfiguration.toolConfig}
  * ({@code @ConditionalOnMissingBean(ToolCatalog)} + ebus {@code @Primary} catalog).
  */
 class EbusPrimaryToolCatalogOverrideTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withUserConfiguration(EbusPiToolCatalogConfiguration.class)
+            .withUserConfiguration(PiToolCatalogConfiguration.class)
             .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class));
 
     @Test

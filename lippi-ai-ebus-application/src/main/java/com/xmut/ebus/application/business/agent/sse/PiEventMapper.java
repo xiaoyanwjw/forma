@@ -17,7 +17,7 @@ import java.util.Optional;
 /**
  * Pi 内部事件 → AD-4 闭合事件名。
  * <p>
- * 声明全集（本类 + {@link Ad4EventName}）；空跑路径不发出 {@code artifact_ready}/{@code run_settled}。
+ * 声明全集（本类 + {@link SseEventName}）；空跑路径不发出 {@code artifact_ready}/{@code run_settled}。
  * {@code run_started}/{@code run_failed}/{@code run_settled} 由编排层显式发送。
  * <p>
  * 进度 payload：{@code agent_started}/{@code agent_ended} 带展示用 {@code label}；
@@ -25,36 +25,36 @@ import java.util.Optional;
  * {@code success} 与截断后的 {@code output}/{@code error}；文本 delta 带 {@code text}。
  * {@code ask_human} 挂起映射为 {@code human_input_required}（AD-S12）。
  */
-public final class PiEventToAd4Mapper {
+public final class PiEventMapper {
 
     /** Keep SSE payloads bounded when skill bodies / search dumps are large. */
     static final int MAX_TOOL_TEXT_CHARS = 12_000;
 
-    private PiEventToAd4Mapper() {
+    private PiEventMapper() {
     }
 
     /**
      * 映射可流式进度类事件；无法映射则 empty（调用方勿把 Pi 名直接下发）。
      */
-    public static Optional<Ad4SseEvent> mapEvent(PiEvent event) {
+    public static Optional<SseEvent> mapEvent(PiEvent event) {
         if (event == null || event.getType() == null) {
             return Optional.empty();
         }
         PiEventType type = event.getType();
         if (type == PiEventType.AGENT_START) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.AGENT_STARTED, labelMap("agent.start")));
+            return Optional.of(SseEvent.of(SseEventName.AGENT_STARTED, labelMap("agent.start")));
         }
         if (type == PiEventType.AGENT_END) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.AGENT_ENDED, labelMap("agent.end")));
+            return Optional.of(SseEvent.of(SseEventName.AGENT_ENDED, labelMap("agent.end")));
         }
         if (type == PiEventType.MESSAGE_UPDATE) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.MESSAGE_DELTA, payloadMap(event.getPayload())));
+            return Optional.of(SseEvent.of(SseEventName.MESSAGE_DELTA, payloadMap(event.getPayload())));
         }
         if (type == PiEventType.TOOL_EXECUTION_START) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.TOOL_STARTED, payloadMap(event.getPayload())));
+            return Optional.of(SseEvent.of(SseEventName.TOOL_STARTED, payloadMap(event.getPayload())));
         }
         if (type == PiEventType.TOOL_EXECUTION_END) {
-            return Optional.of(Ad4SseEvent.of(Ad4EventName.TOOL_FINISHED, payloadMap(event.getPayload())));
+            return Optional.of(SseEvent.of(SseEventName.TOOL_FINISHED, payloadMap(event.getPayload())));
         }
         if (type == PiEventType.SUSPENDED) {
             return mapHumanInputRequired(event.getPayload());
@@ -63,11 +63,11 @@ public final class PiEventToAd4Mapper {
     }
 
     /** 供测试与类型声明：AD-4 事件名全集。 */
-    public static Ad4EventName[] declaredEventNames() {
-        return Ad4EventName.values();
+    public static SseEventName[] declaredEventNames() {
+        return SseEventName.values();
     }
 
-    private static Optional<Ad4SseEvent> mapHumanInputRequired(Object payload) {
+    private static Optional<SseEvent> mapHumanInputRequired(Object payload) {
         ToolCallEntry call = null;
         String runId = null;
         if (payload instanceof ToolSuspendPayload) {
@@ -103,7 +103,7 @@ public final class PiEventToAd4Mapper {
         data.put("allowFreeText", Boolean.valueOf(parsed.isAllowFreeText()));
         putIfText(data, "toolCallId", call.getId());
         putIfText(data, "runId", runId);
-        return Optional.of(Ad4SseEvent.of(Ad4EventName.HUMAN_INPUT_REQUIRED, data));
+        return Optional.of(SseEvent.of(SseEventName.HUMAN_INPUT_REQUIRED, data));
     }
 
     private static boolean isAskHuman(String toolName) {
@@ -140,7 +140,11 @@ public final class PiEventToAd4Mapper {
             return data.isEmpty() ? Collections.<String, Object>emptyMap() : data;
         }
         if (payload instanceof CharSequence) {
-            putIfText(data, "text", payload.toString());
+            // 流式 delta 常单独下发空格/"\n"；不可 trim，否则英文词间空格被吞
+            String text = payload.toString();
+            if (!text.isEmpty()) {
+                data.put("text", text);
+            }
             return data.isEmpty() ? Collections.<String, Object>emptyMap() : data;
         }
         data.put("payload", String.valueOf(payload));

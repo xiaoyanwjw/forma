@@ -25,7 +25,7 @@ class PiEventToAd4MapperTest {
     @Test
     void declaredNamesAreExactlyAd4ClosedSet() {
         Set<String> names = new HashSet<String>();
-        for (Ad4EventName name : PiEventToAd4Mapper.declaredEventNames()) {
+        for (SseEventName name : PiEventMapper.declaredEventNames()) {
             names.add(name.wireName());
         }
         assertEquals(new HashSet<String>(Arrays.asList(
@@ -44,42 +44,60 @@ class PiEventToAd4MapperTest {
 
     @Test
     void mapsAgentStartAndEnd() {
-        Ad4SseEvent started = PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.AGENT_START)).get();
-        assertEquals(Ad4EventName.AGENT_STARTED, started.getName());
+        SseEvent started = PiEventMapper.mapEvent(PiEvent.of(PiEventType.AGENT_START)).get();
+        assertEquals(SseEventName.AGENT_STARTED, started.getName());
         assertEquals("agent.start", started.getData().get("label"));
 
-        Ad4SseEvent ended = PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.AGENT_END)).get();
-        assertEquals(Ad4EventName.AGENT_ENDED, ended.getName());
+        SseEvent ended = PiEventMapper.mapEvent(PiEvent.of(PiEventType.AGENT_END)).get();
+        assertEquals(SseEventName.AGENT_ENDED, ended.getName());
         assertEquals("agent.end", ended.getData().get("label"));
     }
 
     @Test
     void mapsMessageUpdateToMessageDelta() {
-        Optional<Ad4SseEvent> mapped = PiEventToAd4Mapper.mapEvent(
+        Optional<SseEvent> mapped = PiEventMapper.mapEvent(
                 PiEvent.of(PiEventType.MESSAGE_UPDATE, "chunk"));
         assertTrue(mapped.isPresent());
-        assertEquals(Ad4EventName.MESSAGE_DELTA, mapped.get().getName());
+        assertEquals(SseEventName.MESSAGE_DELTA, mapped.get().getName());
         assertEquals("chunk", mapped.get().getData().get("text"));
     }
 
     @Test
+    void preservesWhitespaceOnlyMessageDelta() {
+        Optional<SseEvent> space = PiEventMapper.mapEvent(
+                PiEvent.of(PiEventType.MESSAGE_UPDATE, " "));
+        assertTrue(space.isPresent());
+        assertEquals(" ", space.get().getData().get("text"));
+
+        Optional<SseEvent> leading = PiEventMapper.mapEvent(
+                PiEvent.of(PiEventType.MESSAGE_UPDATE, " start"));
+        assertTrue(leading.isPresent());
+        assertEquals(" start", leading.get().getData().get("text"));
+
+        Optional<SseEvent> empty = PiEventMapper.mapEvent(
+                PiEvent.of(PiEventType.MESSAGE_UPDATE, ""));
+        assertTrue(empty.isPresent());
+        assertFalse(empty.get().getData().containsKey("text"));
+    }
+
+    @Test
     void mapsToolStartAndEnd() {
-        assertEquals(Ad4EventName.TOOL_STARTED,
-                PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.TOOL_EXECUTION_START)).get().getName());
-        assertEquals(Ad4EventName.TOOL_FINISHED,
-                PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.TOOL_EXECUTION_END)).get().getName());
+        assertEquals(SseEventName.TOOL_STARTED,
+                PiEventMapper.mapEvent(PiEvent.of(PiEventType.TOOL_EXECUTION_START)).get().getName());
+        assertEquals(SseEventName.TOOL_FINISHED,
+                PiEventMapper.mapEvent(PiEvent.of(PiEventType.TOOL_EXECUTION_END)).get().getName());
     }
 
     @Test
     void mapsToolCallEntryFieldsForChatSteps() {
         ToolCallEntry call = new ToolCallEntry("call-1", "read_skill", null);
-        Ad4SseEvent started = PiEventToAd4Mapper.mapEvent(
+        SseEvent started = PiEventMapper.mapEvent(
                 PiEvent.of(PiEventType.TOOL_EXECUTION_START, call)).get();
         assertEquals("read_skill", started.getData().get("toolName"));
         assertEquals("call-1", started.getData().get("toolCallId"));
 
         ToolResult result = ToolResult.ok("call-1", "read_skill", "skill body here");
-        Ad4SseEvent finished = PiEventToAd4Mapper.mapEvent(
+        SseEvent finished = PiEventMapper.mapEvent(
                 PiEvent.of(PiEventType.TOOL_EXECUTION_END, result)).get();
         assertEquals("read_skill", finished.getData().get("toolName"));
         assertEquals("call-1", finished.getData().get("toolCallId"));
@@ -87,7 +105,7 @@ class PiEventToAd4MapperTest {
         assertEquals("skill body here", finished.getData().get("output"));
 
         ToolResult failed = ToolResult.failed("call-2", "search_sku", "empty hits");
-        Ad4SseEvent finishedFail = PiEventToAd4Mapper.mapEvent(
+        SseEvent finishedFail = PiEventMapper.mapEvent(
                 PiEvent.of(PiEventType.TOOL_EXECUTION_END, failed)).get();
         assertEquals(Boolean.FALSE, finishedFail.getData().get("success"));
         assertEquals("empty hits", finishedFail.getData().get("error"));
@@ -95,20 +113,20 @@ class PiEventToAd4MapperTest {
 
     @Test
     void doesNotExposeUnmappedPiInternals() {
-        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.MESSAGE_START)).isPresent());
-        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.BEFORE_AGENT_START)).isPresent());
-        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.TURN_START)).isPresent());
-        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(PiEventType.SUSPENDED, "awaiting approval")).isPresent());
-        assertFalse(PiEventToAd4Mapper.mapEvent(PiEvent.of(
+        assertFalse(PiEventMapper.mapEvent(PiEvent.of(PiEventType.MESSAGE_START)).isPresent());
+        assertFalse(PiEventMapper.mapEvent(PiEvent.of(PiEventType.BEFORE_AGENT_START)).isPresent());
+        assertFalse(PiEventMapper.mapEvent(PiEvent.of(PiEventType.TURN_START)).isPresent());
+        assertFalse(PiEventMapper.mapEvent(PiEvent.of(PiEventType.SUSPENDED, "awaiting approval")).isPresent());
+        assertFalse(PiEventMapper.mapEvent(PiEvent.of(
                 PiEventType.SUSPENDED, TurnResult.builder().status(TurnResult.Status.SUSPENDED).build())).isPresent());
     }
 
     @Test
     void mapsAskHumanSuspendToHumanInputRequired() {
         ToolCallEntry call = AskHumanToolHandlerTest.listingAskCall("call-ask");
-        Ad4SseEvent ev = PiEventToAd4Mapper.mapEvent(
+        SseEvent ev = PiEventMapper.mapEvent(
                 PiEvent.of(PiEventType.SUSPENDED, ToolSuspendPayload.of(call, "run-hitl", "ask_human"))).get();
-        assertEquals(Ad4EventName.HUMAN_INPUT_REQUIRED, ev.getName());
+        assertEquals(SseEventName.HUMAN_INPUT_REQUIRED, ev.getName());
         assertEquals("策划可以了吗？确认后写出执行稿，或补充需求。", ev.getData().get("question"));
         assertEquals(Boolean.TRUE, ev.getData().get("allowFreeText"));
         assertEquals("call-ask", ev.getData().get("toolCallId"));
@@ -127,7 +145,7 @@ class PiEventToAd4MapperTest {
         ToolResult result = ToolResult.interrupt("call-ask", "ask_human",
                 "{\"question\":\"规范化问题\",\"allowFreeText\":false,"
                         + "\"options\":[{\"id\":\"confirm_execute\",\"label\":\"确认，出执行稿\"}]}");
-        Ad4SseEvent ev = PiEventToAd4Mapper.mapEvent(
+        SseEvent ev = PiEventMapper.mapEvent(
                 PiEvent.of(PiEventType.SUSPENDED,
                         ToolSuspendPayload.of(call, "run-2", "ask_human", result))).get();
         assertEquals("规范化问题", ev.getData().get("question"));
@@ -137,7 +155,7 @@ class PiEventToAd4MapperTest {
     @Test
     void doesNotMapWriteHitlSuspendAsHumanInput() {
         ToolCallEntry write = new ToolCallEntry("w1", "save", null);
-        assertFalse(PiEventToAd4Mapper.mapEvent(
+        assertFalse(PiEventMapper.mapEvent(
                 PiEvent.of(PiEventType.SUSPENDED, ToolSuspendPayload.of(write, "run-w", "awaiting approval")))
                 .isPresent());
     }

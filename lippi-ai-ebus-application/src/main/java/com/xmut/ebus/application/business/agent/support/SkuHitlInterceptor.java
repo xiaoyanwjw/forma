@@ -1,8 +1,8 @@
 package com.xmut.ebus.application.business.agent.support;
 
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
-import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
-import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
+import com.xmut.ebus.application.business.agent.sse.SseEventName;
+import com.xmut.ebus.application.business.agent.sse.SseEvent;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.ViewProjectContext;
 import com.xmut.ebus.common.exception.BusinessException;
@@ -94,11 +94,11 @@ public class SkuHitlInterceptor
     }
 
     @Override
-    public void onEvent(BilledRunContext ctx, Ad4SseEvent event) {
+    public void onEvent(BilledRunContext ctx, SseEvent event) {
         if (!ctx.getProfile().isBilledSku()) {
             return;
         }
-        if (event == null || event.getName() != Ad4EventName.MESSAGE_DELTA) {
+        if (event == null || event.getName() != SseEventName.MESSAGE_DELTA) {
             return;
         }
         Object text = event.getData().get("text");
@@ -111,7 +111,7 @@ public class SkuHitlInterceptor
     }
 
     @Override
-    public boolean onSuspended(BilledRunContext ctx, Consumer<Ad4SseEvent> sink) {
+    public boolean onSuspended(BilledRunContext ctx, Consumer<SseEvent> sink) {
         if (!ctx.getProfile().isBilledSku()) {
             return false;
         }
@@ -149,7 +149,7 @@ public class SkuHitlInterceptor
         }
     }
 
-    private void persistOrEchoSkuPlan(BilledRunContext billedCtx, Consumer<Ad4SseEvent> sink) {
+    private void persistOrEchoSkuPlan(BilledRunContext billedCtx, Consumer<SseEvent> sink) {
         GenerationRunContext context = billedCtx.getRun();
         String planText = billedCtx.getAssistantTextCandidate();
         String toolCallId = billedCtx.getPendingToolCallId();
@@ -181,7 +181,7 @@ public class SkuHitlInterceptor
         }
 
         try {
-            sink.accept(Ad4SseEvent.of(Ad4EventName.ARTIFACT_READY,
+            sink.accept(SseEvent.of(SseEventName.ARTIFACT_READY,
                     toArtifactReady(persisted, projectedView)));
         } catch (RuntimeException emitEx) {
             LoggerUtils.error(log, SkuHitlInterceptor.class, "onSuspended",

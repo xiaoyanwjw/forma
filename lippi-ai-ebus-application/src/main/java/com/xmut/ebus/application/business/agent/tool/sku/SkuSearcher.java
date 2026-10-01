@@ -59,11 +59,11 @@ public class SkuSearcher {
         return Collections.singletonList(query.trim());
     }
 
-    public List<SkuCandidate> doSearch(List<String> queries, int sourcePageSize) {
+    public List<SkuCandidate> doSearch(List<String> queries, int pageSize) {
         if (queries == null || queries.isEmpty()) {
             return Collections.emptyList();
         }
-        List<SkuSearchHit> hits = skuSearchPort.search(queries.get(0), DEFAULT_PLATFORM, sourcePageSize);
+        List<SkuSearchHit> hits = skuSearchPort.search(queries.get(0), DEFAULT_PLATFORM, pageSize);
         return toCandidates(hits, "L0");
     }
 

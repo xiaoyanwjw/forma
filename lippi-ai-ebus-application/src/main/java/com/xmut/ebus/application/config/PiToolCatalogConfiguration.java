@@ -50,9 +50,9 @@ import java.util.Arrays;
  */
 @Configuration
 @EnableConfigurationProperties(SkuSearchProperties.class)
-public class EbusPiToolCatalogConfiguration {
+public class PiToolCatalogConfiguration {
 
-    private static final Logger log = LoggerFactory.getLogger(EbusPiToolCatalogConfiguration.class);
+    private static final Logger log = LoggerFactory.getLogger(PiToolCatalogConfiguration.class);
 
     /**
      * Live {@link ModelCatalog} used by pi-ai routing. pi-agent / pi-ai only register
@@ -60,7 +60,7 @@ public class EbusPiToolCatalogConfiguration {
      */
     @Primary
     @Bean
-    public ModelCatalog ebusModelCatalog(SkuSearchProperties props) {
+    public ModelCatalog modelCatalog(SkuSearchProperties props) {
         return overlayWithSkuRerank(props);
     }
 
@@ -93,7 +93,7 @@ public class EbusPiToolCatalogConfiguration {
         if (token == null || token.trim().isEmpty()) {
             LoggerUtils.error(
                     log,
-                    EbusPiToolCatalogConfiguration.class,
+                    PiToolCatalogConfiguration.class,
                     "skuSearchPort",
                     "missing_token",
                     NameValue.create("client", "apify"),
@@ -142,17 +142,17 @@ public class EbusPiToolCatalogConfiguration {
         ObjectNode properties = parameters.putObject("properties");
         ObjectNode skillId = properties.putObject("skill_id");
         skillId.put("type", "string");
-        skillId.put("description", "Registered skill id, e.g. ecommerce-picklist");
+        skillId.put("description", "已注册的技能 id，例如 ecommerce-picklist");
         parameters.putArray("required").add("skill_id");
         ToolSchema schema = ToolSchema.builder()
                 .name(ReadSkill.TOOL_ID)
-                .description("Read the full skill markdown/instructions for a skill_id from the Skills catalog")
+                .description("按 skill_id 从技能目录读取完整技能正文")
                 .parametersSchema(parameters)
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(ReadSkill.TOOL_ID)
-                .description("Load the full markdown body of a registered skill by skill_id")
-                .text("[read_skill] Load skill body by skill_id. Never invent skill content.")
+                .description("按 skill_id 加载已注册技能的完整 Markdown 正文")
+                .text("[read_skill] 按 skill_id 加载技能正文。禁止编造技能内容。")
                 .schema(schema)
                 .handlerClass(ReadSkill.class.getName())
                 .build();
@@ -165,20 +165,20 @@ public class EbusPiToolCatalogConfiguration {
         ObjectNode properties = parameters.putObject("properties");
         ObjectNode query = properties.putObject("query");
         query.put("type", "string");
-        query.put("description", "Search keyword, e.g. 香薰");
+        query.put("description", "搜索关键词，例如 香薰");
         ObjectNode pageSize = properties.putObject("pageSize");
         pageSize.put("type", "integer");
-        pageSize.put("description", "Page size, default 10, max 20");
+        pageSize.put("description", "每页条数，默认 10，最大 20");
         parameters.putArray("required").add("query");
         ToolSchema schema = ToolSchema.builder()
                 .name(SearchSkuToolHandler.TOOL_NAME)
-                .description("Search configured SKU samples; every hit includes an https detailUrl")
+                .description("按配置检索 SKU 样本；每条命中含 https detailUrl")
                 .parametersSchema(parameters)
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(SearchSkuToolHandler.TOOL_NAME)
-                .description("Search SKUs and return hits with https detailUrl")
-                .text("[search_sku] Search configured SKU samples. Use query and optional pageSize; never invent detailUrl.")
+                .description("检索 SKU，返回带 https detailUrl 的 hits")
+                .text("[search_sku] 按配置检索 SKU 样本。使用 query，可选 pageSize；禁止编造 detailUrl。")
                 .schema(schema)
                 .handlerClass(SearchSkuToolHandler.class.getName())
                 .build();
@@ -191,10 +191,10 @@ public class EbusPiToolCatalogConfiguration {
         ObjectNode properties = parameters.putObject("properties");
         ObjectNode question = properties.putObject("question");
         question.put("type", "string");
-        question.put("description", "Question shown to the human");
+        question.put("description", "展示给用户的问题");
         ObjectNode options = properties.putObject("options");
         options.put("type", "array");
-        options.put("description", "Selectable options with id and label");
+        options.put("description", "可选项，含 id 与 label");
         ObjectNode optionItems = options.putObject("items");
         optionItems.put("type", "object");
         ObjectNode optionProps = optionItems.putObject("properties");
@@ -202,17 +202,17 @@ public class EbusPiToolCatalogConfiguration {
         optionProps.putObject("label").put("type", "string");
         ObjectNode allowFreeText = properties.putObject("allowFreeText");
         allowFreeText.put("type", "boolean");
-        allowFreeText.put("description", "Whether free-text answers are allowed; default true");
+        allowFreeText.put("description", "是否允许自由文本作答；默认 true");
         parameters.putArray("required").add("question").add("options");
         ToolSchema schema = ToolSchema.builder()
                 .name(AskHumanToolHandler.TOOL_NAME)
-                .description("Ask the human a structured question with options; suspends until resume")
+                .description("向用户发起带选项的结构化提问；调用后挂起直至 resume")
                 .parametersSchema(parameters)
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(AskHumanToolHandler.TOOL_NAME)
-                .description("Ask the human to confirm or supplement")
-                .text("[ask_human] Ask a question with options. Do not invent the human answer.")
+                .description("请用户确认或补充信息")
+                .text("[ask_human] 向用户提问并给出选项。禁止编造用户答复。")
                 .schema(schema)
                 .handlerClass(AskHumanToolHandler.class.getName())
                 .build();
@@ -225,20 +225,20 @@ public class EbusPiToolCatalogConfiguration {
         ObjectNode properties = parameters.putObject("properties");
         ObjectNode path = properties.putObject("path");
         path.put("type", "string");
-        path.put("description", "Relative path under the run workspace");
+        path.put("description", "相对 run 工作区的路径");
         ObjectNode content = properties.putObject("content");
         content.put("type", "string");
-        content.put("description", "UTF-8 text to write");
+        content.put("description", "要写入的 UTF-8 文本");
         parameters.putArray("required").add("path").add("content");
         ToolSchema schema = ToolSchema.builder()
                 .name(WriteFileToolHandler.TOOL_NAME)
-                .description("Write a UTF-8 text file under the run workspace")
+                .description("在 run 工作区写入 UTF-8 文本文件")
                 .parametersSchema(parameters)
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(WriteFileToolHandler.TOOL_NAME)
-                .description("Write a file under the run workspace")
-                .text("[write_file] Write UTF-8 text to a relative path. Paths cannot escape the workspace.")
+                .description("在 run 工作区写入文件")
+                .text("[write_file] 将 UTF-8 文本写入相对路径。路径不得逃出工作区。")
                 .schema(schema)
                 .handlerClass(WriteFileToolHandler.class.getName())
                 .build();
@@ -251,17 +251,17 @@ public class EbusPiToolCatalogConfiguration {
         ObjectNode properties = parameters.putObject("properties");
         ObjectNode path = properties.putObject("path");
         path.put("type", "string");
-        path.put("description", "Relative path under the run workspace");
+        path.put("description", "相对 run 工作区的路径");
         parameters.putArray("required").add("path");
         ToolSchema schema = ToolSchema.builder()
                 .name(ReadFileToolHandler.TOOL_NAME)
-                .description("Read a UTF-8 text file under the run workspace")
+                .description("在 run 工作区读取 UTF-8 文本文件")
                 .parametersSchema(parameters)
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(ReadFileToolHandler.TOOL_NAME)
-                .description("Read a file under the run workspace")
-                .text("[read_file] Read UTF-8 text from a relative path. Files larger than 2MiB fail.")
+                .description("在 run 工作区读取文件")
+                .text("[read_file] 按相对路径读取 UTF-8 文本。超过 2MiB 的文件会失败。")
                 .schema(schema)
                 .handlerClass(ReadFileToolHandler.class.getName())
                 .build();
@@ -274,17 +274,17 @@ public class EbusPiToolCatalogConfiguration {
         ObjectNode properties = parameters.putObject("properties");
         ObjectNode command = properties.putObject("command");
         command.put("type", "string");
-        command.put("description", "Shell command; cwd is the run workspace. Still runs on the host filesystem.");
+        command.put("description", "Shell 命令；cwd 为 run 工作区。进程仍在宿主机文件系统上执行。");
         parameters.putArray("required").add("command");
         ToolSchema schema = ToolSchema.builder()
                 .name(BashToolHandler.TOOL_NAME)
-                .description("Run a bash command in the run workspace. The command still runs on the host filesystem.")
+                .description("在 run 工作区执行 bash 命令。命令仍在宿主机文件系统上运行。")
                 .parametersSchema(parameters)
                 .build();
         ToolDefinition definition = ToolDefinition.builder()
                 .id(BashToolHandler.TOOL_NAME)
-                .description("Run bash in the run workspace. The command still runs on the host filesystem.")
-                .text("[bash] Run a command with cwd = run workspace. The process still runs on the host filesystem; env is only PATH, LANG, and HOME. Output is truncated at 64KiB.")
+                .description("在 run 工作区执行 bash。命令仍在宿主机文件系统上运行。")
+                .text("[bash] 在 run 工作区执行命令（cwd = 工作区）。进程仍跑在宿主机文件系统上；环境变量仅 PATH、LANG、HOME。输出截断至 64KiB。")
                 .schema(schema)
                 .handlerClass(BashToolHandler.class.getName())
                 .build();

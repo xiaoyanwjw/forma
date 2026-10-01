@@ -4,7 +4,7 @@ import com.xmut.ebus.application.business.agent.command.ResumeGenerationRunComma
 import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
 import com.xmut.ebus.application.business.agent.service.AgentApplicationService;
-import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
+import com.xmut.ebus.application.business.agent.sse.SseEvent;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.response.ApiResponse;
 import com.xmut.ebus.interfaces.security.SecuritySupport;
@@ -55,7 +55,7 @@ public class AgentController {
      * 已知 skillId → 计费（ecommerce-picklist / ecommerce-skulist）。
      */
     @PostMapping(value = "/runs")
-    public Object startGenerationRun(@RequestBody(required = false) StartGenerationRunRequest request) {
+    public Object streamGenerationRun(@RequestBody(required = false) StartGenerationRunRequest request) {
         String userId = SecuritySupport.requireUserId();
         StartGenerationRunRequest body = request != null ? request : new StartGenerationRunRequest();
         StartGenerationRunCommand command = StartGenerationRunCommand.builder()
@@ -112,7 +112,7 @@ public class AgentController {
         body.setSceneId(sceneId);
         body.setSceneCode(sceneCode);
         body.setDryRun(true);
-        return startGenerationRun(body);
+        return streamGenerationRun(body);
     }
 
     /**
@@ -128,7 +128,7 @@ public class AgentController {
         body.setSceneCode(src.getSceneCode());
         body.setSkillId("ecommerce-picklist");
         body.setDryRun(false);
-        return startGenerationRun(body);
+        return streamGenerationRun(body);
     }
 
     /**
@@ -144,7 +144,7 @@ public class AgentController {
         body.setSceneCode(src.getSceneCode());
         body.setSkillId("ecommerce-skulist");
         body.setDryRun(false);
-        return startGenerationRun(body);
+        return streamGenerationRun(body);
     }
 
     /**
@@ -197,7 +197,7 @@ public class AgentController {
         sseExecutor.shutdown();
     }
 
-    private static void sendEvent(SseEmitter emitter, Ad4SseEvent event) {
+    private static void sendEvent(SseEmitter emitter, SseEvent event) {
         try {
             emitter.send(SseEmitter.event()
                     .name(event.getWireName())

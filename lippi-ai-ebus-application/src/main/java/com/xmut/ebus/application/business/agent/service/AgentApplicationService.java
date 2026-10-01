@@ -3,9 +3,9 @@ package com.xmut.ebus.application.business.agent.service;
 import com.xmut.ebus.application.business.agent.command.ResumeGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.command.StartGenerationRunCommand;
 import com.xmut.ebus.application.business.agent.dto.GenerationRunContext;
-import com.xmut.ebus.application.business.agent.sse.Ad4EventName;
-import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
-import com.xmut.ebus.application.business.agent.sse.PiEventToAd4Mapper;
+import com.xmut.ebus.application.business.agent.sse.SseEventName;
+import com.xmut.ebus.application.business.agent.sse.SseEvent;
+import com.xmut.ebus.application.business.agent.sse.PiEventMapper;
 import com.xmut.ebus.application.business.agent.support.ArtifactPersistPlugin;
 import com.xmut.ebus.application.business.agent.support.BilledRunContext;
 import com.xmut.ebus.application.business.agent.support.BilledRunInterceptor;
@@ -223,7 +223,7 @@ public class AgentApplicationService {
     /**
      * 通用 Generation SSE：dry → run_failed；否则 billed 路径（含无 Skill）。
      */
-    public void streamGenerationRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
+    public void streamGenerationRun(GenerationRunContext context, Consumer<SseEvent> sink) {
         ObjectUtils.requireNonNull(context, "生成上下文不能为空");
         ObjectUtils.requireNonNull(sink, "SSE sink 不能为空");
         ObjectUtils.requireNonNull(context.getProfile(), "SkillRunProfile 不能为空");
@@ -235,14 +235,14 @@ public class AgentApplicationService {
         streamBilledRun(context, sink);
     }
 
-    private void streamDryRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
+    private void streamDryRun(GenerationRunContext context, Consumer<SseEvent> sink) {
         AtomicBoolean aborted = new AtomicBoolean(false);
 
         AutoCloseable subscription = null;
         boolean released = false;
         SkillRunProfile profile = context.getProfile();
         try {
-            emit(sink, Ad4SseEvent.of(Ad4EventName.RUN_STARTED, toRunStarted(context.getRunId(),
+            emit(sink, SseEvent.of(SseEventName.RUN_STARTED, toRunStarted(context.getRunId(),
                     context.getSessionId(), context.getHoldId())));
 
             final SceneCapabilityPack pack;
@@ -277,7 +277,7 @@ public class AgentApplicationService {
                     if (aborted.get()) {
                         return;
                     }
-                    PiEventToAd4Mapper.mapEvent(event).ifPresent(mapped -> {
+                    PiEventMapper.mapEvent(event).ifPresent(mapped -> {
                         if (aborted.get()) {
                             return;
                         }
@@ -342,7 +342,7 @@ public class AgentApplicationService {
      * @param context 已预占并绑定场景的运行上下文
      * @param sink    SSE 事件消费者
      */
-    private void streamBilledRun(GenerationRunContext context, Consumer<Ad4SseEvent> sink) {
+    private void streamBilledRun(GenerationRunContext context, Consumer<SseEvent> sink) {
         AtomicBoolean aborted = new AtomicBoolean(false);
         AutoCloseable subscription = null;
         SkillRunProfile profile = context.getProfile();
@@ -352,7 +352,7 @@ public class AgentApplicationService {
             beforeBilledRun(runContext);
 
             // 2. 发布 RUN_STARTED 事件
-            emit(sink, Ad4SseEvent.of(Ad4EventName.RUN_STARTED, toRunStarted(context.getRunId(),
+            emit(sink, SseEvent.of(SseEventName.RUN_STARTED, toRunStarted(context.getRunId(),
                     context.getSessionId(), context.getHoldId())));
 
             // 3. 校验场景能力包
@@ -370,7 +370,7 @@ public class AgentApplicationService {
                     if (aborted.get()) {
                         return;
                     }
-                    PiEventToAd4Mapper.mapEvent(event).ifPresent(mapped -> {
+                    PiEventMapper.mapEvent(event).ifPresent(mapped -> {
                         if (aborted.get()) {
                             return;
                         }
@@ -420,7 +420,7 @@ public class AgentApplicationService {
             if (StringUtils.hasText(finalResponse)) {
                 Map<String, Object> delta = new LinkedHashMap<String, Object>();
                 delta.put("text", finalResponse);
-                emit(sink, Ad4SseEvent.of(Ad4EventName.MESSAGE_DELTA, delta));
+                emit(sink, SseEvent.of(SseEventName.MESSAGE_DELTA, delta));
             }
 
             ParsedGenerationOutput parsed = parseFinalOutput(finalResponse, runDir);
@@ -517,7 +517,7 @@ public class AgentApplicationService {
      * @param command 续跑命令（含 runId、toolCallId、选项或自由文本）
      * @param sink    SSE 事件消费者，不可为空
      */
-    public void resumeBilledRun(ResumeGenerationRunCommand command, Consumer<Ad4SseEvent> sink) {
+    public void resumeBilledRun(ResumeGenerationRunCommand command, Consumer<SseEvent> sink) {
         ObjectUtils.requireNonNull(sink, "SSE sink 不能为空");
 
         // 1. 校验续跑门闩（归属 / RUNNING / Checkpoint）
@@ -539,7 +539,7 @@ public class AgentApplicationService {
             beforeBilledRun(runContext);
 
             // 3. 发布 RUN_STARTED 事件
-            emit(sink, Ad4SseEvent.of(Ad4EventName.RUN_STARTED, toRunStarted(context.getRunId(),
+            emit(sink, SseEvent.of(SseEventName.RUN_STARTED, toRunStarted(context.getRunId(),
                     context.getSessionId(), context.getHoldId())));
 
             // 4. 订阅 PiEvent 并转发为 AD-4 SSE
@@ -549,7 +549,7 @@ public class AgentApplicationService {
                     if (aborted.get()) {
                         return;
                     }
-                    PiEventToAd4Mapper.mapEvent(event).ifPresent(mapped -> {
+                    PiEventMapper.mapEvent(event).ifPresent(mapped -> {
                         if (aborted.get()) {
                             return;
                         }
@@ -606,7 +606,7 @@ public class AgentApplicationService {
             if (StringUtils.hasText(finalResponse)) {
                 Map<String, Object> delta = new LinkedHashMap<String, Object>();
                 delta.put("text", finalResponse);
-                emit(sink, Ad4SseEvent.of(Ad4EventName.MESSAGE_DELTA, delta));
+                emit(sink, SseEvent.of(SseEventName.MESSAGE_DELTA, delta));
             }
             ParsedGenerationOutput parsed = parseFinalOutput(finalResponse, runDir);
             Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
@@ -647,8 +647,8 @@ public class AgentApplicationService {
         }
     }
 
-    private void notifyMappedEvent(BilledRunContext runContext, Ad4SseEvent mapped) {
-        if (mapped.getName() == Ad4EventName.HUMAN_INPUT_REQUIRED) {
+    private void notifyMappedEvent(BilledRunContext runContext, SseEvent mapped) {
+        if (mapped.getName() == SseEventName.HUMAN_INPUT_REQUIRED) {
             Object callId = mapped.getData().get("toolCallId");
             if (callId != null && StringUtils.hasText(String.valueOf(callId))) {
                 runContext.setPendingToolCallId(String.valueOf(callId).trim());
@@ -674,7 +674,7 @@ public class AgentApplicationService {
     }
 
     /** stream 挂起收尾：handler 已落成果则 settle 当前 hold。 */
-    private void settleOnSuspended(BilledRunContext runContext, Consumer<Ad4SseEvent> sink) {
+    private void settleOnSuspended(BilledRunContext runContext, Consumer<SseEvent> sink) {
         if (!runContext.isPendingSettleOnSuspend()) {
             return;
         }
@@ -718,7 +718,7 @@ public class AgentApplicationService {
 
     /** persist → settle → artifact_ready + run_settled；失败在方法内收尾，不向外抛。 */
     private void settleBilledRun(GenerationRunContext context,
-                                 Consumer<Ad4SseEvent> sink,
+                                 Consumer<SseEvent> sink,
                                  String persistAs,
                                  Map<String, Object> projectedView,
                                  Map<String, Object> businessPayload) {
@@ -760,9 +760,9 @@ public class AgentApplicationService {
         }
 
         try {
-            emit(sink, Ad4SseEvent.of(Ad4EventName.ARTIFACT_READY,
+            emit(sink, SseEvent.of(SseEventName.ARTIFACT_READY,
                     toArtifactReady(persisted, projectedView)));
-            emit(sink, Ad4SseEvent.of(Ad4EventName.RUN_SETTLED,
+            emit(sink, SseEvent.of(SseEventName.RUN_SETTLED,
                     toRunSettled(context, settleHoldId, persisted.getArtifactRef())));
         } catch (RuntimeException emitEx) {
             LoggerUtils.error(log, AgentApplicationService.class, "persistAndSettleBilledRun",
@@ -934,13 +934,13 @@ public class AgentApplicationService {
         return data;
     }
 
-    private static void emit(Consumer<Ad4SseEvent> sink, Ad4SseEvent event) {
+    private static void emit(Consumer<SseEvent> sink, SseEvent event) {
         sink.accept(event);
     }
 
-    private static void emitRunFailed(Consumer<Ad4SseEvent> sink, String reason, boolean emptyRun) {
+    private static void emitRunFailed(Consumer<SseEvent> sink, String reason, boolean emptyRun) {
         try {
-            emit(sink, Ad4SseEvent.of(Ad4EventName.RUN_FAILED, toRunFailed(reason, emptyRun)));
+            emit(sink, SseEvent.of(SseEventName.RUN_FAILED, toRunFailed(reason, emptyRun)));
         } catch (RuntimeException ignored) {
             // 第二次抛错不应抹掉失败收尾尝试
         }

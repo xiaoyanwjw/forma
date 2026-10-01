@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.SneakyThrows;
 import org.springframework.util.StringUtils;
 
 import java.util.Collections;
@@ -24,41 +25,35 @@ public final class ApifyTaobaoSkuSearchClient implements SkuSearchPort {
         this.transport = transport;
     }
 
+    @SneakyThrows
     @Override
     public List<SkuSearchHit> search(String query, String platform, int pageSize) {
         if (!StringUtils.hasText(query)) {
             return Collections.emptyList();
         }
-        String keyword = query.trim();
         int maxItems = pageSize < 1 ? 1 : Math.min(pageSize, 20);
         SkuSearchProperties.Apify apify = properties.getApify();
         String token = apify.getToken();
         if (!StringUtils.hasText(token)) {
             throw new IllegalStateException("missing_token");
         }
-        String body = buildRequestBody(keyword, maxItems);
-        String response = transport.postSyncDatasetItems(
+
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("keyword", query);
+        root.put("maxItems", maxItems);
+        root.put("enrichWithDetails", false);
+        root.put("fetchReviews", false);
+        String body= MAPPER.writeValueAsString(root);
+
+        String response = transport.post(
                 apify.getActorId(),
                 token.trim(),
                 apify.getTimeoutMs(),
                 body);
-        return parseDatasetItems(response);
+        return resolve(response);
     }
 
-    private static String buildRequestBody(String keyword, int maxItems) {
-        try {
-            ObjectNode root = MAPPER.createObjectNode();
-            root.put("keyword", keyword);
-            root.put("maxItems", maxItems);
-            root.put("enrichWithDetails", false);
-            root.put("fetchReviews", false);
-            return MAPPER.writeValueAsString(root);
-        } catch (Exception e) {
-            throw new IllegalStateException("request_body_error", e);
-        }
-    }
-
-    private static List<SkuSearchHit> parseDatasetItems(String responseBody) {
+    private static List<SkuSearchHit> resolve(String responseBody) {
         if (!StringUtils.hasText(responseBody)) {
             return Collections.emptyList();
         }

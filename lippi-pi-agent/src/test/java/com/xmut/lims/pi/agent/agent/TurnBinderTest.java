@@ -93,7 +93,7 @@ public class TurnBinderTest {
 
         assertThat(bindings.getSkillsText())
                 .contains("b")
-                .contains("Active skill: b")
+                .contains("当前技能：b")
                 .doesNotContain("\n- a");
         @SuppressWarnings("unchecked")
         List<Skill> available = (List<Skill>) state.get(StateKeys.AVAILABLE_SKILLS);
@@ -119,7 +119,7 @@ public class TurnBinderTest {
         @SuppressWarnings("unchecked")
         List<ToolSchema> schemas = (List<ToolSchema>) state.get(StateKeys.AVAILABLE_TOOLS);
         assertThat(schemas).extracting(ToolSchema::getName).containsExactly("keep");
-        assertThat(bindings.getToolsText()).isEqualTo("k");
+        assertThat(bindings.getToolsText()).isEqualTo("## 工具\nk");
     }
 
     @Test
@@ -138,7 +138,7 @@ public class TurnBinderTest {
         TurnBindings bindings = TurnBinder.bind(tools, null, skill);
         bindings.applyTo(state);
 
-        assertThat(bindings.getToolsText()).isEqualTo("keep-text");
+        assertThat(bindings.getToolsText()).isEqualTo("## 工具\nkeep-text");
         assertThat(bindings.getToolsText()).doesNotContain("drop");
     }
 

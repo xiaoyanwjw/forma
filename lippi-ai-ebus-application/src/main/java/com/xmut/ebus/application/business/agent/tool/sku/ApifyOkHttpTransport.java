@@ -21,7 +21,7 @@ public final class ApifyOkHttpTransport implements ApifyActorTransport {
     }
 
     @Override
-    public String postSyncDatasetItems(String actorIdSlash, String token, long timeoutMs, String jsonBody) {
+    public String post(String actorIdSlash, String token, long timeoutMs, String jsonBody) {
         String actorPath = actorIdSlash.replace('/', '~');
         long timeoutSeconds = Math.max(1L, (timeoutMs + 999L) / 1000L);
         String url = API_BASE + actorPath + "/run-sync-get-dataset-items?timeout=" + timeoutSeconds;

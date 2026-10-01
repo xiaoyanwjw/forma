@@ -1,6 +1,6 @@
 package com.xmut.ebus.application.business.agent.support;
 
-import com.xmut.ebus.application.business.agent.sse.Ad4SseEvent;
+import com.xmut.ebus.application.business.agent.sse.SseEvent;
 
 import java.util.function.Consumer;
 
@@ -12,5 +12,5 @@ import java.util.function.Consumer;
  */
 public interface BilledSuspendedHandler {
 
-    boolean onSuspended(BilledRunContext ctx, Consumer<Ad4SseEvent> sink);
+    boolean onSuspended(BilledRunContext ctx, Consumer<SseEvent> sink);
 }

@@ -7,23 +7,23 @@ import java.util.Map;
 /**
  * 下发给浏览器的 AD-4 SSE 事件（payload 字段细表可后钉）。
  */
-public final class Ad4SseEvent {
+public final class SseEvent {
 
-    private final Ad4EventName name;
+    private final SseEventName name;
     private final Map<String, Object> data;
 
-    public Ad4SseEvent(Ad4EventName name, Map<String, Object> data) {
+    public SseEvent(SseEventName name, Map<String, Object> data) {
         this.name = name;
         this.data = data == null
                 ? Collections.<String, Object>emptyMap()
                 : Collections.unmodifiableMap(new LinkedHashMap<String, Object>(data));
     }
 
-    public static Ad4SseEvent of(Ad4EventName name, Map<String, Object> data) {
-        return new Ad4SseEvent(name, data);
+    public static SseEvent of(SseEventName name, Map<String, Object> data) {
+        return new SseEvent(name, data);
     }
 
-    public Ad4EventName getName() {
+    public SseEventName getName() {
         return name;
     }
 

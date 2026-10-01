@@ -10,6 +10,7 @@ import com.xmut.ebus.application.business.agent.tool.sku.SkuReranker;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchPort;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearcher;
+import com.xmut.ebus.application.config.PiToolCatalogConfiguration;
 import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
 import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
@@ -93,7 +94,7 @@ class SearchSkuToolHandlerTest {
     void catalogResolvesSearchSku() {
         new ApplicationContextRunner()
                 .withUserConfiguration(
-                        com.xmut.ebus.application.config.EbusPiToolCatalogConfiguration.class)
+                        PiToolCatalogConfiguration.class)
                 .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, () -> {
                     InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
                     skills.sealBootstrap();
