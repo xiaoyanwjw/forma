@@ -43,3 +43,4 @@ _bmad/render/
 
 # Local editor history
 .history/
+.worktrees/
