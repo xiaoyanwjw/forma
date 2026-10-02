@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.xmut.ebus.application.business.agent.tool.sku.ApifyActorTransport;
+import com.xmut.ebus.extension.tool.sku.ApifyActorTransport;
 import lombok.SneakyThrows;
 import org.springframework.util.StringUtils;
 

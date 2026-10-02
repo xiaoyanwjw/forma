@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.agent.tool.sku;
+package com.xmut.ebus.extension.tool.sku;
 
 /**
  * Immutable SKU summary returned by {@link SkuSearchPort}.

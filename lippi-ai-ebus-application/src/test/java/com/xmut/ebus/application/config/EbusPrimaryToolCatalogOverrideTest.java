@@ -1,6 +1,7 @@
 package com.xmut.ebus.application.config;
 
-import com.xmut.ebus.application.business.agent.tool.sku.SearchSkuToolHandler;
+import com.xmut.ebus.extension.config.SkuToolsConfiguration;
+import com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.agent.tool.xhs.FetchXhsNoteToolHandler;
 import com.xmut.ebus.application.business.agent.tool.xhs.SearchXhsNoteToolHandler;
 import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
@@ -50,7 +51,7 @@ class EbusPrimaryToolCatalogOverrideTest {
             assertThat(sku.getSchema().getParametersSchema()).isNotNull();
             assertThat(sku.getSchema().getParametersSchema().path("properties").has("query")).isTrue();
             assertThat(sku.getHandlerClass())
-                    .isEqualTo("com.xmut.ebus.application.business.agent.tool.sku.SearchSkuToolHandler");
+                    .isEqualTo("com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler");
         });
     }
 

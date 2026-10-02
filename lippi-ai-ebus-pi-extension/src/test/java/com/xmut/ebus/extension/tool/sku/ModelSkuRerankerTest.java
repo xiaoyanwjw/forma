@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.agent.tool.sku;
+package com.xmut.ebus.extension.tool.sku;
 
 import com.xmut.lims.pi.ai.model.ModelProvider;
 import com.xmut.lims.pi.ai.model.ModelRequest;

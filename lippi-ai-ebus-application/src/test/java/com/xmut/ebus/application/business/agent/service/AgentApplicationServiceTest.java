@@ -13,7 +13,7 @@ import com.xmut.ebus.application.business.computer.ComputerViewProjector;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
-import com.xmut.ebus.application.business.agent.tool.sku.SearchSkuToolHandler;
+import com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.media.support.ListingMediaMountSupport;
 import com.xmut.ebus.domain.business.media.model.MediaObject;
 import com.xmut.ebus.domain.business.media.store.MediaStore;

@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.agent.tool.sku;
+package com.xmut.ebus.extension.tool.sku;
 
 import com.xmut.ebus.common.http.RestClient;
 import com.xmut.ebus.common.http.RestClientException;

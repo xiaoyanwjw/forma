@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.agent.tool.sku;
+package com.xmut.ebus.extension.tool.sku;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

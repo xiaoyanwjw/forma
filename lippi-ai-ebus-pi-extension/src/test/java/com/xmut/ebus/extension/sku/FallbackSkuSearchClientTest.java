@@ -1,9 +1,9 @@
-package com.xmut.ebus.application.business.sku;
+package com.xmut.ebus.extension.sku;
 
-import com.xmut.ebus.application.business.agent.tool.sku.FallbackSkuSearchClient;
-import com.xmut.ebus.application.business.agent.tool.sku.MockSkuSearchClient;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchHit;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchPort;
+import com.xmut.ebus.extension.tool.sku.FallbackSkuSearchClient;
+import com.xmut.ebus.extension.tool.sku.MockSkuSearchClient;
+import com.xmut.ebus.extension.tool.sku.SkuSearchHit;
+import com.xmut.ebus.extension.tool.sku.SkuSearchPort;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;

@@ -1,2 +1,3 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.xmut.ebus.extension.config.ExtensionMarkerConfiguration
+com.xmut.ebus.extension.config.ExtensionMarkerConfiguration,\
+com.xmut.ebus.extension.config.SkuToolsConfiguration

@@ -37,6 +37,8 @@ class ExtensionAutoConfigurationSmokeTest {
                 merged.append(value).append(',');
             }
         }
-        assertTrue(merged.toString().contains("com.xmut.ebus.extension.config.ExtensionMarkerConfiguration"));
+        String listed = merged.toString();
+        assertTrue(listed.contains("com.xmut.ebus.extension.config.ExtensionMarkerConfiguration"));
+        assertTrue(listed.contains("com.xmut.ebus.extension.config.SkuToolsConfiguration"));
     }
 }

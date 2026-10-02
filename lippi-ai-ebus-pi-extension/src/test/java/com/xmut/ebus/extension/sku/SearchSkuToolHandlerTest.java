@@ -1,28 +1,20 @@
-package com.xmut.ebus.application.business.sku;
+package com.xmut.ebus.extension.sku;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.xmut.ebus.application.business.agent.tool.sku.MockSkuSearchClient;
-import com.xmut.ebus.application.business.agent.tool.sku.SearchSkuToolHandler;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuReranker;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchPort;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuSearcher;
-import com.xmut.ebus.application.config.PiToolCatalogConfiguration;
-import com.xmut.ebus.application.config.SkuToolsConfiguration;
-import com.xmut.ebus.application.config.XhsToolsConfiguration;
-import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
-import com.xmut.lims.pi.agent.tool.ToolCatalog;
-import com.xmut.lims.pi.ai.model.ModelCatalog;
+import com.xmut.ebus.extension.tool.sku.MockSkuSearchClient;
+import com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler;
+import com.xmut.ebus.extension.tool.sku.SkuReranker;
+import com.xmut.ebus.extension.tool.sku.SkuSearchPort;
+import com.xmut.ebus.extension.tool.sku.SkuSearchProperties;
+import com.xmut.ebus.extension.tool.sku.SkuSearcher;
 import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import java.util.Collections;
 
@@ -90,23 +82,6 @@ class SearchSkuToolHandlerTest {
         }
         assertFalse(result.isSuccess());
         assertTrue(result.getErrorMessage() != null && !result.getErrorMessage().trim().isEmpty());
-    }
-
-    @Test
-    void catalogResolvesSearchSku() {
-        new ApplicationContextRunner()
-                .withUserConfiguration(
-                        PiToolCatalogConfiguration.class,
-                        SkuToolsConfiguration.class,
-                        XhsToolsConfiguration.class)
-                .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class))
-                .run(context -> {
-                    assertTrue(context.getBean(ToolCatalog.class).resolve("search_sku").isPresent());
-                    assertTrue(context.getBean(ToolCatalog.class).resolve("search_xhs_note").isPresent());
-                    assertTrue(context.getBean(ToolCatalog.class).resolve("fetch_xhs_note").isPresent());
-                    assertTrue(context.getBean(ToolCatalog.class).resolve("read_skill").isPresent());
-                    assertTrue(context.getBean(ModelCatalog.class).resolve("ebus.sku.rerank") != null);
-                });
     }
 
     private static SearchSkuToolHandler handlerFor(SkuSearchPort port) {

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.ebus.application.config.PiToolCatalogConfiguration;
-import com.xmut.ebus.application.config.SkuToolsConfiguration;
+import com.xmut.ebus.extension.config.SkuToolsConfiguration;
 import com.xmut.ebus.application.config.XhsToolsConfiguration;
 import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;

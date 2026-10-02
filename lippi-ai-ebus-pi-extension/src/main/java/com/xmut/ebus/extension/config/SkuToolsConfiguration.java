@@ -1,15 +1,15 @@
-package com.xmut.ebus.application.config;
+package com.xmut.ebus.extension.config;
 
-import com.xmut.ebus.application.business.agent.tool.sku.ApifyOkHttpTransport;
-import com.xmut.ebus.application.business.agent.tool.sku.ApifyTaobaoSkuSearchClient;
-import com.xmut.ebus.application.business.agent.tool.sku.FallbackSkuSearchClient;
-import com.xmut.ebus.application.business.agent.tool.sku.MockSkuSearchClient;
-import com.xmut.ebus.application.business.agent.tool.sku.ModelSkuReranker;
-import com.xmut.ebus.application.business.agent.tool.sku.SearchSkuToolHandler;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuReranker;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchPort;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
-import com.xmut.ebus.application.business.agent.tool.sku.SkuSearcher;
+import com.xmut.ebus.extension.tool.sku.ApifyOkHttpTransport;
+import com.xmut.ebus.extension.tool.sku.ApifyTaobaoSkuSearchClient;
+import com.xmut.ebus.extension.tool.sku.FallbackSkuSearchClient;
+import com.xmut.ebus.extension.tool.sku.MockSkuSearchClient;
+import com.xmut.ebus.extension.tool.sku.ModelSkuReranker;
+import com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler;
+import com.xmut.ebus.extension.tool.sku.SkuReranker;
+import com.xmut.ebus.extension.tool.sku.SkuSearchPort;
+import com.xmut.ebus.extension.tool.sku.SkuSearchProperties;
+import com.xmut.ebus.extension.tool.sku.SkuSearcher;
 import com.xmut.ebus.common.logging.LoggerUtils;
 import com.xmut.ebus.common.logging.NameValue;
 import com.xmut.lims.pi.ai.model.ModelProvider;

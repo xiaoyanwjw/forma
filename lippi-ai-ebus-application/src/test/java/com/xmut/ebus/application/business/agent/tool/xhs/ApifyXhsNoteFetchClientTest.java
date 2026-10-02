@@ -1,6 +1,6 @@
 package com.xmut.ebus.application.business.agent.tool.xhs;
 
-import com.xmut.ebus.application.business.agent.tool.sku.ApifyActorTransport;
+import com.xmut.ebus.extension.tool.sku.ApifyActorTransport;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;

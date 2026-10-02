@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.agent.tool.sku;
+package com.xmut.ebus.extension.tool.sku;
 
 /**
  * Internal SKU candidate with a short id ({@code h1}…) for reranking.

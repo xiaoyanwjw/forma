@@ -1,6 +1,6 @@
 package com.xmut.ebus.application.config;
 
-import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
+import com.xmut.ebus.extension.tool.sku.SkuSearchProperties;
 import com.xmut.ebus.application.business.agent.tool.xhs.ApifyXhsNoteFetchClient;
 import com.xmut.ebus.application.business.agent.tool.xhs.ApifyXhsNoteSearchClient;
 import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteFetchClient;
@@ -44,7 +44,7 @@ class EbusPiToolCatalogConfigurationTest {
     void loader_scans_sku_and_xhs_tool_json() {
         ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
         List<ToolDefinition> defs = ToolDefinitionJsonLoader.load(resolver);
-        assertEquals("com.xmut.ebus.application.business.agent.tool.sku.SearchSkuToolHandler",
+        assertEquals("com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler",
                 handlerClassOf(defs, "search_sku"));
         assertEquals("com.xmut.ebus.application.business.agent.tool.xhs.SearchXhsNoteToolHandler",
                 handlerClassOf(defs, "search_xhs_note"));
