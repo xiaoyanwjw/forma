@@ -1,0 +1,140 @@
+import { createApp, type App } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Ad4SseEvent } from '@/types/business/agent'
+import { useAgentSkillRun } from './useAgentSkillRun'
+
+vi.mock('@/api/business/agent/agent', () => ({
+  streamAgentRun: vi.fn(),
+  resumeGenerationRun: vi.fn(),
+}))
+
+import { resumeGenerationRun, streamAgentRun } from '@/api/business/agent/agent'
+
+function sse(name: Ad4SseEvent['name'], data: Record<string, unknown> = {}): Ad4SseEvent {
+  return { name, data }
+}
+
+async function* eventsOf(...items: Ad4SseEvent[]) {
+  for (const item of items) {
+    yield item
+  }
+}
+
+function withSetup<T>(factory: () => T): { result: T; unmount: () => void } {
+  let result!: T
+  const app: App = createApp({
+    setup() {
+      result = factory()
+      return () => null
+    },
+  })
+  app.mount(document.createElement('div'))
+  return {
+    result,
+    unmount: () => app.unmount(),
+  }
+}
+
+describe('useAgentSkillRun HITL', () => {
+  let unmount: (() => void) | undefined
+
+  beforeEach(() => {
+    vi.mocked(streamAgentRun).mockReset()
+    vi.mocked(resumeGenerationRun).mockReset()
+  })
+
+  afterEach(() => {
+    unmount?.()
+    unmount = undefined
+  })
+
+  it('sets pendingHuman on human_input_required and clears on resume settle', async () => {
+    vi.mocked(streamAgentRun).mockImplementation(() =>
+      eventsOf(
+        sse('run_started', { runId: 'r-l1', sessionId: 's1' }),
+        sse('human_input_required', {
+          toolCallId: 'ask-1',
+          runId: 'r-l1',
+          question: '策划分镜已出。确认后将生成执行稿。',
+          options: [
+            { id: 'confirm_execute', label: '确认，出执行稿' },
+            { id: 'supplement', label: '补充需求' },
+          ],
+          allowFreeText: true,
+        }),
+      ),
+    )
+    vi.mocked(resumeGenerationRun).mockImplementation(() => eventsOf(sse('run_settled')))
+
+    const mounted = withSetup(() => useAgentSkillRun())
+    unmount = mounted.unmount
+    const { startSkillRun, pendingHuman, resumeSkillRun, running, runId } = mounted.result
+
+    await startSkillRun({
+      text: '生成上架',
+      skillId: 'ecommerce-skulist',
+      sceneCode: 'ecommerce',
+    })
+    expect(pendingHuman.value?.toolCallId).toBeTruthy()
+    expect(pendingHuman.value?.toolCallId).toBe('ask-1')
+    expect(runId.value).toBe('r-l1')
+    expect(running.value).toBe(false)
+
+    await resumeSkillRun({ optionId: 'confirm_execute' })
+    expect(pendingHuman.value).toBeNull()
+    expect(running.value).toBe(false)
+    expect(resumeGenerationRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: 'r-l1',
+        toolCallId: 'ask-1',
+        optionId: 'confirm_execute',
+      }),
+    )
+  })
+
+  it('keeps skillId optional on startSkillRun', async () => {
+    vi.mocked(streamAgentRun).mockImplementation(() =>
+      eventsOf(sse('run_started', { runId: 'r-free', sessionId: 's2' }), sse('run_settled')),
+    )
+
+    const mounted = withSetup(() => useAgentSkillRun())
+    unmount = mounted.unmount
+    await mounted.result.startSkillRun({
+      text: '随便聊聊',
+      sceneCode: 'ecommerce',
+    })
+
+    expect(streamAgentRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: '随便聊聊',
+        sceneCode: 'ecommerce',
+        skillId: undefined,
+        dryRun: false,
+      }),
+    )
+    expect(mounted.result.pendingHuman.value).toBeNull()
+    expect(mounted.result.running.value).toBe(false)
+  })
+
+  it('clears pendingHuman on run_failed', async () => {
+    vi.mocked(streamAgentRun).mockImplementation(() =>
+      eventsOf(
+        sse('run_started', { runId: 'r-fail', sessionId: 's3' }),
+        sse('human_input_required', { toolCallId: 'ask-fail', runId: 'r-fail' }),
+        sse('run_failed', { reason: '模型超时' }),
+      ),
+    )
+
+    const mounted = withSetup(() => useAgentSkillRun())
+    unmount = mounted.unmount
+    await mounted.result.startSkillRun({
+      text: '生成上架',
+      skillId: 'ecommerce-skulist',
+      sceneCode: 'ecommerce',
+    })
+
+    expect(mounted.result.pendingHuman.value).toBeNull()
+    expect(mounted.result.error.value).toBe('模型超时')
+    expect(mounted.result.running.value).toBe(false)
+  })
+})
