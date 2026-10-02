@@ -119,7 +119,7 @@ public final class DefaultPiResourceLoader implements PiResourceLoader {
             return Optional.empty();
         }
         Skill skill = resolved.get();
-        // 与 ReadSkill 一致：写了 promptRef 则失败不回落，避免读错文件却假装成功。
+        // 与 ReadSkillHandler 一致：写了 promptRef 则失败不回落，避免读错文件却假装成功。
         if (StringUtils.hasText(skill.getPromptRef())) {
             return loadPromptRef(skill.getPromptRef().trim(), skillId);
         }

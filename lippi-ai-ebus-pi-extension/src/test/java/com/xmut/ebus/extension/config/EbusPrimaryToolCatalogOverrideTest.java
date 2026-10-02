@@ -7,7 +7,7 @@ import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
 import com.xmut.lims.pi.agent.tool.base.AskHumanToolHandler;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
-import com.xmut.lims.pi.agent.tool.base.ReadSkill;
+import com.xmut.lims.pi.agent.tool.base.ReadSkillHandler;
 import com.xmut.lims.pi.agent.tool.base.BashToolHandler;
 import com.xmut.lims.pi.agent.tool.base.ReadFileToolHandler;
 import com.xmut.lims.pi.agent.tool.base.WriteFileToolHandler;
@@ -70,7 +70,7 @@ class EbusPrimaryToolCatalogOverrideTest {
             assertThat(catalog.resolve("read_file")).isPresent();
             assertThat(catalog.resolve("bash")).isPresent();
             assertThat(catalog.handlerOf("read_skill")).isPresent();
-            assertThat(catalog.handlerOf("read_skill").get()).isInstanceOf(ReadSkill.class);
+            assertThat(catalog.handlerOf("read_skill").get()).isInstanceOf(ReadSkillHandler.class);
             assertThat(catalog.handlerOf("search_sku")).isPresent();
             assertThat(catalog.handlerOf("search_sku").get()).isInstanceOf(SearchSkuToolHandler.class);
             assertThat(catalog.handlerOf("search_xhs_note").get()).isInstanceOf(SearchXhsNoteToolHandler.class);

@@ -27,7 +27,7 @@ class ReadSkillToolHandlerTest {
                 .build());
         skills.sealBootstrap();
 
-        ReadSkill handler = new ReadSkill(skills);
+        ReadSkillHandler handler = new ReadSkillHandler(skills);
 
         ObjectNode args = JsonNodeFactory.instance.objectNode();
         args.put("skill_id", "ecommerce-picklist");
@@ -58,7 +58,7 @@ class ReadSkillToolHandlerTest {
                 .allowedTools(Collections.emptyList())
                 .build());
 
-        ReadSkill handler = new ReadSkill(skills);
+        ReadSkillHandler handler = new ReadSkillHandler(skills);
         ObjectNode args = JsonNodeFactory.instance.objectNode();
         args.put("skill_id", "other.skill");
         ToolResult result = handler.handle(
@@ -80,14 +80,14 @@ class ReadSkillToolHandlerTest {
                 .build();
         skills.register(m);
 
-        assertThat(new ReadSkill(skills).resolveBody(m)).isEmpty();
+        assertThat(new ReadSkillHandler(skills).resolveBody(m)).isEmpty();
     }
 
     @Test
     void fails_when_skill_missing() {
         InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
         skills.sealBootstrap();
-        ReadSkill handler = new ReadSkill(skills);
+        ReadSkillHandler handler = new ReadSkillHandler(skills);
 
         ObjectNode args = JsonNodeFactory.instance.objectNode();
         args.put("skill_id", "nope");

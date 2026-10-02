@@ -19,9 +19,9 @@ import java.util.Optional;
  * 功能描述：按 skill_id 读取 Skill 正文（md / 内联 prompt）。
  * 关键设计：只读，不写 Registry；{@code SKILL.md} 会附带同级 {@code references/*.md}。
  */
-public final class ReadSkill implements ToolHandler {
+public final class ReadSkillHandler implements ToolHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(ReadSkill.class);
+    private static final Logger log = LoggerFactory.getLogger(ReadSkillHandler.class);
 
     public static final String TOOL_ID = "read_skill";
     public static final String ARG_SKILL_ID = "skill_id";
@@ -31,7 +31,7 @@ public final class ReadSkill implements ToolHandler {
     /**
      * 生产 / {@code createBean}：仅依赖 {@link SkillCatalog}。
      */
-    public ReadSkill(SkillCatalog skillConfig) {
+    public ReadSkillHandler(SkillCatalog skillConfig) {
         this.skillConfig = skillConfig;
     }
 

@@ -13,7 +13,7 @@ import com.xmut.lims.pi.agent.skill.Skills;
 import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolBinding;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
-import com.xmut.lims.pi.agent.tool.base.ReadSkill;
+import com.xmut.lims.pi.agent.tool.base.ReadSkillHandler;
 import com.xmut.lims.pi.ai.message.ContentPart;
 import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.ai.model.InMemoryModelCatalog;
@@ -46,11 +46,11 @@ class SkillsPiIntegrationTest {
 
         ToolBinding readSkill = ToolBinding.of(
                 ToolDefinition.builder()
-                        .id(ReadSkill.TOOL_ID)
+                        .id(ReadSkillHandler.TOOL_ID)
                         .text("[read_skill]")
                         .schema(ToolSchema.builder().name("read_skill").build())
                         .build(),
-                new ReadSkill(skills));
+                new ReadSkillHandler(skills));
         InMemoryToolCatalog toolConfig = InMemoryToolCatalog.ofBindings(Collections.singletonList(readSkill));
 
         AtomicInteger turns = new AtomicInteger();

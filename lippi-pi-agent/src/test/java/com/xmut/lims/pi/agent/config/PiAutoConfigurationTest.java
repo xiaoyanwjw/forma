@@ -5,7 +5,7 @@ import com.xmut.lims.pi.agent.agent.*;
 import com.xmut.lims.pi.agent.graph.checkpoint.Checkpointer;
 import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryCheckpointer;
 import com.xmut.lims.pi.agent.graph.checkpoint.ResumeIdempotencyStore;
-import com.xmut.lims.pi.agent.tool.base.ReadSkill;
+import com.xmut.lims.pi.agent.tool.base.ReadSkillHandler;
 import com.xmut.lims.pi.ai.model.ModelCatalog;
 import com.xmut.lims.pi.ai.model.ModelProvider;
 import com.xmut.lims.pi.agent.session.AgentSession;
@@ -76,7 +76,7 @@ class PiAutoConfigurationTest {
                     .handlerOf("read_skill")).isPresent();
             assertThat(context.getBean(com.xmut.lims.pi.agent.tool.ToolCatalog.class)
                     .handlerOf("read_skill").get())
-                    .isInstanceOf(ReadSkill.class);
+                    .isInstanceOf(ReadSkillHandler.class);
             assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.resource.PiResourceLoader.class);
             assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.extension.ExtensionRunner.class);
             assertThat(context).hasSingleBean(com.xmut.lims.pi.agent.extension.ToolPolicyExtension.class);

@@ -42,7 +42,7 @@ import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import com.xmut.lims.pi.agent.tool.ToolDefinitionJsonLoader;
 import com.xmut.lims.pi.agent.tool.ToolHandlerAutoBinder;
 import com.xmut.lims.pi.agent.tool.ToolValidationException;
-import com.xmut.lims.pi.agent.tool.base.ReadSkill;
+import com.xmut.lims.pi.agent.tool.base.ReadSkillHandler;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -145,8 +145,8 @@ public class AgentConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public ReadSkill readSkill(SkillCatalog skillConfig) {
-        return new ReadSkill(skillConfig);
+    public ReadSkillHandler readSkill(SkillCatalog skillConfig) {
+        return new ReadSkillHandler(skillConfig);
     }
 
     /**

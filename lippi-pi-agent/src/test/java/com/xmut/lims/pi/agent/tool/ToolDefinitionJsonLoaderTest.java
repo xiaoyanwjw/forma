@@ -32,7 +32,7 @@ class ToolDefinitionJsonLoaderTest {
         List<ToolDefinition> defs = ToolDefinitionJsonLoader.load(resolver);
         assertThat(defs).extracting(ToolDefinition::getId)
                 .contains("read_skill", "ask_human", "write_file", "read_file", "bash");
-        assertEquals("com.xmut.lims.pi.agent.tool.base.ReadSkill", handlerClassOf(defs, "read_skill"));
+        assertEquals("com.xmut.lims.pi.agent.tool.base.ReadSkillHandler", handlerClassOf(defs, "read_skill"));
         assertEquals("com.xmut.lims.pi.agent.tool.base.AskHumanToolHandler", handlerClassOf(defs, "ask_human"));
         assertEquals("com.xmut.lims.pi.agent.tool.base.WriteFileToolHandler",
                 handlerClassOf(defs, "write_file"));
