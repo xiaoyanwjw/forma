@@ -26,15 +26,15 @@ public final class ReadFileToolHandler implements ToolHandler {
     public ToolResult handle(ToolCallEntry call, ToolContext ctx) {
         String callId = call != null ? call.getId() : null;
         try {
-            String root = WorkspaceToolSupport.workspaceRoot(ctx);
+            String root = WriteFileToolHandler.workspaceRoot(ctx);
             if (root == null) {
-                return ToolResult.failed(callId, TOOL_NAME, WorkspaceToolSupport.MISSING_ROOT);
+                return ToolResult.failed(callId, TOOL_NAME, WriteFileToolHandler.MISSING_ROOT);
             }
-            String path = WorkspaceToolSupport.textArg(call, "path");
+            String path = WriteFileToolHandler.textArg(call, "path");
             if (!StringUtils.hasText(path)) {
                 return ToolResult.failed(callId, TOOL_NAME, "path required");
             }
-            Path target = WorkspaceToolSupport.resolve(root, path);
+            Path target = WriteFileToolHandler.resolve(root, path);
             if (!Files.exists(target) || !Files.isRegularFile(target)) {
                 return ToolResult.failed(callId, TOOL_NAME, "file not found");
             }
