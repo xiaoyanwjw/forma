@@ -5,7 +5,6 @@ import com.xmut.lims.pi.agent.graph.node.ToolHandler;
 import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.BeanFactory;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.util.Arrays;
@@ -13,7 +12,6 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
 
 class ToolCatalogTest {
 
@@ -122,12 +120,33 @@ class ToolCatalogTest {
 
     @Test
     void toolCatalog_fails_when_json_has_no_handler_bean() {
+        // AutoBinder.handlerOnly 不允许 null Handler；null BeanFactory 跳过 bind，
+        // merge 后 scanned id 仍无 Handler，从而走到 requireHandlers fail-fast。
         AgentConfiguration config = new AgentConfiguration();
         assertThatThrownBy(() -> config.toolConfig(
                 new InMemorySkillCatalog(),
                 new PathMatchingResourcePatternResolver(),
-                mock(BeanFactory.class)))
-                .isInstanceOfAny(ToolValidationException.class, IllegalStateException.class);
+                null))
+                .isInstanceOf(ToolValidationException.class)
+                .hasMessageContaining("tool has no handler")
+                .hasMessageContaining("demo_echo");
+    }
+
+    @Test
+    void requireHandlers_fails_after_merge_when_scanned_id_has_no_handler() {
+        ToolDefinition scanned = ToolDefinition.builder()
+                .id("orphan_tool")
+                .handlerClass("com.example.DemoEchoHandler")
+                .schema(ToolSchema.builder().name("orphan_tool").description("orphan").build())
+                .build();
+        InMemoryToolCatalog catalog = InMemoryToolCatalog.merge(
+                Collections.singletonList(scanned), Collections.emptyList());
+
+        assertThatThrownBy(() -> AgentConfiguration.requireHandlers(
+                catalog, Collections.singletonList(scanned)))
+                .isInstanceOf(ToolValidationException.class)
+                .hasMessageContaining("tool has no handler")
+                .hasMessageContaining("orphan_tool");
     }
 
     @Test

@@ -159,6 +159,20 @@ public class AgentConfiguration {
                 ToolHandlerAutoBinder.bindFromManifests(scanned, beanFactory));
         coded.add(readSkillTool(skillConfig).getBinding());
         InMemoryToolCatalog catalog = InMemoryToolCatalog.merge(scanned, coded);
+        requireHandlers(catalog, scanned);
+        return catalog;
+    }
+
+    /**
+     * 扫盘 id 在 merge 后必须已绑定 Handler，否则启动失败。
+     */
+    public static void requireHandlers(ToolCatalog catalog, List<ToolDefinition> scanned) {
+        if (catalog == null) {
+            throw new IllegalArgumentException("catalog is null");
+        }
+        if (scanned == null) {
+            return;
+        }
         for (int i = 0; i < scanned.size(); i++) {
             ToolDefinition def = scanned.get(i);
             if (def == null) {
@@ -169,7 +183,6 @@ public class AgentConfiguration {
                         "tool has no handler: " + def.getId());
             }
         }
-        return catalog;
     }
 
     static Tool readSkillTool(SkillCatalog skillConfig) {

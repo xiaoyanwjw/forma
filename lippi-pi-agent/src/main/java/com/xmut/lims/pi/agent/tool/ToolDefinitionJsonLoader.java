@@ -92,20 +92,37 @@ public final class ToolDefinitionJsonLoader {
             throw new ToolValidationException(
                     "ToolDefinitionJsonLoader: id required: " + describe(resource));
         }
+        String handlerClass = textOrNull(root.get("handlerClass"));
+        if (!StringUtils.hasText(handlerClass)) {
+            throw new ToolValidationException(
+                    "ToolDefinitionJsonLoader: handlerClass required: " + describe(resource));
+        }
+        JsonNode schemaNode = root.get("schema");
+        JsonNode parametersNode = root.get("parameters");
+        boolean hasSchema = schemaNode != null && !schemaNode.isNull() && schemaNode.isObject();
+        boolean hasParameters = parametersNode != null && !parametersNode.isNull() && parametersNode.isObject();
+        if (!hasSchema && !hasParameters) {
+            throw new ToolValidationException(
+                    "ToolDefinitionJsonLoader: schema (or parameters) required: " + describe(resource));
+        }
+        JsonNode effectiveSchema = hasSchema ? schemaNode : null;
         return ToolDefinition.builder()
                 .id(id)
                 .description(textOrNull(root.get("description")))
                 .text(textOrNull(root.get("text")))
-                .handlerClass(textOrNull(root.get("handlerClass")))
-                .schema(parseSchema(root.get("schema"), id.trim(), textOrNull(root.get("description"))))
+                .handlerClass(handlerClass)
+                .schema(parseSchema(effectiveSchema, parametersNode, id.trim(),
+                        textOrNull(root.get("description"))))
                 .build();
     }
 
-    private static ToolSchema parseSchema(JsonNode schemaNode, String id, String fallbackDescription) {
+    private static ToolSchema parseSchema(JsonNode schemaNode, JsonNode topLevelParameters,
+                                          String id, String fallbackDescription) {
         if (schemaNode == null || schemaNode.isNull() || !schemaNode.isObject()) {
             return ToolSchema.builder()
                     .name(id)
                     .description(fallbackDescription)
+                    .parametersSchema(topLevelParameters)
                     .build();
         }
         String name = textOrNull(schemaNode.get("name"));
