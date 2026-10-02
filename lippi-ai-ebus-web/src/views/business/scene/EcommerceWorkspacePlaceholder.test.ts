@@ -97,6 +97,21 @@ function okScenes(data: unknown) {
   })
 }
 
+/** 测试夹具可传扁平 messages；包装成后端 turns 页结构。 */
+function asTurnPage(items: unknown[], nextToken: string | null = null) {
+  if (!items.length) {
+    return { items: [], nextToken }
+  }
+  const first = items[0] as { messages?: unknown }
+  if (first && Array.isArray(first.messages)) {
+    return { items, nextToken }
+  }
+  return {
+    items: [{ runId: null, userPrompt: null, at: null, messages: items }],
+    nextToken,
+  }
+}
+
 function creditsResponse(available = 14) {
   return new Response(
     JSON.stringify({
@@ -203,7 +218,7 @@ function mockCatalogAndCredits(opts?: {
     if (url.includes('/api/v1/sessions/') && url.includes('/messages')) {
       const id = url.split('/api/v1/sessions/')[1]?.split('/')[0] || ''
       const rows = opts?.sessionMessages?.[decodeURIComponent(id)] ?? []
-      return okScenes({ items: rows, nextToken: null })
+      return okScenes(asTurnPage(rows))
     }
     if (url.includes('/api/v1/sessions/') && url.includes('/latest-artifact')) {
       const id = url.split('/api/v1/sessions/')[1]?.split('/')[0] || ''
@@ -611,16 +626,15 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(true)
       const computer = mounted.root.querySelector('.computer')
       expect(computer?.textContent).toContain("Adam's Computer")
-      expect(computer?.textContent).toMatch(/选品清单/)
+      expect(computer?.textContent).toMatch(/picklist|选品清单/)
       expect(JSON.stringify(artifactReadyData())).toContain('"artifactRef":"pl-1"')
       expect(computer?.querySelector('article.comp-card')).toBeTruthy()
       expect(computer?.querySelectorAll('.comp-card').length).toBe(1)
       expect(computer?.querySelector('.cv-note')?.textContent).toMatch(/非实时/)
       expect(computer?.querySelectorAll('.pick-disclaimer').length).toBe(0)
       expect(computer?.querySelectorAll('.pick-list li').length).toBe(8)
-      expect(computer?.textContent).toMatch(/需求 /)
-      expect(computer?.textContent).toMatch(/优先试/)
-      expect(computer?.querySelector('.priority-tag')).toBeTruthy()
+      expect(computer?.textContent).toMatch(/需求/)
+      expect(computer?.textContent).toMatch(/候选1/)
       expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/已生成/)
       expect(mounted.root.querySelector('.chat-event-status')?.textContent).toMatch(/已生成/)
       expect(mounted.root.querySelector('.chat-events')).toBeTruthy()
@@ -1268,41 +1282,45 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
         const u = new URL(url, 'http://local')
         const token = u.searchParams.get('nextToken')
         if (token === '7') {
-          return okScenes({
-            items: [
+          return okScenes(
+            asTurnPage(
+              [
+                {
+                  role: 'user',
+                  content: '更早的提问',
+                  createdAt: '2026-09-28T07:00:00.000Z',
+                  seq: 1,
+                },
+                {
+                  role: 'assistant',
+                  content: '```json\n{"view":{"version":1,"title":"old","blocks":[]}}\n```',
+                  createdAt: '2026-09-28T07:00:10.000Z',
+                  seq: 6,
+                },
+              ],
+              null,
+            ),
+          )
+        }
+        return okScenes(
+          asTurnPage(
+            [
               {
                 role: 'user',
-                content: '更早的提问',
-                createdAt: '2026-09-28T07:00:00.000Z',
-                seq: 1,
+                content: '帮我找杯子',
+                createdAt: '2026-09-28T08:01:00.000Z',
+                seq: 7,
               },
               {
                 role: 'assistant',
-                content: '```json\n{"view":{"version":1,"title":"old","blocks":[]}}\n```',
-                createdAt: '2026-09-28T07:00:10.000Z',
-                seq: 6,
+                content: '```json\n{"view":{"version":1,"title":"dump","blocks":[]}}\n```',
+                createdAt: '2026-09-28T08:01:05.000Z',
+                seq: 8,
               },
             ],
-            nextToken: null,
-          })
-        }
-        return okScenes({
-          items: [
-            {
-              role: 'user',
-              content: '帮我找杯子',
-              createdAt: '2026-09-28T08:01:00.000Z',
-              seq: 7,
-            },
-            {
-              role: 'assistant',
-              content: '```json\n{"view":{"version":1,"title":"dump","blocks":[]}}\n```',
-              createdAt: '2026-09-28T08:01:05.000Z',
-              seq: 8,
-            },
-          ],
-          nextToken: '7',
-        })
+            '7',
+          ),
+        )
       }
       return baseImpl(input, init)
     })
@@ -1503,7 +1521,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     const listingBefore = listingApiHits(fetchMock).length
 
     const handoffBtn = mounted.root.querySelector(
-      '.listing-handoff-btn',
+      '.item-action-btn',
     ) as HTMLButtonElement
     expect(handoffBtn).toBeTruthy()
     expect(handoffBtn.disabled).toBe(false)
@@ -1546,7 +1564,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
 
     const listingBefore = listingApiHits(fetchMock).length
     const handoffBtn = mounted.root.querySelector(
-      '.listing-handoff-btn',
+      '.item-action-btn',
     ) as HTMLButtonElement
     expect(handoffBtn).toBeTruthy()
     expect(handoffBtn.disabled).toBe(true)

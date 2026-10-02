@@ -1,8 +1,8 @@
 package com.xmut.ebus.interfaces.web.business.session;
 
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
-import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
+import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
 import com.xmut.ebus.application.business.session.query.SessionQueryService;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.common.response.ApiResponse;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * SessionQuery 薄控制器：本人近 60 天会话与 R1 消息。
+ * SessionQuery 薄控制器：本人近 60 天会话与按逻辑 runId 聚合的回合回放。
  */
 @RestController
 @RequestMapping("/api/v1/sessions")
@@ -35,7 +35,7 @@ public class SessionController {
     }
 
     @GetMapping("/{sessionId}/messages")
-    public ApiResponse<Page<SessionMessageDTO>> listMessages(
+    public ApiResponse<Page<SessionTurnDTO>> listMessages(
             @PathVariable("sessionId") String sessionId,
             @RequestParam(value = "nextToken", required = false) String nextToken,
             @RequestParam(value = "limit", required = false) Integer limit) {

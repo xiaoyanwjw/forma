@@ -10,7 +10,7 @@ import {
   getSessionMessages,
   listSessions,
 } from '@/api/business/session/session'
-import type { Page, SessionMessage, SessionSummary } from '@/types/business/session'
+import type { Page, SessionSummary, SessionTurn } from '@/types/business/session'
 import {
   buildFailureDetail,
   canExpandProcessEvent,
@@ -21,11 +21,12 @@ import {
 } from '@/composables/agent/agentProgress'
 import { useAgentSkillRun } from '@/composables/agent/useAgentSkillRun'
 import type { GenerationArtifactPayload } from '@/types/business/agent'
-import { parseComputerDocument } from '@/types/business/computerView'
+import { parseComputerDocument, type ComputerListItem } from '@/types/business/computerView'
 import { FEEDBACK_TAG_GOOD_QUALITY, FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
-import { toReplayBubbles } from '@/utils/sessionReplay'
+import { toReplayBubblesFromTurns } from '@/utils/sessionReplay'
 import {
   buildXhsBreakNoteHandoffText,
+  buildXhsNoteHandoffText,
   extractTargetProductFromPrompt,
   extractXhsBreakHandoffFromView,
 } from '@/utils/xhsNoteHandoff'
@@ -70,7 +71,7 @@ const sessions = ref<SessionSummary[]>([])
 const sessionsError = ref('')
 const selectedSessionId = ref<string | null>(null)
 const sessionTitle = ref(DEMO_SESSION_TITLE)
-const sessionRawRows = ref<SessionMessage[]>([])
+const sessionRawTurns = ref<SessionTurn[]>([])
 const sessionHasMore = ref(false)
 const sessionNextToken = ref<string | null>(null)
 const sessionHistoryLoading = ref(false)
@@ -336,6 +337,23 @@ async function onNoteHandoff(payload: { text: string }) {
   await runBilledGeneration(text, 'note')
 }
 
+function noteHandoffTextForItem(item: ComputerListItem, index: number): string | null {
+  return buildXhsNoteHandoffText({
+    title: item.title,
+    href: item.href,
+    id: item.id?.trim() || `tp-${index + 1}`,
+  })
+}
+
+function isTopicItemActionEnabled(item: ComputerListItem, index: number): boolean {
+  return Boolean(noteHandoffTextForItem(item, index))
+}
+
+function onTopicItemAction(payload: { item: ComputerListItem; index: number }) {
+  const text = noteHandoffTextForItem(payload.item, payload.index)
+  if (text) void onNoteHandoff({ text })
+}
+
 function onBreakHandoff() {
   if (sessionBusy.value) return
   const fromView = extractXhsBreakHandoffFromView(liveBreak.value?.view)
@@ -549,10 +567,10 @@ function closeComputer() {
 }
 
 function replayMessagesFromApi(
-  rows: SessionMessage[] | null | undefined,
+  turns: SessionTurn[] | null | undefined,
   artifactKind: ComputerKind,
 ): ChatMessage[] {
-  return toReplayBubbles(rows, artifactKind).map((bubble) => {
+  return toReplayBubblesFromTurns(turns, artifactKind).map((bubble) => {
     if (bubble.role === 'user') {
       return {
         id: nextMsgId(),
@@ -580,12 +598,12 @@ function replayMessagesFromApi(
   })
 }
 
-function applyMessagePage(page: Page<SessionMessage> | null | undefined, mode: 'replace' | 'prepend') {
+function applyMessagePage(page: Page<SessionTurn> | null | undefined, mode: 'replace' | 'prepend') {
   const items = Array.isArray(page?.items) ? page!.items : []
   if (mode === 'replace') {
-    sessionRawRows.value = items
+    sessionRawTurns.value = items
   } else {
-    sessionRawRows.value = [...items, ...sessionRawRows.value]
+    sessionRawTurns.value = [...items, ...sessionRawTurns.value]
   }
   const token = page?.nextToken?.trim() || null
   sessionNextToken.value = token
@@ -594,7 +612,7 @@ function applyMessagePage(page: Page<SessionMessage> | null | undefined, mode: '
 
 function paintSessionReplay(kind: ComputerKind) {
   sessionReplayKind.value = kind
-  const replayed = replayMessagesFromApi(sessionRawRows.value, kind)
+  const replayed = replayMessagesFromApi(sessionRawTurns.value, kind)
   lastBilledKind.value = kind
   lastBilledPrompt.value = kind
     ? lastUserPromptFromReplay(replayed, sessionTitle.value || DEMO_SESSION_TITLE)
@@ -696,7 +714,7 @@ async function selectSession(item: SessionSummary) {
   selectedSessionId.value = sid
   sessionTitle.value = item.title || DEMO_SESSION_TITLE
   messages.value = []
-  sessionRawRows.value = []
+  sessionRawTurns.value = []
   sessionHasMore.value = false
   sessionNextToken.value = null
   sessionHistoryLoading.value = false
@@ -729,10 +747,7 @@ async function selectSession(item: SessionSummary) {
     const kind =
       kindFromArtifactType(latest?.artifactType) ||
       (noteArt?.view ? 'note' : breakArt?.view ? 'break' : topicArt?.view ? 'topiclist' : null)
-    if (kind && liveByKind.value[kind]?.view) {
-      computerKind.value = kind
-      revealComputer()
-    }
+    // 侧栏切入：挂上成果但不自动展开 Computer（点 STATUS「查看」再开）
     applyMessagePage(page, 'replace')
     paintSessionReplay(kind)
     scrollChatToBottom()
@@ -784,7 +799,7 @@ function newTask() {
   expandedStreamIds.value = new Set()
   expandedStatusIds.value = new Set()
   messages.value = []
-  sessionRawRows.value = []
+  sessionRawTurns.value = []
   sessionHasMore.value = false
   sessionNextToken.value = null
   sessionHistoryLoading.value = false
@@ -1233,8 +1248,9 @@ onMounted(async () => {
             <ComputerRenderer
               v-if="activeComputerDoc"
               :document="activeComputerDoc"
-              :enable-note-handoff="computerKind === 'topiclist'"
-              @note-handoff="onNoteHandoff"
+              :item-action-label="computerKind === 'topiclist' ? '写成笔记' : ''"
+              :is-item-action-enabled="isTopicItemActionEnabled"
+              @item-action="onTopicItemAction"
             />
           </div>
         </aside>

@@ -212,8 +212,15 @@ describe('HistoryPlaceholder', () => {
       if (url.includes('/api/v1/sessions/sess-1/messages')) {
         return jsonOk({
           items: [
-            { role: 'user', content: '找杯子', createdAt: null, seq: 1 },
-            { role: 'assistant', content: '这是建议', createdAt: null, seq: 2 },
+            {
+              runId: null,
+              userPrompt: '找杯子',
+              at: null,
+              messages: [
+                { role: 'user', content: '找杯子', createdAt: null, seq: 1 },
+                { role: 'assistant', content: '{"output":"final.json"}', createdAt: null, seq: 2 },
+              ],
+            },
           ],
           nextToken: null,
         })
@@ -252,7 +259,7 @@ describe('HistoryPlaceholder', () => {
       /找杯子/,
     )
     expect(mounted.root.querySelector('[data-testid="history-chat"]')?.textContent).toMatch(
-      /这是建议/,
+      /已生成选品成果/,
     )
 
     const agentBubble = mounted.root.querySelector(

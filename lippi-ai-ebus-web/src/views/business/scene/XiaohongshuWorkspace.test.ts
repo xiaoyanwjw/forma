@@ -85,6 +85,20 @@ function okScenes(data: unknown) {
   })
 }
 
+function asTurnPage(items: unknown[], nextToken: string | null = null) {
+  if (!items.length) {
+    return { items: [], nextToken }
+  }
+  const first = items[0] as { messages?: unknown }
+  if (first && Array.isArray(first.messages)) {
+    return { items, nextToken }
+  }
+  return {
+    items: [{ runId: null, userPrompt: null, at: null, messages: items }],
+    nextToken,
+  }
+}
+
 function creditsResponse() {
   return new Response(
     JSON.stringify({
@@ -116,7 +130,7 @@ function mockCatalogAndCredits() {
       return okScenes([XHS])
     }
     if (url.includes('/api/v1/sessions/') && url.includes('/messages')) {
-      return okScenes({ items: [], nextToken: null })
+      return okScenes(asTurnPage([]))
     }
     if (url.includes('/api/v1/sessions/') && url.includes('/latest-artifact')) {
       return okScenes(null)
@@ -352,7 +366,7 @@ describe('XiaohongshuWorkspace', () => {
     await flushUi()
     await flushUi()
 
-    const btn = mounted.root.querySelector('.note-handoff-btn') as HTMLButtonElement
+    const btn = mounted.root.querySelector('.item-action-btn') as HTMLButtonElement
     expect(btn).toBeTruthy()
     expect(btn.disabled).toBe(false)
     btn.click()
@@ -418,7 +432,7 @@ describe('XiaohongshuWorkspace', () => {
     send().click()
     await flushUi()
     await flushUi()
-    expect(mounted.root.querySelector('.note-handoff-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('.item-action-btn')).toBeTruthy()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
       '租房党厨房收纳第一篇',
     )
@@ -428,7 +442,7 @@ describe('XiaohongshuWorkspace', () => {
     send().click()
     await flushUi()
     await flushUi()
-    expect(mounted.root.querySelector('.note-handoff-btn')).toBeNull()
+    expect(mounted.root.querySelector('.item-action-btn')).toBeNull()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('笔记种草稿')
     expect(mounted.root.querySelector('.computer-body')?.textContent).not.toContain(
       '租房党厨房收纳第一篇',
@@ -440,7 +454,7 @@ describe('XiaohongshuWorkspace', () => {
     expect(topicStatus).toBeTruthy()
     ;(topicStatus!.closest('.chat-event-status') as HTMLElement).click()
     await flushUi()
-    expect(mounted.root.querySelector('.note-handoff-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('.item-action-btn')).toBeTruthy()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
       '租房党厨房收纳第一篇',
     )
@@ -468,8 +482,8 @@ describe('XiaohongshuWorkspace', () => {
     fetchMock.mockImplementation(async (input, init) => {
       const url = String(input)
       if (url.includes('/api/v1/sessions/') && url.includes('/messages')) {
-        return okScenes({
-          items: [
+        return okScenes(
+          asTurnPage([
             { role: 'user', content: TOPIC_TEMPLATE, createdAt: '2026-10-01T08:00:00Z' },
             {
               role: 'assistant',
@@ -482,9 +496,8 @@ describe('XiaohongshuWorkspace', () => {
               content: '```json\n' + noteDump + '\n```',
               createdAt: '2026-10-01T08:01:10Z',
             },
-          ],
-          nextToken: null,
-        })
+          ]),
+        )
       }
       if (url.includes('/api/v1/sessions/') && url.includes('/latest-artifact')) {
         const parsed = new URL(url, 'http://local.test')
@@ -538,7 +551,14 @@ describe('XiaohongshuWorkspace', () => {
     expect(chat).toContain('已生成选题清单')
     expect(chat).toContain('已生成笔记草稿')
     expect(chat).not.toMatch(/已生成选品成果|已生成上架素材/)
-    expect(mounted.root.querySelector('.note-handoff-btn')).toBeNull()
+    expect(mounted.root.querySelector('.item-action-btn')).toBeNull()
+
+    const noteStatus = Array.from(mounted.root.querySelectorAll('.chat-result-text')).find((el) =>
+      el.textContent?.includes('笔记草稿'),
+    )
+    expect(noteStatus).toBeTruthy()
+    ;(noteStatus!.closest('.chat-event-status') as HTMLElement).click()
+    await flushUi()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('笔记种草稿')
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('硅胶沥水垫分享')
 
@@ -548,7 +568,7 @@ describe('XiaohongshuWorkspace', () => {
     expect(topicStatus).toBeTruthy()
     ;(topicStatus!.closest('.chat-event-status') as HTMLElement).click()
     await flushUi()
-    expect(mounted.root.querySelector('.note-handoff-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('.item-action-btn')).toBeTruthy()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
       '租房党厨房收纳第一篇',
     )

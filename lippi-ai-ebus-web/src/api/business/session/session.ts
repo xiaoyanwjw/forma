@@ -1,8 +1,9 @@
 import { request } from '@/api/client'
 import type { HistoryArtifactDetail } from '@/types/business/history'
-import type { Page, SessionMessage, SessionSummary } from '@/types/business/session'
+import type { Page, SessionSummary, SessionTurn } from '@/types/business/session'
 
-export const SESSION_MESSAGE_PAGE_SIZE = 100
+/** 对外按回合分页；与后端 TURN_PAGE_DEFAULT 对齐 */
+export const SESSION_TURN_PAGE_SIZE = 20
 
 export function listSessions(sceneCode?: string) {
   const q = sceneCode?.trim()
@@ -20,10 +21,10 @@ export function getSessionMessages(
   if (token) {
     params.set('nextToken', token)
   }
-  const limit = opts?.limit ?? SESSION_MESSAGE_PAGE_SIZE
+  const limit = opts?.limit ?? SESSION_TURN_PAGE_SIZE
   params.set('limit', String(limit))
   const q = params.toString()
-  return request<Page<SessionMessage>>(
+  return request<Page<SessionTurn>>(
     `/api/v1/sessions/${encodeURIComponent(sessionId)}/messages${q ? `?${q}` : ''}`,
   )
 }

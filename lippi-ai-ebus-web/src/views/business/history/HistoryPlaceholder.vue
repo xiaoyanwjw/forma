@@ -8,8 +8,8 @@ import { getSessionMessages } from '@/api/business/session/session'
 import { formatEventTime } from '@/composables/agent/agentProgress'
 import { parseComputerDocument } from '@/types/business/computerView'
 import type { HistoryArtifactDetail, HistoryArtifactSummary } from '@/types/business/history'
-import type { SessionMessage } from '@/types/business/session'
-import { toReplayBubbles } from '@/utils/sessionReplay'
+import type { SessionTurn } from '@/types/business/session'
+import { toReplayBubblesFromTurns } from '@/utils/sessionReplay'
 
 const SCENE_OPTIONS = [
   { value: '', label: '全部场景' },
@@ -28,7 +28,7 @@ const detailLoading = ref(false)
 const drawerOpen = ref(false)
 const activeTab = ref<'artifact' | 'chat'>('chat')
 const chatMessages = ref<HistoryChatBubble[]>([])
-const chatRawRows = ref<SessionMessage[]>([])
+const chatRawTurns = ref<SessionTurn[]>([])
 const chatHasMore = ref(false)
 const chatNextToken = ref<string | null>(null)
 const chatError = ref('')
@@ -91,7 +91,7 @@ function resetChat() {
   chatRequestSeq += 1
   loadedChatSessionId = null
   chatMessages.value = []
-  chatRawRows.value = []
+  chatRawTurns.value = []
   chatHasMore.value = false
   chatNextToken.value = null
   chatError.value = ''
@@ -137,14 +137,14 @@ async function openItem(item: HistoryArtifactSummary) {
   }
 }
 
-function paintHistoryChat(rows: SessionMessage[]) {
+function paintHistoryChat(turns: SessionTurn[]) {
   const kind =
     detail.value?.artifactType === 'sku'
       ? 'listing'
       : detail.value?.artifactType === 'picklist'
         ? 'picks'
         : null
-  chatMessages.value = toReplayBubbles(rows, kind).map((b) => ({
+  chatMessages.value = toReplayBubblesFromTurns(turns, kind).map((b) => ({
     role: b.role,
     content: b.content,
     createdAt: b.at != null ? new Date(b.at).toISOString() : null,
@@ -172,14 +172,14 @@ async function loadChat() {
   if (!sid) {
     loadedChatSessionId = null
     chatMessages.value = []
-    chatRawRows.value = []
+    chatRawTurns.value = []
     chatHasMore.value = false
     chatNextToken.value = null
     chatError.value = ''
     chatLoading.value = false
     return
   }
-  if (loadedChatSessionId === sid && chatRawRows.value.length > 0 && !chatError.value) {
+  if (loadedChatSessionId === sid && chatRawTurns.value.length > 0 && !chatError.value) {
     return
   }
   const seq = ++chatRequestSeq
@@ -191,11 +191,11 @@ async function loadChat() {
       return
     }
     const items = Array.isArray(page?.items) ? page.items : []
-    chatRawRows.value = items
+    chatRawTurns.value = items
     const token = page?.nextToken?.trim() || null
     chatNextToken.value = token
     chatHasMore.value = Boolean(token)
-    paintHistoryChat(chatRawRows.value)
+    paintHistoryChat(chatRawTurns.value)
     loadedChatSessionId = sid
   } catch (e) {
     if (seq !== chatRequestSeq) {
@@ -203,7 +203,7 @@ async function loadChat() {
     }
     loadedChatSessionId = null
     chatMessages.value = []
-    chatRawRows.value = []
+    chatRawTurns.value = []
     chatHasMore.value = false
     chatNextToken.value = null
     chatError.value = e instanceof ApiError ? e.message : '会话加载失败'
@@ -229,11 +229,11 @@ async function loadMoreChat() {
       return
     }
     const items = Array.isArray(page?.items) ? page.items : []
-    chatRawRows.value = [...items, ...chatRawRows.value]
+    chatRawTurns.value = [...items, ...chatRawTurns.value]
     const next = page?.nextToken?.trim() || null
     chatNextToken.value = next
     chatHasMore.value = Boolean(next)
-    paintHistoryChat(chatRawRows.value)
+    paintHistoryChat(chatRawTurns.value)
   } catch (e) {
     if (seq !== chatRequestSeq) {
       return

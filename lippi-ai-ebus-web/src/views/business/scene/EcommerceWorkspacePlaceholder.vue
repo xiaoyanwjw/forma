@@ -10,7 +10,7 @@ import {
   getSessionMessages,
   listSessions,
 } from '@/api/business/session/session'
-import type { Page, SessionMessage, SessionSummary } from '@/types/business/session'
+import type { Page, SessionSummary, SessionTurn } from '@/types/business/session'
 import {
   buildFailureDetail,
   canExpandProcessEvent,
@@ -27,9 +27,10 @@ import {
   DEMO_SESSION_TITLE,
 } from '@/views/business/scene/ecommerceDemoFixtures'
 import type { GenerationArtifactPayload } from '@/types/business/agent'
-import { parseComputerDocument } from '@/types/business/computerView'
+import { parseComputerDocument, type ComputerListItem } from '@/types/business/computerView'
+import { buildListingHandoffText } from '@/utils/listingHandoff'
 import { FEEDBACK_TAG_GOOD_QUALITY, FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
-import { toReplayBubbles } from '@/utils/sessionReplay'
+import { toReplayBubblesFromTurns } from '@/utils/sessionReplay'
 import type { HistoryArtifactDetail } from '@/types/business/history'
 import '@/views/business/scene/ecommerceWorkspaceSession.css'
 
@@ -71,7 +72,7 @@ const sessionsError = ref('')
 const selectedSessionId = ref<string | null>(null)
 const sessionTitle = ref(DEMO_SESSION_TITLE)
 /** 侧栏回放：已加载的原始 R1 行（分页累加） */
-const sessionRawRows = ref<SessionMessage[]>([])
+const sessionRawTurns = ref<SessionTurn[]>([])
 const sessionHasMore = ref(false)
 const sessionNextToken = ref<string | null>(null)
 const sessionHistoryLoading = ref(false)
@@ -447,6 +448,23 @@ async function onListingHandoff(payload: { text: string }) {
   await runBilledGeneration(text, 'listing')
 }
 
+function listingHandoffTextForItem(item: ComputerListItem, index: number): string | null {
+  return buildListingHandoffText({
+    title: item.title,
+    href: item.href,
+    id: item.id?.trim() || `pl-${index + 1}`,
+  })
+}
+
+function isPickItemActionEnabled(item: ComputerListItem, index: number): boolean {
+  return Boolean(listingHandoffTextForItem(item, index))
+}
+
+function onPickItemAction(payload: { item: ComputerListItem; index: number }) {
+  const text = listingHandoffTextForItem(payload.item, payload.index)
+  if (text) void onListingHandoff({ text })
+}
+
 async function runBilledGeneration(text: string, kind: 'picks' | 'listing') {
   pendingBilledPrompt.value = text
   const thinkingId = nextMsgId()
@@ -664,10 +682,10 @@ function closeComputer() {
 }
 
 function replayMessagesFromApi(
-  rows: SessionMessage[] | null | undefined,
+  turns: SessionTurn[] | null | undefined,
   artifactKind: ComputerKind,
 ): ChatMessage[] {
-  return toReplayBubbles(rows, artifactKind).map((bubble) => {
+  return toReplayBubblesFromTurns(turns, artifactKind).map((bubble) => {
     if (bubble.role === 'user') {
       return {
         id: nextMsgId(),
@@ -695,12 +713,12 @@ function replayMessagesFromApi(
   })
 }
 
-function applyMessagePage(page: Page<SessionMessage> | null | undefined, mode: 'replace' | 'prepend') {
+function applyMessagePage(page: Page<SessionTurn> | null | undefined, mode: 'replace' | 'prepend') {
   const items = Array.isArray(page?.items) ? page!.items : []
   if (mode === 'replace') {
-    sessionRawRows.value = items
+    sessionRawTurns.value = items
   } else {
-    sessionRawRows.value = [...items, ...sessionRawRows.value]
+    sessionRawTurns.value = [...items, ...sessionRawTurns.value]
   }
   const token = page?.nextToken?.trim() || null
   sessionNextToken.value = token
@@ -709,7 +727,7 @@ function applyMessagePage(page: Page<SessionMessage> | null | undefined, mode: '
 
 function paintSessionReplay(kind: ComputerKind) {
   sessionReplayKind.value = kind
-  const replayed = replayMessagesFromApi(sessionRawRows.value, kind)
+  const replayed = replayMessagesFromApi(sessionRawTurns.value, kind)
   lastBilledKind.value = kind
   lastBilledPrompt.value = kind
     ? lastUserPromptFromReplay(replayed, sessionTitle.value || DEMO_SESSION_TITLE)
@@ -839,7 +857,7 @@ async function selectSession(item: SessionSummary) {
   selectedSessionId.value = sid
   sessionTitle.value = item.title || DEMO_SESSION_TITLE
   messages.value = []
-  sessionRawRows.value = []
+  sessionRawTurns.value = []
   sessionHasMore.value = false
   sessionNextToken.value = null
   sessionHistoryLoading.value = false
@@ -869,13 +887,7 @@ async function selectSession(item: SessionSummary) {
     const kind =
       kindFromArtifactType(latest?.artifactType) ||
       (listingArt?.view ? 'listing' : picksArt?.view ? 'picks' : null)
-    if (kind === 'listing' && liveListing.value?.view) {
-      computerKind.value = 'listing'
-      revealComputer()
-    } else if (kind === 'picks' && livePicklist.value?.view) {
-      computerKind.value = 'picks'
-      revealComputer()
-    }
+    // 侧栏切入：挂上成果但不自动展开 Computer（点 STATUS「查看」再开）
     applyMessagePage(page, 'replace')
     paintSessionReplay(kind)
     scrollChatToBottom()
@@ -930,7 +942,7 @@ function newTask() {
   expandedStreamIds.value = new Set()
   expandedStatusIds.value = new Set()
   messages.value = []
-  sessionRawRows.value = []
+  sessionRawTurns.value = []
   sessionHasMore.value = false
   sessionNextToken.value = null
   sessionHistoryLoading.value = false
@@ -1439,8 +1451,9 @@ onMounted(async () => {
             <ComputerRenderer
               v-if="activeComputerDoc"
               :document="activeComputerDoc"
-              :enable-listing-handoff="computerKind === 'picks'"
-              @listing-handoff="onListingHandoff"
+              :item-action-label="computerKind === 'picks' ? '做上架素材' : ''"
+              :is-item-action-enabled="isPickItemActionEnabled"
+              @item-action="onPickItemAction"
             />
           </div>
         </aside>
