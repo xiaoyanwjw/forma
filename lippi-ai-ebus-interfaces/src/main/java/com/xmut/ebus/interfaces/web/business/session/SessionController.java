@@ -3,6 +3,7 @@ package com.xmut.ebus.interfaces.web.business.session;
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
+import com.xmut.ebus.application.business.session.query.SessionListQuery;
 import com.xmut.ebus.application.business.session.query.SessionQueryService;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.common.response.ApiResponse;
@@ -31,7 +32,11 @@ public class SessionController {
             @RequestParam(value = "sceneCode", required = false) String sceneCode,
             @RequestParam(value = "limit", required = false) Integer limit) {
         return ApiResponse.success(
-                sessionQueryService.list(SecuritySupport.requireUserId(), sceneCode, limit));
+                sessionQueryService.list(SessionListQuery.builder()
+                        .userId(SecuritySupport.requireUserId())
+                        .sceneCode(sceneCode)
+                        .limit(limit)
+                        .build()));
     }
 
     @GetMapping("/{sessionId}/messages")

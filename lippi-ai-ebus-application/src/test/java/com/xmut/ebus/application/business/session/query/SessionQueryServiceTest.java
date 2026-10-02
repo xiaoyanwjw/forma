@@ -80,7 +80,8 @@ class SessionQueryServiceTest {
         when(sessionStore.load(SESSION)).thenReturn(Collections.singletonList(Message.user("找水杯")));
         when(sessionStore.load("sess-other")).thenReturn(Collections.singletonList(Message.user("不该出现")));
 
-        List<SessionSummaryDTO> list = service.list(USER, null, null);
+        List<SessionSummaryDTO> list = service.list(SessionListQuery.builder()
+                .userId(USER).sceneCode(null).limit(null).build());
 
         assertEquals(1, list.size());
         assertEquals(SESSION, list.get(0).getSessionId());
@@ -198,12 +199,14 @@ class SessionQueryServiceTest {
                 .thenReturn(Collections.singletonList(meta(SESSION, USER, "ecommerce", NOW)));
         when(sessionStore.load(SESSION)).thenReturn(Collections.singletonList(Message.user(longText)));
 
-        List<SessionSummaryDTO> titled = service.list(USER, "ecommerce", null);
+        List<SessionSummaryDTO> titled = service.list(SessionListQuery.builder()
+                .userId(USER).sceneCode("ecommerce").limit(null).build());
         assertEquals(40, titled.get(0).getTitle().length());
         assertEquals(longText.substring(0, 40), titled.get(0).getTitle());
 
         when(sessionStore.load(SESSION)).thenReturn(Collections.singletonList(Message.assistant("仅助手", null)));
-        List<SessionSummaryDTO> fallback = service.list(USER, "ecommerce", null);
+        List<SessionSummaryDTO> fallback = service.list(SessionListQuery.builder()
+                .userId(USER).sceneCode("ecommerce").limit(null).build());
         assertEquals(SessionQueryService.DEFAULT_TITLE, fallback.get(0).getTitle());
     }
 
@@ -211,7 +214,7 @@ class SessionQueryServiceTest {
     void listClampsLimitToMaxOneHundred() {
         when(piSessionQueryRepository.selectByUserSince(eq(USER), any(Instant.class), isNull(), eq(100)))
                 .thenReturn(Collections.emptyList());
-        assertTrue(service.list(USER, null, 500).isEmpty());
+        assertTrue(service.list(SessionListQuery.builder().userId(USER).limit(500).build()).isEmpty());
         verify(piSessionQueryRepository).selectByUserSince(eq(USER), any(Instant.class), isNull(), eq(100));
     }
 

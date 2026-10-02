@@ -39,8 +39,6 @@ import java.util.Optional;
 public class SessionQueryService {
 
     public static final int SESSION_WINDOW_DAYS = 60;
-    public static final int DEFAULT_LIMIT = 50;
-    public static final int MAX_LIMIT = 100;
     /** 对外按「回合」分页 */
     public static final int TURN_PAGE_DEFAULT = 20;
     public static final int TURN_PAGE_MAX = 50;
@@ -56,10 +54,10 @@ public class SessionQueryService {
     private final Clock clock;
 
     @Transactional(readOnly = true)
-    public List<SessionSummaryDTO> list(String userId, String sceneCodeOrNull, Integer limit) {
-        String uid = StringUtils.requireHasText(userId, "userId required");
-        String sceneCode = StringUtils.hasText(sceneCodeOrNull) ? sceneCodeOrNull.trim() : null;
-        int capped = clampLimit(limit);
+    public List<SessionSummaryDTO> list(SessionListQuery query) {
+        String uid = StringUtils.requireHasText(query.getUserId(), "userId required");
+        String sceneCode = query.sceneCode();
+        int capped = query.limit();
         Instant since = Instant.now(clock).minus(SESSION_WINDOW_DAYS, ChronoUnit.DAYS);
         List<PiSessionMeta> rows = piSessionQueryRepository.selectByUserSince(uid, since, sceneCode, capped);
         List<SessionSummaryDTO> out = new ArrayList<SessionSummaryDTO>();
@@ -172,13 +170,6 @@ public class SessionQueryService {
         } catch (BusinessException ex) {
             return Optional.empty();
         }
-    }
-
-    static int clampLimit(Integer limit) {
-        if (limit == null || limit.intValue() <= 0) {
-            return DEFAULT_LIMIT;
-        }
-        return Math.min(limit.intValue(), MAX_LIMIT);
     }
 
     static int clampTurnPage(Integer limit) {
