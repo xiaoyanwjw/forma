@@ -36,13 +36,18 @@ import com.xmut.lims.pi.agent.skill.SkillCatalog;
 import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
 import com.xmut.lims.pi.agent.skill.Skills;
 import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
+import com.xmut.lims.pi.agent.tool.ToolBinding;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
+import com.xmut.lims.pi.agent.tool.ToolDefinitionJsonLoader;
+import com.xmut.lims.pi.agent.tool.ToolHandlerAutoBinder;
 import com.xmut.lims.pi.agent.tool.Tool;
+import com.xmut.lims.pi.agent.tool.ToolValidationException;
 import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -53,6 +58,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -139,12 +145,31 @@ public class AgentConfiguration {
     }
 
     /**
-     * 默认 ToolCatalog：代码注册 {@code read_skill}（不依赖 *.tool.json）。
+     * 默认 ToolCatalog：扫 {@code *.tool.json} 与 Handler Binding merge；
+     * 过渡期仍代码注册 {@code read_skill}（尚无生产 json）。
+     * 扫描到的 id 若无 Handler → fail-fast。
      */
     @Bean
     @ConditionalOnMissingBean(ToolCatalog.class)
-    public ToolCatalog toolConfig(SkillCatalog skillConfig) {
-        return InMemoryToolCatalog.of(Collections.singletonList(readSkillTool(skillConfig)));
+    public ToolCatalog toolConfig(SkillCatalog skillConfig,
+                                  ResourcePatternResolver resourcePatternResolver,
+                                  BeanFactory beanFactory) {
+        List<ToolDefinition> scanned = ToolDefinitionJsonLoader.load(resourcePatternResolver);
+        List<ToolBinding> coded = new ArrayList<ToolBinding>(
+                ToolHandlerAutoBinder.bindFromManifests(scanned, beanFactory));
+        coded.add(readSkillTool(skillConfig).getBinding());
+        InMemoryToolCatalog catalog = InMemoryToolCatalog.merge(scanned, coded);
+        for (int i = 0; i < scanned.size(); i++) {
+            ToolDefinition def = scanned.get(i);
+            if (def == null) {
+                continue;
+            }
+            if (!catalog.handlerOf(def.getId()).isPresent()) {
+                throw new ToolValidationException(
+                        "tool has no handler: " + def.getId());
+            }
+        }
+        return catalog;
     }
 
     static Tool readSkillTool(SkillCatalog skillConfig) {

@@ -1,14 +1,19 @@
 package com.xmut.lims.pi.agent.tool;
 
+import com.xmut.lims.pi.agent.config.AgentConfiguration;
 import com.xmut.lims.pi.agent.graph.node.ToolHandler;
+import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
 import com.xmut.lims.pi.ai.model.ToolSchema;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.util.Arrays;
 import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 class ToolCatalogTest {
 
@@ -113,6 +118,16 @@ class ToolCatalogTest {
         assertThat(config.handlerOf("sample.echo")).contains(handler);
         assertThat(config.textForModel()).contains("sample.echo");
         assertThat(config.schemasForModel()).extracting(ToolSchema::getName).contains("sample.echo");
+    }
+
+    @Test
+    void toolCatalog_fails_when_json_has_no_handler_bean() {
+        AgentConfiguration config = new AgentConfiguration();
+        assertThatThrownBy(() -> config.toolConfig(
+                new InMemorySkillCatalog(),
+                new PathMatchingResourcePatternResolver(),
+                mock(BeanFactory.class)))
+                .isInstanceOfAny(ToolValidationException.class, IllegalStateException.class);
     }
 
     @Test

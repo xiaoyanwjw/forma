@@ -1,0 +1,19 @@
+{
+  "id": "demo_echo",
+  "description": "Echo fixture for ToolDefinitionJsonLoader tests",
+  "text": "[demo_echo] Test-only echo tool. Do not use in production.",
+  "handlerClass": "com.example.DemoEchoHandler",
+  "schema": {
+    "name": "demo_echo",
+    "description": "Echo fixture",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": ["message"]
+    }
+  }
+}
