@@ -1,6 +1,7 @@
 package com.xmut.ebus.domain.business.agent.repository;
 
 import com.xmut.ebus.common.page.Page;
+import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
 import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
 
@@ -22,10 +23,14 @@ public interface PiSessionQueryRepository {
     Optional<PiSessionMeta> findBySessionId(String sessionId);
 
     /**
-     * 回放消息分页：仅 user/assistant 且 content 非空；时间正序。
-     *
-     * @param nextToken 空=从最新往前取；非空=只取更早（{@code seq < token}）
-     * @param limit     本页条数（回放过滤后）
+     * 按逻辑 run 分页（tipSeq=MAX(seq) DESC）；nextToken 空=最新；非空= tipSeq &lt; token。
+     * 仅 seq &gt; compact_anchor；忽略空 run_id。
      */
-    Page<PiMessageDTO> getMessageList(String sessionId, String nextToken, int limit);
+    Page<PiLogicalRunRef> getLogicalRunIds(String sessionId, String nextToken, int limit);
+
+    /**
+     * 拉取给定逻辑 runId 的全部可见消息（含 :suspend/:resume），seq 升序。
+     * logicalRunIds 空 → 空列表。
+     */
+    List<PiMessageDTO> getMessagesByLogicalRunIds(String sessionId, List<String> logicalRunIds);
 }
