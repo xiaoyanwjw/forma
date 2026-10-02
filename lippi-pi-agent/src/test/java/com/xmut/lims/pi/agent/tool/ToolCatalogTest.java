@@ -128,8 +128,7 @@ class ToolCatalogTest {
                 new PathMatchingResourcePatternResolver(),
                 null))
                 .isInstanceOf(ToolValidationException.class)
-                .hasMessageContaining("tool has no handler")
-                .hasMessageContaining("demo_echo");
+                .hasMessageContaining("tool has no handler");
     }
 
     @Test

@@ -1,6 +1,6 @@
 package com.xmut.ebus.application.business.agent.sse;
 
-import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandlerTest;
+import com.xmut.ebus.application.business.agent.tool.AskHumanListingAsk;
 import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventType;
 import com.xmut.lims.pi.agent.event.ToolSuspendPayload;
@@ -123,7 +123,7 @@ class PiEventToAd4MapperTest {
 
     @Test
     void mapsAskHumanSuspendToHumanInputRequired() {
-        ToolCallEntry call = AskHumanToolHandlerTest.listingAskCall("call-ask");
+        ToolCallEntry call = AskHumanListingAsk.listingAskCall("call-ask");
         SseEvent ev = PiEventMapper.mapEvent(
                 PiEvent.of(PiEventType.SUSPENDED, ToolSuspendPayload.of(call, "run-hitl", "ask_human"))).get();
         assertEquals(SseEventName.HUMAN_INPUT_REQUIRED, ev.getName());
@@ -140,7 +140,7 @@ class PiEventToAd4MapperTest {
 
     @Test
     void mapsAskHumanSuspend_prefersHandlerResultOutputOverRawArgs() throws Exception {
-        ToolCallEntry call = AskHumanToolHandlerTest.listingAskCall("call-ask");
+        ToolCallEntry call = AskHumanListingAsk.listingAskCall("call-ask");
         // 乱改 arguments；handler output 才是真源
         ToolResult result = ToolResult.interrupt("call-ask", "ask_human",
                 "{\"question\":\"规范化问题\",\"allowFreeText\":false,"

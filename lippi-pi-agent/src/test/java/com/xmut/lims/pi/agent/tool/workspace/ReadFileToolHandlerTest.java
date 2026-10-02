@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.agent.tool.workspace;
+package com.xmut.lims.pi.agent.tool.workspace;
 
 import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.tool.ToolResult;
@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static com.xmut.ebus.application.business.agent.tool.workspace.WorkspaceToolTestSupport.call;
+import static com.xmut.lims.pi.agent.tool.workspace.WorkspaceToolTestSupport.call;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

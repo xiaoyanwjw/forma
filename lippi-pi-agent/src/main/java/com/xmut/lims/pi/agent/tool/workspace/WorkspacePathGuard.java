@@ -1,6 +1,6 @@
-package com.xmut.ebus.application.business.agent.workspace;
+package com.xmut.lims.pi.agent.tool.workspace;
 
-import com.xmut.ebus.common.util.StringUtils;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,7 +16,7 @@ public final class WorkspacePathGuard {
     }
 
     public static Path resolveUnder(Path runDir, String relative) {
-        if (StringUtils.isBlank(relative)) {
+        if (!StringUtils.hasText(relative)) {
             throw new IllegalArgumentException("relative path required");
         }
         Path rel = Paths.get(relative);

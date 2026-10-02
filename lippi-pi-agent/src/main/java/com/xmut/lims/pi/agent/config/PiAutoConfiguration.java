@@ -8,6 +8,6 @@ import org.springframework.context.annotation.Import;
  * 功能描述：经 spring.factories 引入 AgentConfiguration。
  */
 @AutoConfiguration
-@Import(AgentConfiguration.class)
+@Import({AgentConfiguration.class, BaseToolsConfiguration.class})
 public class PiAutoConfiguration {
 }

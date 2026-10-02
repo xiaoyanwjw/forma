@@ -1,7 +1,6 @@
-package com.xmut.ebus.application.business.agent.tool.workspace;
+package com.xmut.lims.pi.agent.tool.workspace;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.xmut.ebus.application.business.agent.workspace.WorkspacePathGuard;
 import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import org.springframework.util.StringUtils;

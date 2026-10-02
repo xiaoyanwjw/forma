@@ -3,7 +3,7 @@ package com.xmut.ebus.application.business.agent.support;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xmut.ebus.application.business.agent.workspace.WorkspacePathGuard;
+import com.xmut.lims.pi.agent.tool.workspace.WorkspacePathGuard;
 import com.xmut.ebus.common.util.StringUtils;
 import org.springframework.stereotype.Component;
 

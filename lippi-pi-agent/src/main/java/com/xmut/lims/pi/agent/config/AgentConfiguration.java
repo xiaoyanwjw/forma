@@ -41,12 +41,8 @@ import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import com.xmut.lims.pi.agent.tool.ToolDefinitionJsonLoader;
 import com.xmut.lims.pi.agent.tool.ToolHandlerAutoBinder;
-import com.xmut.lims.pi.agent.tool.Tool;
 import com.xmut.lims.pi.agent.tool.ToolValidationException;
 import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
-import com.xmut.lims.pi.ai.model.ToolSchema;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -145,8 +141,16 @@ public class AgentConfiguration {
     }
 
     /**
-     * 默认 ToolCatalog：扫 {@code *.tool.json} 与 Handler Binding merge；
-     * 过渡期仍代码注册 {@code read_skill}（尚无生产 json）。
+     * {@code read_skill} Handler；schema 来自 {@code tools/base/read_skill.tool.json}。
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public ReadSkill readSkill(SkillCatalog skillConfig) {
+        return new ReadSkill(skillConfig);
+    }
+
+    /**
+     * 默认 ToolCatalog：扫 {@code *.tool.json} 与 Handler Binding merge。
      * 扫描到的 id 若无 Handler → fail-fast。
      */
     @Bean
@@ -157,7 +161,6 @@ public class AgentConfiguration {
         List<ToolDefinition> scanned = ToolDefinitionJsonLoader.load(resourcePatternResolver);
         List<ToolBinding> coded = new ArrayList<ToolBinding>(
                 ToolHandlerAutoBinder.bindFromManifests(scanned, beanFactory));
-        coded.add(readSkillTool(skillConfig).getBinding());
         InMemoryToolCatalog catalog = InMemoryToolCatalog.merge(scanned, coded);
         requireHandlers(catalog, scanned);
         return catalog;
@@ -183,29 +186,6 @@ public class AgentConfiguration {
                         "tool has no handler: " + def.getId());
             }
         }
-    }
-
-    static Tool readSkillTool(SkillCatalog skillConfig) {
-        ObjectNode parameters = new ObjectMapper().createObjectNode();
-        parameters.put("type", "object");
-        ObjectNode properties = parameters.putObject("properties");
-        ObjectNode skillId = properties.putObject("skill_id");
-        skillId.put("type", "string");
-        skillId.put("description", "已注册的技能 id，例如 ecommerce-picklist");
-        parameters.putArray("required").add("skill_id");
-        ToolSchema schema = ToolSchema.builder()
-                .name(ReadSkill.TOOL_ID)
-                .description("按 skill_id 从技能目录读取完整技能正文")
-                .parametersSchema(parameters)
-                .build();
-        ToolDefinition definition = ToolDefinition.builder()
-                .id(ReadSkill.TOOL_ID)
-                .description("按 skill_id 加载已注册技能的完整 Markdown 正文")
-                .text("[read_skill] 按 skill_id 加载技能正文。禁止编造技能内容。")
-                .schema(schema)
-                .handlerClass(ReadSkill.class.getName())
-                .build();
-        return new Tool(definition, new ReadSkill(skillConfig));
     }
 
     @Bean

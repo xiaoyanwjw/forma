@@ -27,6 +27,31 @@ class ToolDefinitionJsonLoaderTest {
     }
 
     @Test
+    void load_scans_base_five_tool_ids() {
+        ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        List<ToolDefinition> defs = ToolDefinitionJsonLoader.load(resolver);
+        assertThat(defs).extracting(ToolDefinition::getId)
+                .contains("read_skill", "ask_human", "write_file", "read_file", "bash");
+        assertEquals("com.xmut.lims.pi.agent.tool.handler.ReadSkill", handlerClassOf(defs, "read_skill"));
+        assertEquals("com.xmut.lims.pi.agent.tool.AskHumanToolHandler", handlerClassOf(defs, "ask_human"));
+        assertEquals("com.xmut.lims.pi.agent.tool.workspace.WriteFileToolHandler",
+                handlerClassOf(defs, "write_file"));
+        assertEquals("com.xmut.lims.pi.agent.tool.workspace.ReadFileToolHandler",
+                handlerClassOf(defs, "read_file"));
+        assertEquals("com.xmut.lims.pi.agent.tool.workspace.BashToolHandler", handlerClassOf(defs, "bash"));
+    }
+
+    private static String handlerClassOf(List<ToolDefinition> defs, String id) {
+        for (int i = 0; i < defs.size(); i++) {
+            ToolDefinition def = defs.get(i);
+            if (def != null && id.equals(def.getId())) {
+                return def.getHandlerClass();
+            }
+        }
+        return null;
+    }
+
+    @Test
     void parse_rejects_missing_id() {
         assertParseRejected("{ \"handlerClass\": \"com.example.DemoEchoHandler\", \"schema\": {} }", "id");
     }

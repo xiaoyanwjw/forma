@@ -1,0 +1,20 @@
+{
+  "id": "bash",
+  "description": "在 run 工作区执行 bash。命令仍在宿主机文件系统上运行。",
+  "text": "[bash] 在 run 工作区执行命令（cwd = 工作区）。进程仍跑在宿主机文件系统上；环境变量仅 PATH、LANG、HOME。输出截断至 64KiB。",
+  "handlerClass": "com.xmut.lims.pi.agent.tool.workspace.BashToolHandler",
+  "schema": {
+    "name": "bash",
+    "description": "在 run 工作区执行 bash 命令。命令仍在宿主机文件系统上运行。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Shell 命令；cwd 为 run 工作区。进程仍在宿主机文件系统上执行。"
+        }
+      },
+      "required": ["command"]
+    }
+  }
+}

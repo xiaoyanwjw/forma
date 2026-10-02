@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.agent.tool.workspace;
+package com.xmut.lims.pi.agent.tool.workspace;
 
 import com.xmut.lims.pi.agent.graph.node.ToolHandler;
 import com.xmut.lims.pi.agent.tool.ToolContext;

@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.agent.workspace;
+package com.xmut.lims.pi.agent.tool.workspace;
 
 import org.junit.jupiter.api.Test;
 

@@ -1,0 +1,24 @@
+{
+  "id": "write_file",
+  "description": "在 run 工作区写入文件",
+  "text": "[write_file] 将 UTF-8 文本写入相对路径。路径不得逃出工作区。",
+  "handlerClass": "com.xmut.lims.pi.agent.tool.workspace.WriteFileToolHandler",
+  "schema": {
+    "name": "write_file",
+    "description": "在 run 工作区写入 UTF-8 文本文件",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "相对 run 工作区的路径"
+        },
+        "content": {
+          "type": "string",
+          "description": "要写入的 UTF-8 文本"
+        }
+      },
+      "required": ["path", "content"]
+    }
+  }
+}

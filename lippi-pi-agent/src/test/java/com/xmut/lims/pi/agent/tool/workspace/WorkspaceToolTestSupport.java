@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.business.agent.tool.workspace;
+package com.xmut.lims.pi.agent.tool.workspace;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;

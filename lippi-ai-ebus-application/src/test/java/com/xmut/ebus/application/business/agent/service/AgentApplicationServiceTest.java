@@ -7,7 +7,7 @@ import com.xmut.ebus.application.business.agent.support.*;
 import com.xmut.ebus.application.business.agent.sse.SseEventName;
 import com.xmut.ebus.application.business.agent.workspace.RunWorkspaceService;
 import com.xmut.ebus.application.business.agent.sse.SseEvent;
-import com.xmut.ebus.application.business.agent.tool.AskHumanToolHandlerTest;
+import com.xmut.ebus.application.business.agent.tool.AskHumanListingAsk;
 import com.xmut.ebus.application.business.credit.service.CreditApplicationService;
 import com.xmut.ebus.application.business.computer.ComputerViewProjector;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
@@ -1409,7 +1409,7 @@ class AgentApplicationServiceTest {
             listener.accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, VALID_PLAN_JSON.substring(0, mid)));
             listener.accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, VALID_PLAN_JSON.substring(mid)));
             listener.accept(PiEvent.of(PiEventType.SUSPENDED,
-                    ToolSuspendPayload.of(AskHumanToolHandlerTest.listingAskCall(ASK_CALL_ID),
+                    ToolSuspendPayload.of(AskHumanListingAsk.listingAskCall(ASK_CALL_ID),
                             "run-listing-chunks", "ask_human")));
             return TurnResult.builder()
                     .runId("run-listing-chunks")
@@ -1443,7 +1443,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenAnswer(invocation -> {
             subscriber.get().accept(PiEvent.of(PiEventType.SUSPENDED,
-                    ToolSuspendPayload.of(AskHumanToolHandlerTest.listingAskCall(ASK_CALL_ID),
+                    ToolSuspendPayload.of(AskHumanListingAsk.listingAskCall(ASK_CALL_ID),
                             "run-listing-final", "ask_human")));
             return TurnResult.builder()
                     .runId("run-listing-final")
@@ -1557,7 +1557,7 @@ class AgentApplicationServiceTest {
             Consumer<PiEvent> listener = subscriber.get();
             listener.accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, VALID_PLAN_JSON_SUPPLEMENT));
             listener.accept(PiEvent.of(PiEventType.SUSPENDED,
-                    ToolSuspendPayload.of(AskHumanToolHandlerTest.listingAskCall("call-ask-2"),
+                    ToolSuspendPayload.of(AskHumanListingAsk.listingAskCall("call-ask-2"),
                             "run-listing-supp", "ask_human")));
             return TurnResult.builder()
                     .runId("run-listing-supp")
@@ -1601,7 +1601,7 @@ class AgentApplicationServiceTest {
             Consumer<PiEvent> listener = subscriber.get();
             listener.accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, planJson));
             listener.accept(PiEvent.of(PiEventType.SUSPENDED,
-                    ToolSuspendPayload.of(AskHumanToolHandlerTest.listingAskCall(callId), runId, "ask_human")));
+                    ToolSuspendPayload.of(AskHumanListingAsk.listingAskCall(callId), runId, "ask_human")));
             return TurnResult.builder()
                     .runId(runId)
                     .sessionId(sessionId)

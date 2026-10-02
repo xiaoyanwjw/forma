@@ -1,0 +1,39 @@
+{
+  "id": "ask_human",
+  "description": "请用户确认或补充信息",
+  "text": "[ask_human] 向用户提问并给出选项。禁止编造用户答复。",
+  "handlerClass": "com.xmut.lims.pi.agent.tool.AskHumanToolHandler",
+  "schema": {
+    "name": "ask_human",
+    "description": "向用户发起带选项的结构化提问；调用后挂起直至 resume",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "question": {
+          "type": "string",
+          "description": "展示给用户的问题"
+        },
+        "options": {
+          "type": "array",
+          "description": "可选项，含 id 与 label",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "allowFreeText": {
+          "type": "boolean",
+          "description": "是否允许自由文本作答；默认 true"
+        }
+      },
+      "required": ["question", "options"]
+    }
+  }
+}

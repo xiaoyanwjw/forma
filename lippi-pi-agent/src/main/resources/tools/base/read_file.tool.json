@@ -1,0 +1,20 @@
+{
+  "id": "read_file",
+  "description": "在 run 工作区读取文件",
+  "text": "[read_file] 按相对路径读取 UTF-8 文本。超过 2MiB 的文件会失败。",
+  "handlerClass": "com.xmut.lims.pi.agent.tool.workspace.ReadFileToolHandler",
+  "schema": {
+    "name": "read_file",
+    "description": "在 run 工作区读取 UTF-8 文本文件",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "相对 run 工作区的路径"
+        }
+      },
+      "required": ["path"]
+    }
+  }
+}

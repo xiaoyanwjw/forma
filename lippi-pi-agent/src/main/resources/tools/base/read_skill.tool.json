@@ -1,0 +1,20 @@
+{
+  "id": "read_skill",
+  "description": "按 skill_id 加载已注册技能的完整 Markdown 正文",
+  "text": "[read_skill] 按 skill_id 加载技能正文。禁止编造技能内容。",
+  "handlerClass": "com.xmut.lims.pi.agent.tool.handler.ReadSkill",
+  "schema": {
+    "name": "read_skill",
+    "description": "按 skill_id 从技能目录读取完整技能正文",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "skill_id": {
+          "type": "string",
+          "description": "已注册的技能 id，例如 ecommerce-picklist"
+        }
+      },
+      "required": ["skill_id"]
+    }
+  }
+}
