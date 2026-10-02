@@ -8,17 +8,7 @@ import type {
   ComputerNoteBlock,
   ComputerTag,
 } from '@/types/business/computerView'
-import { buildListingHandoffText, lineTextByKind } from '@/utils/listingHandoff'
-import { buildXhsNoteHandoffText } from '@/utils/xhsNoteHandoff'
-import {
-  resolveComputerBadge,
-  resolveComputerStatus,
-  resolveComputerTitle,
-  resolveLineLabel,
-  resolveNoteText,
-  resolveTagDisplay,
-  sanitizeHttpsHref,
-} from '@/types/business/computerView'
+import { displayTagText, sanitizeHttpsHref } from '@/types/business/computerView'
 import ListingPlatformPreview from './ListingPlatformPreview.vue'
 import {
   LISTING_PLATFORM_SKINS,
@@ -28,18 +18,17 @@ import {
 const props = withDefaults(
   defineProps<{
     document: ComputerDocument
-    enableListingHandoff?: boolean
-    enableNoteHandoff?: boolean
+    itemActionLabel?: string
+    isItemActionEnabled?: (item: ComputerListItem, index: number) => boolean
   }>(),
   {
-    enableListingHandoff: false,
-    enableNoteHandoff: false,
+    itemActionLabel: '',
+    isItemActionEnabled: () => true,
   },
 )
 
 const emit = defineEmits<{
-  'listing-handoff': [{ text: string }]
-  'note-handoff': [{ text: string }]
+  'item-action': [{ item: ComputerListItem; index: number }]
 }>()
 
 const platformSkin = ref<ListingPlatformSkin>('adam')
@@ -66,12 +55,12 @@ const visibleBlocks = computed(() => {
   return blocks
 })
 
-const documentTitle = computed(() => resolveComputerTitle(props.document.title))
-/** Hide protocol placeholder `ready`; keep demo / settled labels. */
+const documentTitle = computed(() => props.document.title)
+/** Hide protocol placeholder `ready`; show any other status as-is. */
 const documentStatus = computed(() => {
   const raw = props.document.status?.trim()
   if (!raw || raw === 'ready') return undefined
-  return resolveComputerStatus(raw)
+  return raw
 })
 
 /** 上架素材预览才显示平台样式切换（选品 list 文档不显示） */
@@ -145,16 +134,11 @@ function tagPillClass(tag: ComputerTag): string[] {
 }
 
 function isPriceLine(line: ComputerListLine): boolean {
-  return line.emphasis === 'price' || line.kind === 'priceBand' || resolveLineLabel(line) === '价格带'
+  return line.emphasis === 'price'
 }
 
-/** Resolve locale labels for protocol lines; no domain string parsing. */
 function displayLines(lines: ComputerListLine[] | undefined): ComputerListLine[] {
-  if (!lines?.length) return []
-  return lines.map((line) => {
-    const resolvedLabel = resolveLineLabel(line)
-    return resolvedLabel ? { ...line, label: resolvedLabel } : { ...line }
-  })
+  return lines?.length ? lines : []
 }
 
 function lineClass(line: ComputerListLine): string[] {
@@ -174,17 +158,17 @@ function factLines(lines: ComputerListLine[] | undefined): ComputerListLine[] {
 }
 
 function noteText(block: ComputerNoteBlock): string {
-  return resolveNoteText(block)
+  return block.text
 }
 
 const PRIORITY_MARK = '【优先试】'
 
 function itemBadge(item: { badge?: string; title: string }): string | undefined {
-  if (item.badge) {
-    return resolveComputerBadge(item.badge)
+  if (item.badge?.trim()) {
+    return item.badge.trim()
   }
   if (item.title.startsWith(PRIORITY_MARK)) {
-    return resolveComputerBadge('priority')
+    return '优先试'
   }
   return undefined
 }
@@ -202,42 +186,17 @@ function itemTitle(item: { badge?: string; title: string }): string {
   return item.title
 }
 
-/** Prefer skill `id`; fall back to pl-{n} / tp-{n} by list order when model omits id. */
-function resolveHandoffId(item: ComputerListItem, itemIndex: number, prefix: 'pl' | 'tp'): string {
-  const raw = item.id?.trim()
-  if (raw) return raw
-  return `${prefix}-${itemIndex + 1}`
+function showItemAction(): boolean {
+  return Boolean(props.itemActionLabel?.trim())
 }
 
-function listingHandoffTextFor(item: ComputerListItem, itemIndex: number): string | null {
-  return buildListingHandoffText({
-    title: item.title,
-    href: item.href,
-    id: resolveHandoffId(item, itemIndex, 'pl'),
-    niche: lineTextByKind(item.lines, 'niche'),
-    painPoint: lineTextByKind(item.lines, 'painPoint'),
-    angle: lineTextByKind(item.lines, 'angle'),
-  })
+function itemActionEnabled(item: ComputerListItem, itemIndex: number): boolean {
+  return props.isItemActionEnabled(item, itemIndex)
 }
 
-function noteHandoffTextFor(item: ComputerListItem, itemIndex: number): string | null {
-  return buildXhsNoteHandoffText({
-    title: item.title,
-    href: item.href,
-    id: resolveHandoffId(item, itemIndex, 'tp'),
-    hook: lineTextByKind(item.lines, 'hook'),
-    angle: lineTextByKind(item.lines, 'angle'),
-  })
-}
-
-function emitListingHandoff(item: ComputerListItem, itemIndex: number) {
-  const text = listingHandoffTextFor(item, itemIndex)
-  if (text) emit('listing-handoff', { text })
-}
-
-function emitNoteHandoff(item: ComputerListItem, itemIndex: number) {
-  const text = noteHandoffTextFor(item, itemIndex)
-  if (text) emit('note-handoff', { text })
+function emitItemAction(item: ComputerListItem, itemIndex: number) {
+  if (!itemActionEnabled(item, itemIndex)) return
+  emit('item-action', { item, index: itemIndex })
 }
 
 function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string {
@@ -316,22 +275,13 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
                     >{{ itemTitle(item) }}</a>
                     <template v-else>{{ itemTitle(item) }}</template>
                     <button
-                      v-if="enableListingHandoff"
+                      v-if="showItemAction()"
                       type="button"
-                      class="listing-handoff-btn"
-                      :disabled="!listingHandoffTextFor(item, itemIndex)"
-                      @click="emitListingHandoff(item, itemIndex)"
+                      class="item-action-btn"
+                      :disabled="!itemActionEnabled(item, itemIndex)"
+                      @click="emitItemAction(item, itemIndex)"
                     >
-                      做上架素材
-                    </button>
-                    <button
-                      v-else-if="enableNoteHandoff"
-                      type="button"
-                      class="note-handoff-btn"
-                      :disabled="!noteHandoffTextFor(item, itemIndex)"
-                      @click="emitNoteHandoff(item, itemIndex)"
-                    >
-                      写成笔记
+                      {{ itemActionLabel }}
                     </button>
                   </div>
                   <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
@@ -342,7 +292,7 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
                     :key="lineIndex"
                     :class="lineClass(line)"
                   >
-                    <span class="item-line-label">{{ line.label || '说明' }}</span>
+                    <span v-if="line.label" class="item-line-label">{{ line.label }}</span>
                     <span class="item-line-text">{{ line.text }}</span>
                   </div>
                 </div>
@@ -351,7 +301,7 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
                     v-for="(tag, tagIndex) in item.tags"
                     :key="tagIndex"
                     :class="tagPillClass(tag)"
-                  >{{ resolveTagDisplay(tag) }}</span>
+                  >{{ displayTagText(tag) }}</span>
                 </div>
               </div>
             </li>
@@ -584,8 +534,7 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   text-decoration: underline;
 }
 
-.listing-handoff-btn,
-.note-handoff-btn {
+.item-action-btn {
   flex-shrink: 0;
   appearance: none;
   border: 1px solid color-mix(in srgb, #0f766e 45%, transparent);
@@ -601,15 +550,13 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.listing-handoff-btn:hover:not(:disabled),
-.note-handoff-btn:hover:not(:disabled) {
+.item-action-btn:hover:not(:disabled) {
   background: color-mix(in srgb, #0f766e 18%, var(--surface, #fff));
   border-color: color-mix(in srgb, #0f766e 70%, transparent);
   color: #0b5f58;
 }
 
-.listing-handoff-btn:disabled,
-.note-handoff-btn:disabled {
+.item-action-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
   color: var(--mute, #737373);

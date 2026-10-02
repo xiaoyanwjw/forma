@@ -3,23 +3,12 @@ export type ComputerNoteTone = 'mute' | 'default'
 /** Generic tag emphasis — domain mapping belongs in projectors, not the renderer. */
 export type ComputerTagTone = 'neutral' | 'positive' | 'caution' | 'danger' | 'info' | 'safe'
 
-/** Semantic line kinds from projectors; FE maps to locale labels. */
-export type ComputerListLineKind =
-  | 'priceBand'
-  | 'painPoint'
-  | 'angle'
-  | 'diff'
-  | 'niche'
-
-/** Semantic tag kinds from picklist projector; FE maps to locale prefixes. */
-export type ComputerTagKind = 'demand' | 'competition' | 'margin' | 'risk'
-
-/** Optional note kinds; FE may prepend locale copy (e.g. assumptions → 假设：). */
-export type ComputerNoteKind = 'assumptions'
-
 export interface ComputerTag {
   text: string
-  kind?: ComputerTagKind | string
+  /** Opaque field key from the producer; renderer does not interpret it. */
+  kind?: string
+  /** Display prefix; renderer shows this as-is. */
+  label?: string
   tone?: ComputerTagTone
 }
 
@@ -32,14 +21,14 @@ export interface ComputerNoteBlock {
   type: 'note'
   text: string
   tone?: ComputerNoteTone
-  kind?: ComputerNoteKind | string
+  kind?: string
 }
 
 export interface ComputerListLine {
   text: string
-  /** Semantic field key from projector. Prefer over label for new payloads. */
-  kind?: ComputerListLineKind | string
-  /** Locale/display label; legacy payloads or FE-resolved. */
+  /** Opaque field key from the producer (handoff / analytics). */
+  kind?: string
+  /** Display label; renderer shows this as-is and never invents one. */
   label?: string
   /** Projector-driven emphasis; renderer does not infer from text. */
   emphasis?: 'default' | 'price'
@@ -96,72 +85,9 @@ export interface ComputerDocument {
   blocks: ComputerBlock[]
 }
 
-/** Locale map for document title keys emitted by projectors. */
-export const COMPUTER_TITLE_LABELS: Record<string, string> = {
-  picklist: '选品清单',
-  report: '选品清单',
-  listingPreview: '上架素材预览',
-}
-
-/** Locale map for document status keys. */
-export const COMPUTER_STATUS_LABELS: Record<string, string> = {
-  settled: '已结算',
-  demo: '演示',
-}
-
-/** Locale map for list item badge keys. */
-export const COMPUTER_BADGE_LABELS: Record<string, string> = {
-  priority: '优先试',
-}
-
-/** Locale map for list line kinds. */
-export const COMPUTER_LINE_LABELS: Record<string, string> = {
-  priceBand: '价格带',
-  painPoint: '痛点',
-  angle: '切入',
-  diff: '差异',
-  niche: '细分',
-}
-
-/** Locale map for tag kinds (prefix before raw value). */
-export const COMPUTER_TAG_LABELS: Record<string, string> = {
-  demand: '需求',
-  competition: '竞争',
-  margin: '利润',
-  risk: '风险',
-}
-
-export function resolveComputerTitle(title: string): string {
-  return COMPUTER_TITLE_LABELS[title] ?? title
-}
-
-export function resolveComputerStatus(status: string): string {
-  return COMPUTER_STATUS_LABELS[status] ?? status
-}
-
-export function resolveComputerBadge(badge: string): string {
-  return COMPUTER_BADGE_LABELS[badge] ?? badge
-}
-
-export function resolveLineLabel(line: ComputerListLine): string | undefined {
-  if (line.kind && COMPUTER_LINE_LABELS[line.kind]) {
-    return COMPUTER_LINE_LABELS[line.kind]
-  }
-  return line.label
-}
-
-export function resolveTagDisplay(tag: ComputerTag): string {
-  if (tag.kind && COMPUTER_TAG_LABELS[tag.kind]) {
-    return `${COMPUTER_TAG_LABELS[tag.kind]} ${tag.text}`
-  }
-  return tag.text
-}
-
-export function resolveNoteText(block: ComputerNoteBlock): string {
-  if (block.kind === 'assumptions') {
-    return `假设：${block.text}`
-  }
-  return block.text
+export function displayTagText(tag: ComputerTag): string {
+  const label = tag.label?.trim()
+  return label ? `${label} ${tag.text}` : tag.text
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -187,6 +113,9 @@ function parseTag(raw: unknown): ComputerTag | null {
   const tag: ComputerTag = { text: raw.text }
   if (typeof raw.kind === 'string' && raw.kind.trim()) {
     tag.kind = raw.kind.trim()
+  }
+  if (typeof raw.label === 'string' && raw.label.trim()) {
+    tag.label = raw.label.trim()
   }
   if (typeof raw.tone === 'string' && (TAG_TONES as readonly string[]).includes(raw.tone)) {
     tag.tone = raw.tone as ComputerTagTone

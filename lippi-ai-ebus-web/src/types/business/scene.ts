@@ -10,3 +10,17 @@ export interface Scene {
   sortOrder: number
   summary: string
 }
+
+/** GET /api/v1/scenes/{sceneCode}/skills 胶囊栏一项 */
+export interface SceneSkillCapsuleItem {
+  skillId: string
+  label: string
+  examplePrompt: string
+  sortOrder: number
+}
+
+/** GET /api/v1/scenes/{sceneCode}/skills 胶囊栏 */
+export interface SceneSkillCapsule {
+  sceneCode: string
+  skills: SceneSkillCapsuleItem[]
+}

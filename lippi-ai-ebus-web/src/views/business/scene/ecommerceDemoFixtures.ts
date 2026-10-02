@@ -18,18 +18,18 @@ export interface DemoListingPreview {
 
 export const DEMO_PICKS: DemoPickItem[] = [
   {
-    title: '硅胶沥水垫（多色）',
-    painPoint: '水槽边易积水难打理',
-    angle: '租房厨房刚需',
-    diff: '多色套装好出图',
-    niche: '厨房沥水',
+    title: 'Mac Mini 拓展坞',
+    painPoint: 'Mini 接显示器后接口不够、线乱',
+    angle: '居家办公桌搭',
+    diff: '机身同宽好出图',
+    niche: 'Mac Mini 扩展',
   },
   {
-    title: '免打孔置物架',
-    painPoint: '墙面无处挂',
-    angle: '租房搜索稳',
-    diff: '免打孔轻包装',
-    niche: '墙面收纳',
+    title: 'Mac Mini 增高底座',
+    painPoint: '机身接口朝后难插',
+    angle: '桌面搜索稳',
+    diff: '抬高后插线更顺',
+    niche: 'Mini 支架',
   },
   {
     title: '透明收纳盒套装',
@@ -76,15 +76,15 @@ export const DEMO_PICKS: DemoPickItem[] = [
 ]
 
 export const DEMO_LISTING: DemoListingPreview = {
-  sku: '硅胶沥水垫（多色）',
-  title: '硅胶沥水垫（多色） · 易清洗 · 多色可选',
-  body: '水槽边总积水？软硅胶垫贴合台面，洗完随手一垫。可卷收纳。',
+  sku: 'Mac Mini 拓展坞',
+  title: 'Mac Mini 拓展坞 · 多口扩展 · 走线隐藏',
+  body: 'Mini 接显示器总缺口？拓展坞把 HDMI、USB、网线收到机身下，桌面只留一套线。',
 }
 
 export const DEMO_PICKS_VIEW: ComputerDocument = {
   version: 1,
-  title: 'picklist',
-  status: 'demo',
+  title: '选品清单',
+  status: '演示',
   blocks: [
     { type: 'note', text: '演示选品清单，非实时平台数据', tone: 'mute' },
     {
@@ -93,10 +93,10 @@ export const DEMO_PICKS_VIEW: ComputerDocument = {
       items: DEMO_PICKS.map((it) => ({
         title: it.title,
         lines: [
-          { kind: 'painPoint', text: it.painPoint },
-          { kind: 'angle', text: it.angle },
-          { kind: 'diff', text: it.diff },
-          { kind: 'niche', text: it.niche },
+          { kind: 'painPoint', label: '痛点', text: it.painPoint },
+          { kind: 'angle', label: '切入', text: it.angle },
+          { kind: 'diff', label: '差异', text: it.diff },
+          { kind: 'niche', label: '细分', text: it.niche },
         ],
       })),
     },
@@ -105,8 +105,8 @@ export const DEMO_PICKS_VIEW: ComputerDocument = {
 
 export const DEMO_LISTING_VIEW: ComputerDocument = {
   version: 1,
-  title: 'listingPreview',
-  status: 'demo',
+  title: '上架素材预览',
+  status: '演示',
   blocks: [
     { type: 'media', role: 'hero', placeholder: '主图方案预览', alt: '主图方案' },
     { type: 'section', heading: '详情标题', body: DEMO_LISTING.title },

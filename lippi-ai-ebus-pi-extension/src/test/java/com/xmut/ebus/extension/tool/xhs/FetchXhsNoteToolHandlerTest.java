@@ -48,8 +48,8 @@ class FetchXhsNoteToolHandlerTest {
     @Test
     void handle_ok_writes_detail_json() throws Exception {
         when(port.fetch(NOTE_URL)).thenReturn(new XhsNoteFetchHit(
-                "厨房收纳",
-                "租房党抽屉整理正文",
+                "Mac Mini 桌搭",
+                "Mini 桌面理线正文",
                 NOTE_URL,
                 "作者A",
                 Arrays.asList("收纳", "租房")));
@@ -59,8 +59,8 @@ class FetchXhsNoteToolHandlerTest {
         assertTrue(r.isSuccess());
         assertEquals(FetchXhsNoteToolHandler.TOOL_NAME, r.getToolName());
         JsonNode root = MAPPER.readTree(r.getOutput());
-        assertEquals("厨房收纳", root.get("title").asText());
-        assertEquals("租房党抽屉整理正文", root.get("body").asText());
+        assertEquals("Mac Mini 桌搭", root.get("title").asText());
+        assertEquals("Mini 桌面理线正文", root.get("body").asText());
         assertEquals(NOTE_URL, root.get("noteUrl").asText());
         assertEquals("作者A", root.get("author").asText());
         assertTrue(root.get("tags").isArray());

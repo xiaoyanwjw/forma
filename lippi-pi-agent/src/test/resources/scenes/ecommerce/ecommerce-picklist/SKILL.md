@@ -3,7 +3,6 @@ name: ecommerce-picklist
 description: >-
   经配置的商品检索（如 Mock / Apify 淘宝搜）用 search_sku 产出 8–12 条带原链与 pl-n item id 的可测款选品清单（JSON：view + artifact）。
   在用户提到选品、卖什么、候选清单、测款方向时使用。
-  不要用于 Listing / 主图 / 详情文案——那些请用 ecommerce-skulist。
 allowed-tools: read_skill search_sku write_file read_file bash
 metadata:
   output:

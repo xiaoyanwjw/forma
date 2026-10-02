@@ -18,14 +18,14 @@ class ApifyXhsNoteFetchMapperTest {
     void maps_first_row_with_body_aliases() {
         ArrayNode arr = om.createArrayNode();
         ObjectNode row = arr.addObject();
-        row.put("title", "厨房收纳");
+        row.put("title", "Mac Mini 桌搭");
         row.put("desc", "抽屉整理全文");
         row.put("noteUrl", "https://www.xiaohongshu.com/explore/abc");
         row.put("author", "小A");
         row.putArray("tags").add("收纳").add("租房");
         Optional<XhsNoteFetchHit> hit = ApifyXhsNoteFetchMapper.mapFirst(arr);
         assertTrue(hit.isPresent());
-        assertEquals("厨房收纳", hit.get().getTitle());
+        assertEquals("Mac Mini 桌搭", hit.get().getTitle());
         assertEquals("抽屉整理全文", hit.get().getBody());
         assertEquals("https://www.xiaohongshu.com/explore/abc", hit.get().getNoteUrl());
         assertEquals("小A", hit.get().getAuthor());

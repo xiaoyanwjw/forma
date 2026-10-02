@@ -1,6 +1,13 @@
 package com.xmut.ebus.application.business.scene.query;
 
 import com.xmut.ebus.application.business.scene.dto.SceneDTO;
+import com.xmut.ebus.application.business.scene.dto.SceneSkillCapsuleDTO;
+import com.xmut.ebus.application.business.scene.dto.SceneSkillCapsuleItemDTO;
+import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPack;
+import com.xmut.ebus.application.business.scene.pack.SceneCapabilityPackLoader;
+import com.xmut.ebus.application.business.scene.pack.SceneSkillCapsuleLoader;
+import com.xmut.ebus.common.exception.BusinessException;
+import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.domain.business.scene.model.Scene;
 import com.xmut.ebus.domain.business.scene.repository.SceneRepository;
 import lombok.RequiredArgsConstructor;
@@ -8,16 +15,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * SceneCatalog 只读用例（画廊列表）。
+ * SceneCatalog 只读用例（画廊列表 + 工作台快捷栏）。
  */
 @Service
 @RequiredArgsConstructor
 public class SceneQueryService {
 
     private final SceneRepository sceneRepository;
+    private final SceneCapabilityPackLoader packLoader;
+    private final SceneSkillCapsuleLoader capsuleLoader;
 
     @Transactional(readOnly = true)
     public List<SceneDTO> list() {
@@ -27,6 +37,20 @@ public class SceneQueryService {
             result.add(toDto(scene));
         }
         return result;
+    }
+
+    /**
+     * 工作台胶囊栏：有 {@code launch.json} 的 skill；无包/缺文件时返回空列表。
+     */
+    public SceneSkillCapsuleDTO listSkillCapsules(String sceneCode) {
+        String code = StringUtils.requireHasText(sceneCode, "sceneCode 不能为空").trim();
+        try {
+            SceneCapabilityPack pack = packLoader.load(code);
+            List<SceneSkillCapsuleItemDTO> skills = capsuleLoader.loadFor(pack.getSkills());
+            return new SceneSkillCapsuleDTO(code, skills);
+        } catch (BusinessException ex) {
+            return new SceneSkillCapsuleDTO(code, Collections.<SceneSkillCapsuleItemDTO>emptyList());
+        }
     }
 
     private static SceneDTO toDto(Scene scene) {

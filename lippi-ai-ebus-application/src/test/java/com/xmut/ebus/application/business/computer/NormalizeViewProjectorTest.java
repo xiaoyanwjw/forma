@@ -122,4 +122,40 @@ class NormalizeViewProjectorTest {
         assertEquals("pl-1", outItems.get(0).get("id"));
         assertFalse(outItems.get(1).containsKey("id"));
     }
+
+    @Test
+    void passesThroughLineAndTagDisplayLabels() {
+        Map<String, Object> line = new LinkedHashMap<String, Object>();
+        line.put("kind", "hook");
+        line.put("label", "视角");
+        line.put("text", "背后一串转接头");
+        Map<String, Object> tag = new LinkedHashMap<String, Object>();
+        tag.put("kind", "demand");
+        tag.put("label", "需求");
+        tag.put("text", "高");
+        tag.put("tone", "positive");
+        Map<String, Object> item = new LinkedHashMap<String, Object>();
+        item.put("title", "选题");
+        item.put("lines", Arrays.asList(line));
+        item.put("tags", Arrays.asList(tag));
+        Map<String, Object> listBlock = new LinkedHashMap<String, Object>();
+        listBlock.put("type", "list");
+        listBlock.put("items", Arrays.asList(item));
+        Map<String, Object> raw = new LinkedHashMap<String, Object>();
+        raw.put("version", Integer.valueOf(1));
+        raw.put("title", "选题清单");
+        raw.put("blocks", Arrays.asList(listBlock));
+
+        Map<String, Object> view = projector.project(ViewProjectContext.builder().rawView(raw).build());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> outBlocks = (List<Map<String, Object>>) view.get("blocks");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> outItems = (List<Map<String, Object>>) outBlocks.get(0).get("items");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) outItems.get(0).get("lines");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> tags = (List<Map<String, Object>>) outItems.get(0).get("tags");
+        assertEquals("视角", lines.get(0).get("label"));
+        assertEquals("需求", tags.get(0).get("label"));
+    }
 }

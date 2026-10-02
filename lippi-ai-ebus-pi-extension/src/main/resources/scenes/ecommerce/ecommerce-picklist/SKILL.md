@@ -80,7 +80,8 @@ metadata:
 - [ ] `final.json` 内 `artifact.items` 与 `view` list 均为 **8–12** 条，条数一致、顺序对应
 - [ ] 每条 `id` 非空，格式 `pl-n`（从 1 顺序）；list 与 artifact **同 id 同序**
 - [ ] 至少 **3** 个不同 `niche`，且无空泛「日用」「家居」三连凑数
-- [ ] 恰好 **1–2** 条 `artifact.title` 以 `【优先试】` 开头；对应 list `badge: "priority"`（list 标题不加该前缀）
+- [ ] 恰好 **1–2** 条 `artifact.title` 以 `【优先试】` 开头；对应 list `badge: "优先试"`（list 标题不加该前缀）
+- [ ] list 每行（除价格带）带展示用 `label`；tag 带 `label`（组件不猜中文）
 - [ ] 优先试条目含可行动「为何先测」理由（痛点/角度/差异至少一处说清相对下一条的优势）
 - [ ] 每条 `sourceUrl` / `href` 均来自工具 `detailUrl`，绝对 `https:`，无编造
 - [ ] `demand` / `competition` / `margin` / `risk` 均以 `高｜` / `中｜` / `低｜` 开头，且挂钩本条可观察事实

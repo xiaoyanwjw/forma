@@ -18,8 +18,8 @@ class ApifyXhsNoteHitMapperTest {
         ArrayNode arr = om.createArrayNode();
         ObjectNode ok = arr.addObject();
         ok.put("noteId", "abc");
-        ok.put("title", "厨房收纳");
-        ok.put("desc", "租房党");
+        ok.put("title", "Mac Mini 桌搭");
+        ok.put("desc", "居家办公");
         ok.put("noteUrl", "https://www.xiaohongshu.com/explore/abc");
         ok.put("likedCount", 12);
         ok.put("author", "小A");
@@ -29,8 +29,8 @@ class ApifyXhsNoteHitMapperTest {
         List<XhsNoteSearchHit> hits = ApifyXhsNoteHitMapper.mapItems(arr);
         assertEquals(1, hits.size());
         assertEquals("abc", hits.get(0).getNoteId());
-        assertEquals("厨房收纳", hits.get(0).getTitle());
-        assertEquals("租房党", hits.get(0).getDesc());
+        assertEquals("Mac Mini 桌搭", hits.get(0).getTitle());
+        assertEquals("居家办公", hits.get(0).getDesc());
         assertTrue(hits.get(0).getNoteUrl().startsWith("https://"));
         assertEquals("12", hits.get(0).getLikedCount());
         assertEquals("小A", hits.get(0).getAuthor());

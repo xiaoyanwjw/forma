@@ -71,10 +71,10 @@ class GenerationOutputParserTest {
   @Test
   void proseThenFinalFence_prefersLastJsonWithView() {
       String raw = "I'll load the skill first.\nI'll search once.\n"
-              + "```json\n{\"view\":{\"version\":1,\"title\":\"厨房小件\",\"blocks\":[]},\"artifact\":{\"items\":[]}}\n```";
+              + "```json\n{\"view\":{\"version\":1,\"title\":\"Mac Mini 配件\",\"blocks\":[]},\"artifact\":{\"items\":[]}}\n```";
       ParsedGenerationOutput out = parser.parse(raw);
       assertNotNull(out.getRawView());
-      assertEquals("厨房小件", out.getRawView().get("title"));
+      assertEquals("Mac Mini 配件", out.getRawView().get("title"));
   }
 
   @Test

@@ -87,23 +87,23 @@ public class SessionQueryService {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE);
         }
 
-        int turnLimit = query.turnLimit();
-        Page<PiLogicalRunRef> runPage =
-                piSessionQueryRepository.getLogicalRunIds(sid, query.nextToken(), turnLimit);
-        if (runPage == null || CollectionUtils.isEmpty(runPage.getItems())) {
+        final String nextToken = query.nextToken();
+        final int turnLimit = query.turnLimit();
+        Page<PiLogicalRunRef> runPage = piSessionQueryRepository.getLogicalRunIds(sid, nextToken, turnLimit);
+        if (CollectionUtils.isEmpty(runPage.getItems())) {
             return Page.empty();
         }
 
-        List<PiLogicalRunRef> newestFirst = runPage.getItems();
-        List<String> runIds = new ArrayList<String>(newestFirst.size());
-        for (PiLogicalRunRef ref : newestFirst) {
+        List<PiLogicalRunRef> runRefs = runPage.getItems();
+        List<String> runIds = new ArrayList<String>(runRefs.size());
+        for (PiLogicalRunRef ref : runRefs) {
             runIds.add(ref.getLogicalRunId());
         }
 
-        List<PiMessage> messages = keepReplayMessages(
-                piSessionQueryRepository.getMessagesByLogicalRunIds(sid, runIds));
+        List<PiMessage> messages = piSessionQueryRepository.getMessagesByLogicalRunIds(sid, runIds);
+        messages = keepReplayMessages(messages);
         List<SessionTurnDTO> assembled = SessionTurnAssembler.assemble(messages);
-        List<SessionTurnDTO> ascending = orderTurnsByRunTipOrder(assembled, newestFirst);
+        List<SessionTurnDTO> ascending = orderTurnsByRunTipOrder(assembled, runRefs);
         return Page.of(ascending, runPage.getNextToken());
     }
 

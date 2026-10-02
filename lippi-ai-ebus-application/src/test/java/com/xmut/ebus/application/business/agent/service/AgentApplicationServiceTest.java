@@ -1622,42 +1622,42 @@ class AgentApplicationServiceTest {
                     + "\"artifact\":{\"ok\":true}}";
 
     private static final String VALID_LISTING_JSON =
-            "{\"view\":{\"version\":1,\"title\":\"硅胶沥水垫 · 上架素材\",\"status\":\"ready\","
+            "{\"view\":{\"version\":1,\"title\":\"Mac Mini 拓展坞 · 上架素材\",\"status\":\"ready\","
                     + "\"blocks\":["
                     + "{\"type\":\"media\",\"role\":\"hero\",\"placeholder\":\"白底主图方案\",\"alt\":\"主图\"},"
-                    + "{\"type\":\"section\",\"heading\":\"详情标题\",\"body\":\"厨房硅胶沥水垫\"},"
-                    + "{\"type\":\"section\",\"heading\":\"详情正文\",\"body\":\"易清洗防滑\"},"
+                    + "{\"type\":\"section\",\"heading\":\"详情标题\",\"body\":\"Mac Mini 拓展坞\"},"
+                    + "{\"type\":\"section\",\"heading\":\"详情正文\",\"body\":\"走线隐藏多口扩展\"},"
                     + "{\"type\":\"section\",\"heading\":\"展示说明\",\"body\":\"主图突出颜色\",\"tone\":\"mute\"}"
                     + "]},"
-                    + "\"artifact\":{\"title\":\"硅胶沥水垫 · 上架素材\","
+                    + "\"artifact\":{\"title\":\"Mac Mini 拓展坞 · 上架素材\","
                     + "\"templateId\":\"domestic-generic-default\","
-                    + "\"heroPlan\":\"白底俯拍\",\"detailTitle\":\"厨房硅胶沥水垫\","
-                    + "\"detailBody\":\"易清洗防滑\",\"displayNotes\":\"主图突出颜色\","
+                    + "\"heroPlan\":\"白底俯拍\",\"detailTitle\":\"Mac Mini 拓展坞\","
+                    + "\"detailBody\":\"走线隐藏多口扩展\",\"displayNotes\":\"主图突出颜色\","
                     + "\"mediaObjectIds\":[]}}";
 
     private static final String VALID_PLAN_JSON =
-            "{\"view\":{\"version\":1,\"title\":\"硅胶沥水垫 · 策划分镜\",\"status\":\"ready\","
+            "{\"view\":{\"version\":1,\"title\":\"Mac Mini 拓展坞 · 策划分镜\",\"status\":\"ready\","
                     + "\"blocks\":[{\"type\":\"markdown\",\"text\":"
                     + "\"## 成交方向\\n痛点驱动成交\\n\\n## 主图分镜\\n1. 白底主图\\n2. 使用场景\\n3. 细节特写\\n\\n"
-                    + "## 标题草稿\\n厨房硅胶沥水垫\\n\\n## 详情大纲\\n1. 卖点清洗\\n2. 防滑结构\\n3. 场景搭配\"}]},"
-                    + "\"artifact\":{\"title\":\"硅胶沥水垫 · 策划分镜\","
+                    + "## 标题草稿\\nMac Mini 拓展坞\\n\\n## 详情大纲\\n1. 多口扩展\\n2. 底部走线\\n3. 场景搭配\"}]},"
+                    + "\"artifact\":{\"title\":\"Mac Mini 拓展坞 · 策划分镜\","
                     + "\"templateId\":\"domestic-generic-default\","
                     + "\"driver\":\"痛点驱动成交\","
                     + "\"frames\":[\"白底主图\",\"使用场景\",\"细节特写\"],"
-                    + "\"modules\":[\"卖点清洗\",\"防滑结构\",\"场景搭配\"],"
-                    + "\"titleDraft\":\"厨房硅胶沥水垫\"}}";
+                    + "\"modules\":[\"多口扩展\",\"底部走线\",\"场景搭配\"],"
+                    + "\"titleDraft\":\"Mac Mini 拓展坞\"}}";
 
     private static final String VALID_PLAN_JSON_SUPPLEMENT =
-            "{\"view\":{\"version\":1,\"title\":\"硅胶沥水垫 · 策划分镜\",\"status\":\"ready\","
+            "{\"view\":{\"version\":1,\"title\":\"Mac Mini 拓展坞 · 策划分镜\",\"status\":\"ready\","
                     + "\"blocks\":[{\"type\":\"markdown\",\"text\":"
                     + "\"## 成交方向\\n颜色优先成交\\n\\n## 主图分镜\\n1. 色块主图\\n2. 对比图\\n3. 场景图\\n\\n"
-                    + "## 标题草稿\\n厨房硅胶沥水垫 高颜值\\n\\n## 详情大纲\\n1. 卖点清洗\\n2. 防滑结构\\n3. 场景搭配\"}]},"
-                    + "\"artifact\":{\"title\":\"硅胶沥水垫 · 策划分镜\","
+                    + "## 标题草稿\\nMac Mini 拓展坞 桌面不乱\\n\\n## 详情大纲\\n1. 多口扩展\\n2. 底部走线\\n3. 场景搭配\"}]},"
+                    + "\"artifact\":{\"title\":\"Mac Mini 拓展坞 · 策划分镜\","
                     + "\"templateId\":\"domestic-generic-default\","
                     + "\"driver\":\"颜色优先成交\","
                     + "\"frames\":[\"色块主图\",\"对比图\",\"场景图\"],"
-                    + "\"modules\":[\"卖点清洗\",\"防滑结构\",\"场景搭配\"],"
-                    + "\"titleDraft\":\"厨房硅胶沥水垫 高颜值\"}}";
+                    + "\"modules\":[\"多口扩展\",\"底部走线\",\"场景搭配\"],"
+                    + "\"titleDraft\":\"Mac Mini 拓展坞 桌面不乱\"}}";
 
     private GenerationRunContext picklistCtx(String runId, String sessionId) {
         return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
@@ -1666,7 +1666,7 @@ class AgentApplicationServiceTest {
 
     private GenerationRunContext listingCtx(String runId, String sessionId) {
         return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
-                "请为硅胶沥水垫生成上架素材", SkillRunProfile.billedListing());
+                "请为 Mac Mini 拓展坞生成上架素材", SkillRunProfile.billedListing());
     }
 
     private GenerationRunContext emptyCtx(String runId, String sessionId) {

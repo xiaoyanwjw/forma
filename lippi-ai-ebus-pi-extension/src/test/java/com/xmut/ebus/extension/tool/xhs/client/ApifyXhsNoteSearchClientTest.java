@@ -18,14 +18,14 @@ class ApifyXhsNoteSearchClientTest {
         AtomicReference<String> actor = new AtomicReference<String>();
         ApifyActorTransport transport = (actorId, token, timeoutMs, body) -> {
             actor.set(actorId);
-            assertTrue(body.contains("\"keyword\":\"厨房收纳\""));
+            assertTrue(body.contains("\"keyword\":\"Mac Mini 桌搭\""));
             return "[{\"title\":\"a\",\"url\":\"https://www.xiaohongshu.com/explore/9\",\"noteId\":\"9\"}]";
         };
         XhsNoteSearchProperties props = new XhsNoteSearchProperties();
         props.setClient("apify");
         props.getApify().setToken("t");
         ApifyXhsNoteSearchClient client = new ApifyXhsNoteSearchClient(props, transport);
-        List<XhsNoteSearchHit> hits = client.search("厨房收纳", 10);
+        List<XhsNoteSearchHit> hits = client.search("Mac Mini 桌搭", 10);
         assertEquals(1, hits.size());
         assertEquals("9", hits.get(0).getNoteId());
         assertEquals("opspilot.cc/xiaohongshu-keyword-search-scraper", actor.get());

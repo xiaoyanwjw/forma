@@ -1,3 +1,6 @@
+import type { ComputerListItem } from '@/types/business/computerView'
+import { lineTextByKind } from '@/utils/listingHandoff'
+
 export type XhsNoteHandoffInput = {
   title: string
   id?: string
@@ -36,6 +39,20 @@ export function buildXhsNoteHandoffText(input: XhsNoteHandoffInput): string | nu
     href && /^https:\/\//i.test(href) ? `原笔记：${href}` : '',
   ].filter(Boolean)
   return lines.join('\n')
+}
+
+/** Workspace-side handoff; Computer only displays the item. */
+export function noteHandoffTextForItem(
+  item: ComputerListItem,
+  itemIndex: number,
+): string | null {
+  return buildXhsNoteHandoffText({
+    title: item.title,
+    href: item.href,
+    id: item.id?.trim() || `tp-${itemIndex + 1}`,
+    hook: lineTextByKind(item.lines, 'hook'),
+    angle: lineTextByKind(item.lines, 'angle'),
+  })
 }
 
 export function extractTargetProductFromPrompt(prompt?: string | null): string {

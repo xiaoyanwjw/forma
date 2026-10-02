@@ -11,7 +11,7 @@
       "properties": {
         "query": {
           "type": "string",
-          "description": "搜索关键词，例如 厨房收纳"
+          "description": "搜索关键词，例如 Mac Mini 桌搭"
         },
         "pageSize": {
           "type": "integer",

@@ -3,7 +3,6 @@ name: ecommerce-skulist
 description: >-
   生成上架素材：先策划分镜（短字段 + view），经 ask_human 确认或补充后，再出执行稿与生图 Prompt（view + artifact）。
   在用户提到上架、主图、详情文案、商品素材，或从选品候选点「做上架素材」时使用。
-  不要用于选品清单 / 测款候选——那些请用 ecommerce-picklist。
 allowed-tools: ask_human, read_skill, write_file, read_file, bash
 metadata:
   output:
@@ -41,7 +40,7 @@ metadata:
 
 抽出品名、原链、`picklistItemId`（如 `pl-2`）、可选参考/痛点/角度。有原链 + 品名时**禁止换品**。原链/条目 id/参考写入 `assumptions`；`artifact.picklistItemId` = 交接 id。输入含「原链」或「来源选品条目」时，`picklistItemId` **必填**且与输入一致（策划与执行均同）。无交接的口述 Listing 可省略该字段。
 
-2. **读懂商品。** 优先用交接；不够则按国内厨房/日用默认假设写入 `assumptions`。用户说「优先淘宝」等 → 记入假设；语气按国内电商成交方向。**禁止**在未出策划前调用 `ask_human`。
+2. **读懂商品。** 优先用交接；不够则按国内数码配件/桌面默认假设写入 `assumptions`。用户说「优先淘宝」等 → 记入假设；语气按国内电商成交方向。**禁止**在未出策划前调用 `ask_human`。
 
 3. **固定底 + 成交驱动力。** `templateId` = `domestic-generic-default`（全程不可改，含补充轮）。`driver` 一句：谁 + 场景 + 为什么买；家居日用多选「痛点/效率」或「视觉/质感」。
 

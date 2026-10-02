@@ -5,8 +5,8 @@ import { parseComputerDocument, type ComputerDocument } from '@/types/business/c
 
 const doc: ComputerDocument = {
   version: 1,
-  title: 'picklist',
-  status: 'settled',
+  title: '选品清单',
+  status: '已结算',
   blocks: [
     { type: 'note', text: '非实时说明', tone: 'mute' },
     {
@@ -14,10 +14,10 @@ const doc: ComputerDocument = {
       ordered: true,
       items: [
         {
-          badge: 'priority',
-          title: '硅胶垫',
+          badge: '优先试',
+          title: '拓展坞',
           lines: [{ kind: 'priceBand', text: '19-39', emphasis: 'price' }],
-          tags: [{ kind: 'demand', text: '高｜稳', tone: 'positive' }],
+          tags: [{ label: '需求', text: '高｜稳', tone: 'positive' }],
         },
       ],
     },
@@ -46,17 +46,17 @@ describe('ComputerRenderer', () => {
     const readyHost = document.createElement('div')
     document.body.appendChild(readyHost)
     const readyApp = createApp(ComputerRenderer, {
-      document: { ...doc, title: '厨房小件选品清单', status: 'ready' },
+      document: { ...doc, title: 'Mac Mini 配件选品清单', status: 'ready' },
     })
     readyApp.mount(readyHost)
     await nextTick()
-    expect(readyHost.textContent).toMatch(/厨房小件选品清单/)
+    expect(readyHost.textContent).toMatch(/Mac Mini 配件选品清单/)
     expect(readyHost.textContent).not.toMatch(/ready/)
     readyApp.unmount()
     readyHost.remove()
     expect(host.textContent).toMatch(/非实时说明/)
     expect(host.textContent).toMatch(/优先试/)
-    expect(host.textContent).toMatch(/硅胶垫/)
+    expect(host.textContent).toMatch(/拓展坞/)
     expect(host.textContent).toMatch(/主图方案预览/)
     expect(host.textContent).toMatch(/详情标题/)
     expect(host.textContent).toMatch(/标题文案/)
@@ -70,13 +70,13 @@ describe('ComputerRenderer', () => {
     warn.mockRestore()
   })
 
-  it('maps structured kinds to Chinese labels without parsing concatenated reason', async () => {
+  it('renders payload labels and does not invent copy from kind', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp(ComputerRenderer, {
       document: {
         version: 1,
-        title: 'picklist',
+        title: '选品清单',
         blocks: [
           { type: 'note', kind: 'assumptions', text: '默认货源可达' },
           {
@@ -84,20 +84,20 @@ describe('ComputerRenderer', () => {
             ordered: true,
             items: [
               {
-                badge: 'priority',
-                title: '硅胶垫',
+                badge: '优先试',
+                title: '拓展坞',
                 lines: [
-                  { kind: 'priceBand', text: '19-39', emphasis: 'price' },
-                  { kind: 'painPoint', text: '积水难干' },
-                  { kind: 'angle', text: '租房刚需' },
-                  { kind: 'diff', text: '多色套装' },
-                  { kind: 'niche', text: '厨房沥水' },
+                  { kind: 'priceBand', text: '79-199', emphasis: 'price' },
+                  { kind: 'painPoint', label: '痛点', text: '接口不够' },
+                  { kind: 'angle', label: '切入', text: '居家办公' },
+                  { kind: 'diff', label: '差异', text: '机身同宽' },
+                  { kind: 'niche', label: '细分', text: 'Mac Mini 扩展' },
                 ],
                 tags: [
-                  { kind: 'demand', text: '高', tone: 'positive' },
-                  { kind: 'competition', text: '中', tone: 'caution' },
-                  { kind: 'margin', text: '中', tone: 'info' },
-                  { kind: 'risk', text: '低', tone: 'safe' },
+                  { kind: 'demand', label: '需求', text: '高', tone: 'positive' },
+                  { kind: 'competition', label: '竞争', text: '中', tone: 'caution' },
+                  { kind: 'margin', label: '利润', text: '中', tone: 'info' },
+                  { kind: 'risk', label: '风险', text: '低', tone: 'safe' },
                 ],
               },
             ],
@@ -107,20 +107,53 @@ describe('ComputerRenderer', () => {
     })
     app.mount(host)
     await nextTick()
-    const root = host
-    expect(root.textContent).toMatch(/假设：默认货源可达/)
-    expect(root.querySelector('.item-price')?.textContent).toBe('19-39')
-    expect([...root.querySelectorAll('.item-line-label')].map((el) => el.textContent)).toEqual([
+    expect(host.textContent).toMatch(/默认货源可达/)
+    expect(host.textContent).not.toMatch(/假设：/)
+    expect(host.querySelector('.item-price')?.textContent).toBe('79-199')
+    expect([...host.querySelectorAll('.item-line-label')].map((el) => el.textContent)).toEqual([
       '痛点',
       '切入',
       '差异',
       '细分',
     ])
-    expect(root.textContent).toMatch(/积水难干/)
-    expect(root.querySelector('.dims span.dim-pill.tone-positive')?.textContent).toBe('需求 高')
-    expect(root.querySelector('.dims span.dim-pill.tone-caution')?.textContent).toBe('竞争 中')
-    expect(root.querySelector('.dims span.dim-pill.tone-info')?.textContent).toBe('利润 中')
-    expect(root.querySelector('.dims span.dim-pill.tone-safe')?.textContent).toBe('风险 低')
+    expect(host.querySelector('.dims span.dim-pill.tone-positive')?.textContent).toBe('需求 高')
+    expect(host.querySelector('.dims span.dim-pill.tone-caution')?.textContent).toBe('竞争 中')
+    expect(host.querySelector('.dims span.dim-pill.tone-info')?.textContent).toBe('利润 中')
+    expect(host.querySelector('.dims span.dim-pill.tone-safe')?.textContent).toBe('风险 低')
+    app.unmount()
+    host.remove()
+  })
+
+  it('omits line labels when payload has kind only', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: {
+        version: 1,
+        title: '选题清单',
+        blocks: [
+          {
+            type: 'list',
+            ordered: true,
+            items: [
+              {
+                id: 'tp-1',
+                title: 'Mini 背后一串转接头',
+                lines: [
+                  { kind: 'hook', text: '背后永远拖着一串转接头？' },
+                  { kind: 'whyFirst', text: '接口对比好拍，当天能发' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelectorAll('.item-line-label').length).toBe(0)
+    expect(host.textContent).not.toMatch(/说明/)
+    expect(host.textContent).toMatch(/背后永远拖着一串转接头？/)
     app.unmount()
     host.remove()
   })
@@ -148,7 +181,7 @@ describe('ComputerRenderer', () => {
     const app = createApp(ComputerRenderer, {
       document: {
         version: 1,
-        title: 'picklist',
+        title: '选品清单',
         blocks: [
           {
             type: 'list',
@@ -199,7 +232,7 @@ describe('ComputerRenderer', () => {
               { title: '图3：细节' },
             ],
           },
-          { type: 'section', heading: '详情标题', body: '硅胶沥水垫标题' },
+          { type: 'section', heading: '详情标题', body: 'Mac Mini 拓展坞标题' },
           { type: 'section', heading: '详情正文', body: '详情段落' },
           {
             type: 'section',
@@ -223,7 +256,7 @@ describe('ComputerRenderer', () => {
     expect(host.querySelector('.adam-doc')).toBeTruthy()
     expect(host.querySelector('.iphone')).toBeNull()
     expect(host.querySelector('.listing-hero-plan-card')).toBeNull()
-    expect(host.textContent).toMatch(/硅胶沥水垫标题/)
+    expect(host.textContent).toMatch(/Mac Mini 拓展坞标题/)
     expect(host.textContent).toMatch(/详情段落/)
     expect(host.textContent).toMatch(/white bg product/)
     expect(host.textContent).toMatch(/首图：白底/)
@@ -241,7 +274,7 @@ describe('ComputerRenderer', () => {
     expect(host.querySelector('.tb-bar')).toBeTruthy()
     expect(host.querySelector('.tb-buy')).toBeTruthy()
     expect(host.textContent).toMatch(/白底俯拍主图方案说明/)
-    expect(host.textContent).toMatch(/硅胶沥水垫标题/)
+    expect(host.textContent).toMatch(/Mac Mini 拓展坞标题/)
     expect(host.textContent).toMatch(/详情段落/)
     expect(host.textContent).toMatch(/立即购买/)
     expect(host.textContent).toMatch(/主图分镜/)
@@ -250,13 +283,13 @@ describe('ComputerRenderer', () => {
     xianyu.click()
     await nextTick()
     expect(host.querySelector('.xy-bar')).toBeTruthy()
-    expect(host.textContent).toMatch(/硅胶沥水垫标题/)
+    expect(host.textContent).toMatch(/Mac Mini 拓展坞标题/)
     expect(host.textContent).toMatch(/闲鱼/)
     const douyin = host.querySelector('.platform-btn.platform-douyin') as HTMLButtonElement
     douyin.click()
     await nextTick()
     expect(host.querySelector('.dy-bar')).toBeTruthy()
-    expect(host.textContent).toMatch(/硅胶沥水垫标题/)
+    expect(host.textContent).toMatch(/Mac Mini 拓展坞标题/)
     expect(host.textContent).toMatch(/封面|立即购买/)
     app.unmount()
     host.remove()
@@ -279,22 +312,22 @@ describe('ComputerRenderer', () => {
   }) {
     return {
       version: 1 as const,
-      title: 'picklist',
+      title: '选品清单',
       blocks: [
         {
           type: 'list' as const,
           ordered: true,
           items: [
             {
-              badge: 'priority' as const,
-              title: '【优先试】硅胶沥水垫',
+              badge: '优先试',
+              title: '【优先试】Mac Mini 拓展坞',
               id: overrides && 'id' in overrides ? overrides.id : 'pl-1',
               href:
                 overrides && 'href' in overrides
                   ? overrides.href
                   : 'https://item.example/1',
               lines: [
-                { kind: 'niche' as const, text: '租房厨房' },
+                { kind: 'niche' as const, text: '居家办公' },
                 { kind: 'painPoint' as const, text: '水渍' },
                 { kind: 'angle' as const, text: '小户型' },
               ],
@@ -305,86 +338,62 @@ describe('ComputerRenderer', () => {
     }
   }
 
-  it('emits listing-handoff when 做上架素材 is clicked and handoff is enabled', async () => {
+  it('emits item-action with the list item when the optional action is clicked', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
-    const onListingHandoff = vi.fn()
+    const onItemAction = vi.fn()
     const app = createApp(ComputerRenderer, {
       document: picklistHandoffDocument(),
-      enableListingHandoff: true,
-      onListingHandoff,
+      itemActionLabel: '做上架素材',
+      onItemAction,
     })
     app.mount(host)
     await nextTick()
-    const btn = host.querySelector('.listing-handoff-btn') as HTMLButtonElement
+    const btn = host.querySelector('.item-action-btn') as HTMLButtonElement
     expect(btn).toBeTruthy()
     expect(btn.textContent).toMatch(/做上架素材/)
     expect(btn.disabled).toBe(false)
     btn.click()
     await nextTick()
-    expect(onListingHandoff).toHaveBeenCalledTimes(1)
-    const payload = onListingHandoff.mock.calls[0]?.[0] as { text: string }
-    expect(payload.text).toContain('https://item.example/1')
-    expect(payload.text).toContain('pl-1')
-    expect(payload.text).toContain('租房厨房')
+    expect(onItemAction).toHaveBeenCalledTimes(1)
+    const payload = onItemAction.mock.calls[0]?.[0] as { item: { title: string }; index: number }
+    expect(payload.item.title).toContain('Mac Mini 拓展坞')
+    expect(payload.index).toBe(0)
     app.unmount()
     host.remove()
   })
 
-  it('falls back to pl-n when list item id is missing but href is valid', async () => {
+  it('disables item action when isItemActionEnabled returns false', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
-    const onListingHandoff = vi.fn()
-    const app = createApp(ComputerRenderer, {
-      document: picklistHandoffDocument({ id: undefined }),
-      enableListingHandoff: true,
-      onListingHandoff,
-    })
-    app.mount(host)
-    await nextTick()
-    const btn = host.querySelector('.listing-handoff-btn') as HTMLButtonElement
-    expect(btn).toBeTruthy()
-    expect(btn.disabled).toBe(false)
-    btn.click()
-    await nextTick()
-    expect(onListingHandoff).toHaveBeenCalledTimes(1)
-    const payload = onListingHandoff.mock.calls[0]?.[0] as { text: string }
-    expect(payload.text).toContain('来源选品条目：pl-1')
-    app.unmount()
-    host.remove()
-  })
-
-  it('disables 做上架素材 when https href is missing', async () => {
-    const host = document.createElement('div')
-    document.body.appendChild(host)
-    const onListingHandoff = vi.fn()
+    const onItemAction = vi.fn()
     const app = createApp(ComputerRenderer, {
       document: picklistHandoffDocument({ href: undefined }),
-      enableListingHandoff: true,
-      onListingHandoff,
+      itemActionLabel: '做上架素材',
+      isItemActionEnabled: () => false,
+      onItemAction,
     })
     app.mount(host)
     await nextTick()
-    const btn = host.querySelector('.listing-handoff-btn') as HTMLButtonElement
+    const btn = host.querySelector('.item-action-btn') as HTMLButtonElement
     expect(btn).toBeTruthy()
     expect(btn.disabled).toBe(true)
     btn.click()
     await nextTick()
-    expect(onListingHandoff).not.toHaveBeenCalled()
+    expect(onItemAction).not.toHaveBeenCalled()
     app.unmount()
     host.remove()
   })
 
-  it('does not render 做上架素材 when enableListingHandoff is false', async () => {
+  it('does not render item action when label is omitted', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp(ComputerRenderer, {
       document: picklistHandoffDocument(),
-      enableListingHandoff: false,
     })
     app.mount(host)
     await nextTick()
-    expect(host.querySelector('.listing-handoff-btn')).toBeNull()
+    expect(host.querySelector('.item-action-btn')).toBeNull()
     app.unmount()
     host.remove()
   })
@@ -428,7 +437,7 @@ describe('parseComputerDocument', () => {
     expect(parsed?.blocks.map((b) => b.type)).toEqual(['note', 'list', 'media', 'section', 'section'])
     const list = parsed?.blocks.find((b) => b.type === 'list')
     expect(list && list.type === 'list' && list.items[0]?.lines?.[0]?.kind).toBe('priceBand')
-    expect(list && list.type === 'list' && list.items[0]?.tags?.[0]?.kind).toBe('demand')
+    expect(list && list.type === 'list' && list.items[0]?.tags?.[0]?.label).toBe('需求')
     const bodySection = parsed?.blocks.find(
       (b) => b.type === 'section' && b.heading === '详情正文',
     )
@@ -481,13 +490,13 @@ describe('parseComputerDocument', () => {
     const app = createApp(ComputerRenderer, {
       document: {
         version: 1,
-        title: '硅胶沥水垫 · 策划分镜',
+        title: 'Mac Mini 拓展坞 · 策划分镜',
         status: 'ready',
         blocks: [
           {
             type: 'markdown',
             text:
-              '## 成交方向\n痛点：台面长期积水\n\n## 主图分镜\n1. 主图：白底产品\n2. 对比：湿台面\n3. 场景：沥水收纳\n\n## 标题草稿\n硅胶沥水垫',
+              '## 成交方向\n痛点：Mini 接显示器接口不够\n\n## 主图分镜\n1. 主图：白底产品\n2. 对比：线乱桌面\n3. 场景：坞藏走线\n\n## 标题草稿\nMac Mini 拓展坞',
           },
         ],
       },

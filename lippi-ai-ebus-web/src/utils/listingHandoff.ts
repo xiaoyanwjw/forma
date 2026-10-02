@@ -1,4 +1,4 @@
-import type { ComputerListLine } from '@/types/business/computerView'
+import type { ComputerListItem, ComputerListLine } from '@/types/business/computerView'
 
 const PRIORITY_MARK = '【优先试】'
 
@@ -38,4 +38,20 @@ export function lineTextByKind(
   if (!lines?.length) return undefined
   const line = lines.find((l) => l.kind === kind)
   return line?.text
+}
+
+/** Workspace-side handoff; Computer only displays the item. */
+export function listingHandoffTextForItem(
+  item: ComputerListItem,
+  itemIndex: number,
+): string | null {
+  const id = item.id?.trim() || `pl-${itemIndex + 1}`
+  return buildListingHandoffText({
+    title: item.title,
+    href: item.href,
+    id,
+    niche: lineTextByKind(item.lines, 'niche'),
+    painPoint: lineTextByKind(item.lines, 'painPoint'),
+    angle: lineTextByKind(item.lines, 'angle'),
+  })
 }

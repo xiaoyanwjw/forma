@@ -11,7 +11,7 @@ import org.springframework.util.StringUtils;
 public final class MockXhsNoteFetchClient implements XhsNoteFetchPort {
 
     static final String MOCK_TITLE = "Mock 小红书笔记标题";
-    static final String MOCK_BODY = "Mock 小红书笔记正文：硅胶沥水垫种草分享，适合租房党厨房收纳。";
+    static final String MOCK_BODY = "Mock 小红书笔记正文：Mac Mini 拓展坞种草分享，适合居家办公桌搭。";
 
     @Override
     public XhsNoteFetchHit fetch(String noteRef) {
@@ -24,6 +24,6 @@ public final class MockXhsNoteFetchClient implements XhsNoteFetchPort {
                 MOCK_BODY,
                 url,
                 "mock_author",
-                Arrays.asList("种草", "收纳"));
+                Arrays.asList("种草", "桌搭"));
     }
 }

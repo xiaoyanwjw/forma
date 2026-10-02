@@ -48,14 +48,14 @@ class SearchXhsNoteToolHandlerTest {
     void handle_ok_writes_hits_json() throws Exception {
         XhsNoteSearchHit hit = new XhsNoteSearchHit(
                 "n1",
-                "厨房收纳",
-                "租房党抽屉整理",
+                "Mac Mini 桌搭",
+                "Mini 桌面理线",
                 "https://www.xiaohongshu.com/explore/n1",
                 "128",
                 "作者A");
-        when(searcher.search(eq("厨房收纳"), eq(10))).thenReturn(Collections.singletonList(hit));
+        when(searcher.search(eq("Mac Mini 桌搭"), eq(10))).thenReturn(Collections.singletonList(hit));
 
-        ToolResult r = handler.handle(callWithQuery("厨房收纳"), new ToolContext("r1", "t1"));
+        ToolResult r = handler.handle(callWithQuery("Mac Mini 桌搭"), new ToolContext("r1", "t1"));
 
         assertTrue(r.isSuccess());
         assertEquals(SearchXhsNoteToolHandler.TOOL_NAME, r.getToolName());
@@ -65,12 +65,12 @@ class SearchXhsNoteToolHandlerTest {
         assertEquals(1, hits.size());
         JsonNode row = hits.get(0);
         assertEquals("n1", row.get("noteId").asText());
-        assertEquals("厨房收纳", row.get("title").asText());
-        assertEquals("租房党抽屉整理", row.get("desc").asText());
+        assertEquals("Mac Mini 桌搭", row.get("title").asText());
+        assertEquals("Mini 桌面理线", row.get("desc").asText());
         assertEquals("https://www.xiaohongshu.com/explore/n1", row.get("noteUrl").asText());
         assertEquals("128", row.get("likedCount").asText());
         assertEquals("作者A", row.get("author").asText());
-        verify(searcher).search(eq("厨房收纳"), eq(10));
+        verify(searcher).search(eq("Mac Mini 桌搭"), eq(10));
         verify(port, never()).search(anyString(), anyInt());
     }
 

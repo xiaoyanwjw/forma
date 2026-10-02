@@ -41,7 +41,7 @@ metadata:
 
 抽出品名、`topicItemId`（如 `tp-2`）、钩子/角度、可选 `sourceNoteUrl`、骨架摘要。有选题交接时**禁止换题**。交接字段写入 `assumptions`；`artifact.topicItemId` = 交接 id。输入含「来源选题条目」或明确 `tp-n` 时，`topicItemId` **必填**且与输入一致。口述笔记（无选题交接）可省略该字段。爆文交接近端不强制 DB 关联 id，把骨架摘要与目标商品写入 `assumptions`。
 
-2. **读懂商品与语气。** 优先用交接；不够则按国内厨房/日用默认假设写入 `assumptions`。语气像真人分享。信息不够时写入假设，仍一次成稿，**勿先追问、勿 `ask_human`**。
+2. **读懂商品与语气。** 优先用交接；不够则按国内数码配件/桌面默认假设写入 `assumptions`。语气像真人分享。信息不够时写入假设，仍一次成稿，**勿先追问、勿 `ask_human`**。
 
 3. **禁止检索/拉详情。** 本技能 **没有** `search_xhs_note` / `fetch_xhs_note`。不要假装搜过笔记或打开过链接正文。可选 `sourceNoteUrl` 只作为假设备注，不据此编造未提供的功效/数据。
 

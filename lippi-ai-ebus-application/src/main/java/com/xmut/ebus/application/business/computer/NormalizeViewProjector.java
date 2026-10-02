@@ -211,6 +211,9 @@ public class NormalizeViewProjector implements ComputerViewProjector {
             if (tag.get("kind") instanceof String && StringUtils.hasText((String) tag.get("kind"))) {
                 cleaned.put("kind", ((String) tag.get("kind")).trim());
             }
+            if (tag.get("label") instanceof String && StringUtils.hasText((String) tag.get("label"))) {
+                cleaned.put("label", ((String) tag.get("label")).trim());
+            }
             String tone = asAllowedString(tag.get("tone"), TAG_TONES);
             cleaned.put("tone", tone != null ? tone : "neutral");
             out.add(cleaned);

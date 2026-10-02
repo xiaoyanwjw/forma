@@ -130,22 +130,22 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 
 ```json
 {
-  "title": "硅胶沥水垫 · 策划分镜",
+  "title": "Mac Mini 拓展坞 · 策划分镜",
   "templateId": "domestic-generic-default",
-  "driver": "租房小户型厨房用户：台面干爽 + 防滑收纳，少擦台面",
+  "driver": "居家办公把 Mini 接到显示器：接口不够 + 线要藏",
   "frames": [
-    "首图：沥水动态特写 + 「台面干爽」角标",
-    "图2：碗碟防滑纹理近景",
-    "图3：一卷收纳进抽屉"
+    "首图：桌面前后对比 + 「线藏住了」角标",
+    "图2：HDMI / USB / 网口特写",
+    "图3：机身下走线隐藏"
   ],
   "modules": [
-    "洗完碗碟台面积水？一块垫解决沥干",
-    "防滑纹理 + 食品接触级硅胶，好清洗",
-    "卷折收纳，小户型厨房省空间"
+    "Mini 接显示器总缺口？一块坞把口补齐",
+    "多口扩展 + 底部走线，桌面只留一套线",
+    "机身同宽，不额外占桌面"
   ],
-  "titleDraft": "厨房硅胶沥水垫 防滑易清洗 可折叠收纳",
+  "titleDraft": "Mac Mini 拓展坞 多口扩展 走线隐藏",
   "picklistItemId": "pl-1",
-  "assumptions": "交接 pl-1；原链 https://item.taobao.com/example-sku-1；参考厨房沥水收纳 / 台面积水 / 租房轻小；优先淘宝语气"
+  "assumptions": "交接 pl-1；原链 https://item.taobao.com/example-sku-1；参考 Mac Mini 扩展 / 接口不够 / 居家办公；优先淘宝语气"
 }
 ```
 
@@ -154,12 +154,12 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 ```json
 {
   "version": 1,
-  "title": "硅胶沥水垫 · 策划分镜",
+  "title": "Mac Mini 拓展坞 · 策划分镜",
   "status": "draft",
   "blocks": [
     {
       "type": "markdown",
-      "text": "## 成交方向\n租房小户型厨房用户：台面干爽 + 防滑收纳，少擦台面。\n\n## 主图分镜\n1. 首图：沥水动态特写 + 「台面干爽」角标\n2. 图2：碗碟防滑纹理近景\n3. 图3：一卷收纳进抽屉\n\n## 标题草稿\n厨房硅胶沥水垫 防滑易清洗 可折叠收纳\n\n## 详情大纲\n1. 洗完碗碟台面积水？一块垫解决沥干\n2. 防滑纹理 + 食品接触级硅胶，好清洗\n3. 卷折收纳，小户型厨房省空间\n\n## 假设\n交接 pl-1；原链 https://item.taobao.com/example-sku-1；参考厨房沥水收纳 / 台面积水 / 租房轻小。"
+      "text": "## 成交方向\n居家办公把 Mini 接到显示器：接口不够 + 线要藏。\n\n## 主图分镜\n1. 首图：桌面前后对比 + 「线藏住了」角标\n2. 图2：HDMI / USB / 网口特写\n3. 图3：机身下走线隐藏\n\n## 标题草稿\nMac Mini 拓展坞 多口扩展 走线隐藏\n\n## 详情大纲\n1. Mini 接显示器总缺口？一块坞把口补齐\n2. 多口扩展 + 底部走线，桌面只留一套线\n3. 机身同宽，不额外占桌面\n\n## 假设\n交接 pl-1；原链 https://item.taobao.com/example-sku-1；参考 Mac Mini 扩展 / 接口不够 / 居家办公。"
     }
   ]
 }
@@ -184,36 +184,36 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 
 ```json
 {
-  "title": "硅胶沥水垫 · 上架素材",
+  "title": "Mac Mini 拓展坞 · 上架素材",
   "templateId": "domestic-generic-default",
-  "driver": "租房小户型厨房用户：台面干爽 + 防滑收纳，少擦台面",
+  "driver": "居家办公把 Mini 接到显示器：接口不够 + 线要藏",
   "frames": [
-    "首图：沥水动态特写 + 「台面干爽」角标",
-    "图2：碗碟防滑纹理近景",
-    "图3：一卷收纳进抽屉"
+    "首图：桌面前后对比 + 「线藏住了」角标",
+    "图2：HDMI / USB / 网口特写",
+    "图3：机身下走线隐藏"
   ],
   "modules": [
-    "洗完碗碟台面积水？一块垫解决沥干",
-    "防滑纹理 + 食品接触级硅胶，好清洗",
-    "卷折收纳，小户型厨房省空间"
+    "Mini 接显示器总缺口？一块坞把口补齐",
+    "多口扩展 + 底部走线，桌面只留一套线",
+    "机身同宽，不额外占桌面"
   ],
-  "titleDraft": "厨房硅胶沥水垫 防滑易清洗 可折叠收纳",
-  "heroPlan": "首图：沥水垫铺满台面特写，水珠顺槽流走；角标「台面干爽」。续图：碗碟不滑 / 一卷收纳。",
-  "detailTitle": "厨房硅胶沥水垫 防滑易清洗 可折叠收纳 多色可选",
-  "detailBody": "洗完碗碟台面积水，铺上一块就能沥干，抹布不用一直擦。\n防滑纹理托住碗盘不易滑；食品接触级硅胶，柔软好清洗。\n用完一卷塞进抽屉，小户型厨房更省事。",
-  "displayNotes": "主图顺序：①首图沥水动态 ②防滑 ③卷折收纳。图内文案宜短。勿写杀菌医疗功效，勿编造月销。",
+  "titleDraft": "Mac Mini 拓展坞 多口扩展 走线隐藏",
+  "heroPlan": "首图：线乱桌面 vs 坞藏线后；角标「线藏住了」。续图：接口特写 / 底部走线。",
+  "detailTitle": "Mac Mini 拓展坞 多口扩展 走线隐藏 桌面不乱",
+  "detailBody": "Mini 接显示器后接口不够、线乱，换成一块和机身差不多宽的拓展坞。\nHDMI、USB、网线从底座走，桌上只留电源和一根视频线。\n买前对一下自己的口，说明书里没有的认证不要写。",
+  "displayNotes": "主图顺序：①桌面前后对比 ②接口特写 ③底部走线。图内文案宜短。勿写官方原装或未提供的认证，勿编造带宽实测。",
   "framePrompts": [
     {
-      "prompt": "Product photo, silicone dish drying mat on kitchen counter, water droplets draining into grooves, clean bright kitchen, short Chinese text overlay 台面干爽, commercial e-commerce style, soft daylight",
-      "negative": "cluttered props, watermark, medical claims"
+      "prompt": "Product photo, Mac Mini with matching-width USB-C hub dock under the chassis, clean desk, HDMI USB ethernet cables exiting the base, short Chinese text overlay 线藏住了, commercial e-commerce style, soft daylight",
+      "negative": "cluttered props, watermark, Apple official logo claims"
     },
     {
-      "prompt": "Close-up of textured silicone mat surface holding plates and bowls securely, anti-slip pattern visible, kitchen background blur, e-commerce detail shot",
+      "prompt": "Close-up of Mac Mini dock ports HDMI USB ethernet, hand inserting a USB drive, desk background blur, e-commerce detail shot",
       "negative": "blurry, distorted text"
     },
     {
-      "prompt": "Rolled silicone drying mat fitting into kitchen drawer, compact storage scene, warm home kitchen, e-commerce lifestyle photo",
-      "negative": "messy drawer, unrelated products"
+      "prompt": "Cable routing through Mac Mini dock underside, hidden wiring, clean home office desk, e-commerce lifestyle photo",
+      "negative": "messy cables covering the product, unrelated products"
     }
   ],
   "mediaObjectIds": [],
@@ -227,44 +227,44 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 ```json
 {
   "version": 1,
-  "title": "硅胶沥水垫 · 上架素材",
+  "title": "Mac Mini 拓展坞 · 上架素材",
   "status": "ready",
   "blocks": [
     {
       "type": "media",
       "role": "hero",
-      "placeholder": "首图：沥水垫铺满台面特写，水珠顺槽流走；角标「台面干爽」。",
+      "placeholder": "首图：线乱桌面 vs 坞藏线后；角标「线藏住了」。",
       "alt": "主图方案"
     },
     {
       "type": "list",
       "ordered": true,
       "items": [
-        { "title": "首图：沥水动态特写 + 「台面干爽」角标" },
-        { "title": "图2：碗碟防滑纹理近景" },
-        { "title": "图3：一卷收纳进抽屉" }
+        { "title": "首图：桌面前后对比 + 「线藏住了」角标" },
+        { "title": "图2：HDMI / USB / 网口特写" },
+        { "title": "图3：机身下走线隐藏" }
       ]
     },
     {
       "type": "section",
       "heading": "详情标题",
-      "body": "厨房硅胶沥水垫 防滑易清洗 可折叠收纳 多色可选"
+      "body": "Mac Mini 拓展坞 多口扩展 走线隐藏 桌面不乱"
     },
     {
       "type": "section",
       "heading": "详情正文",
-      "body": "洗完碗碟台面积水，铺上一块就能沥干，抹布不用一直擦。\n防滑纹理托住碗盘不易滑；食品接触级硅胶，柔软好清洗，水龙头下冲一冲就净。\n用完一卷塞进抽屉，小户型厨房、租房台面都省事。尺寸与颜色可选，按水槽边或台面长度挑选。"
+      "body": "Mini 接显示器后接口不够、线乱，换成一块和机身差不多宽的拓展坞。\nHDMI、USB、网线从底座走，桌上只留电源和一根视频线。\n买前对一下自己的口，说明书里没有的认证不要写。"
     },
     {
       "type": "section",
       "heading": "展示说明",
-      "body": "主图顺序：①首图沥水动态 ②防滑 ③卷折收纳。图内文案宜短。勿写杀菌医疗功效，勿编造月销。",
+      "body": "主图顺序：①桌面前后对比 ②接口特写 ③底部走线。图内文案宜短。勿写官方原装或未提供的认证，勿编造带宽实测。",
       "tone": "mute"
     },
     {
       "type": "section",
       "heading": "生图 Prompt",
-      "body": "1. Product photo, silicone dish drying mat on kitchen counter, water droplets draining into grooves, clean bright kitchen, short Chinese text overlay 台面干爽, commercial e-commerce style, soft daylight\n   negative: cluttered props, watermark, medical claims\n2. Close-up of textured silicone mat surface holding plates and bowls securely, anti-slip pattern visible, kitchen background blur, e-commerce detail shot\n   negative: blurry, distorted text\n3. Rolled silicone drying mat fitting into kitchen drawer, compact storage scene, warm home kitchen, e-commerce lifestyle photo\n   negative: messy drawer, unrelated products"
+      "body": "1. Product photo, Mac Mini with matching-width USB-C hub dock under the chassis, clean desk, HDMI USB ethernet cables exiting the base, short Chinese text overlay 线藏住了, commercial e-commerce style, soft daylight\n   negative: cluttered props, watermark, Apple official logo claims\n2. Close-up of Mac Mini dock ports HDMI USB ethernet, hand inserting a USB drive, desk background blur, e-commerce detail shot\n   negative: blurry, distorted text\n3. Cable routing through Mac Mini dock underside, hidden wiring, clean home office desk, e-commerce lifestyle photo\n   negative: messy cables covering the product, unrelated products"
     }
   ]
 }
@@ -291,15 +291,15 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 
 | | 文案 |
 |--|------|
-| **好** | `租房小户型厨房用户：台面干爽 + 防滑收纳，少擦台面`（谁 + 场景 + 为什么买） |
-| **坏** | `提升生活品质，让厨房更美好`（空泛套话，无受众/场景） |
+| **好** | `居家办公把 Mini 接到显示器：接口不够 + 线要藏`（谁 + 场景 + 为什么买） |
+| **坏** | `提升生活品质，让桌面更美好`（空泛套话，无受众/场景） |
 
 ### detailBody
 
 | | 文案 |
 |--|------|
-| **好** | `洗完碗碟台面积水，铺上一块就能沥干。\n防滑纹理托住碗盘；食品接触级硅胶好清洗。\n用完一卷塞进抽屉，小户型更省事。`（场景 → 卖点 → 可知规格；无编造尺寸数值） |
-| **坏** | `想换垫又怕踩坑？台面总积水怎么办？多久洗一次？会不会发霉？……`（连续 ≥2 问句开场 + 鸡汤腔） |
+| **好** | `Mini 接显示器后接口不够、线乱，换成一块和机身差不多宽的拓展坞。\nHDMI、USB、网线从底座走。\n买前对一下自己的口，说明书没有的认证不要写。`（场景 → 卖点 → 可知规格；无编造尺寸数值） |
+| **坏** | `想换坞又怕踩坑？接口不够怎么办？会不会不兼容？……`（连续 ≥2 问句开场 + 鸡汤腔） |
 
 ### framePrompt（一条）
 

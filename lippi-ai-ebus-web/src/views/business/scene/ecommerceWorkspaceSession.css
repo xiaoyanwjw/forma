@@ -249,13 +249,144 @@
   word-break: break-word;
 }
 
-/* 用户消息：纯文本，不用气泡卡片 */
+/* 用户消息：浅灰气泡（近白） */
 .msg.user .msg-text {
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
+  padding: 10px 14px;
+  border: 1px solid #f0f0f0;
+  border-radius: 14px 14px 14px 6px;
+  background: #fafafa;
 }
+
+/* 示例槽位：整段「…」（气泡里可略装饰；输入层禁止改字宽） */
+.ph {
+  display: inline;
+  border-radius: 4px;
+  font-style: normal;
+  font-weight: inherit;
+  color: color-mix(in srgb, #0f766e 42%, var(--ink));
+  background: color-mix(in srgb, #0f766e 9%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #0f766e 28%, transparent);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* 对话气泡：左右留白，与前后文字隔开（输入高亮层仍保持 0 偏移，防光标错位） */
+.msg .ph {
+  padding: 1px 7px 2px;
+  margin: 0 3px;
+}
+
+/* 输入框：下层高亮「…」槽位，上层透明字 + 光标
+   关键：.ph 不得 padding/border/font-weight，否则 caret 与字错位 */
+.prompt-editor-stack {
+  position: relative;
+  width: 100%;
+}
+
+.prompt-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: 1.7;
+  color: var(--ink);
+  scrollbar-width: none;
+}
+
+.prompt-highlight .ph {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  font-weight: inherit;
+}
+
+.prompt-highlight::-webkit-scrollbar {
+  display: none;
+}
+
+.prompt-highlight.is-empty {
+  visibility: hidden;
+}
+
+.prompt-editor-stack .prompt-editor {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  outline: none;
+  resize: none;
+  min-height: 56px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: 1.7;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.prompt-editor-stack .prompt-editor.has-value {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--ink);
+}
+
+.prompt-editor-stack .prompt-editor:focus {
+  outline: none;
+}
+
+.prompt-editor-stack .prompt-editor::placeholder {
+  color: var(--mute-2);
+}
+
+.prompt-editor-stack .prompt-editor:disabled {
+  opacity: 0.7;
+}
+
+/* 快捷胶囊：填充 chip，悬停青绿 */
+.chat-composer .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--chip);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.chat-composer .pill:hover:not(:disabled) {
+  background: color-mix(in srgb, #0f766e 12%, #fff);
+  border-color: color-mix(in srgb, #0f766e 28%, #fff);
+  color: color-mix(in srgb, #0f766e 70%, var(--ink));
+}
+
+.chat-composer .pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 
 .msg .msg-text.agent-text {
   padding: 10px 14px;
@@ -627,6 +758,24 @@
 .msg .chat-event-head .chat-event-title {
   min-width: 0;
   flex: 1;
+}
+
+.msg .chat-process-toggle {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin-left: 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--mute);
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.msg .chat-process-toggle:hover {
+  color: var(--ink);
 }
 
 .msg .chat-stream-toggle {

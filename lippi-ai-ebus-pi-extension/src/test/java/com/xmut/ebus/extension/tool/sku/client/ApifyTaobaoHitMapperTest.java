@@ -17,7 +17,7 @@ class ApifyTaobaoHitMapperTest {
     void maps_https_row_and_skips_non_https() {
         ArrayNode arr = om.createArrayNode();
         ObjectNode ok = arr.addObject();
-        ok.put("titleOriginal", "硅胶垫");
+        ok.put("titleOriginal", "拓展坞");
         ok.put("price", 29.9);
         ok.put("url", "https://item.taobao.com/item.htm?id=1");
         ok.put("itemId", "1");
@@ -27,7 +27,7 @@ class ApifyTaobaoHitMapperTest {
         List<SkuSearchHit> hits = ApifyTaobaoHitMapper.mapItems(arr);
         assertEquals(1, hits.size());
         assertEquals("taobao_apify", hits.get(0).getPlatform());
-        assertEquals("硅胶垫", hits.get(0).getTitle());
+        assertEquals("拓展坞", hits.get(0).getTitle());
         assertTrue(hits.get(0).getDetailUrl().startsWith("https://"));
     }
 

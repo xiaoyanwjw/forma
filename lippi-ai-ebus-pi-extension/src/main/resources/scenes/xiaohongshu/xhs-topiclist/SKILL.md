@@ -83,7 +83,8 @@ metadata:
 - [ ] `final.json` 内 `artifact.items` 与 `view` list 均为 **8–12** 条，条数一致、顺序对应
 - [ ] 每条 `id` 非空，格式 `tp-n`（从 1 顺序）；list 与 artifact **同 id 同序**
 - [ ] 至少 **3** 个不同 `angle`（或人群切口），且无空泛「日常」「种草」三连凑数
-- [ ] 恰好 **1–2** 条 `artifact.items[].title` 以 `【优先发】` 开头；对应 list `badge: "priority"`（list 标题不加该前缀）
+- [ ] 恰好 **1–2** 条 `artifact.items[].title` 以 `【优先发】` 开头；对应 list `badge: "优先试"`（list 标题不加该前缀）
+- [ ] list 每行带展示用 `label`（组件不猜中文）
 - [ ] 优先发条目含可行动「为何先发」理由（hook/angle/whyFirst 至少一处说清相对下一条的优势）
 - [ ] `source=apify` 时每条 `sourceNoteUrl` / `href` 均来自工具 `noteUrl`，绝对 `https:`，无编造
 - [ ] `source=model_fallback` 时无 `sourceNoteUrl`、无 list `href`、无假链

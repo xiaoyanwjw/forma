@@ -98,23 +98,23 @@
 
 ```json
 {
-  "title": "厨房小件 19–39 元选品清单",
+  "title": "Mac Mini 配件 79–199 元选品清单",
   "templateId": "domestic-generic-default",
   "disclaimer": "候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。",
-  "assumptions": "未指定品类时按国内小件家居日用测款默认",
+  "assumptions": "未指定品类时按国内 Mac Mini 配件测款默认",
   "items": [
     {
       "id": "pl-1",
-      "title": "【优先试】硅胶沥水垫（多色）",
-      "priceBand": "19–39 元",
-      "painPoint": "水槽边易积水难打理",
-      "angle": "租房厨房刚需且轻小好发",
-      "diff": "多色套装+厚度对比主图",
-      "niche": "厨房沥水收纳",
-      "demand": "高｜台面积水刚需、搜索意图清晰",
-      "competition": "中｜供给多但同质，视觉差异可切",
-      "margin": "中｜低客单测款友好，注意包邮后毛利",
-      "risk": "低｜勿夸大功效；材质合规表述",
+      "title": "【优先试】Mac Mini 拓展坞",
+      "priceBand": "79–199 元",
+      "painPoint": "Mini 接显示器后接口不够、线乱",
+      "angle": "居家办公桌搭、接口对比好拍",
+      "diff": "机身同宽+底部走线好出图",
+      "niche": "Mac Mini 扩展",
+      "demand": "高｜Mini 接显示器接口搜索意图清晰",
+      "competition": "中｜供给多但同质，接口对比可切",
+      "margin": "中｜中客单测款友好，注意包邮后毛利",
+      "risk": "低｜勿写官方原装或未提供认证",
       "sourceUrl": "https://item.taobao.com/example-sku-1"
     }
   ]
@@ -126,7 +126,7 @@
 ```json
 {
   "version": 1,
-  "title": "厨房小件 19–39 元选品清单",
+  "title": "Mac Mini 配件 79–199 元选品清单",
   "status": "ready",
   "blocks": [
     {
@@ -140,21 +140,21 @@
       "items": [
         {
           "id": "pl-1",
-          "badge": "priority",
-          "title": "硅胶沥水垫（多色）",
+          "badge": "优先试",
+          "title": "Mac Mini 拓展坞",
           "href": "https://item.taobao.com/example-sku-1",
           "lines": [
-            { "kind": "priceBand", "text": "19–39 元", "emphasis": "price" },
-            { "kind": "painPoint", "text": "水槽边易积水难打理" },
-            { "kind": "angle", "text": "租房厨房刚需且轻小好发" },
-            { "kind": "diff", "text": "多色套装+厚度对比主图" },
-            { "kind": "niche", "text": "厨房沥水收纳" }
+            { "kind": "priceBand", "text": "79–199 元", "emphasis": "price" },
+            { "kind": "painPoint", "label": "痛点", "text": "Mini 接显示器后接口不够、线乱" },
+            { "kind": "angle", "label": "切入", "text": "居家办公桌搭、接口对比好拍" },
+            { "kind": "diff", "label": "差异", "text": "机身同宽+底部走线好出图" },
+            { "kind": "niche", "label": "细分", "text": "Mac Mini 扩展" }
           ],
           "tags": [
-            { "kind": "demand", "text": "高｜台面积水刚需、搜索意图清晰", "tone": "positive" },
-            { "kind": "competition", "text": "中｜供给多但同质，视觉差异可切", "tone": "neutral" },
-            { "kind": "margin", "text": "中｜低客单测款友好，注意包邮后毛利", "tone": "neutral" },
-            { "kind": "risk", "text": "低｜勿夸大功效；材质合规表述", "tone": "positive" }
+            { "kind": "demand", "label": "需求", "text": "高｜Mini 接显示器接口搜索意图清晰", "tone": "positive" },
+            { "kind": "competition", "label": "竞争", "text": "中｜供给多但同质，接口对比可切", "tone": "neutral" },
+            { "kind": "margin", "label": "利润", "text": "中｜中客单测款友好，注意包邮后毛利", "tone": "neutral" },
+            { "kind": "risk", "label": "风险", "text": "低｜勿写官方原装或未提供认证", "tone": "positive" }
           ]
         }
       ]
@@ -188,9 +188,9 @@
 
 ### 好条目（可交付）
 
-- **优先试：**「租房厨房台面积水高频；轻小好发，比同清单不锈钢沥水架更易视觉差异测款」
-- **niche：** `厨房沥水收纳`（场景具体）
-- **评分：** `高｜台面积水刚需、搜索意图清晰`（挂钩可观察事实）
+- **优先试：**「Mini 接显示器接口不够高频；拓展坞比同清单普通支架更好拍接口对比」
+- **niche：** `Mac Mini 扩展`（场景具体）
+- **评分：** `高｜Mini 接显示器接口搜索意图清晰`（挂钩可观察事实）
 
 ### 坏条目（禁止）
 

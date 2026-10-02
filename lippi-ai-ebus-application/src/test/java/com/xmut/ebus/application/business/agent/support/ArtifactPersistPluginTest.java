@@ -208,10 +208,10 @@ class ArtifactPersistPluginTest {
     private static Map<String, Object> usablePlanPayload() {
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         payload.put("templateId", "domestic-generic-default");
-        payload.put("driver", "厨房沥水痛点");
+        payload.put("driver", "Mac Mini 扩展痛点");
         payload.put("frames", Arrays.asList("主图：白底俯拍", "场景：水槽旁", "细节：导流槽"));
         payload.put("modules", Arrays.asList("材质说明", "尺寸规格", "使用场景"));
-        payload.put("titleDraft", "硅胶沥水垫 厨房必备");
+        payload.put("titleDraft", "Mac Mini 拓展坞 桌面不乱");
         return payload;
     }
 
@@ -224,10 +224,10 @@ class ArtifactPersistPluginTest {
 
     private static Map<String, Object> usableSkuPayload() {
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
-        payload.put("title", "硅胶沥水垫 · 上架素材");
+        payload.put("title", "Mac Mini 拓展坞 · 上架素材");
         payload.put("templateId", "domestic-generic-default");
         payload.put("heroPlan", "白底俯拍");
-        payload.put("detailTitle", "厨房硅胶沥水垫");
+        payload.put("detailTitle", "Mac Mini 拓展坞");
         payload.put("detailBody", "易清洗");
         payload.put("displayNotes", "主图突出颜色");
         payload.put("mediaObjectIds", Collections.singletonList("media-1"));

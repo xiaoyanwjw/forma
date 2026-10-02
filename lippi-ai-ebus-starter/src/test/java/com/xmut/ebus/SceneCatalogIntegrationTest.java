@@ -102,6 +102,44 @@ class SceneCatalogIntegrationTest {
     }
 
     @Test
+    void listEcommerceSkillCapsulesReturnsLabelAndExampleWithoutSkillBody() throws Exception {
+        String token = registerAndLogin("sc_launch_" + shortId());
+
+        MvcResult result = mockMvc.perform(get("/api/v1/scenes/ecommerce/skills")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sceneCode").value("ecommerce"))
+                .andExpect(jsonPath("$.data.skills.length()").value(2))
+                .andExpect(jsonPath("$.data.skills[0].skillId").value("ecommerce-picklist"))
+                .andExpect(jsonPath("$.data.skills[0].label").value("选品清单"))
+                .andExpect(jsonPath("$.data.skills[0].examplePrompt").isNotEmpty())
+                .andExpect(jsonPath("$.data.skills[1].skillId").value("ecommerce-skulist"))
+                .andExpect(jsonPath("$.data.skills[1].label").value("生成素材"))
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString();
+        assertFalse(body.contains("allowed-tools"));
+        assertFalse(body.contains("Workflow"));
+        assertFalse(body.contains("search_sku"));
+    }
+
+    @Test
+    void listXiaohongshuSkillCapsulesReturnsThreeOrderedCapsules() throws Exception {
+        String token = registerAndLogin("sc_xhs_launch_" + shortId());
+
+        mockMvc.perform(get("/api/v1/scenes/xiaohongshu/skills")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sceneCode").value("xiaohongshu"))
+                .andExpect(jsonPath("$.data.skills.length()").value(3))
+                .andExpect(jsonPath("$.data.skills[0].skillId").value("xhs-topiclist"))
+                .andExpect(jsonPath("$.data.skills[0].label").value("选题清单"))
+                .andExpect(jsonPath("$.data.skills[1].skillId").value("xhs-note"))
+                .andExpect(jsonPath("$.data.skills[2].skillId").value("xhs-break"));
+    }
+
+
+    @Test
     void listScenesResponseHasNoPromptOrToolFields() throws Exception {
         String token = registerAndLogin("sc_shape_" + shortId());
 

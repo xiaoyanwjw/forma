@@ -44,7 +44,7 @@ public final class SkillPromptBodyLoader {
         }
     }
 
-    static String normalizeLocation(String promptRef) {
+    public static String normalizeLocation(String promptRef) {
         if (promptRef.startsWith("classpath:")
                 || promptRef.startsWith("file:")
                 || promptRef.startsWith("http")) {

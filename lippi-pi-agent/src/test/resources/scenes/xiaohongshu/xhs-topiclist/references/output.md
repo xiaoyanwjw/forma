@@ -99,18 +99,18 @@
 
 ```json
 {
-  "title": "厨房收纳 · 租房党种草选题清单",
+  "title": "Mac Mini 桌搭 · 居家办公种草选题清单",
   "disclaimer": "选题基于配置的笔记检索抽样与服务端排序，非实时平台全站行情。有链接时可打开笔记页核对。",
-  "assumptions": "面向租房党厨房收纳；未指定单品时按沥水/抽屉收纳默认",
+  "assumptions": "面向居家办公 Mac Mini 桌搭；未指定单品时按拓展坞/理线默认",
   "source": "apify",
-  "query": "厨房收纳 租房",
+  "query": "Mac Mini 桌搭",
   "items": [
     {
       "id": "tp-1",
-      "title": "【优先发】租房厨房台面积水：一块垫搞定沥干",
-      "hook": "洗完碗台面又湿一片？先别换橱柜。",
-      "angle": "租房小户型沥水收纳",
-      "whyFirst": "痛点具体、拍摄成本低，比同清单「全屋收纳改造」更好当天拍当天发",
+      "title": "【优先发】Mini 背后一串转接头：一块拓展坞收干净",
+      "hook": "Mini 接到显示器后，背后永远拖着一串转接头？",
+      "angle": "居家办公 Mac Mini 桌搭",
+      "whyFirst": "痛点具体、接口对比好拍，比同清单「全屋桌面改造」更好当天拍当天发",
       "risk": "勿宣称食品级认证或除菌数据，除非用户已提供",
       "sourceNoteUrl": "https://www.xiaohongshu.com/explore/example-note-1"
     }
@@ -123,7 +123,7 @@
 ```json
 {
   "version": 1,
-  "title": "厨房收纳 · 租房党种草选题清单",
+  "title": "Mac Mini 桌搭 · 居家办公种草选题清单",
   "status": "ready",
   "blocks": [
     {
@@ -137,14 +137,14 @@
       "items": [
         {
           "id": "tp-1",
-          "badge": "priority",
-          "title": "租房厨房台面积水：一块垫搞定沥干",
+          "badge": "优先试",
+          "title": "Mini 背后一串转接头：一块拓展坞收干净",
           "href": "https://www.xiaohongshu.com/explore/example-note-1",
           "lines": [
-            { "kind": "hook", "text": "洗完碗台面又湿一片？先别换橱柜。" },
-            { "kind": "angle", "text": "租房小户型沥水收纳" },
-            { "kind": "whyFirst", "text": "痛点具体、拍摄成本低，比全屋改造更好当天发" },
-            { "kind": "risk", "text": "勿宣称未提供的认证或除菌数据" }
+            { "kind": "hook", "label": "视角", "text": "Mini 接到显示器后，背后永远拖着一串转接头？" },
+            { "kind": "angle", "label": "切入", "text": "居家办公 Mac Mini 桌搭" },
+            { "kind": "whyFirst", "label": "优先", "text": "痛点具体、接口对比好拍，比全屋改造更好当天发" },
+            { "kind": "risk", "label": "风险", "text": "勿宣称未提供的认证或除菌数据" }
           ]
         }
       ]
@@ -178,8 +178,8 @@
 
 ### 好条目（可交付）
 
-- **优先发：**「台面积水高频、轻小好拍，比同清单全屋收纳改造更容易当天发」
-- **angle：** `租房小户型沥水收纳`（场景具体）
+- **优先发：**「Mini 接显示器接口不够高频、接口对比好拍，比同清单全屋桌面改造更容易当天发」
+- **angle：** `居家办公 Mac Mini 桌搭`（场景具体）
 - **链接：** `apify` 用工具 `noteUrl`；`model_fallback` 不写 URL
 
 ### 坏条目（禁止）
