@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
 import com.xmut.ebus.domain.business.agent.model.PiMessage;
-import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
+import com.xmut.ebus.domain.business.agent.model.PiSession;
 import com.xmut.ebus.domain.business.agent.model.PiToolCallRef;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
 import com.xmut.ebus.infrastructure.persistence.mybatis.mapper.PiSessionEntryMapper;
@@ -36,7 +36,7 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
     private final ObjectMapper objectMapper;
 
     @Override
-    public List<PiSessionMeta> selectByUserSince(String userId, Instant since, String sceneCodeOrNull, int limit) {
+    public List<PiSession> selectByUserSince(String userId, Instant since, String sceneCodeOrNull, int limit) {
         if (!StringUtils.hasText(userId) || since == null || limit < 1) {
             return Collections.emptyList();
         }
@@ -45,17 +45,17 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
         if (rows == null || rows.isEmpty()) {
             return Collections.emptyList();
         }
-        List<PiSessionMeta> out = new ArrayList<PiSessionMeta>(rows.size());
+        List<PiSession> out = new ArrayList<PiSession>(rows.size());
         for (PiSessionPO row : rows) {
             if (row != null) {
-                out.add(toMeta(row));
+                out.add(toSession(row));
             }
         }
         return out;
     }
 
     @Override
-    public Optional<PiSessionMeta> findBySessionId(String sessionId) {
+    public Optional<PiSession> findBySessionId(String sessionId) {
         if (!StringUtils.hasText(sessionId)) {
             return Optional.empty();
         }
@@ -63,7 +63,7 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
         if (row == null) {
             return Optional.empty();
         }
-        return Optional.of(toMeta(row));
+        return Optional.of(toSession(row));
     }
 
     @Override
@@ -218,8 +218,8 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
         return out;
     }
 
-    private static PiSessionMeta toMeta(PiSessionPO row) {
-        return new PiSessionMeta(
+    private static PiSession toSession(PiSessionPO row) {
+        return new PiSession(
                 row.getSessionId(),
                 row.getUserId(),
                 row.getSceneCode(),

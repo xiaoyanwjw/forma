@@ -3,7 +3,7 @@ package com.xmut.ebus.domain.business.agent.repository;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
 import com.xmut.ebus.domain.business.agent.model.PiMessage;
-import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
+import com.xmut.ebus.domain.business.agent.model.PiSession;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,9 +18,9 @@ public interface PiSessionQueryRepository {
      * {@code user_id = userId} 且 {@code updated_at >= since}；可选 scene；新在前；LIMIT。
      * 不含 {@code user_id IS NULL}。
      */
-    List<PiSessionMeta> selectByUserSince(String userId, Instant since, String sceneCodeOrNull, int limit);
+    List<PiSession> selectByUserSince(String userId, Instant since, String sceneCodeOrNull, int limit);
 
-    Optional<PiSessionMeta> findBySessionId(String sessionId);
+    Optional<PiSession> findBySessionId(String sessionId);
 
     /**
      * 按逻辑 run 分页（tipSeq=MAX(seq) DESC）；nextToken 空=最新；非空= tipSeq &lt; token。

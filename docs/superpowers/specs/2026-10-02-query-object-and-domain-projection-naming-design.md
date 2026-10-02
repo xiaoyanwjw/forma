@@ -18,7 +18,7 @@
 ## 1. Problem
 
 1. QueryService 大量散参（`userId, scene, limit, nextToken…`），与规约「查询入参 `*PageQuery` / `*Query`」不符；clamp 堆在 Service 静态方法。  
-2. domain 只读投影命名为 `PiMessageDTO`，与 Application 出口 DTO 混淆，也和同包 `PiLogicalRunRef` / `PiSessionMeta` 不一致。  
+2. domain 只读投影命名为 `PiMessageDTO`，与 Application 出口 DTO 混淆，也和同包 `PiLogicalRunRef` / `PiSession` 不一致。  
 3. 全仓尚无 `*Query` 范本，后续域会继续漂。
 
 ## 2. Goals / Non-goals

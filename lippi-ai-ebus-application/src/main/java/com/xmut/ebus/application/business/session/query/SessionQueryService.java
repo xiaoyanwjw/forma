@@ -12,7 +12,7 @@ import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
 import com.xmut.ebus.domain.business.agent.model.PiMessage;
-import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
+import com.xmut.ebus.domain.business.agent.model.PiSession;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
 import com.xmut.lims.pi.ai.message.Message;
@@ -57,9 +57,9 @@ public class SessionQueryService {
         String sceneCode = query.sceneCode();
         int capped = query.limit();
         Instant since = Instant.now(clock).minus(SESSION_WINDOW_DAYS, ChronoUnit.DAYS);
-        List<PiSessionMeta> rows = piSessionQueryRepository.selectByUserSince(uid, since, sceneCode, capped);
+        List<PiSession> rows = piSessionQueryRepository.selectByUserSince(uid, since, sceneCode, capped);
         List<SessionSummaryDTO> out = new ArrayList<SessionSummaryDTO>();
-        for (PiSessionMeta row : rows) {
+        for (PiSession row : rows) {
             if (row == null || !uid.equals(row.getUserId()) || !StringUtils.hasText(row.getSessionId())) {
                 continue;
             }
@@ -81,7 +81,7 @@ public class SessionQueryService {
         String uid = StringUtils.requireHasText(query.getUserId(), "userId required");
         String sid = StringUtils.requireHasText(query.getSessionId(), "sessionId required");
 
-        PiSessionMeta row = piSessionQueryRepository.findBySessionId(sid)
+        PiSession row = piSessionQueryRepository.findBySessionId(sid)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE));
         if (!uid.equals(row.getUserId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE);

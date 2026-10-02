@@ -10,7 +10,7 @@ import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
 import com.xmut.ebus.domain.business.agent.model.PiMessage;
-import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
+import com.xmut.ebus.domain.business.agent.model.PiSession;
 import com.xmut.ebus.domain.business.agent.model.PiToolCallRef;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
@@ -75,8 +75,8 @@ class SessionQueryServiceTest {
 
     @Test
     void listOnlyReturnsCurrentUsersSessions() {
-        PiSessionMeta own = meta(SESSION, USER, "ecommerce", NOW.minus(1, ChronoUnit.HOURS));
-        PiSessionMeta leaked = meta("sess-other", OTHER, "ecommerce", NOW.minus(2, ChronoUnit.HOURS));
+        PiSession own = meta(SESSION, USER, "ecommerce", NOW.minus(1, ChronoUnit.HOURS));
+        PiSession leaked = meta("sess-other", OTHER, "ecommerce", NOW.minus(2, ChronoUnit.HOURS));
         when(piSessionQueryRepository.selectByUserSince(eq(USER), any(Instant.class), isNull(), eq(50)))
                 .thenReturn(Arrays.asList(own, leaked));
         when(sessionStore.load(SESSION)).thenReturn(Collections.singletonList(Message.user("找水杯")));
@@ -306,8 +306,8 @@ class SessionQueryServiceTest {
         assertFalse(found.isPresent());
     }
 
-    private static PiSessionMeta meta(String sessionId, String userId, String sceneCode, Instant updatedAt) {
-        return new PiSessionMeta(sessionId, userId, sceneCode, null, updatedAt);
+    private static PiSession meta(String sessionId, String userId, String sceneCode, Instant updatedAt) {
+        return new PiSession(sessionId, userId, sceneCode, null, updatedAt);
     }
 
     private static PiMessage msg(
