@@ -1,6 +1,6 @@
 package com.xmut.ebus.application.business.agent.sse;
 
-import com.xmut.lims.pi.agent.tool.AskHumanToolHandler;
+import com.xmut.lims.pi.agent.tool.base.AskHumanToolHandler;
 import com.xmut.lims.pi.agent.event.PiEvent;
 import com.xmut.lims.pi.agent.event.PiEventType;
 import com.xmut.lims.pi.agent.event.ToolSuspendPayload;

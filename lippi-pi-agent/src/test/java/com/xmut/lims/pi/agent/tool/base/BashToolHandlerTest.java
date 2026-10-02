@@ -1,4 +1,4 @@
-package com.xmut.lims.pi.agent.tool.workspace;
+package com.xmut.lims.pi.agent.tool.base;
 
 import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.tool.ToolResult;
@@ -8,7 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
-import static com.xmut.lims.pi.agent.tool.workspace.WorkspaceToolTestSupport.call;
+import static com.xmut.lims.pi.agent.tool.base.WorkspaceToolTestSupport.call;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

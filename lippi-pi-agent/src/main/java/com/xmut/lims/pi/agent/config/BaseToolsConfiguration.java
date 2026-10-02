@@ -1,9 +1,9 @@
 package com.xmut.lims.pi.agent.config;
 
-import com.xmut.lims.pi.agent.tool.AskHumanToolHandler;
-import com.xmut.lims.pi.agent.tool.workspace.BashToolHandler;
-import com.xmut.lims.pi.agent.tool.workspace.ReadFileToolHandler;
-import com.xmut.lims.pi.agent.tool.workspace.WriteFileToolHandler;
+import com.xmut.lims.pi.agent.tool.base.AskHumanToolHandler;
+import com.xmut.lims.pi.agent.tool.base.BashToolHandler;
+import com.xmut.lims.pi.agent.tool.base.ReadFileToolHandler;
+import com.xmut.lims.pi.agent.tool.base.WriteFileToolHandler;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

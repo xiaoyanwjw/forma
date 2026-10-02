@@ -42,7 +42,7 @@ import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import com.xmut.lims.pi.agent.tool.ToolDefinitionJsonLoader;
 import com.xmut.lims.pi.agent.tool.ToolHandlerAutoBinder;
 import com.xmut.lims.pi.agent.tool.ToolValidationException;
-import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
+import com.xmut.lims.pi.agent.tool.base.ReadSkill;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

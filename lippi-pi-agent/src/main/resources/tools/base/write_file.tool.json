@@ -2,7 +2,7 @@
   "id": "write_file",
   "description": "在 run 工作区写入文件",
   "text": "[write_file] 将 UTF-8 文本写入相对路径。路径不得逃出工作区。",
-  "handlerClass": "com.xmut.lims.pi.agent.tool.workspace.WriteFileToolHandler",
+  "handlerClass": "com.xmut.lims.pi.agent.tool.base.WriteFileToolHandler",
   "schema": {
     "name": "write_file",
     "description": "在 run 工作区写入 UTF-8 文本文件",

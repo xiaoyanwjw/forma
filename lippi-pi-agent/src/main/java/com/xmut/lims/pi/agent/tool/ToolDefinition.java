@@ -32,7 +32,7 @@ public class ToolDefinition {
     ToolSchema schema;
 
     /**
-     * 可选：Handler 全限定类名（如 {@code com.xmut.lims.pi.agent.tool.handler.ReadSkill}）。
+     * 可选：Handler 全限定类名（如 {@code com.xmut.lims.pi.agent.tool.base.ReadSkill}）。
      * 由 {@link ToolHandlerAutoBinder} 解析；不进模型 schema。
      */
     String handlerClass;

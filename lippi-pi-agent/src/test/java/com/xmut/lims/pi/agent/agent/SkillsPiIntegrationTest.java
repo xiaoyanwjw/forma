@@ -13,7 +13,7 @@ import com.xmut.lims.pi.agent.skill.Skills;
 import com.xmut.lims.pi.agent.tool.InMemoryToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolBinding;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
-import com.xmut.lims.pi.agent.tool.handler.ReadSkill;
+import com.xmut.lims.pi.agent.tool.base.ReadSkill;
 import com.xmut.lims.pi.ai.message.ContentPart;
 import com.xmut.lims.pi.ai.message.Message;
 import com.xmut.lims.pi.ai.model.InMemoryModelCatalog;

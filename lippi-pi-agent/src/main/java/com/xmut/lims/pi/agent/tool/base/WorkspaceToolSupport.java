@@ -1,4 +1,4 @@
-package com.xmut.lims.pi.agent.tool.workspace;
+package com.xmut.lims.pi.agent.tool.base;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.xmut.lims.pi.agent.tool.ToolContext;

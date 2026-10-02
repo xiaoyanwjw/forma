@@ -32,13 +32,13 @@ class ToolDefinitionJsonLoaderTest {
         List<ToolDefinition> defs = ToolDefinitionJsonLoader.load(resolver);
         assertThat(defs).extracting(ToolDefinition::getId)
                 .contains("read_skill", "ask_human", "write_file", "read_file", "bash");
-        assertEquals("com.xmut.lims.pi.agent.tool.handler.ReadSkill", handlerClassOf(defs, "read_skill"));
-        assertEquals("com.xmut.lims.pi.agent.tool.AskHumanToolHandler", handlerClassOf(defs, "ask_human"));
-        assertEquals("com.xmut.lims.pi.agent.tool.workspace.WriteFileToolHandler",
+        assertEquals("com.xmut.lims.pi.agent.tool.base.ReadSkill", handlerClassOf(defs, "read_skill"));
+        assertEquals("com.xmut.lims.pi.agent.tool.base.AskHumanToolHandler", handlerClassOf(defs, "ask_human"));
+        assertEquals("com.xmut.lims.pi.agent.tool.base.WriteFileToolHandler",
                 handlerClassOf(defs, "write_file"));
-        assertEquals("com.xmut.lims.pi.agent.tool.workspace.ReadFileToolHandler",
+        assertEquals("com.xmut.lims.pi.agent.tool.base.ReadFileToolHandler",
                 handlerClassOf(defs, "read_file"));
-        assertEquals("com.xmut.lims.pi.agent.tool.workspace.BashToolHandler", handlerClassOf(defs, "bash"));
+        assertEquals("com.xmut.lims.pi.agent.tool.base.BashToolHandler", handlerClassOf(defs, "bash"));
     }
 
     private static String handlerClassOf(List<ToolDefinition> defs, String id) {
