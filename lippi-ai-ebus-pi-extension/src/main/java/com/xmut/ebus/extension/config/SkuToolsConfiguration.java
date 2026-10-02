@@ -11,7 +11,7 @@ import com.xmut.ebus.extension.tool.sku.port.SkuSearchProperties;
 import com.xmut.ebus.extension.tool.sku.search.ModelSkuReranker;
 import com.xmut.ebus.extension.tool.sku.search.SkuReranker;
 import com.xmut.ebus.extension.tool.sku.search.SkuSearcher;
-import com.xmut.ebus.extension.tool.transport.ApifyOkHttpTransport;
+import com.xmut.ebus.extension.common.ApifyOkHttpTransport;
 import com.xmut.lims.pi.ai.model.ModelProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

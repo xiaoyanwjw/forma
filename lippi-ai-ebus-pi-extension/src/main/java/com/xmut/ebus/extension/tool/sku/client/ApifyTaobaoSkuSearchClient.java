@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.ebus.extension.tool.sku.port.SkuSearchHit;
 import com.xmut.ebus.extension.tool.sku.port.SkuSearchPort;
 import com.xmut.ebus.extension.tool.sku.port.SkuSearchProperties;
-import com.xmut.ebus.extension.tool.transport.ApifyActorTransport;
+import com.xmut.ebus.extension.common.ApifyActorTransport;
 import java.util.Collections;
 import java.util.List;
 import lombok.SneakyThrows;

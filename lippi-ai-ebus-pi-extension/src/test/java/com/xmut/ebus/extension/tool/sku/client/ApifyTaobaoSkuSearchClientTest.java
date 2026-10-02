@@ -2,7 +2,7 @@ package com.xmut.ebus.extension.tool.sku.client;
 
 import com.xmut.ebus.extension.tool.sku.port.SkuSearchHit;
 import com.xmut.ebus.extension.tool.sku.port.SkuSearchProperties;
-import com.xmut.ebus.extension.tool.transport.ApifyActorTransport;
+import com.xmut.ebus.extension.common.ApifyActorTransport;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package com.xmut.ebus.extension.tool.transport;
+package com.xmut.ebus.extension.common;
 
 /**
  * HTTP transport for Apify Actor sync dataset API (mockable in tests).

@@ -1,6 +1,6 @@
 package com.xmut.ebus.extension.config;
 
-import com.xmut.ebus.extension.tool.transport.ApifyOkHttpTransport;
+import com.xmut.ebus.extension.common.ApifyOkHttpTransport;
 import com.xmut.ebus.extension.tool.xhs.FetchXhsNoteToolHandler;
 import com.xmut.ebus.extension.tool.xhs.SearchXhsNoteToolHandler;
 import com.xmut.ebus.extension.tool.xhs.client.ApifyXhsNoteFetchClient;

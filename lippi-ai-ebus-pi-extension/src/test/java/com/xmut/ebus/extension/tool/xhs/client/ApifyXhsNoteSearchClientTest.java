@@ -1,6 +1,6 @@
 package com.xmut.ebus.extension.tool.xhs.client;
 
-import com.xmut.ebus.extension.tool.transport.ApifyActorTransport;
+import com.xmut.ebus.extension.common.ApifyActorTransport;
 import com.xmut.ebus.extension.tool.xhs.port.XhsNoteSearchHit;
 import com.xmut.ebus.extension.tool.xhs.port.XhsNoteSearchProperties;
 import java.util.List;

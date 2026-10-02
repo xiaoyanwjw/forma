@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.xmut.ebus.extension.tool.transport.ApifyActorTransport;
+import com.xmut.ebus.extension.common.ApifyActorTransport;
 import com.xmut.ebus.extension.tool.xhs.port.XhsNoteSearchHit;
 import com.xmut.ebus.extension.tool.xhs.port.XhsNoteSearchPort;
 import com.xmut.ebus.extension.tool.xhs.port.XhsNoteSearchProperties;

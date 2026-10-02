@@ -1,4 +1,4 @@
-package com.xmut.ebus.extension.tool.transport;
+package com.xmut.ebus.extension.common;
 
 import com.xmut.ebus.common.http.RestClient;
 import com.xmut.ebus.common.http.RestClientException;
