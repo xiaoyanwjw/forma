@@ -49,6 +49,7 @@ docker compose -f APP-META/docker-config/docker-compose.yml down
 | 路径 | 用途 |
 |------|------|
 | `lippi-ai-ebus-*` | Java 业务多模块（平铺；无 `backend/` 包一层） |
+| `lippi-ai-ebus-pi-extension/` | 业务 Pi 扩展：SKU/XHS tools + scenes 资源（spring.factories） |
 | `lippi-pi-ai/` · `lippi-pi-agent/` | Pi 运行时（自 LIMS 拷贝改名） |
 | `lippi-ai-ebus-web/` | Vue SPA |
 | `APP-META/docker-config/` · `APP-META/bootstrap/` | Compose / Dockerfile / SQL（对齐 LIMS） |
@@ -92,6 +93,7 @@ docker compose -f APP-META/docker-config/docker-compose.yml down
 - 密钥走环境变量 / `APP-META` secrets
 - 积分只经 CreditLedger；结算仅在可用成果落库之后
 - 模型调用只经后端 `pi-ai`；业务入口用 `AgentSession`
+- 业务 tool/skill 资源进 `lippi-ai-ebus-pi-extension`，不进 `pi-agent`
 - 架构冲突先对齐 Spine
 
 **Ask first**
