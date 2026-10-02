@@ -3,7 +3,7 @@ package com.xmut.ebus.application.business.agent.support;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xmut.lims.pi.agent.tool.base.WriteFileToolHandler;
+import com.xmut.lims.pi.agent.tool.base.LocalFileSupport;
 import com.xmut.ebus.common.util.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -127,7 +127,7 @@ public class GenerationOutputParser {
         }
         Path file;
         try {
-            file = WriteFileToolHandler.resolveUnder(runWorkspaceRoot, outputNode.asText().trim());
+            file = LocalFileSupport.resolveUnder(runWorkspaceRoot, outputNode.asText().trim());
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("invalid output path");
         }

@@ -46,11 +46,11 @@ public final class BashToolHandler implements ToolHandler {
     public ToolResult handle(ToolCallEntry call, ToolContext ctx) {
         String callId = call != null ? call.getId() : null;
         try {
-            String root = WriteFileToolHandler.workspaceRoot(ctx);
+            String root = LocalFileSupport.workspaceRoot(ctx);
             if (root == null) {
-                return ToolResult.failed(callId, TOOL_NAME, WriteFileToolHandler.MISSING_ROOT);
+                return ToolResult.failed(callId, TOOL_NAME, LocalFileSupport.MISSING_ROOT);
             }
-            String command = WriteFileToolHandler.textArg(call, "command");
+            String command = LocalFileSupport.textArg(call, "command");
             if (!StringUtils.hasText(command)) {
                 return ToolResult.failed(callId, TOOL_NAME, "command required");
             }
