@@ -4,7 +4,9 @@ import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
 import { ApiError } from '@/api/client'
 import { getFeedbackByArtifact, submitFeedback } from '@/api/business/feedback/feedback'
-import { getScenes } from '@/api/business/scene/scene'
+import { getScenes, getSceneSkillCapsules } from '@/api/business/scene/scene'
+import type { SceneSkillCapsuleItem } from '@/types/business/scene'
+import SlotAwarePromptEditor from '@/components/business/scene/SlotAwarePromptEditor.vue'
 import {
   getLatestSessionArtifact,
   getSessionMessages,
@@ -38,11 +40,6 @@ const SCENE_BREADCRUMB = '小红书种草'
 const ATTACH_SOON = '近端暂不支持附件'
 const DEMO_SESSION_TITLE = '新任务'
 
-const TOPIC_TEMPLATE = '请帮我生成「厨房收纳」类小红书种草选题清单，面向租房党。'
-const NOTE_TEMPLATE = '请为商品「硅胶沥水垫」写一篇小红书种草笔记，语气像真人分享。'
-const BREAK_TEMPLATE =
-  '请拆解下面这篇笔记（分享链接或正文），并改写成我的商品「硅胶沥水垫」：…'
-
 const TEMPLATE_SLOT_MARK = /【占位】/
 
 type ComputerKind = 'topiclist' | 'note' | 'break' | null
@@ -65,6 +62,7 @@ interface ChatMessage {
 }
 
 const sessionPrompt = ref('')
+const skillCapsules = ref<SceneSkillCapsuleItem[]>([])
 const sceneBizId = ref<string | null>(null)
 const messages = ref<ChatMessage[]>([])
 const sessions = ref<SessionSummary[]>([])
@@ -163,16 +161,8 @@ function scrollChatToBottom() {
   })
 }
 
-function fillTopicSession() {
-  sessionPrompt.value = TOPIC_TEMPLATE
-}
-
-function fillNoteSession() {
-  sessionPrompt.value = NOTE_TEMPLATE
-}
-
-function fillBreakSession() {
-  sessionPrompt.value = BREAK_TEMPLATE
+function fillCapsulePrompt(skill: SceneSkillCapsuleItem) {
+  sessionPrompt.value = skill.examplePrompt || ''
 }
 
 function detectKind(text: string): ComputerKind {
@@ -896,6 +886,12 @@ onMounted(async () => {
   } catch {
     // Empty UI still works with sceneCode alone
   }
+  try {
+    const capsule = await getSceneSkillCapsules(SCENE_CODE)
+    skillCapsules.value = Array.isArray(capsule?.skills) ? capsule.skills : []
+  } catch {
+    skillCapsules.value = []
+  }
   void loadSessions()
 })
 </script>
@@ -1170,24 +1166,23 @@ onMounted(async () => {
                 aria-label="快捷任务"
                 data-testid="session-quick-row"
               >
-                <button type="button" class="pill" :disabled="sessionBusy" @click="fillTopicSession">
-                  选题清单
-                </button>
-                <button type="button" class="pill" :disabled="sessionBusy" @click="fillNoteSession">
-                  笔记种草稿
-                </button>
-                <button type="button" class="pill" :disabled="sessionBusy" @click="fillBreakSession">
-                  爆文拆解
+                <button
+                  v-for="skill in skillCapsules"
+                  :key="skill.skillId"
+                  type="button"
+                  class="pill"
+                  :disabled="sessionBusy"
+                  @click="fillCapsulePrompt(skill)"
+                >
+                  {{ skill.label }}
                 </button>
               </div>
               <div class="prompt-box">
-                <textarea
+                <SlotAwarePromptEditor
                   v-model="sessionPrompt"
-                  class="prompt-editor"
-                  rows="2"
+                  :disabled="sessionBusy"
                   placeholder="分配一个任务或提问任何问题"
                   aria-label="继续提问"
-                  :disabled="sessionBusy"
                 />
                 <div class="prompt-toolbar">
                   <button

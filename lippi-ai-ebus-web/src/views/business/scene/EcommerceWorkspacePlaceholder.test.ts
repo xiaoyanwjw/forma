@@ -29,6 +29,25 @@ const ECOMMERCE = {
   summary: '选品与上架',
 }
 
+/** Align with pi-extension scenes/.../launch.json */
+const ECOMMERCE_SKILLS = {
+  sceneCode: 'ecommerce',
+  skills: [
+    {
+      skillId: 'ecommerce-picklist',
+      label: '选品清单',
+      examplePrompt: '请帮我生成「Mac Mini 配件」类选品清单',
+      sortOrder: 1,
+    },
+    {
+      skillId: 'ecommerce-skulist',
+      label: '生成素材',
+      examplePrompt: '请为商品「Mac Mini 拓展坞」生成上架素材。',
+      sortOrder: 2,
+    },
+  ],
+}
+
 const SAMPLE_ITEMS = Array.from({ length: 8 }, (_, i) => ({
   title: `${i === 0 ? '【优先试】' : ''}候选${i + 1}`,
   priceBand: '19–39 元',
@@ -209,9 +228,13 @@ function mockCatalogAndCredits(opts?: {
   sessionsFailMessage?: string
   sessionMessages?: Record<string, unknown[]>
   latestArtifacts?: Record<string, unknown | null>
+  skillCapsules?: unknown
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
+    if (url.includes('/api/v1/scenes/') && url.includes('/skills')) {
+      return okScenes(opts?.skillCapsules ?? ECOMMERCE_SKILLS)
+    }
     if (url.includes('/api/v1/scenes')) {
       return okScenes([ECOMMERCE])
     }
@@ -552,8 +575,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     const area = mounted.root.querySelector(
       'textarea[aria-label="继续提问"]',
     ) as HTMLTextAreaElement
-    expect(area.value).toMatch(/厨房小件/)
-    expect(area.value).toMatch(/19–39/)
+    expect(area.value).toMatch(/Mac Mini 配件/)
     expect(area.value).not.toMatch(/【/)
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(mounted.router.currentRoute.value.fullPath).toBe(pathBefore)
@@ -598,10 +620,10 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       'textarea[aria-label="继续提问"]',
     ) as HTMLTextAreaElement
     expect(area.value).toMatch(/上架素材/)
-    expect(area.value).toMatch(/硅胶沥水垫/)
+    expect(area.value).toMatch(/Mac Mini 拓展坞/)
     expect(area.value).not.toMatch(/【/)
     const slot = mounted.root.querySelector('.prompt-highlight .ph')
-    expect(slot?.textContent).toBe('「硅胶沥水垫」')
+    expect(slot?.textContent).toBe('「Mac Mini 拓展坞」')
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
     expect(listingApiHits(fetchMock)).toHaveLength(0)

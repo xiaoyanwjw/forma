@@ -27,10 +27,36 @@ const XHS = {
   summary: '笔记结构与种草表达',
 }
 
-const TOPIC_TEMPLATE = '请帮我生成「厨房收纳」类小红书种草选题清单，面向租房党。'
-const NOTE_TEMPLATE = '请为商品「硅胶沥水垫」写一篇小红书种草笔记，语气像真人分享。'
-const BREAK_TEMPLATE =
-  '请拆解下面这篇笔记（分享链接或正文），并改写成我的商品「硅胶沥水垫」：…'
+/** Align with pi-extension xiaohongshu launch.json resources */
+const XHS_SKILLS = {
+  sceneCode: 'xiaohongshu',
+  skills: [
+    {
+      skillId: 'xhs-topiclist',
+      label: '选题清单',
+      examplePrompt:
+        '请帮我生成「Mac Mini 桌搭」类小红书种草选题清单，面向「居家办公」。',
+      sortOrder: 1,
+    },
+    {
+      skillId: 'xhs-note',
+      label: '笔记种草稿',
+      examplePrompt: '请为商品「Mac Mini 拓展坞」写一篇小红书种草笔记，语气像真人分享。',
+      sortOrder: 2,
+    },
+    {
+      skillId: 'xhs-break',
+      label: '爆文拆解',
+      examplePrompt:
+        '请拆解下面这篇笔记（分享链接或正文），并改写成我的商品「Mac Mini 拓展坞」：…',
+      sortOrder: 3,
+    },
+  ],
+}
+
+const TOPIC_TEMPLATE = XHS_SKILLS.skills[0]!.examplePrompt
+const NOTE_TEMPLATE = XHS_SKILLS.skills[1]!.examplePrompt
+const BREAK_TEMPLATE = XHS_SKILLS.skills[2]!.examplePrompt
 
 function sampleBreakView() {
   return {
@@ -126,6 +152,9 @@ function sseBody(chunks: string[]) {
 function mockCatalogAndCredits() {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
+    if (url.includes('/api/v1/scenes/') && url.includes('/skills')) {
+      return okScenes(XHS_SKILLS)
+    }
     if (url.includes('/api/v1/scenes')) {
       return okScenes([XHS])
     }

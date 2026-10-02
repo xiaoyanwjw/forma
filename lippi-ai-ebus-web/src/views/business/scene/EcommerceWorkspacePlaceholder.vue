@@ -5,7 +5,8 @@ import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vu
 import SlotAwarePromptEditor from '@/components/business/scene/SlotAwarePromptEditor.vue'
 import { ApiError } from '@/api/client'
 import { getFeedbackByArtifact, submitFeedback } from '@/api/business/feedback/feedback'
-import { getScenes } from '@/api/business/scene/scene'
+import { getScenes, getSceneSkillCapsules } from '@/api/business/scene/scene'
+import type { SceneSkillCapsuleItem } from '@/types/business/scene'
 import {
   getLatestSessionArtifact,
   getSessionMessages,
@@ -41,11 +42,6 @@ const SCENE_CODE = 'ecommerce' as const
 const SCENE_BREADCRUMB = '电商开店'
 const ATTACH_SOON = '近端暂不支持附件'
 
-/** Concrete defaults — capsule one-click must be sendable (no 【占位】). */
-const PICKS_TEMPLATE = '请帮我生成厨房小件类选品清单，客单价 19–39 元。'
-const LISTING_TEMPLATE =
-  '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。'
-
 const TEMPLATE_SLOT_MARK = /【品类】|【最低价】|【最高价】|【商品名称】|【淘宝\/拼多多\/闲鱼】/
 
 type ComputerKind = 'picks' | 'listing' | null
@@ -66,6 +62,8 @@ interface ChatMessage {
 }
 
 const sessionPrompt = ref('')
+/** 工作台快捷胶囊：来自 GET /scenes/{sceneCode}/skills（launch.json） */
+const skillCapsules = ref<SceneSkillCapsuleItem[]>([])
 /** Optional Catalog bizId when list is available; null if unresolved */
 const sceneBizId = ref<string | null>(null)
 const messages = ref<ChatMessage[]>([])
@@ -199,12 +197,8 @@ function scrollChatToBottom() {
   })
 }
 
-function fillPicksSession() {
-  sessionPrompt.value = PICKS_TEMPLATE
-}
-
-function fillListingSession() {
-  sessionPrompt.value = LISTING_TEMPLATE
+function fillCapsulePrompt(skill: SceneSkillCapsuleItem) {
+  sessionPrompt.value = skill.examplePrompt || ''
 }
 
 function isListingIntent(text: string): boolean {
@@ -1043,6 +1037,12 @@ onMounted(async () => {
   } catch {
     // Empty UI still works with sceneCode alone
   }
+  try {
+    const capsule = await getSceneSkillCapsules(SCENE_CODE)
+    skillCapsules.value = Array.isArray(capsule?.skills) ? capsule.skills : []
+  } catch {
+    skillCapsules.value = []
+  }
   void loadSessions()
 })
 </script>
@@ -1393,11 +1393,15 @@ onMounted(async () => {
                 aria-label="快捷任务"
                 data-testid="session-quick-row"
               >
-                <button type="button" class="pill" :disabled="sessionBusy" @click="fillPicksSession">
-                  选品清单
-                </button>
-                <button type="button" class="pill" :disabled="sessionBusy" @click="fillListingSession">
-                  生成素材
+                <button
+                  v-for="skill in skillCapsules"
+                  :key="skill.skillId"
+                  type="button"
+                  class="pill"
+                  :disabled="sessionBusy"
+                  @click="fillCapsulePrompt(skill)"
+                >
+                  {{ skill.label }}
                 </button>
               </div>
               <div class="prompt-box">
