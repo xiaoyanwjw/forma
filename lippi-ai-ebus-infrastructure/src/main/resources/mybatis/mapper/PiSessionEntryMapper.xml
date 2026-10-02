@@ -71,4 +71,40 @@
         WHERE session_id = #{sessionId}
         ORDER BY seq ASC
     </select>
+
+    <select id="selectLogicalRunPage" resultType="com.xmut.ebus.infrastructure.persistence.mybatis.po.PiLogicalRunRow">
+        SELECT logical_run_id AS logicalRunId, tip_seq AS tipSeq
+        FROM (
+            SELECT
+                SUBSTRING_INDEX(run_id, ':', 1) AS logical_run_id,
+                MAX(seq) AS tip_seq
+            FROM pi_session_entry
+            WHERE session_id = #{sessionId}
+              AND seq &gt; #{compactAnchorSeq}
+              AND run_id IS NOT NULL
+              AND run_id &lt;&gt; ''
+            GROUP BY SUBSTRING_INDEX(run_id, ':', 1)
+        ) t
+        <where>
+            <if test="nextToken != null">
+                tip_seq &lt; #{nextToken}
+            </if>
+        </where>
+        ORDER BY tip_seq DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectByLogicalRunIds" resultMap="PiSessionEntryResultMap">
+        SELECT id, biz_id, session_id, seq, entry_type, parent_id, run_id, payload, created_at
+        FROM pi_session_entry
+        WHERE session_id = #{sessionId}
+          AND seq &gt; #{compactAnchorSeq}
+          AND run_id IS NOT NULL
+          AND run_id &lt;&gt; ''
+          AND SUBSTRING_INDEX(run_id, ':', 1) IN
+          <foreach collection="logicalRunIds" item="rid" open="(" separator="," close=")">
+              #{rid}
+          </foreach>
+        ORDER BY seq ASC
+    </select>
 </mapper>
