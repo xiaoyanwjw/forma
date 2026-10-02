@@ -448,6 +448,7 @@ async function finishGenerationMessage(opts: {
       statusDetail: buildFailureDetail(soft, opts.processSnapshot || []),
     })
     thinkingMessageId.value = null
+    if (!liveByPane.value[opts.pane]?.view) closeComputer()
     scrollChatToBottom()
     return
   }
@@ -479,6 +480,7 @@ async function finishGenerationMessage(opts: {
       failed: true,
       statusDetail: buildFailureDetail(empty, opts.processSnapshot || []),
     })
+    if (!liveByPane.value[opts.pane]?.view) closeComputer()
   }
   thinkingMessageId.value = null
   scrollChatToBottom()

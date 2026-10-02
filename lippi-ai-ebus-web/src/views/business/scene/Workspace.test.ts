@@ -1,14 +1,6 @@
-import { createApp, nextTick } from 'vue'
-import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken } from '@/api/http'
-import Workspace from '@/views/business/scene/Workspace.vue'
-
-async function flushUi() {
-  await nextTick()
-  await new Promise((r) => setTimeout(r, 0))
-  await nextTick()
-}
+import { flushUi, mountSceneWorkspace } from '@/views/business/scene/workspace/mountSceneWorkspace'
 
 function setTextareaValue(el: HTMLTextAreaElement, value: string) {
   const proto = window.HTMLTextAreaElement.prototype
@@ -129,37 +121,8 @@ function mockCatalog() {
   })
 }
 
-async function mountWorkspace(sceneCode: 'ecommerce' | 'xiaohongshu') {
-  const root = document.createElement('div')
-  document.body.appendChild(root)
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/scenes', name: 'scenes', component: { template: '<div>gallery</div>' } },
-      {
-        path: '/scenes/:sceneCode',
-        name: 'scene-workspace',
-        component: Workspace,
-      },
-      { path: '/credits', name: 'credits', component: { template: '<div />' } },
-      { path: '/me', name: 'me', component: { template: '<div />' } },
-      { path: '/login', name: 'login', component: { template: '<div />' } },
-    ],
-  })
-  await router.push(`/scenes/${sceneCode}`)
-  await router.isReady()
-  const app = createApp(Workspace)
-  app.use(router)
-  app.mount(root)
-  await flushUi()
-  await flushUi()
-  return {
-    root,
-    unmount() {
-      app.unmount()
-      root.remove()
-    },
-  }
+function mountWorkspace(sceneCode: 'ecommerce' | 'xiaohongshu') {
+  return mountSceneWorkspace(sceneCode)
 }
 
 type FetchSpy = { mock: { calls: ReadonlyArray<unknown[]> } }

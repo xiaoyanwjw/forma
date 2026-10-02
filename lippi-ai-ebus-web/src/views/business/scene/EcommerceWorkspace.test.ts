@@ -1,23 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createApp, nextTick } from 'vue'
-import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken } from '@/api/http'
-import EcommerceWorkspace from '@/views/business/scene/EcommerceWorkspace.vue'
-import { DEMO_LISTING } from '@/views/business/scene/ecommerceDemoFixtures'
 import { processStreamText } from '@/composables/agent/agentProgress'
+import { flushUi, mountSceneWorkspace } from '@/views/business/scene/workspace/mountSceneWorkspace'
 
 const sessionCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'workspaceSession.css'),
   'utf8',
 )
 
-async function flushUi() {
-  await nextTick()
-  await new Promise((r) => setTimeout(r, 0))
-  await nextTick()
+function mountWorkspace() {
+  return mountSceneWorkspace('ecommerce')
 }
 
 const ECOMMERCE = {
@@ -351,41 +346,6 @@ function mockCatalogAndCredits(opts?: {
   })
 }
 
-async function mountWorkspace() {
-  const root = document.createElement('div')
-  document.body.appendChild(root)
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/', name: 'landing', component: { template: '<div />' } },
-      { path: '/scenes', name: 'scenes', component: { template: '<div>gallery</div>' } },
-      {
-        path: '/scenes/ecommerce',
-        name: 'scene-ecommerce',
-        component: EcommerceWorkspace,
-      },
-      { path: '/history', name: 'history', component: { template: '<div />' } },
-      { path: '/credits', name: 'credits', component: { template: '<div />' } },
-      { path: '/me', name: 'me', component: { template: '<div />' } },
-      { path: '/login', name: 'login', component: { template: '<div />' } },
-    ],
-  })
-  await router.push({ name: 'scene-ecommerce' })
-  await router.isReady()
-  const app = createApp(EcommerceWorkspace)
-  app.use(router)
-  app.mount(root)
-  await flushUi()
-  return {
-    root,
-    router,
-    unmount() {
-      app.unmount()
-      root.remove()
-    },
-  }
-}
-
 function setTextareaValue(el: HTMLTextAreaElement, value: string) {
   const proto = window.HTMLTextAreaElement.prototype
   const desc = Object.getOwnPropertyDescriptor(proto, 'value')
@@ -431,7 +391,7 @@ function emptyRunApiHits(fetchMock: FetchSpy) {
   })
 }
 
-describe('EcommerceWorkspace default session shell', () => {
+describe('Workspace ecommerce default session shell', () => {
   let unmount: (() => void) | undefined
   let fetchMock: ReturnType<typeof mockCatalogAndCredits>
 
@@ -529,7 +489,7 @@ describe('EcommerceWorkspace default session shell', () => {
   })
 })
 
-describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
+describe('Workspace ecommerce session shell', () => {
   let unmount: (() => void) | undefined
   let fetchMock: ReturnType<typeof mockCatalogAndCredits>
 
@@ -602,12 +562,12 @@ describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
     expect(area.value).toBe(kept)
   })
 
-  it('rejects send when prompt still contains template placeholders', async () => {
+  it('rejects send when prompt still contains example slots', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    await enterViaSend(mounted.root, '请帮我生成【品类】类选品清单，客单价【最低价】–【最高价】元。')
+    await enterViaSend(mounted.root, '请帮我生成「品类」类选品清单')
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
-    expect(mounted.root.textContent).toMatch(/【】里的占位/)
+    expect(mounted.root.textContent).toMatch(/「」里的示例/)
   })
 
   it('sends picklist with skillId when capsule is selected even if text has 【优先试】', async () => {
@@ -836,7 +796,7 @@ describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
 
   it('does not hardcode picklist-specific step strings in chat source', () => {
     const vueSrc = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), 'EcommerceWorkspace.vue'),
+      join(dirname(fileURLToPath(import.meta.url)), 'Workspace.vue'),
       'utf8',
     )
     const consoleSrc = readFileSync(
@@ -848,7 +808,8 @@ describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
     )
     expect(vueSrc).not.toMatch(/step-status/)
     expect(vueSrc).toMatch(/WorkspaceChatConsole/)
-    expect(vueSrc).not.toMatch(/useAgentPicklistRun|useAgentListingRun/)
+    expect(vueSrc).not.toContain(['useAgent', 'PicklistRun'].join(''))
+    expect(vueSrc).not.toContain(['useAgent', 'ListingRun'].join(''))
     expect(vueSrc).toMatch(/useAgentSkillRun/)
     expect(vueSrc).toMatch(/resumeSkillRun/)
     expect(consoleSrc).toMatch(/chat-events/)
@@ -975,37 +936,10 @@ describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
     expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
   })
 
-  it('opens Computer with listing preview via demo control', async () => {
+  it('has no demo Computer preview controls', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    // Seed an agent bubble so demo actions render (no live artifact yet)
-    const area = mounted.root.querySelector(
-      'textarea[aria-label="继续提问"]',
-    ) as HTMLTextAreaElement
-    setTextareaValue(area, '请帮我生成【品类】类选品清单，客单价【最低价】–【最高价】元。')
-    await flushUi()
-    ;(mounted.root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement).click()
-    await flushUi()
-
-    const openListing = mounted.root.querySelector(
-      '[data-demo="open-listing"]',
-    ) as HTMLButtonElement
-    expect(openListing).toBeTruthy()
-    openListing.click()
-    await flushUi()
-
-    expect(mounted.root.querySelector('.workspace.split')).toBeTruthy()
-    const body = mounted.root.querySelector('.computer-body')
-    expect(body?.textContent).toContain(DEMO_LISTING.title)
-    expect(body?.textContent).toContain(DEMO_LISTING.body)
-    expect(mounted.root.querySelector('.listing-stack')).toBeNull()
-    expect(mounted.root.querySelector('[aria-label="上架素材预览"]')).toBeTruthy()
-    expect(mounted.root.textContent).toMatch(/详情文案/)
-    expect(mounted.root.textContent).toMatch(DEMO_LISTING.title)
-    expect(body?.querySelectorAll('[data-testid="git-view"]').length).toBe(1)
-    expect(body?.querySelector('.listing-copy.is-body')?.textContent).toContain(
-      DEMO_LISTING.body,
-    )
+    expect(mounted.root.querySelector('[data-demo]')).toBeNull()
   })
 
   it('free-text send omits skillId', async () => {
@@ -1022,7 +956,7 @@ describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
   it('listing capsule streams billed skulist and shows live Computer (not demo)', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    await enterViaSend(mounted.root, '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。', {
+    await enterViaSend(mounted.root, '请为商品硅胶沥水垫生成上架素材，优先适配淘宝。', {
       skillIndex: 1,
     })
 
@@ -1036,7 +970,7 @@ describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
     expect(mounted.root.querySelector('.platform-switch')).toBeNull()
     expect(mounted.root.querySelector('[data-testid="git-view"]')).toBeTruthy()
     expect(mounted.root.querySelector('.listing-copy.is-title')).toBeTruthy()
-    expect(mounted.root.querySelector('[data-demo="open-listing"]')).toBeNull()
+    expect(mounted.root.querySelector('[data-demo]')).toBeNull()
   })
 
   it('listing human_input_required shows confirm/supplement and resume confirm_execute', async () => {
@@ -1054,7 +988,7 @@ describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
     })
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    await enterViaSend(mounted.root, '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。', {
+    await enterViaSend(mounted.root, '请为商品硅胶沥水垫生成上架素材，优先适配淘宝。', {
       skillIndex: 1,
     })
 
@@ -1704,7 +1638,7 @@ describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
   it('listing one-click retry reuses last prompt and session', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    const listingText = '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。'
+    const listingText = '请为商品硅胶沥水垫生成上架素材，优先适配淘宝。'
     await enterViaSend(mounted.root, listingText, { skillIndex: 1 })
 
     expect(mounted.root.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()

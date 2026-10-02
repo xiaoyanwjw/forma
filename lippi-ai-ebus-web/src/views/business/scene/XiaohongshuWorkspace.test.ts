@@ -1,21 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createApp, nextTick } from 'vue'
-import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken } from '@/api/http'
-import XiaohongshuWorkspace from '@/views/business/scene/XiaohongshuWorkspace.vue'
+import { flushUi, mountSceneWorkspace } from '@/views/business/scene/workspace/mountSceneWorkspace'
 
 const sessionCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'workspaceSession.css'),
   'utf8',
 )
 
-async function flushUi() {
-  await nextTick()
-  await new Promise((r) => setTimeout(r, 0))
-  await nextTick()
+function mountWorkspace() {
+  return mountSceneWorkspace('xiaohongshu')
 }
 
 function setTextareaValue(el: HTMLTextAreaElement, value: string) {
@@ -212,41 +208,6 @@ function mockCatalogAndCredits() {
   })
 }
 
-async function mountWorkspace() {
-  const root = document.createElement('div')
-  document.body.appendChild(root)
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/', name: 'landing', component: { template: '<div />' } },
-      { path: '/scenes', name: 'scenes', component: { template: '<div>gallery</div>' } },
-      {
-        path: '/scenes/xiaohongshu',
-        name: 'scene-xiaohongshu',
-        component: XiaohongshuWorkspace,
-      },
-      { path: '/history', name: 'history', component: { template: '<div />' } },
-      { path: '/credits', name: 'credits', component: { template: '<div />' } },
-      { path: '/me', name: 'me', component: { template: '<div />' } },
-      { path: '/login', name: 'login', component: { template: '<div />' } },
-    ],
-  })
-  await router.push({ name: 'scene-xiaohongshu' })
-  await router.isReady()
-  const app = createApp(XiaohongshuWorkspace)
-  app.use(router)
-  app.mount(root)
-  await flushUi()
-  return {
-    root,
-    router,
-    unmount() {
-      app.unmount()
-      root.remove()
-    },
-  }
-}
-
 type FetchSpy = { mock: { calls: ReadonlyArray<unknown[]> } }
 
 function billedRunApiHits(fetchMock: FetchSpy, skillId?: string) {
@@ -265,7 +226,7 @@ function billedRunApiHits(fetchMock: FetchSpy, skillId?: string) {
   })
 }
 
-describe('XiaohongshuWorkspace', () => {
+describe('Workspace xiaohongshu', () => {
   let unmount: (() => void) | undefined
   let fetchMock: ReturnType<typeof mockCatalogAndCredits>
   let styleEl: HTMLStyleElement | undefined
@@ -287,6 +248,20 @@ describe('XiaohongshuWorkspace', () => {
     styleEl?.remove()
     clearToken()
   })
+
+  /** Capsule examples still contain 「」; send only after those marks are removed. */
+  async function sendFilledPrompt(root: HTMLElement) {
+    const area = root.querySelector('textarea[aria-label="继续提问"]') as HTMLTextAreaElement
+    const text = area.value.replace(/[「」]/g, '')
+    setTextareaValue(area, text)
+    await flushUi()
+    const send = root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement
+    expect(send.disabled).toBe(false)
+    send.click()
+    await flushUi()
+    await flushUi()
+    return text
+  }
 
   it('shows three capsules and binds sceneCode xiaohongshu', async () => {
     const mounted = await mountWorkspace()
@@ -370,12 +345,11 @@ describe('XiaohongshuWorkspace', () => {
     )
     pills[0]!.click()
     await flushUi()
-    const send = mounted.root.querySelector(
-      '.session button[aria-label="发送"]',
-    ) as HTMLButtonElement
-    send.click()
-    await flushUi()
-    await flushUi()
+    const editorPh = [...mounted.root.querySelectorAll('.prompt-highlight .ph')].map(
+      (el) => el.textContent,
+    )
+    expect(editorPh).toEqual(['「Mac Mini 桌搭」', '「居家办公」'])
+    const sent = await sendFilledPrompt(mounted.root)
 
     const hits = billedRunApiHits(fetchMock, 'xhs-topiclist')
     expect(hits.length).toBeGreaterThanOrEqual(1)
@@ -386,12 +360,9 @@ describe('XiaohongshuWorkspace', () => {
     }
     expect(body.sceneCode).toBe('xiaohongshu')
     expect(body.skillId).toBe('xhs-topiclist')
-    expect(body.text).toBe(TOPIC_TEMPLATE)
-    // 用户消息「…」槽位与电商对话流同款 .ph 高亮（Markdown 渲染）
-    const userPh = [
-      ...mounted.root.querySelectorAll('.msg.user .ph'),
-    ].map((el) => el.textContent)
-    expect(userPh).toEqual(['「Mac Mini 桌搭」', '「居家办公」'])
+    expect(body.text).toBe(sent)
+    expect(body.text).toContain('Mac Mini 桌搭')
+    expect(body.text).not.toMatch(/「|」/)
   })
 
   it('posts xhs-note and xhs-break skillIds for the other capsules', async () => {
@@ -400,14 +371,9 @@ describe('XiaohongshuWorkspace', () => {
     const pills = mounted.root.querySelectorAll<HTMLButtonElement>(
       '[data-testid="session-quick-row"] .pill',
     )
-    const send = () =>
-      mounted.root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement
-
     pills[1]!.click()
     await flushUi()
-    send().click()
-    await flushUi()
-    await flushUi()
+    await sendFilledPrompt(mounted.root)
     const noteBody = JSON.parse(
       String((billedRunApiHits(fetchMock, 'xhs-note').at(-1) as [string, RequestInit])[1].body),
     ) as { skillId?: string; sceneCode?: string }
@@ -416,9 +382,7 @@ describe('XiaohongshuWorkspace', () => {
 
     pills[2]!.click()
     await flushUi()
-    send().click()
-    await flushUi()
-    await flushUi()
+    await sendFilledPrompt(mounted.root)
     const breakBody = JSON.parse(
       String((billedRunApiHits(fetchMock, 'xhs-break').at(-1) as [string, RequestInit])[1].body),
     ) as { skillId?: string }
@@ -433,9 +397,7 @@ describe('XiaohongshuWorkspace', () => {
     )
     pills[0]!.click()
     await flushUi()
-    ;(mounted.root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement).click()
-    await flushUi()
-    await flushUi()
+    await sendFilledPrompt(mounted.root)
 
     const btn = mounted.root.querySelector('.item-action-btn') as HTMLButtonElement
     expect(btn).toBeTruthy()
@@ -468,9 +430,7 @@ describe('XiaohongshuWorkspace', () => {
     )
     pills[2]!.click()
     await flushUi()
-    ;(mounted.root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement).click()
-    await flushUi()
-    await flushUi()
+    await sendFilledPrompt(mounted.root)
 
     const btn = mounted.root.querySelector(
       '[data-testid="break-note-handoff"]',
@@ -497,14 +457,9 @@ describe('XiaohongshuWorkspace', () => {
     const pills = mounted.root.querySelectorAll<HTMLButtonElement>(
       '[data-testid="session-quick-row"] .pill',
     )
-    const send = () =>
-      mounted.root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement
-
     pills[0]!.click()
     await flushUi()
-    send().click()
-    await flushUi()
-    await flushUi()
+    await sendFilledPrompt(mounted.root)
     expect(mounted.root.querySelector('.item-action-btn')).toBeTruthy()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
       '租房党厨房收纳第一篇',
@@ -512,9 +467,7 @@ describe('XiaohongshuWorkspace', () => {
 
     pills[1]!.click()
     await flushUi()
-    send().click()
-    await flushUi()
-    await flushUi()
+    await sendFilledPrompt(mounted.root)
     expect(mounted.root.querySelector('.item-action-btn')).toBeNull()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('笔记种草稿')
     expect(mounted.root.querySelector('.computer-body')?.textContent).not.toContain(
