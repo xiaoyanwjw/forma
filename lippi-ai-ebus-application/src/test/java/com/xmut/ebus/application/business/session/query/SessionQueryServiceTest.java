@@ -96,7 +96,7 @@ class SessionQueryServiceTest {
     }
 
     @Test
-    void getMessageListReturnsTurnPageWithNextToken() {
+    void pageTurnsReturnsTurnPageWithNextToken() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
         when(piSessionQueryRepository.getLogicalRunIds(eq(SESSION), isNull(), eq(20)))
@@ -108,7 +108,8 @@ class SessionQueryServiceTest {
                         new PiMessage("user", "你好", t1, 3L, null, Collections.<PiToolCallRef>emptyList(), "run-a"),
                         new PiMessage("assistant", dump, t1, 6L, null, Collections.<PiToolCallRef>emptyList(), "run-a")));
 
-        Page<SessionTurnDTO> page = service.getMessageList(USER, SESSION, null, null);
+        Page<SessionTurnDTO> page = service.pageTurns(SessionTurnPageQuery.builder()
+                .userId(USER).sessionId(SESSION).nextToken(null).limit(null).build());
 
         assertEquals("6", page.getNextToken());
         assertEquals(1, page.getItems().size());
@@ -117,7 +118,7 @@ class SessionQueryServiceTest {
     }
 
     @Test
-    void getMessageListClustersListingSuspendResumeIntoOneTurn() {
+    void pageTurnsClustersListingSuspendResumeIntoOneTurn() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
         when(piSessionQueryRepository.getLogicalRunIds(eq(SESSION), isNull(), eq(20)))
@@ -130,7 +131,8 @@ class SessionQueryServiceTest {
                         msg("user", "{\"optionId\":\"confirm_execute\"}", 3L, t, "list-9:resume", null, null),
                         msg("assistant", "{\"output\":\"exec/final.json\"}", 4L, t, "list-9:resume", null, null)));
 
-        Page<SessionTurnDTO> page = service.getMessageList(USER, SESSION, null, null);
+        Page<SessionTurnDTO> page = service.pageTurns(SessionTurnPageQuery.builder()
+                .userId(USER).sessionId(SESSION).nextToken(null).limit(null).build());
 
         assertNull(page.getNextToken());
         assertEquals(1, page.getItems().size());
@@ -139,13 +141,14 @@ class SessionQueryServiceTest {
     }
 
     @Test
-    void getMessageListPassesNextTokenAndClampsLimit() {
+    void pageTurnsPassesNextTokenAndClampsLimit() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
         when(piSessionQueryRepository.getLogicalRunIds(eq(SESSION), eq("10"), eq(50)))
                 .thenReturn(Page.<PiLogicalRunRef>empty());
 
-        Page<SessionTurnDTO> page = service.getMessageList(USER, SESSION, "10", 500);
+        Page<SessionTurnDTO> page = service.pageTurns(SessionTurnPageQuery.builder()
+                .userId(USER).sessionId(SESSION).nextToken("10").limit(500).build());
 
         assertTrue(page.getItems().isEmpty());
         verify(piSessionQueryRepository).getLogicalRunIds(SESSION, "10", 50);
@@ -153,7 +156,7 @@ class SessionQueryServiceTest {
     }
 
     @Test
-    void getMessageListOrdersTurnsByTipSeqAscending() {
+    void pageTurnsOrdersTurnsByTipSeqAscending() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
         when(piSessionQueryRepository.getLogicalRunIds(eq(SESSION), isNull(), eq(20)))
@@ -170,7 +173,8 @@ class SessionQueryServiceTest {
                         msg("user", "后问", 79L, tNew, "run-new", null, null),
                         msg("assistant", "后答", 80L, tNew, "run-new", null, null)));
 
-        Page<SessionTurnDTO> page = service.getMessageList(USER, SESSION, null, null);
+        Page<SessionTurnDTO> page = service.pageTurns(SessionTurnPageQuery.builder()
+                .userId(USER).sessionId(SESSION).nextToken(null).limit(null).build());
 
         assertEquals("40", page.getNextToken());
         assertEquals(2, page.getItems().size());
@@ -181,12 +185,13 @@ class SessionQueryServiceTest {
     }
 
     @Test
-    void getMessageListForbiddenForOtherUser() {
+    void pageTurnsForbiddenForOtherUser() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, OTHER, "ecommerce", NOW)));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.getMessageList(USER, SESSION, null, null));
+                () -> service.pageTurns(SessionTurnPageQuery.builder()
+                        .userId(USER).sessionId(SESSION).nextToken(null).limit(null).build()));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
         assertEquals(SessionQueryService.MSG_UNAVAILABLE, ex.getMessage());
         verify(piSessionQueryRepository, never()).getLogicalRunIds(anyString(), any(), anyInt());
@@ -219,11 +224,12 @@ class SessionQueryServiceTest {
     }
 
     @Test
-    void getMessageListForbiddenWhenUserIdNullOnRow() {
+    void pageTurnsForbiddenWhenUserIdNullOnRow() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, null, "ecommerce", NOW)));
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.getMessageList(USER, SESSION, null, null));
+                () -> service.pageTurns(SessionTurnPageQuery.builder()
+                        .userId(USER).sessionId(SESSION).nextToken(null).limit(null).build()));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
         verify(piSessionQueryRepository, never()).getLogicalRunIds(anyString(), any(), anyInt());
     }

@@ -39,9 +39,6 @@ import java.util.Optional;
 public class SessionQueryService {
 
     public static final int SESSION_WINDOW_DAYS = 60;
-    /** 对外按「回合」分页 */
-    public static final int TURN_PAGE_DEFAULT = 20;
-    public static final int TURN_PAGE_MAX = 50;
     public static final String DEFAULT_TITLE = "电商会话";
     public static final String MSG_UNAVAILABLE = "会话不存在或无权查看";
 
@@ -79,9 +76,9 @@ public class SessionQueryService {
      * 按逻辑 runId 两段查询：① 分页 run ② 拉消息，再 Assembler 聚类（页内 tipSeq 升序）。
      */
     @Transactional(readOnly = true)
-    public Page<SessionTurnDTO> getMessageList(String userId, String sessionId, String nextToken, Integer limit) {
-        String uid = StringUtils.requireHasText(userId, "userId required");
-        String sid = StringUtils.requireHasText(sessionId, "sessionId required");
+    public Page<SessionTurnDTO> pageTurns(SessionTurnPageQuery query) {
+        String uid = StringUtils.requireHasText(query.getUserId(), "userId required");
+        String sid = StringUtils.requireHasText(query.getSessionId(), "sessionId required");
 
         PiSessionMeta row = piSessionQueryRepository.findBySessionId(sid)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE));
@@ -89,8 +86,9 @@ public class SessionQueryService {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE);
         }
 
-        int turnLimit = clampTurnPage(limit);
-        Page<PiLogicalRunRef> runPage = piSessionQueryRepository.getLogicalRunIds(sid, nextToken, turnLimit);
+        int turnLimit = query.turnLimit();
+        Page<PiLogicalRunRef> runPage =
+                piSessionQueryRepository.getLogicalRunIds(sid, query.nextToken(), turnLimit);
         if (runPage == null || CollectionUtils.isEmpty(runPage.getItems())) {
             return Page.empty();
         }
@@ -170,13 +168,6 @@ public class SessionQueryService {
         } catch (BusinessException ex) {
             return Optional.empty();
         }
-    }
-
-    static int clampTurnPage(Integer limit) {
-        if (limit == null || limit.intValue() <= 0) {
-            return TURN_PAGE_DEFAULT;
-        }
-        return Math.min(limit.intValue(), TURN_PAGE_MAX);
     }
 
     static boolean keepReplay(Message message) {

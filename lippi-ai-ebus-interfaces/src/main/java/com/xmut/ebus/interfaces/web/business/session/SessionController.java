@@ -5,6 +5,7 @@ import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
 import com.xmut.ebus.application.business.session.query.SessionListQuery;
 import com.xmut.ebus.application.business.session.query.SessionQueryService;
+import com.xmut.ebus.application.business.session.query.SessionTurnPageQuery;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.common.response.ApiResponse;
 import com.xmut.ebus.interfaces.security.SecuritySupport;
@@ -45,8 +46,12 @@ public class SessionController {
             @RequestParam(value = "nextToken", required = false) String nextToken,
             @RequestParam(value = "limit", required = false) Integer limit) {
         return ApiResponse.success(
-                sessionQueryService.getMessageList(
-                        SecuritySupport.requireUserId(), sessionId, nextToken, limit));
+                sessionQueryService.pageTurns(SessionTurnPageQuery.builder()
+                        .userId(SecuritySupport.requireUserId())
+                        .sessionId(sessionId)
+                        .nextToken(nextToken)
+                        .limit(limit)
+                        .build()));
     }
 
     @GetMapping("/{sessionId}/latest-artifact")
