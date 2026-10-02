@@ -4,7 +4,6 @@ import com.xmut.lims.pi.ai.model.ModelCatalog;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class EbusModelCatalogAutoConfigurationTest {

@@ -6,11 +6,14 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.ebus.extension.config.SkuToolsConfiguration;
 import com.xmut.ebus.extension.config.XhsToolsConfiguration;
+import com.xmut.ebus.extension.tool.xhs.port.XhsNoteFetchHit;
+import com.xmut.ebus.extension.tool.xhs.port.XhsNoteFetchPort;
 import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
+import java.util.Arrays;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,9 +21,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-
-import java.util.Arrays;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

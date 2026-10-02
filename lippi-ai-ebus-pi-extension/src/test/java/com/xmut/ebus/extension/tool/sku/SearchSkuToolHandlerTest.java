@@ -2,17 +2,18 @@ package com.xmut.ebus.extension.tool.sku;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.xmut.ebus.extension.tool.sku.port.SkuSearchHit;
+import com.xmut.ebus.extension.tool.sku.port.SkuSearchPort;
+import com.xmut.ebus.extension.tool.sku.search.SkuSearcher;
 import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Collections;
-
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;

@@ -3,16 +3,14 @@ package com.xmut.ebus.extension;
 import com.xmut.ebus.extension.config.EbusModelCatalogAutoConfiguration;
 import com.xmut.ebus.extension.config.SkuToolsConfiguration;
 import com.xmut.ebus.extension.config.XhsToolsConfiguration;
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.Properties;
-
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

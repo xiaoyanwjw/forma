@@ -2,11 +2,9 @@ package com.xmut.ebus.extension.tool.xhs;
 
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import com.xmut.lims.pi.agent.tool.ToolDefinitionJsonLoader;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class XhsToolJsonTest {

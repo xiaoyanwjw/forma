@@ -1,18 +1,19 @@
 package com.xmut.ebus.extension.config;
 
-import com.xmut.ebus.extension.tool.sku.SkuSearchProperties;
+import com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler;
+import com.xmut.ebus.extension.tool.sku.port.SkuSearchProperties;
+import com.xmut.ebus.extension.tool.xhs.FetchXhsNoteToolHandler;
+import com.xmut.ebus.extension.tool.xhs.SearchXhsNoteToolHandler;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import com.xmut.lims.pi.agent.tool.ToolDefinitionJsonLoader;
 import com.xmut.lims.pi.ai.model.InMemoryModelCatalog;
 import com.xmut.lims.pi.ai.model.ModelCatalog;
 import com.xmut.lims.pi.ai.model.ModelDescriptor;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
-
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;

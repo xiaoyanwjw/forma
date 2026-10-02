@@ -4,15 +4,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.xmut.ebus.extension.tool.sku.port.SkuSearchHit;
+import com.xmut.ebus.extension.tool.sku.search.SkuSearcher;
 import com.xmut.lims.pi.agent.graph.node.ToolHandler;
 import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
-
-import java.util.List;
 
 /**
  * Pi tool {@code search_sku}: query SKUs via {@link SkuSearcher}.

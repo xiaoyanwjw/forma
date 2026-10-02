@@ -1,9 +1,14 @@
 package com.xmut.ebus.extension.tool.xhs;
 
 import com.xmut.ebus.extension.config.XhsToolsConfiguration;
+import com.xmut.ebus.extension.tool.xhs.client.ApifyXhsNoteFetchClient;
+import com.xmut.ebus.extension.tool.xhs.client.ApifyXhsNoteSearchClient;
+import com.xmut.ebus.extension.tool.xhs.client.MockXhsNoteFetchClient;
+import com.xmut.ebus.extension.tool.xhs.client.MockXhsNoteSearchClient;
+import com.xmut.ebus.extension.tool.xhs.port.XhsNoteFetchPort;
+import com.xmut.ebus.extension.tool.xhs.port.XhsNoteSearchPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class XhsToolsConfigurationTest {

@@ -1,7 +1,7 @@
 package com.xmut.ebus.extension.config;
 
-import com.xmut.ebus.extension.tool.sku.SkuSearchProperties;
-import com.xmut.ebus.extension.tool.xhs.XhsNoteSearchProperties;
+import com.xmut.ebus.extension.tool.sku.port.SkuSearchProperties;
+import com.xmut.ebus.extension.tool.xhs.port.XhsNoteSearchProperties;
 import com.xmut.lims.pi.ai.model.InMemoryModelCatalog;
 import com.xmut.lims.pi.ai.model.ModelCatalog;
 import com.xmut.lims.pi.ai.model.ModelDescriptor;
