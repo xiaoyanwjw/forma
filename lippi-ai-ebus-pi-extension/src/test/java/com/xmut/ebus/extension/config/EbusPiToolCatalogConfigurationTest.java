@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.config;
+package com.xmut.ebus.extension.config;
 
 import com.xmut.ebus.extension.tool.sku.SkuSearchProperties;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
@@ -21,7 +21,7 @@ class EbusPiToolCatalogConfigurationTest {
 
     @Test
     void overlayFactory_resolvesSkuRerankAndPiDefault() {
-        ModelCatalog catalog = PiToolCatalogConfiguration.overlayWithSkuRerank(new SkuSearchProperties());
+        ModelCatalog catalog = EbusModelCatalogAutoConfiguration.overlayWithSkuRerank(new SkuSearchProperties());
         ModelDescriptor rerank = catalog.resolve("ebus.sku.rerank");
         assertNotNull(rerank);
         assertEquals("ebus.sku.rerank", rerank.getUseCase());
@@ -54,7 +54,7 @@ class EbusPiToolCatalogConfigurationTest {
     @Test
     void liveConfigBean_resolvesSkuRerank() {
         new ApplicationContextRunner()
-                .withUserConfiguration(PiToolCatalogConfiguration.class)
+                .withUserConfiguration(EbusModelCatalogAutoConfiguration.class)
                 .run(context -> {
                     ModelCatalog catalog = context.getBean(ModelCatalog.class);
                     assertNotNull(catalog.resolve("ebus.sku.rerank"));

@@ -1,7 +1,7 @@
 package com.xmut.ebus;
 
 import com.xmut.ebus.extension.ExtensionScanProbeComponent;
-import com.xmut.ebus.extension.config.ExtensionMarkerConfiguration;
+import com.xmut.ebus.extension.config.EbusModelCatalogAutoConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.BeanUtils;
 import org.springframework.boot.SpringBootConfiguration;
@@ -53,7 +53,7 @@ class EbusApplicationExtensionScanExcludeTest {
     }
 
     @Test
-    void does_not_component_scan_extension_types_but_loads_marker_via_auto_config() {
+    void does_not_component_scan_extension_types_but_loads_catalog_via_auto_config() {
         new ApplicationContextRunner()
                 .withInitializer(ctx -> {
                     ClassPathBeanDefinitionScanner scanner =
@@ -61,10 +61,10 @@ class EbusApplicationExtensionScanExcludeTest {
                     applyEbusApplicationExcludeFilters(scanner);
                     scanner.scan("com.xmut.ebus.extension");
                 })
-                .withConfiguration(AutoConfigurations.of(ExtensionMarkerConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(EbusModelCatalogAutoConfiguration.class))
                 .run(ctx -> {
                     assertThat(ctx).doesNotHaveBean(ExtensionScanProbeComponent.class);
-                    assertThat(ctx).hasSingleBean(ExtensionMarkerConfiguration.class);
+                    assertThat(ctx).hasSingleBean(EbusModelCatalogAutoConfiguration.class);
                 });
     }
 

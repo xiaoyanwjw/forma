@@ -1,7 +1,5 @@
-package com.xmut.ebus.application.config;
+package com.xmut.ebus.extension.config;
 
-import com.xmut.ebus.extension.config.SkuToolsConfiguration;
-import com.xmut.ebus.extension.config.XhsToolsConfiguration;
 import com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.ebus.extension.tool.xhs.FetchXhsNoteToolHandler;
 import com.xmut.ebus.extension.tool.xhs.SearchXhsNoteToolHandler;
@@ -27,7 +25,7 @@ class EbusPrimaryToolCatalogOverrideTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withUserConfiguration(
-                    PiToolCatalogConfiguration.class,
+                    EbusModelCatalogAutoConfiguration.class,
                     SkuToolsConfiguration.class,
                     XhsToolsConfiguration.class)
             .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class));
@@ -35,7 +33,7 @@ class EbusPrimaryToolCatalogOverrideTest {
     @Test
     void ebus_does_not_declare_second_toolCatalog() {
         new ApplicationContextRunner()
-                .withUserConfiguration(PiToolCatalogConfiguration.class)
+                .withUserConfiguration(EbusModelCatalogAutoConfiguration.class)
                 .run(context -> assertThat(context).doesNotHaveBean(ToolCatalog.class));
     }
 

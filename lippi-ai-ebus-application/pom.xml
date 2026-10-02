@@ -28,11 +28,6 @@
             <groupId>com.lippi</groupId>
             <artifactId>lippi-pi-agent</artifactId>
         </dependency>
-        <!-- Temporary until Task 4 moves ModelCatalog overlay; PiToolCatalogConfiguration still binds Sku/Xhs properties. -->
-        <dependency>
-            <groupId>com.lippi</groupId>
-            <artifactId>lippi-ai-ebus-pi-extension</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>

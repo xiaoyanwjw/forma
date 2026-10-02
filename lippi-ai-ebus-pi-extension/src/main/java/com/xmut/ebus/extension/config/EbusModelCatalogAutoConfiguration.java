@@ -1,4 +1,4 @@
-package com.xmut.ebus.application.config;
+package com.xmut.ebus.extension.config;
 
 import com.xmut.ebus.extension.tool.sku.SkuSearchProperties;
 import com.xmut.ebus.extension.tool.xhs.XhsNoteSearchProperties;
@@ -20,7 +20,7 @@ import org.springframework.util.StringUtils;
  */
 @Configuration
 @EnableConfigurationProperties({SkuSearchProperties.class, XhsNoteSearchProperties.class})
-public class PiToolCatalogConfiguration {
+public class EbusModelCatalogAutoConfiguration {
 
     /**
      * Live {@link ModelCatalog} used by pi-ai routing. pi-agent / pi-ai only register

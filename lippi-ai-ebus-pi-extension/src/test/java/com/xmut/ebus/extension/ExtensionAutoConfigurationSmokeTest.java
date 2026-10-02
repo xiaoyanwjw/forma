@@ -1,6 +1,8 @@
 package com.xmut.ebus.extension;
 
-import com.xmut.ebus.extension.config.ExtensionMarkerConfiguration;
+import com.xmut.ebus.extension.config.EbusModelCatalogAutoConfiguration;
+import com.xmut.ebus.extension.config.SkuToolsConfiguration;
+import com.xmut.ebus.extension.config.XhsToolsConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -17,10 +19,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ExtensionAutoConfigurationSmokeTest {
 
     @Test
-    void marker_loads_from_spring_factories() {
+    void catalog_overlay_loads_from_spring_factories() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(ExtensionMarkerConfiguration.class))
-                .run(ctx -> assertThat(ctx).hasSingleBean(ExtensionMarkerConfiguration.class));
+                .withConfiguration(AutoConfigurations.of(
+                        SkuToolsConfiguration.class,
+                        XhsToolsConfiguration.class,
+                        EbusModelCatalogAutoConfiguration.class))
+                .run(ctx -> {
+                    assertThat(ctx).hasSingleBean(EbusModelCatalogAutoConfiguration.class);
+                    assertThat(ctx).hasSingleBean(SkuToolsConfiguration.class);
+                    assertThat(ctx).hasSingleBean(XhsToolsConfiguration.class);
+                });
     }
 
     @Test
@@ -38,8 +47,8 @@ class ExtensionAutoConfigurationSmokeTest {
             }
         }
         String listed = merged.toString();
-        assertTrue(listed.contains("com.xmut.ebus.extension.config.ExtensionMarkerConfiguration"));
         assertTrue(listed.contains("com.xmut.ebus.extension.config.SkuToolsConfiguration"));
         assertTrue(listed.contains("com.xmut.ebus.extension.config.XhsToolsConfiguration"));
+        assertTrue(listed.contains("com.xmut.ebus.extension.config.EbusModelCatalogAutoConfiguration"));
     }
 }

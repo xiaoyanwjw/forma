@@ -13,7 +13,6 @@ import com.xmut.ebus.application.business.computer.ComputerViewProjector;
 import com.xmut.ebus.application.business.computer.ComputerViewResolver;
 import com.xmut.ebus.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.ebus.application.business.computer.NormalizeViewProjector;
-import com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.ebus.application.business.media.support.ListingMediaMountSupport;
 import com.xmut.ebus.domain.business.media.model.MediaObject;
 import com.xmut.ebus.domain.business.media.store.MediaStore;
@@ -1715,7 +1714,7 @@ class AgentApplicationServiceTest {
 
     private void stubSubscribeEmittingSearchSkuOk(String runId, String sessionId, String finalText) {
         stubSubscribeEmittingSearchSkuEnd(runId, sessionId, finalText,
-                ToolResult.ok("call-sku", SearchSkuToolHandler.TOOL_NAME, "[{}]"));
+                ToolResult.ok("call-sku", "search_sku", "[{}]"));
     }
 
     private void stubSubscribeEmittingSearchSkuEnd(String runId, String sessionId, String finalText,
