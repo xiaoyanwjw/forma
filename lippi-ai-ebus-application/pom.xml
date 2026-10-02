@@ -28,7 +28,7 @@
             <groupId>com.lippi</groupId>
             <artifactId>lippi-pi-agent</artifactId>
         </dependency>
-        <!-- Temporary until Task 3 moves XHS; application then drops this compile dep. -->
+        <!-- Temporary until Task 4 moves ModelCatalog overlay; PiToolCatalogConfiguration still binds Sku/Xhs properties. -->
         <dependency>
             <groupId>com.lippi</groupId>
             <artifactId>lippi-ai-ebus-pi-extension</artifactId>

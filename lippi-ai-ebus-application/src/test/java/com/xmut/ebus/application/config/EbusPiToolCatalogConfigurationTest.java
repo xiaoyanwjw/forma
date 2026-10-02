@@ -1,12 +1,6 @@
 package com.xmut.ebus.application.config;
 
 import com.xmut.ebus.extension.tool.sku.SkuSearchProperties;
-import com.xmut.ebus.application.business.agent.tool.xhs.ApifyXhsNoteFetchClient;
-import com.xmut.ebus.application.business.agent.tool.xhs.ApifyXhsNoteSearchClient;
-import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteFetchClient;
-import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteSearchClient;
-import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteFetchPort;
-import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteSearchPort;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
 import com.xmut.lims.pi.agent.tool.ToolDefinitionJsonLoader;
 import com.xmut.lims.pi.ai.model.InMemoryModelCatalog;
@@ -46,59 +40,15 @@ class EbusPiToolCatalogConfigurationTest {
         List<ToolDefinition> defs = ToolDefinitionJsonLoader.load(resolver);
         assertEquals("com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler",
                 handlerClassOf(defs, "search_sku"));
-        assertEquals("com.xmut.ebus.application.business.agent.tool.xhs.SearchXhsNoteToolHandler",
+        assertEquals("com.xmut.ebus.extension.tool.xhs.SearchXhsNoteToolHandler",
                 handlerClassOf(defs, "search_xhs_note"));
-        assertEquals("com.xmut.ebus.application.business.agent.tool.xhs.FetchXhsNoteToolHandler",
+        assertEquals("com.xmut.ebus.extension.tool.xhs.FetchXhsNoteToolHandler",
                 handlerClassOf(defs, "fetch_xhs_note"));
         assertTrue(handlerClassOf(defs, "search_sku") != null
                 && defs.stream().anyMatch(d -> "search_sku".equals(d.getId())
                 && d.getSchema() != null
                 && d.getSchema().getParametersSchema() != null
                 && d.getSchema().getParametersSchema().path("properties").has("query")));
-    }
-
-    @Test
-    void xhsNoteSearchPort_apify_binds_apify_client_even_without_token() {
-        new ApplicationContextRunner()
-                .withUserConfiguration(XhsToolsConfiguration.class)
-                .withPropertyValues("ebus.xhs-note-search.client=apify")
-                .run(context -> {
-                    XhsNoteSearchPort port = context.getBean(XhsNoteSearchPort.class);
-                    assertTrue(port instanceof ApifyXhsNoteSearchClient);
-                });
-    }
-
-    @Test
-    void xhsNoteFetchPort_apify_binds_apify_client_even_without_token() {
-        new ApplicationContextRunner()
-                .withUserConfiguration(XhsToolsConfiguration.class)
-                .withPropertyValues("ebus.xhs-note-fetch.client=apify")
-                .run(context -> {
-                    XhsNoteFetchPort port = context.getBean(XhsNoteFetchPort.class);
-                    assertTrue(port instanceof ApifyXhsNoteFetchClient);
-                });
-    }
-
-    @Test
-    void xhsNoteFetchPort_mock_binds_mock_client() {
-        new ApplicationContextRunner()
-                .withUserConfiguration(XhsToolsConfiguration.class)
-                .withPropertyValues("ebus.xhs-note-fetch.client=mock")
-                .run(context -> {
-                    XhsNoteFetchPort port = context.getBean(XhsNoteFetchPort.class);
-                    assertTrue(port instanceof MockXhsNoteFetchClient);
-                });
-    }
-
-    @Test
-    void xhsNoteSearchPort_mock_binds_mock_client() {
-        new ApplicationContextRunner()
-                .withUserConfiguration(XhsToolsConfiguration.class)
-                .withPropertyValues("ebus.xhs-note-search.client=mock")
-                .run(context -> {
-                    XhsNoteSearchPort port = context.getBean(XhsNoteSearchPort.class);
-                    assertTrue(port instanceof MockXhsNoteSearchClient);
-                });
     }
 
     @Test

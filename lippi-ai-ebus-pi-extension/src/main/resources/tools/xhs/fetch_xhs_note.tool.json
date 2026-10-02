@@ -1,0 +1,24 @@
+{
+  "id": "fetch_xhs_note",
+  "description": "拉取小红书笔记详情，返回 title/body/noteUrl",
+  "text": "[fetch_xhs_note] 按 url（或 noteUrl）拉取一篇笔记正文。禁止编造正文。",
+  "handlerClass": "com.xmut.ebus.extension.tool.xhs.FetchXhsNoteToolHandler",
+  "schema": {
+    "name": "fetch_xhs_note",
+    "description": "按 URL 拉取一篇小红书笔记正文；失败不编造原文",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "小红书笔记 URL 或分享短链"
+        },
+        "noteUrl": {
+          "type": "string",
+          "description": "url 的别名"
+        }
+      },
+      "required": ["url"]
+    }
+  }
+}
