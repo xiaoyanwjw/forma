@@ -1,0 +1,24 @@
+{
+  "id": "search_xhs_note",
+  "description": "检索小红书笔记，返回带 https noteUrl 的 hits",
+  "text": "[search_xhs_note] 按配置检索小红书笔记样本。使用 query，可选 pageSize；禁止编造 noteUrl。",
+  "handlerClass": "com.xmut.ebus.application.business.agent.tool.xhs.SearchXhsNoteToolHandler",
+  "schema": {
+    "name": "search_xhs_note",
+    "description": "按配置检索小红书笔记样本；每条命中含 https noteUrl",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "搜索关键词，例如 厨房收纳"
+        },
+        "pageSize": {
+          "type": "integer",
+          "description": "每页条数，默认 10，最大 20"
+        }
+      },
+      "required": ["query"]
+    }
+  }
+}

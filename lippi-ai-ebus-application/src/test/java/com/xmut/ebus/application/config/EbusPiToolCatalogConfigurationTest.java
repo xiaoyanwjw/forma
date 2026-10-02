@@ -7,13 +7,17 @@ import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteFetchClient;
 import com.xmut.ebus.application.business.agent.tool.xhs.MockXhsNoteSearchClient;
 import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteFetchPort;
 import com.xmut.ebus.application.business.agent.tool.xhs.XhsNoteSearchPort;
-import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
-import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.lims.pi.agent.tool.ToolDefinition;
+import com.xmut.lims.pi.agent.tool.ToolDefinitionJsonLoader;
 import com.xmut.lims.pi.ai.model.InMemoryModelCatalog;
 import com.xmut.lims.pi.ai.model.ModelCatalog;
 import com.xmut.lims.pi.ai.model.ModelDescriptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -37,10 +41,26 @@ class EbusPiToolCatalogConfigurationTest {
     }
 
     @Test
+    void loader_scans_sku_and_xhs_tool_json() {
+        ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        List<ToolDefinition> defs = ToolDefinitionJsonLoader.load(resolver);
+        assertEquals("com.xmut.ebus.application.business.agent.tool.sku.SearchSkuToolHandler",
+                handlerClassOf(defs, "search_sku"));
+        assertEquals("com.xmut.ebus.application.business.agent.tool.xhs.SearchXhsNoteToolHandler",
+                handlerClassOf(defs, "search_xhs_note"));
+        assertEquals("com.xmut.ebus.application.business.agent.tool.xhs.FetchXhsNoteToolHandler",
+                handlerClassOf(defs, "fetch_xhs_note"));
+        assertTrue(handlerClassOf(defs, "search_sku") != null
+                && defs.stream().anyMatch(d -> "search_sku".equals(d.getId())
+                && d.getSchema() != null
+                && d.getSchema().getParametersSchema() != null
+                && d.getSchema().getParametersSchema().path("properties").has("query")));
+    }
+
+    @Test
     void xhsNoteSearchPort_apify_binds_apify_client_even_without_token() {
         new ApplicationContextRunner()
-                .withUserConfiguration(PiToolCatalogConfiguration.class)
-                .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, EbusPiToolCatalogConfigurationTest::sealedSkillCatalog)
+                .withUserConfiguration(XhsToolsConfiguration.class)
                 .withPropertyValues("ebus.xhs-note-search.client=apify")
                 .run(context -> {
                     XhsNoteSearchPort port = context.getBean(XhsNoteSearchPort.class);
@@ -51,8 +71,7 @@ class EbusPiToolCatalogConfigurationTest {
     @Test
     void xhsNoteFetchPort_apify_binds_apify_client_even_without_token() {
         new ApplicationContextRunner()
-                .withUserConfiguration(PiToolCatalogConfiguration.class)
-                .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, EbusPiToolCatalogConfigurationTest::sealedSkillCatalog)
+                .withUserConfiguration(XhsToolsConfiguration.class)
                 .withPropertyValues("ebus.xhs-note-fetch.client=apify")
                 .run(context -> {
                     XhsNoteFetchPort port = context.getBean(XhsNoteFetchPort.class);
@@ -63,8 +82,7 @@ class EbusPiToolCatalogConfigurationTest {
     @Test
     void xhsNoteFetchPort_mock_binds_mock_client() {
         new ApplicationContextRunner()
-                .withUserConfiguration(PiToolCatalogConfiguration.class)
-                .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, EbusPiToolCatalogConfigurationTest::sealedSkillCatalog)
+                .withUserConfiguration(XhsToolsConfiguration.class)
                 .withPropertyValues("ebus.xhs-note-fetch.client=mock")
                 .run(context -> {
                     XhsNoteFetchPort port = context.getBean(XhsNoteFetchPort.class);
@@ -75,8 +93,7 @@ class EbusPiToolCatalogConfigurationTest {
     @Test
     void xhsNoteSearchPort_mock_binds_mock_client() {
         new ApplicationContextRunner()
-                .withUserConfiguration(PiToolCatalogConfiguration.class)
-                .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, EbusPiToolCatalogConfigurationTest::sealedSkillCatalog)
+                .withUserConfiguration(XhsToolsConfiguration.class)
                 .withPropertyValues("ebus.xhs-note-search.client=mock")
                 .run(context -> {
                     XhsNoteSearchPort port = context.getBean(XhsNoteSearchPort.class);
@@ -84,22 +101,25 @@ class EbusPiToolCatalogConfigurationTest {
                 });
     }
 
-    private static com.xmut.lims.pi.agent.skill.SkillCatalog sealedSkillCatalog() {
-        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
-        skills.sealBootstrap();
-        return skills;
-    }
-
     @Test
     void liveConfigBean_resolvesSkuRerank() {
         new ApplicationContextRunner()
                 .withUserConfiguration(PiToolCatalogConfiguration.class)
-                .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, EbusPiToolCatalogConfigurationTest::sealedSkillCatalog)
                 .run(context -> {
                     ModelCatalog catalog = context.getBean(ModelCatalog.class);
                     assertNotNull(catalog.resolve("ebus.sku.rerank"));
                     assertNotNull(catalog.resolve("ebus.xhs.rerank"));
                     assertNotNull(catalog.resolve(InMemoryModelCatalog.DEFAULT_USE_CASE));
                 });
+    }
+
+    private static String handlerClassOf(List<ToolDefinition> defs, String id) {
+        for (int i = 0; i < defs.size(); i++) {
+            ToolDefinition def = defs.get(i);
+            if (def != null && id.equals(def.getId())) {
+                return def.getHandlerClass();
+            }
+        }
+        return null;
     }
 }

@@ -11,8 +11,9 @@ import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchPort;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearchProperties;
 import com.xmut.ebus.application.business.agent.tool.sku.SkuSearcher;
 import com.xmut.ebus.application.config.PiToolCatalogConfiguration;
-import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
-import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.ebus.application.config.SkuToolsConfiguration;
+import com.xmut.ebus.application.config.XhsToolsConfiguration;
+import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.ai.model.ModelCatalog;
 import com.xmut.lims.pi.agent.tool.ToolContext;
@@ -20,6 +21,7 @@ import com.xmut.lims.pi.ai.tool.ToolCallEntry;
 import com.xmut.lims.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import java.util.Collections;
@@ -94,12 +96,10 @@ class SearchSkuToolHandlerTest {
     void catalogResolvesSearchSku() {
         new ApplicationContextRunner()
                 .withUserConfiguration(
-                        PiToolCatalogConfiguration.class)
-                .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, () -> {
-                    InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
-                    skills.sealBootstrap();
-                    return skills;
-                })
+                        PiToolCatalogConfiguration.class,
+                        SkuToolsConfiguration.class,
+                        XhsToolsConfiguration.class)
+                .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class))
                 .run(context -> {
                     assertTrue(context.getBean(ToolCatalog.class).resolve("search_sku").isPresent());
                     assertTrue(context.getBean(ToolCatalog.class).resolve("search_xhs_note").isPresent());

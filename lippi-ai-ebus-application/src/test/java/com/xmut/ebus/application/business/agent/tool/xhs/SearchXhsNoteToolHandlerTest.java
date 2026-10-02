@@ -5,8 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.ebus.application.config.PiToolCatalogConfiguration;
-import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
-import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.ebus.application.config.SkuToolsConfiguration;
+import com.xmut.ebus.application.config.XhsToolsConfiguration;
+import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
 import com.xmut.lims.pi.agent.tool.ToolCatalog;
 import com.xmut.lims.pi.agent.tool.ToolContext;
 import com.xmut.lims.pi.ai.model.ModelCatalog;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import java.util.Collections;
@@ -106,12 +108,11 @@ class SearchXhsNoteToolHandlerTest {
     @Test
     void catalogResolvesSearchXhsNote() {
         new ApplicationContextRunner()
-                .withUserConfiguration(PiToolCatalogConfiguration.class)
-                .withBean(com.xmut.lims.pi.agent.skill.SkillCatalog.class, () -> {
-                    InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.defaults());
-                    skills.sealBootstrap();
-                    return skills;
-                })
+                .withUserConfiguration(
+                        PiToolCatalogConfiguration.class,
+                        SkuToolsConfiguration.class,
+                        XhsToolsConfiguration.class)
+                .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class))
                 .run(context -> {
                     assertTrue(context.getBean(ToolCatalog.class).resolve("search_xhs_note").isPresent());
                     assertTrue(context.getBean(ModelCatalog.class).resolve("ebus.xhs.rerank") != null);
