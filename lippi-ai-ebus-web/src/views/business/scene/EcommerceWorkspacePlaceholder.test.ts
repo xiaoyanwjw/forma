@@ -600,6 +600,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(area.value).toMatch(/上架素材/)
     expect(area.value).toMatch(/硅胶沥水垫/)
     expect(area.value).not.toMatch(/【/)
+    const slot = mounted.root.querySelector('.prompt-highlight .ph')
+    expect(slot?.textContent).toBe('「硅胶沥水垫」')
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
     expect(listingApiHits(fetchMock)).toHaveLength(0)

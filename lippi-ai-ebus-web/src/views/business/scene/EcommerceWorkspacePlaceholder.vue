@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
+import SlotAwarePromptEditor from '@/components/business/scene/SlotAwarePromptEditor.vue'
 import { ApiError } from '@/api/client'
 import { getFeedbackByArtifact, submitFeedback } from '@/api/business/feedback/feedback'
 import { getScenes } from '@/api/business/scene/scene'
@@ -29,6 +30,7 @@ import {
 import type { GenerationArtifactPayload } from '@/types/business/agent'
 import { parseComputerDocument, type ComputerListItem } from '@/types/business/computerView'
 import { buildListingHandoffText } from '@/utils/listingHandoff'
+import { splitPromptSlots } from '@/utils/promptSlots'
 import { FEEDBACK_TAG_GOOD_QUALITY, FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
 import { toReplayBubblesFromTurns } from '@/utils/sessionReplay'
 import type { HistoryArtifactDetail } from '@/types/business/history'
@@ -1122,7 +1124,10 @@ onMounted(async () => {
               </div>
               <div class="body">
                 <p v-if="m.role === 'user'" class="msg-text">
-                  {{ m.text }}
+                  <template v-for="(seg, i) in splitPromptSlots(m.text)" :key="i">
+                    <span v-if="seg.slot" class="ph">{{ seg.text }}</span>
+                    <template v-else>{{ seg.text }}</template>
+                  </template>
                 </p>
                 <p v-else-if="!isConsoleMessage(m)" class="msg-text agent-text">
                   <span v-if="m.at" class="msg-time">{{ formatEventTime(m.at) }}</span>
@@ -1396,13 +1401,11 @@ onMounted(async () => {
                 </button>
               </div>
               <div class="prompt-box">
-                <textarea
+                <SlotAwarePromptEditor
                   v-model="sessionPrompt"
-                  class="prompt-editor"
-                  rows="2"
+                  :disabled="sessionBusy"
                   placeholder="分配一个任务或提问任何问题"
                   aria-label="继续提问"
-                  :disabled="sessionBusy"
                 />
                 <div class="prompt-toolbar">
                   <button
