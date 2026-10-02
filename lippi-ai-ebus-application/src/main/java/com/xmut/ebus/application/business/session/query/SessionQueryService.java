@@ -144,19 +144,15 @@ public class SessionQueryService {
      * 空则上述类型里取最新一条。
      */
     @Transactional(readOnly = true)
-    public Optional<HistoryArtifactDetailDTO> latestArtifact(String userId, String sessionId) {
-        return latestArtifact(userId, sessionId, null);
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<HistoryArtifactDetailDTO> latestArtifact(String userId, String sessionId, String artifactType) {
-        String uid = StringUtils.requireHasText(userId, "userId required");
-        String sid = StringUtils.requireHasText(sessionId, "sessionId required");
+    public Optional<HistoryArtifactDetailDTO> getLatestArtifact(SessionLatestArtifactQuery query) {
+        String uid = StringUtils.requireHasText(query.getUserId(), "userId required");
+        String sid = StringUtils.requireHasText(query.getSessionId(), "sessionId required");
         Instant since = Instant.now(clock).minus(HistoryQueryService.HISTORY_WINDOW_DAYS, ChronoUnit.DAYS);
         Optional<String> artifactId;
-        if (StringUtils.hasText(artifactType)) {
+        String artifactType = query.artifactType();
+        if (artifactType != null) {
             artifactId = generationRunRepository.findLatestSettledArtifactRefBySession(
-                    uid, sid, since, artifactType.trim());
+                    uid, sid, since, artifactType);
         } else {
             artifactId = generationRunRepository.findLatestSettledArtifactRefBySession(uid, sid, since);
         }

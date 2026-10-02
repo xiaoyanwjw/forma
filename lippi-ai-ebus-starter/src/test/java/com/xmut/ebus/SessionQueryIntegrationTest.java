@@ -2,6 +2,7 @@ package com.xmut.ebus;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
+import com.xmut.ebus.application.business.session.query.SessionLatestArtifactQuery;
 import com.xmut.ebus.application.business.session.query.SessionQueryService;
 import com.xmut.ebus.domain.business.artifact.model.Artifact;
 import com.xmut.ebus.domain.business.artifact.model.ArtifactType;
@@ -216,13 +217,17 @@ class SessionQueryIntegrationTest {
         insertArtifactAndRun(userId, sessionId, ArtifactType.CHAT, "聊天", t3);
         String skuId = insertArtifactAndRun(userId, sessionId, ArtifactType.SKU, "新 Listing", t2);
 
-        HistoryArtifactDetailDTO latest = sessionQueryService.latestArtifact(userId, sessionId).orElse(null);
+        HistoryArtifactDetailDTO latest = sessionQueryService.getLatestArtifact(
+                SessionLatestArtifactQuery.builder().userId(userId).sessionId(sessionId).build())
+                .orElse(null);
         assertTrue(latest != null);
         assertEquals(skuId, latest.getId());
         assertEquals("sku", latest.getArtifactType());
         assertEquals(sessionId, latest.getSessionId());
         assertFalse(pickId.equals(latest.getId()));
-        assertFalse(sessionQueryService.latestArtifact(userId, "no-such-session").isPresent());
+        assertFalse(sessionQueryService.getLatestArtifact(
+                SessionLatestArtifactQuery.builder().userId(userId).sessionId("no-such-session").build())
+                .isPresent());
 
         mockMvc.perform(get("/api/v1/sessions/" + sessionId + "/latest-artifact")
                         .header("Authorization", "Bearer " + token))
@@ -247,7 +252,9 @@ class SessionQueryIntegrationTest {
                 Timestamp.from(Instant.now()), oldSkuId);
         String pickId = insertArtifactAndRun(userId, sessionId, ArtifactType.PICKLIST, "窗内选品", recent);
 
-        HistoryArtifactDetailDTO latest = sessionQueryService.latestArtifact(userId, sessionId).orElse(null);
+        HistoryArtifactDetailDTO latest = sessionQueryService.getLatestArtifact(
+                SessionLatestArtifactQuery.builder().userId(userId).sessionId(sessionId).build())
+                .orElse(null);
         assertTrue(latest != null);
         assertEquals(pickId, latest.getId());
         assertEquals("picklist", latest.getArtifactType());
@@ -263,7 +270,9 @@ class SessionQueryIntegrationTest {
         insertArtifactAndRun(userId, sessionId, ArtifactType.SKU, "超窗",
                 Instant.now().minus(70, ChronoUnit.DAYS));
 
-        assertFalse(sessionQueryService.latestArtifact(userId, sessionId).isPresent());
+        assertFalse(sessionQueryService.getLatestArtifact(
+                SessionLatestArtifactQuery.builder().userId(userId).sessionId(sessionId).build())
+                .isPresent());
     }
 
     private String insertArtifactAndRun(String userId,

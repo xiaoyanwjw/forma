@@ -3,6 +3,7 @@ package com.xmut.ebus.interfaces.web.business.session;
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
+import com.xmut.ebus.application.business.session.query.SessionLatestArtifactQuery;
 import com.xmut.ebus.application.business.session.query.SessionListQuery;
 import com.xmut.ebus.application.business.session.query.SessionQueryService;
 import com.xmut.ebus.application.business.session.query.SessionTurnPageQuery;
@@ -59,8 +60,11 @@ public class SessionController {
             @PathVariable("sessionId") String sessionId,
             @RequestParam(value = "artifactType", required = false) String artifactType) {
         return ApiResponse.success(
-                sessionQueryService.latestArtifact(
-                                SecuritySupport.requireUserId(), sessionId, artifactType)
+                sessionQueryService.getLatestArtifact(SessionLatestArtifactQuery.builder()
+                                .userId(SecuritySupport.requireUserId())
+                                .sessionId(sessionId)
+                                .artifactType(artifactType)
+                                .build())
                         .orElse(null));
     }
 }

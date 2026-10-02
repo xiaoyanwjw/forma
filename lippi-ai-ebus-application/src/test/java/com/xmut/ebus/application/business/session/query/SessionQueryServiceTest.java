@@ -244,7 +244,8 @@ class SessionQueryServiceTest {
                 .thenReturn(Optional.of("xhs-break-1"));
         when(historyQueryService.findById(USER, "xhs-break-1")).thenReturn(expected);
 
-        Optional<HistoryArtifactDetailDTO> found = service.latestArtifact(USER, SESSION);
+        Optional<HistoryArtifactDetailDTO> found = service.getLatestArtifact(
+                SessionLatestArtifactQuery.builder().userId(USER).sessionId(SESSION).build());
 
         assertTrue(found.isPresent());
         assertEquals("xhs_break", found.get().getArtifactType());
@@ -261,7 +262,8 @@ class SessionQueryServiceTest {
                 .thenReturn(Optional.of("sku-9"));
         when(historyQueryService.findById(USER, "sku-9")).thenReturn(expected);
 
-        Optional<HistoryArtifactDetailDTO> found = service.latestArtifact(USER, SESSION);
+        Optional<HistoryArtifactDetailDTO> found = service.getLatestArtifact(
+                SessionLatestArtifactQuery.builder().userId(USER).sessionId(SESSION).build());
 
         assertTrue(found.isPresent());
         assertEquals("sku-9", found.get().getId());
@@ -276,7 +278,8 @@ class SessionQueryServiceTest {
         when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION, since))
                 .thenReturn(Optional.empty());
 
-        Optional<HistoryArtifactDetailDTO> found = service.latestArtifact(USER, SESSION);
+        Optional<HistoryArtifactDetailDTO> found = service.getLatestArtifact(
+                SessionLatestArtifactQuery.builder().userId(USER).sessionId(SESSION).build());
 
         assertFalse(found.isPresent());
         verify(historyQueryService, never()).findById(any(), any());
@@ -290,7 +293,8 @@ class SessionQueryServiceTest {
         when(historyQueryService.findById(USER, "sku-old"))
                 .thenThrow(new BusinessException(ErrorCode.FORBIDDEN, HistoryQueryService.MSG_UNAVAILABLE));
 
-        Optional<HistoryArtifactDetailDTO> found = service.latestArtifact(USER, SESSION);
+        Optional<HistoryArtifactDetailDTO> found = service.getLatestArtifact(
+                SessionLatestArtifactQuery.builder().userId(USER).sessionId(SESSION).build());
 
         assertFalse(found.isPresent());
     }
