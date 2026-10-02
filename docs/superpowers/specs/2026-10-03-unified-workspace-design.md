@@ -17,8 +17,8 @@
 
 ## Non-goals
 
-- 本阶段不把 handoff 文案模板、`priorityBadgeLabel` 强制上收服务端（spec 可硬编码，接口预留）  
-- 不改 SSE 事件名、积分账本、`ComputerBlock` 协议  
+- 本阶段不把 handoff 文案模板强制上收服务端（仍可在 Spec 的 `buildText` 里）  
+- 不改 SSE 事件名、积分账本  
 - 不在本设计内实现第三场景（但 spec 应可扩展）
 
 ---
@@ -32,6 +32,7 @@
 | Run | 统一 `useAgentSkillRun`（`skillId` 可选） |
 | HITL | **A**：并进通用 skill run；listing 为第一使用者 |
 | Computer 槽命名 | **`pane`**（不用 `kind*`） |
+| 列表 badge | **数据驱动**：展示文案由 Computer 协议下发；**不进** Spec；去掉 Workspace→`priorityBadgeLabel` 接线 |
 | 胶囊发送 | 遵循 capsule-skill-selection design |
 | 演示预览 | 删除（历史债） |
 | 槽位 | 高亮 + 发送拦截统一为 `「…」` |
@@ -76,12 +77,16 @@ type SceneWorkspaceSpec = {
     targetSkillId: string
     buildText: () => string | null
   }>
-  /** 协议 badge=priority 的展示文案；缺省「优先试」 */
-  priorityBadgeLabel?: string
 }
 ```
 
 **`pane*` 含义：** 本地 Computer 成果槽 id（如 `picks` / `listing` / `topiclist` / `note` / `break`），不是 skillId，也不是意图猜测。
+
+### Badge（通用组件，不进 Spec）
+
+- 列表优先级标签是 **Computer 数据**：`item.badge` 应为可展示文案（如「优先试」「优先发」），或协议不再使用需 FE 翻译的语义 key `priority`。
+- **ComputerRenderer** 原样展示 `badge`（可保留从标题 `【优先试】` / `【优先发】` 剥前缀的兼容）；**删除**（或废弃）`priorityBadgeLabel` prop 与 Workspace 场景接线。
+- Spec / 统一 Workspace **不出现**该字段。
 
 示例（示意）：
 
@@ -133,6 +138,7 @@ type SceneWorkspaceSpec = {
 3. **Spec 表**：`paneBy*` / handoffs / artifactTypes  
 4. **单页 Workspace** + 测迁移；删双大文件与演示债  
 5. **槽位**：统一 `「…」`；删 `【】` 场景正则  
+6. **Badge**：ComputerRenderer 去掉 `priorityBadgeLabel`；skill/制品侧改为下发展示文案（测：电商「优先试」、小红书「优先发」仍可见，但无场景 prop）
 
 ---
 
@@ -145,6 +151,7 @@ type SceneWorkspaceSpec = {
 - 会话切换并行拉 `artifactTypes`  
 - 路由两场景同组件  
 - 无演示预览  
+- 无 `priority-badge-label` / Spec.`priorityBadgeLabel`；badge 来自 document 数据  
 
 ---
 
@@ -156,4 +163,4 @@ type SceneWorkspaceSpec = {
 
 ## Approval
 
-§1–§3（含 `pane*` 命名、HITL=A、方案 1）已在会话确认。
+§1–§3（含 `pane*` 命名、HITL=A、方案 1）已在会话确认；badge 数据驱动（不进 Spec）为后续修订确认。
