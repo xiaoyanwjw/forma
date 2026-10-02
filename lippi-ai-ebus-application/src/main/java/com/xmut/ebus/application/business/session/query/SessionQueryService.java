@@ -10,8 +10,8 @@ import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
-import com.xmut.ebus.domain.business.agent.model.PiMessage;
-import com.xmut.ebus.domain.business.agent.model.PiSession;
+import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
+import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
 import com.xmut.lims.pi.ai.message.Message;
@@ -19,6 +19,7 @@ import com.xmut.lims.pi.agent.session.SessionStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -60,9 +61,9 @@ public class SessionQueryService {
         String sceneCode = StringUtils.hasText(sceneCodeOrNull) ? sceneCodeOrNull.trim() : null;
         int capped = clampLimit(limit);
         Instant since = Instant.now(clock).minus(SESSION_WINDOW_DAYS, ChronoUnit.DAYS);
-        List<PiSession> rows = piSessionQueryRepository.selectByUserSince(uid, since, sceneCode, capped);
+        List<PiSessionMeta> rows = piSessionQueryRepository.selectByUserSince(uid, since, sceneCode, capped);
         List<SessionSummaryDTO> out = new ArrayList<SessionSummaryDTO>();
-        for (PiSession row : rows) {
+        for (PiSessionMeta row : rows) {
             if (row == null || !uid.equals(row.getUserId()) || !StringUtils.hasText(row.getSessionId())) {
                 continue;
             }
@@ -84,7 +85,7 @@ public class SessionQueryService {
         String uid = StringUtils.requireHasText(userId, "userId required");
         String sid = StringUtils.requireHasText(sessionId, "sessionId required");
 
-        PiSession row = piSessionQueryRepository.findBySessionId(sid)
+        PiSessionMeta row = piSessionQueryRepository.findBySessionId(sid)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE));
         if (!uid.equals(row.getUserId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE);
@@ -92,15 +93,17 @@ public class SessionQueryService {
 
         int turnLimit = clampTurnPage(limit);
         Page<PiLogicalRunRef> runPage = piSessionQueryRepository.getLogicalRunIds(sid, nextToken, turnLimit);
-        if (runPage == null || runPage.getItems() == null || runPage.getItems().isEmpty()) {
+        if (runPage == null || CollectionUtils.isEmpty(runPage.getItems())) {
             return Page.empty();
         }
+
         List<PiLogicalRunRef> newestFirst = runPage.getItems();
         List<String> runIds = new ArrayList<String>(newestFirst.size());
         for (PiLogicalRunRef ref : newestFirst) {
             runIds.add(ref.getLogicalRunId());
         }
-        List<PiMessage> messages = keepReplayMessages(
+
+        List<PiMessageDTO> messages = keepReplayMessages(
                 piSessionQueryRepository.getMessagesByLogicalRunIds(sid, runIds));
         List<SessionTurnDTO> assembled = SessionTurnAssembler.assemble(messages);
         List<SessionTurnDTO> ascending = orderTurnsByRunTipOrder(assembled, newestFirst);
@@ -126,12 +129,12 @@ public class SessionQueryService {
         return out;
     }
 
-    private static List<PiMessage> keepReplayMessages(List<PiMessage> items) {
+    private static List<PiMessageDTO> keepReplayMessages(List<PiMessageDTO> items) {
         if (items == null || items.isEmpty()) {
             return Collections.emptyList();
         }
-        List<PiMessage> kept = new ArrayList<PiMessage>();
-        for (PiMessage message : items) {
+        List<PiMessageDTO> kept = new ArrayList<PiMessageDTO>();
+        for (PiMessageDTO message : items) {
             if (keepReplay(message)) {
                 kept.add(message);
             }
@@ -196,7 +199,7 @@ public class SessionQueryService {
         return keepReplay(role, content, false);
     }
 
-    static boolean keepReplay(PiMessage message) {
+    static boolean keepReplay(PiMessageDTO message) {
         if (message == null) {
             return false;
         }
