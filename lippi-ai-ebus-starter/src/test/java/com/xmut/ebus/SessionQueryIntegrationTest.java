@@ -134,6 +134,48 @@ class SessionQueryIntegrationTest {
     }
 
     @Test
+    void messagesPageByTipSeqAcrossTwoLogicalRunsIncludingHitl() throws Exception {
+        String ownerName = "sqp_" + shortId();
+        String token = registerAndLogin(ownerName);
+        String ownerId = userIdOf(ownerName);
+        String sessionId = "sess-page-" + shortId();
+        insertSession(sessionId, ownerId, Instant.now());
+
+        sessionStore.append(sessionId, "run-old", Arrays.asList(
+                Message.user("先问"),
+                Message.assistant("先答", null)));
+        sessionStore.append(sessionId, "run-hitl:suspend", Arrays.asList(
+                Message.user("请生成上架素材"),
+                Message.assistant("plan", null)));
+        sessionStore.append(sessionId, "run-hitl:resume", Arrays.asList(
+                Message.user("{\"optionId\":\"confirm_execute\"}"),
+                Message.assistant("exec", null)));
+
+        MvcResult first = mockMvc.perform(get("/api/v1/sessions/" + sessionId + "/messages")
+                        .param("limit", "1")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].runId").value("run-hitl"))
+                .andExpect(jsonPath("$.data.items[0].userPrompt").value("请生成上架素材"))
+                .andExpect(jsonPath("$.data.items[0].messages.length()").value(4))
+                .andReturn();
+        String nextToken = objectMapper.readTree(first.getResponse().getContentAsString())
+                .path("data").path("nextToken").asText();
+        assertTrue(nextToken != null && !nextToken.isEmpty() && !"null".equals(nextToken));
+
+        mockMvc.perform(get("/api/v1/sessions/" + sessionId + "/messages")
+                        .param("limit", "1")
+                        .param("nextToken", nextToken)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].runId").value("run-old"))
+                .andExpect(jsonPath("$.data.items[0].userPrompt").value("先问"))
+                .andExpect(jsonPath("$.data.nextToken").value(nullValue()));
+    }
+
+    @Test
     void prepareRunRefusesForeignSessionIdBeforeReserve() throws Exception {
         String ownerName = "sqf_" + shortId();
         String otherName = "sqx_" + shortId();
