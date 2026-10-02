@@ -151,6 +151,14 @@ const activeLiveArtifact = computed(() => {
   if (pane && liveByPane.value[pane]?.artifactRef) {
     return liveByPane.value[pane]
   }
+  const billed = lastBilledPane.value
+  if (billed && liveByPane.value[billed]?.artifactRef) {
+    return liveByPane.value[billed]
+  }
+  const preferred = preferredLivePane()
+  if (preferred && liveByPane.value[preferred]?.artifactRef) {
+    return liveByPane.value[preferred]
+  }
   return Object.values(liveByPane.value).find((item) => item?.artifactRef) ?? null
 })
 

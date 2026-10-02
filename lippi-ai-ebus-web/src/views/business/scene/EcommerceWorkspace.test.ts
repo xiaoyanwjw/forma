@@ -1128,6 +1128,76 @@ describe('Workspace ecommerce session shell', () => {
     })
   })
 
+  it('closed Computer like posts latest billed listing artifact, not earlier picklist', async () => {
+    const pickView = sampleComputerView()
+    const skuView = sampleListingView()
+    fetchMock.mockRestore()
+    fetchMock = mockCatalogAndCredits({
+      sessions: [
+        {
+          sessionId: 'sess-handoff',
+          title: '选品后上架',
+          sceneCode: 'ecommerce',
+          updatedAt: '2026-10-03T00:00:00Z',
+        },
+      ],
+    })
+    const baseImpl = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.includes('/api/v1/sessions/') && url.includes('/latest-artifact')) {
+        const artifactType = new URL(url, 'http://local.test').searchParams.get('artifactType')
+        const meta = {
+          sceneCode: 'ecommerce',
+          createdAt: '2026-10-03T00:00:00Z',
+          sessionId: 'sess-handoff',
+        }
+        if (artifactType === 'picklist') {
+          return okScenes({
+            id: 'pl-old',
+            artifactType: 'picklist',
+            title: '选品清单',
+            view: pickView,
+            ...meta,
+          })
+        }
+        return okScenes({
+          id: 'sku-latest',
+          artifactType: 'sku',
+          title: '上架素材',
+          view: skuView,
+          ...meta,
+        })
+      }
+      return baseImpl(input, init)
+    })
+
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await flushUi()
+    ;(mounted.root.querySelector('[data-testid="session-item"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
+    expect(mounted.root.querySelector('[data-testid="card-like"]')).toBeTruthy()
+
+    ;(mounted.root.querySelector('[data-testid="card-like"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const postHits = fetchMock.mock.calls.filter(([input, init]) => {
+      const method = String((init as RequestInit | undefined)?.method || 'GET').toUpperCase()
+      return String(input).includes('/api/v1/feedbacks') && method === 'POST'
+    })
+    expect(postHits.length).toBeGreaterThanOrEqual(1)
+    const [, likeInit] = postHits[postHits.length - 1] as [string, RequestInit]
+    expect(JSON.parse(String(likeInit.body))).toMatchObject({
+      artifactId: 'sku-latest',
+      tag: '质量好',
+    })
+  })
+
   it('shows retry/like/dislike only on the latest success STATUS card', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
