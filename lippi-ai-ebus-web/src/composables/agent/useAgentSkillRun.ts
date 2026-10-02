@@ -94,7 +94,11 @@ export function useAgentSkillRun() {
       }
     }
     if (event.name === 'artifact_ready') {
-      artifact.value = toGenerationArtifact(event.data)
+      const next = toGenerationArtifact(event.data)
+      if (next) {
+        artifact.value = next
+        window.dispatchEvent(new CustomEvent(CREDITS_CHANGED_EVENT))
+      }
     }
     if (event.name === 'human_input_required') {
       const prompt = toHumanInputRequired(event.data, runId.value)

@@ -141,6 +141,94 @@ describe('useAgentSkillRun HITL', () => {
     expect(mounted.result.running.value).toBe(false)
   })
 
+  it('dispatches credits-changed on usable artifact_ready during HITL pause', async () => {
+    const creditsSpy = vi.fn()
+    window.addEventListener('ebus:credits-changed', creditsSpy)
+    vi.mocked(streamAgentRun).mockImplementation(() =>
+      eventsOf(
+        sse('run_started', { runId: 'r-l1', sessionId: 's1' }),
+        sse('artifact_ready', {
+          artifactRef: 'plan-1',
+          view: {
+            version: 1,
+            title: '硅胶沥水垫 · 策划分镜',
+            status: 'ready',
+            blocks: [{ type: 'markdown', text: '## 成交方向' }],
+          },
+        }),
+        sse('human_input_required', {
+          toolCallId: 'ask-1',
+          runId: 'r-l1',
+          question: '策划分镜已出。确认后将生成执行稿。',
+        }),
+      ),
+    )
+    vi.mocked(resumeGenerationRun).mockImplementation(() =>
+      eventsOf(
+        sse('artifact_ready', {
+          artifactRef: 'plan-2',
+          view: {
+            version: 1,
+            title: '硅胶沥水垫 · 改策划',
+            status: 'ready',
+            blocks: [{ type: 'markdown', text: '## 补充后分镜' }],
+          },
+        }),
+        sse('human_input_required', {
+          toolCallId: 'ask-2',
+          runId: 'r-l1',
+        }),
+      ),
+    )
+
+    const mounted = withSetup(() => useAgentSkillRun())
+    unmount = mounted.unmount
+    const { startSkillRun, pendingHuman, resumeSkillRun, artifact } = mounted.result
+
+    await startSkillRun({
+      text: '生成上架',
+      skillId: 'ecommerce-skulist',
+      sceneCode: 'ecommerce',
+    })
+
+    expect(artifact.value?.artifactRef).toBe('plan-1')
+    expect(pendingHuman.value?.toolCallId).toBe('ask-1')
+    expect(creditsSpy).toHaveBeenCalledTimes(1)
+    expect(resumeGenerationRun).not.toHaveBeenCalled()
+
+    await resumeSkillRun({ optionId: 'supplement', freeText: '再强调沥水' })
+    expect(artifact.value?.artifactRef).toBe('plan-2')
+    expect(pendingHuman.value?.toolCallId).toBe('ask-2')
+    expect(creditsSpy).toHaveBeenCalledTimes(2)
+
+    window.removeEventListener('ebus:credits-changed', creditsSpy)
+  })
+
+  it('does not dispatch credits-changed on unusable artifact_ready', async () => {
+    const creditsSpy = vi.fn()
+    window.addEventListener('ebus:credits-changed', creditsSpy)
+    vi.mocked(streamAgentRun).mockImplementation(() =>
+      eventsOf(
+        sse('run_started', { runId: 'r-bad', sessionId: 's4' }),
+        sse('artifact_ready', { items: [{ title: '无 view' }] }),
+        sse('human_input_required', { toolCallId: 'ask-bad', runId: 'r-bad' }),
+      ),
+    )
+
+    const mounted = withSetup(() => useAgentSkillRun())
+    unmount = mounted.unmount
+    await mounted.result.startSkillRun({
+      text: '生成上架',
+      skillId: 'ecommerce-skulist',
+      sceneCode: 'ecommerce',
+    })
+
+    expect(mounted.result.artifact.value).toBeNull()
+    expect(mounted.result.pendingHuman.value?.toolCallId).toBe('ask-bad')
+    expect(creditsSpy).not.toHaveBeenCalled()
+    window.removeEventListener('ebus:credits-changed', creditsSpy)
+  })
+
   it('clears pendingHuman on run_failed', async () => {
     vi.mocked(streamAgentRun).mockImplementation(() =>
       eventsOf(
