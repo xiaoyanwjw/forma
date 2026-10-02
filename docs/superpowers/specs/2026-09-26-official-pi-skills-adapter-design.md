@@ -116,7 +116,7 @@ Registry 改为 **按 id** 索引（不再 `id@version`）。
 **本故事对 Tool 的硬动作：**
 
 - 去掉 tool 定义上的必填 `level` / `version` / 展示用冗余字段（若类型合并则直接删 `ToolLevel`）
-- 删除或停用 `*.tool.json` Manifest 双轨与 `ToolDefinitionJsonLoader`（改为代码侧定义；`read_skill` 可内联注册）
+- 删除或停用 `*.tool.json` Manifest 双轨与 `ToolDefinitionJsonLoader`（改为代码侧定义；`read_skill` 可内联注册）。**已由** [`2026-10-02-pi-tool-skill-dynamic-injection-design.md`](./2026-10-02-pi-tool-skill-dynamic-injection-design.md) **取代**：schema 轨恢复为 `*.tool.json`，Handler 仍为 Java。
 - 删除仅测用 / 无 handler 的声明型工具资源
 - 合并过厚的 `ToolBinding` / `Tool` / `AutoBinder` 层次（能合成「定义+执行」一层就合成）
 - `ExtensionRunner` 仍可要求有一个策略扩展，但其逻辑改为「按名」，不是「按级」
