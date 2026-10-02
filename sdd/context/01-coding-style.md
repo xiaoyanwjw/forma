@@ -27,7 +27,8 @@ FE views → api/<区>/*.ts（仅 HTTP）→ types/<区> → HTTP
 [ ] 业务键同名 camelCase（如 picklistId）
 [ ] 写：FE 动词 ↔ ApplicationService
 [ ] 读：FE get* ↔ QueryService find*/page/get*
-[ ] 查询类 *PageQuery；勿 Get*Command
+[ ] 查询类 *PageQuery / *Query extends BaseQuery；≥2 参或分页/过滤必须对象化；勿 Get*Command
+[ ] domain 只读投影勿 *DTO；HTTP/Application 出口用 *DTO
 [ ] Application 不自己抠 SecurityContext；userId 由 Controller 注入
 [ ] api 无 export type；types 为类型唯一出处
 [ ] FE 状态数值 === BE *Status（若有）
@@ -37,7 +38,7 @@ FE views → api/<区>/*.ts（仅 HTTP）→ types/<区> → HTTP
 
 1. **主路径要直**：卫语句先挡非法；真正做事的那段浅缩进。
 2. **一层一事**：Controller 组命令；App 写；Query 读；FE `api` 只 HTTP、`types` 只形状。
-3. **名字说身份**：查询 `*PageQuery`；布尔 `canEdit` / `isOn`；缺参抛错用 `require*`。
+3. **名字说身份**：查询 `*PageQuery` / `*Query`；布尔 `canEdit` / `isOn`；缺参抛错用 `require*`。
 4. **失败带代号**：业务失败 `BusinessException` + `ErrorCode`；FE `handleError`。
 5. **显式优于聪明**：userId 在入口注入。
 6. **真相在服务端**：编辑靠路由 id + `get*`，勿靠 `history.state`。
