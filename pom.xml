@@ -42,6 +42,7 @@
         <module>lippi-ai-ebus-common</module>
         <module>lippi-pi-ai</module>
         <module>lippi-pi-agent</module>
+        <module>lippi-ai-ebus-pi-extension</module>
         <module>lippi-ai-ebus-domain</module>
         <module>lippi-ai-ebus-application</module>
         <module>lippi-ai-ebus-infrastructure</module>
@@ -153,6 +154,11 @@
             <dependency>
                 <groupId>com.lippi</groupId>
                 <artifactId>lippi-pi-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.lippi</groupId>
+                <artifactId>lippi-ai-ebus-pi-extension</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
