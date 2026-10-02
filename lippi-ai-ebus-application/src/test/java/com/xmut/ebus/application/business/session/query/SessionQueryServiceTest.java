@@ -1,6 +1,7 @@
 package com.xmut.ebus.application.business.session.query;
 
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
+import com.xmut.ebus.application.business.history.query.HistoryArtifactQuery;
 import com.xmut.ebus.application.business.history.query.HistoryQueryService;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
@@ -37,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -242,7 +244,7 @@ class SessionQueryServiceTest {
         Instant since = NOW.minus(60, ChronoUnit.DAYS);
         when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION, since))
                 .thenReturn(Optional.of("xhs-break-1"));
-        when(historyQueryService.findById(USER, "xhs-break-1")).thenReturn(expected);
+        when(historyQueryService.findById(any(HistoryArtifactQuery.class))).thenReturn(expected);
 
         Optional<HistoryArtifactDetailDTO> found = service.getLatestArtifact(
                 SessionLatestArtifactQuery.builder().userId(USER).sessionId(SESSION).build());
@@ -250,7 +252,8 @@ class SessionQueryServiceTest {
         assertTrue(found.isPresent());
         assertEquals("xhs_break", found.get().getArtifactType());
         assertEquals("xhs-break-1", found.get().getId());
-        verify(historyQueryService).findById(USER, "xhs-break-1");
+        verify(historyQueryService).findById(argThat(q ->
+                USER.equals(q.getUserId()) && "xhs-break-1".equals(q.getArtifactId())));
     }
 
     @Test
@@ -260,7 +263,9 @@ class SessionQueryServiceTest {
         Instant since = NOW.minus(60, ChronoUnit.DAYS);
         when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION, since))
                 .thenReturn(Optional.of("sku-9"));
-        when(historyQueryService.findById(USER, "sku-9")).thenReturn(expected);
+        when(historyQueryService.findById(argThat(q ->
+                USER.equals(q.getUserId()) && "sku-9".equals(q.getArtifactId()))))
+                .thenReturn(expected);
 
         Optional<HistoryArtifactDetailDTO> found = service.getLatestArtifact(
                 SessionLatestArtifactQuery.builder().userId(USER).sessionId(SESSION).build());
@@ -269,7 +274,8 @@ class SessionQueryServiceTest {
         assertEquals("sku-9", found.get().getId());
         assertEquals(SESSION, found.get().getSessionId());
         verify(generationRunRepository).findLatestSettledArtifactRefBySession(USER, SESSION, since);
-        verify(historyQueryService).findById(USER, "sku-9");
+        verify(historyQueryService).findById(argThat(q ->
+                USER.equals(q.getUserId()) && "sku-9".equals(q.getArtifactId())));
     }
 
     @Test
@@ -282,7 +288,7 @@ class SessionQueryServiceTest {
                 SessionLatestArtifactQuery.builder().userId(USER).sessionId(SESSION).build());
 
         assertFalse(found.isPresent());
-        verify(historyQueryService, never()).findById(any(), any());
+        verify(historyQueryService, never()).findById(any(HistoryArtifactQuery.class));
     }
 
     @Test
@@ -290,7 +296,8 @@ class SessionQueryServiceTest {
         Instant since = NOW.minus(60, ChronoUnit.DAYS);
         when(generationRunRepository.findLatestSettledArtifactRefBySession(USER, SESSION, since))
                 .thenReturn(Optional.of("sku-old"));
-        when(historyQueryService.findById(USER, "sku-old"))
+        when(historyQueryService.findById(argThat(q ->
+                USER.equals(q.getUserId()) && "sku-old".equals(q.getArtifactId()))))
                 .thenThrow(new BusinessException(ErrorCode.FORBIDDEN, HistoryQueryService.MSG_UNAVAILABLE));
 
         Optional<HistoryArtifactDetailDTO> found = service.getLatestArtifact(

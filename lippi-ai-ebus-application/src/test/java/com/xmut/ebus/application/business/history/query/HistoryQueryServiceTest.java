@@ -66,7 +66,8 @@ class HistoryQueryServiceTest {
         when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), any(), isNull()))
                 .thenReturn(Collections.singletonList(picklist(NOW.minus(1, ChronoUnit.DAYS))));
 
-        List<HistoryArtifactSummaryDTO> list = service.list(USER, null);
+        List<HistoryArtifactSummaryDTO> list = service.list(
+                HistoryListQuery.builder().userId(USER).sceneCode(null).build());
         assertEquals(1, list.size());
         assertEquals("picklist", list.get(0).getArtifactType());
 
@@ -88,7 +89,7 @@ class HistoryQueryServiceTest {
     void listPassesSceneCodeFilter() {
         when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), any(), eq("ecommerce")))
                 .thenReturn(Collections.emptyList());
-        assertTrue(service.list(USER, "ecommerce").isEmpty());
+        assertTrue(service.list(listQuery("ecommerce")).isEmpty());
         verify(artifactRepository).listByUserSince(eq(USER), any(Instant.class), any(), eq("ecommerce"));
     }
 
@@ -96,7 +97,7 @@ class HistoryQueryServiceTest {
     void listPassesXiaohongshuSceneFilter() {
         when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), any(), eq("xiaohongshu")))
                 .thenReturn(Collections.singletonList(xhsBreak(NOW.minus(1, ChronoUnit.DAYS))));
-        List<HistoryArtifactSummaryDTO> list = service.list(USER, "xiaohongshu");
+        List<HistoryArtifactSummaryDTO> list = service.list(listQuery("xiaohongshu"));
         assertEquals(1, list.size());
         assertEquals("xhs_break", list.get(0).getArtifactType());
         assertEquals("xiaohongshu", list.get(0).getSceneCode());
@@ -108,7 +109,7 @@ class HistoryQueryServiceTest {
         Artifact breakArt = xhsBreak(NOW.minus(1, ChronoUnit.DAYS));
         when(artifactRepository.findById("xhs-break-1")).thenReturn(Optional.of(breakArt));
 
-        HistoryArtifactDetailDTO detail = service.findById(USER, "xhs-break-1");
+        HistoryArtifactDetailDTO detail = service.findById(artifactQuery("xhs-break-1"));
         assertEquals("xhs_break", detail.getArtifactType());
         assertEquals("xiaohongshu", detail.getSceneCode());
         assertEquals("骨架一行", detail.getView().get("title"));
@@ -130,7 +131,7 @@ class HistoryQueryServiceTest {
                 MediaObject.create("m1", USER, "k1", "image/png", 1L, NOW)));
         when(mediaStore.issueReadUrl("m1")).thenReturn("https://signed.example/m1");
 
-        HistoryArtifactDetailDTO detail = service.findById(USER, "sku-1");
+        HistoryArtifactDetailDTO detail = service.findById(artifactQuery("sku-1"));
         assertEquals("sku", detail.getArtifactType());
         assertNull(detail.getSessionId());
         @SuppressWarnings("unchecked")
@@ -156,7 +157,7 @@ class HistoryQueryServiceTest {
                 MediaObject.create("m1", USER, "k1", "image/png", 1L, NOW)));
         when(mediaStore.issueReadUrl("m1")).thenThrow(new RuntimeException("presign boom"));
 
-        HistoryArtifactDetailDTO detail = service.findById(USER, "sku-2");
+        HistoryArtifactDetailDTO detail = service.findById(artifactQuery("sku-2"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> blocks = (List<Map<String, Object>>) detail.getView().get("blocks");
         assertEquals(2, blocks.size());
@@ -171,7 +172,7 @@ class HistoryQueryServiceTest {
         other.setUserId("other");
         when(artifactRepository.findById("art-1")).thenReturn(Optional.of(other));
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> service.findById(USER, "art-1"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.findById(artifactQuery("art-1")));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
     }
 
@@ -180,7 +181,7 @@ class HistoryQueryServiceTest {
         Artifact old = picklist(NOW.minus(61, ChronoUnit.DAYS));
         when(artifactRepository.findById("art-1")).thenReturn(Optional.of(old));
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> service.findById(USER, "art-1"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.findById(artifactQuery("art-1")));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
     }
 
@@ -191,7 +192,7 @@ class HistoryQueryServiceTest {
                 null, "聊", "{}", NOW);
         when(artifactRepository.findById("chat-1")).thenReturn(Optional.of(chat));
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> service.findById(USER, "chat-1"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.findById(artifactQuery("chat-1")));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
     }
 
@@ -205,7 +206,7 @@ class HistoryQueryServiceTest {
                 "run-2", USER, "hold-1", "sess-abc", "scene-1", "ecommerce", NOW);
         when(generationRunRepository.findById("run-2")).thenReturn(Optional.of(run));
 
-        HistoryArtifactDetailDTO detail = service.findById(USER, "sku-1");
+        HistoryArtifactDetailDTO detail = service.findById(artifactQuery("sku-1"));
         assertEquals("sess-abc", detail.getSessionId());
     }
 
@@ -214,8 +215,16 @@ class HistoryQueryServiceTest {
         Artifact picklist = picklist(NOW.minus(1, ChronoUnit.DAYS));
         when(artifactRepository.findById("art-1")).thenReturn(Optional.of(picklist));
 
-        HistoryArtifactDetailDTO detail = service.findById(USER, "art-1");
+        HistoryArtifactDetailDTO detail = service.findById(artifactQuery("art-1"));
         assertNull(detail.getSessionId());
+    }
+
+    private static HistoryListQuery listQuery(String sceneCode) {
+        return HistoryListQuery.builder().userId(USER).sceneCode(sceneCode).build();
+    }
+
+    private static HistoryArtifactQuery artifactQuery(String artifactId) {
+        return HistoryArtifactQuery.builder().userId(USER).artifactId(artifactId).build();
     }
 
     private static Artifact picklist(Instant createdAt) {

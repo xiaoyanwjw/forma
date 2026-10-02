@@ -52,9 +52,9 @@ public class HistoryQueryService {
     private final Clock clock;
 
     @Transactional(readOnly = true)
-    public List<HistoryArtifactSummaryDTO> list(String userId, String sceneCodeOrNull) {
-        String uid = StringUtils.requireHasText(userId, "userId required");
-        String sceneCode = StringUtils.hasText(sceneCodeOrNull) ? sceneCodeOrNull.trim() : null;
+    public List<HistoryArtifactSummaryDTO> list(HistoryListQuery query) {
+        String uid = StringUtils.requireHasText(query.getUserId(), "userId required");
+        String sceneCode = query.sceneCode();
         Instant since = Instant.now(clock).minus(HISTORY_WINDOW_DAYS, ChronoUnit.DAYS);
         List<Artifact> rows = artifactRepository.listByUserSince(uid, since, HISTORY_TYPES, sceneCode);
         List<HistoryArtifactSummaryDTO> result = new ArrayList<HistoryArtifactSummaryDTO>(rows.size());
@@ -65,9 +65,9 @@ public class HistoryQueryService {
     }
 
     @Transactional(readOnly = true)
-    public HistoryArtifactDetailDTO findById(String userId, String artifactId) {
-        String uid = StringUtils.requireHasText(userId, "userId required");
-        String id = StringUtils.requireHasText(artifactId, "artifactId required");
+    public HistoryArtifactDetailDTO findById(HistoryArtifactQuery query) {
+        String uid = StringUtils.requireHasText(query.getUserId(), "userId required");
+        String id = StringUtils.requireHasText(query.getArtifactId(), "artifactId required");
         Artifact artifact = artifactRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE));
         if (!uid.equals(artifact.getUserId())) {

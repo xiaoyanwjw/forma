@@ -1,6 +1,7 @@
 package com.xmut.ebus.application.business.session.query;
 
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
+import com.xmut.ebus.application.business.history.query.HistoryArtifactQuery;
 import com.xmut.ebus.application.business.history.query.HistoryQueryService;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
@@ -160,7 +161,10 @@ public class SessionQueryService {
             return Optional.empty();
         }
         try {
-            return Optional.of(historyQueryService.findById(uid, artifactId.get()));
+            return Optional.of(historyQueryService.findById(HistoryArtifactQuery.builder()
+                    .userId(uid)
+                    .artifactId(artifactId.get())
+                    .build()));
         } catch (BusinessException ex) {
             return Optional.empty();
         }

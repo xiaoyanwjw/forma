@@ -2,6 +2,8 @@ package com.xmut.ebus.interfaces.web.business.history;
 
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactSummaryDTO;
+import com.xmut.ebus.application.business.history.query.HistoryArtifactQuery;
+import com.xmut.ebus.application.business.history.query.HistoryListQuery;
 import com.xmut.ebus.application.business.history.query.HistoryQueryService;
 import com.xmut.ebus.common.response.ApiResponse;
 import com.xmut.ebus.interfaces.security.SecuritySupport;
@@ -28,12 +30,18 @@ public class HistoryController {
     public ApiResponse<List<HistoryArtifactSummaryDTO>> list(
             @RequestParam(value = "sceneCode", required = false) String sceneCode) {
         return ApiResponse.success(
-                historyQueryService.list(SecuritySupport.requireUserId(), sceneCode));
+                historyQueryService.list(HistoryListQuery.builder()
+                        .userId(SecuritySupport.requireUserId())
+                        .sceneCode(sceneCode)
+                        .build()));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<HistoryArtifactDetailDTO> getArtifact(@PathVariable("id") String id) {
         return ApiResponse.success(
-                historyQueryService.findById(SecuritySupport.requireUserId(), id));
+                historyQueryService.findById(HistoryArtifactQuery.builder()
+                        .userId(SecuritySupport.requireUserId())
+                        .artifactId(id)
+                        .build()));
     }
 }
