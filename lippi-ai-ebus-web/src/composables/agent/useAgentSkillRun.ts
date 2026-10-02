@@ -53,18 +53,16 @@ export function useAgentSkillRun() {
     abort()
   })
 
-  async function startSkillRun(options: StreamAgentRunOptions & { text: string; skillId: string }) {
+  async function startSkillRun(
+    options: StreamAgentRunOptions & { text: string; skillId?: string },
+  ) {
     if (running.value) {
       return
     }
     const text = options.text?.trim()
-    const skillId = options.skillId?.trim()
+    const skillId = options.skillId?.trim() || undefined
     if (!text) {
       error.value = '请先描述需求'
-      return
-    }
-    if (!skillId) {
-      error.value = '缺少技能'
       return
     }
 

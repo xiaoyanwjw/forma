@@ -5,7 +5,7 @@ import { clearToken, getToken, setToken } from '@/api/http'
 import { getCredits } from '@/api/business/credit/credit'
 import CreditPlan from '@/views/business/credit/CreditPlan.vue'
 import SceneGallery from '@/views/business/scene/SceneGallery.vue'
-import HistoryPlaceholder from '@/views/business/history/HistoryPlaceholder.vue'
+import HistoryView from '@/views/business/history/HistoryView.vue'
 import {
   CREDIT_PLAN_ROWS,
   INSUFFICIENT_CREDITS_HINT,
@@ -40,7 +40,7 @@ async function mountShell(component: Component, path: string) {
       { path: '/me', name: 'me', component: { template: '<div />' } },
       { path: '/credits', name: 'credits', component: CreditPlan },
       { path: '/scenes', name: 'scenes', component: SceneGallery },
-      { path: '/history', name: 'history', component: HistoryPlaceholder },
+      { path: '/history', name: 'history', component: HistoryView },
     ],
   })
   await router.push(path)
@@ -287,7 +287,7 @@ describe('credits FE', () => {
     assertAppHeaderSlots(mounted.root)
   })
 
-  it('HistoryPlaceholder mounts AppHeader with nav slots', async () => {
+  it('HistoryView mounts AppHeader with nav slots', async () => {
     setToken('jwt')
     vi.stubGlobal(
       'fetch',
@@ -316,7 +316,7 @@ describe('credits FE', () => {
         return Promise.resolve(new Response('not found', { status: 404 }))
       }),
     )
-    const mounted = await mountShell(HistoryPlaceholder, '/history')
+    const mounted = await mountShell(HistoryView, '/history')
     unmount = mounted.unmount
     await flushUi()
     assertAppHeaderSlots(mounted.root)

@@ -14,8 +14,11 @@ import {
   formatStreamBodyForDisplay,
   processStreamText,
   processEventDisplayLabel,
+  streamTextFromProcessEvents,
   toolDisplayLabel,
   toolEventLabel,
+  toolStepsFromProcessEvents,
+  type ProcessEvent,
 } from './agentProgress'
 
 describe('agentProgress', () => {
@@ -159,5 +162,29 @@ describe('agentProgress', () => {
     expect(formatStreamBodyForDisplay('{"a":1,"b":[2]}')).toBe('{\n  "a": 1,\n  "b": [\n    2\n  ]\n}')
     expect(formatStreamBodyForDisplay('先搜一下 {"a":1}')).toBe('先搜一下\n\n{\n  "a": 1\n}')
     expect(formatStreamBodyForDisplay('plain note')).toBe('plain note')
+  })
+
+  it('toolStepsFromProcessEvents maps tool rows with localized labels', () => {
+    let events: ProcessEvent[] = []
+    events = applyAgentStarted(events, { label: 'agent.start' })
+    events = applyToolStarted(events, { toolName: 'read_skill', toolCallId: 't1' })
+    events = applyToolFinished(events, {
+      toolName: 'read_skill',
+      toolCallId: 't1',
+      success: true,
+      output: '# Skill',
+    })
+    events = applyMessageDelta(events, { text: '模型说几句' })
+    const steps = toolStepsFromProcessEvents(events)
+    expect(steps).toEqual([{ id: 't1', label: '读取技能说明', done: true, at: expect.any(Number) }])
+  })
+
+  it('streamTextFromProcessEvents joins llm bodies', () => {
+    let events: ProcessEvent[] = []
+    events = applyMessageDelta(events, { text: '第一段' })
+    events = applyToolStarted(events, { toolName: 'echo', toolCallId: 't1' })
+    events = applyToolFinished(events, { toolName: 'echo', toolCallId: 't1', success: true })
+    events = applyMessageDelta(events, { text: '第二段' })
+    expect(streamTextFromProcessEvents(events)).toBe('第一段\n\n第二段')
   })
 })

@@ -3,7 +3,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, getToken, setToken } from '@/api/http'
 import SceneGallery from '@/views/business/scene/SceneGallery.vue'
-import EcommerceWorkspacePlaceholder from '@/views/business/scene/EcommerceWorkspacePlaceholder.vue'
+import EcommerceWorkspace from '@/views/business/scene/EcommerceWorkspace.vue'
 
 async function flushUi() {
   await nextTick()
@@ -68,7 +68,7 @@ async function mountGallery(startPath = '/scenes') {
       {
         path: '/scenes/ecommerce',
         name: 'scene-ecommerce',
-        component: EcommerceWorkspacePlaceholder,
+        component: EcommerceWorkspace,
       },
       {
         path: '/scenes/xiaohongshu',

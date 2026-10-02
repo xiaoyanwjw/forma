@@ -141,6 +141,26 @@ export function canExpandProcessEvent(e: ProcessEvent): boolean {
   return (e.kind === 'llm' || e.kind === 'tool') && Boolean(e.body?.trim())
 }
 
+/** Manus checklist: tool rows only, labels already localized. */
+export function toolStepsFromProcessEvents(events: ProcessEvent[]): ProgressStep[] {
+  return events
+    .filter((e) => e.kind === 'tool')
+    .map((e) => ({
+      id: e.id,
+      label: processEventDisplayLabel(e.title),
+      done: Boolean(e.done),
+      at: e.at,
+    }))
+}
+
+/** Raw LLM stream text joined from process events (before processStreamText). */
+export function streamTextFromProcessEvents(events: ProcessEvent[]): string {
+  return events
+    .filter((e) => e.kind === 'llm' && e.body?.trim())
+    .map((e) => e.body!.trim())
+    .join('\n\n')
+}
+
 const FAILURE_TOOL_BODY_MAX = 800
 const FAILURE_LLM_BODY_MAX = 6000
 

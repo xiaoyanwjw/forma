@@ -2,7 +2,7 @@ import { createApp, nextTick } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken } from '@/api/http'
-import HistoryPlaceholder from '@/views/business/history/HistoryPlaceholder.vue'
+import HistoryView from '@/views/business/history/HistoryView.vue'
 
 async function flushUi() {
   await nextTick()
@@ -23,7 +23,7 @@ async function mountHistory() {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/history', name: 'history', component: HistoryPlaceholder },
+      { path: '/history', name: 'history', component: HistoryView },
       { path: '/scenes', name: 'scenes', component: { template: '<div />' } },
       { path: '/credits', name: 'credits', component: { template: '<div />' } },
       { path: '/me', name: 'me', component: { template: '<div />' } },
@@ -32,7 +32,7 @@ async function mountHistory() {
   })
   await router.push('/history')
   await router.isReady()
-  const app = createApp(HistoryPlaceholder)
+  const app = createApp(HistoryView)
   app.use(router)
   app.mount(root)
   await flushUi()
@@ -45,7 +45,7 @@ async function mountHistory() {
   }
 }
 
-describe('HistoryPlaceholder', () => {
+describe('HistoryView', () => {
   let unmount: (() => void) | undefined
 
   beforeEach(() => {

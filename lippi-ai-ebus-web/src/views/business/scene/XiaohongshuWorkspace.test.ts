@@ -8,7 +8,7 @@ import { clearToken, setToken } from '@/api/http'
 import XiaohongshuWorkspace from '@/views/business/scene/XiaohongshuWorkspace.vue'
 
 const sessionCss = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), 'ecommerceWorkspaceSession.css'),
+  join(dirname(fileURLToPath(import.meta.url)), 'workspaceSession.css'),
   'utf8',
 )
 
@@ -16,6 +16,13 @@ async function flushUi() {
   await nextTick()
   await new Promise((r) => setTimeout(r, 0))
   await nextTick()
+}
+
+function setTextareaValue(el: HTMLTextAreaElement, value: string) {
+  const proto = window.HTMLTextAreaElement.prototype
+  const desc = Object.getOwnPropertyDescriptor(proto, 'value')
+  desc?.set?.call(el, value)
+  el.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
 const XHS = {
@@ -312,17 +319,47 @@ describe('XiaohongshuWorkspace', () => {
     await flushUi()
     expect(area().value).toBe(TOPIC_TEMPLATE)
     expect(area().value).not.toMatch(/【占位】/)
+    expect(pills[0]!.getAttribute('aria-pressed')).toBe('true')
 
     pills[1]!.click()
     await flushUi()
     expect(area().value).toBe(NOTE_TEMPLATE)
+    expect(pills[1]!.getAttribute('aria-pressed')).toBe('true')
+    expect(pills[0]!.getAttribute('aria-pressed')).toBe('false')
 
     pills[2]!.click()
     await flushUi()
     expect(area().value).toBe(BREAK_TEMPLATE)
 
+    const kept = area().value
+    pills[2]!.click()
+    await flushUi()
+    expect(pills[2]!.getAttribute('aria-pressed')).toBe('false')
+    expect(area().value).toBe(kept)
+
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(fetchMock.mock.calls.length).toBe(callsBefore)
+  })
+
+  it('free-text send omits skillId', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    const area = mounted.root.querySelector(
+      'textarea[aria-label="继续提问"]',
+    ) as HTMLTextAreaElement
+    setTextareaValue(area, '随便聊聊天气')
+    await flushUi()
+    ;(mounted.root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement).click()
+    await flushUi()
+    await flushUi()
+
+    const hits = billedRunApiHits(fetchMock)
+    expect(hits.length).toBeGreaterThanOrEqual(1)
+    const body = JSON.parse(String((hits[0] as [string, RequestInit])[1].body)) as {
+      skillId?: string
+    }
+    expect(body.skillId).toBeUndefined()
+    expect(mounted.root.textContent).not.toMatch(/请用上方胶囊/)
   })
 
   it('posts sceneCode xiaohongshu and skillId xhs-topiclist when sending topic capsule', async () => {
@@ -350,6 +387,11 @@ describe('XiaohongshuWorkspace', () => {
     expect(body.sceneCode).toBe('xiaohongshu')
     expect(body.skillId).toBe('xhs-topiclist')
     expect(body.text).toBe(TOPIC_TEMPLATE)
+    // 用户消息「…」槽位与电商对话流同款 .ph 高亮（Markdown 渲染）
+    const userPh = [
+      ...mounted.root.querySelectorAll('.msg.user .ph'),
+    ].map((el) => el.textContent)
+    expect(userPh).toEqual(['「Mac Mini 桌搭」', '「居家办公」'])
   })
 
   it('posts xhs-note and xhs-break skillIds for the other capsules', async () => {
@@ -383,6 +425,14 @@ describe('XiaohongshuWorkspace', () => {
     expect(breakBody.skillId).toBe('xhs-break')
   })
 
+  it('wires topiclist Computer with 优先发 badge label', () => {
+    const vueSrc = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), 'XiaohongshuWorkspace.vue'),
+      'utf8',
+    )
+    expect(vueSrc).toMatch(/priority-badge-label="优先发"/)
+  })
+
   it('topiclist 写成笔记 starts xhs-note with tp-n in the same session', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
@@ -398,6 +448,8 @@ describe('XiaohongshuWorkspace', () => {
     const btn = mounted.root.querySelector('.item-action-btn') as HTMLButtonElement
     expect(btn).toBeTruthy()
     expect(btn.disabled).toBe(false)
+    expect(mounted.root.querySelector('.priority-tag')?.textContent).toBe('优先发')
+    expect(mounted.root.textContent).not.toMatch(/\bpriority\b/)
     btn.click()
     await flushUi()
     await flushUi()

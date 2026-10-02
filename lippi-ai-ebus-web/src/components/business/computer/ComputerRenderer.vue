@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import type {
   ComputerBlock,
   ComputerDocument,
@@ -9,20 +9,30 @@ import type {
   ComputerTag,
 } from '@/types/business/computerView'
 import { displayTagText, sanitizeHttpsHref } from '@/types/business/computerView'
-import ListingPlatformPreview from './ListingPlatformPreview.vue'
+import MarkdownView from '@/components/common/MarkdownView.vue'
+import GitView from './GitView.vue'
 import {
-  LISTING_PLATFORM_SKINS,
-  type ListingPlatformSkin,
-} from './listingPlatform'
+  buildStoryboardBeats,
+  defaultGitFileName,
+  hasStoryboardDoc,
+  storyboardSectionClass,
+  toStoryboardDoc,
+} from './gitDoc'
 
 const props = withDefaults(
   defineProps<{
     document: ComputerDocument
+    /** Override README file bar name; default slug(document.title).md */
+    fileName?: string
     itemActionLabel?: string
+    /** Semantic badge key `priority` → display text (电商「优先试」/ 小红书「优先发」). */
+    priorityBadgeLabel?: string
     isItemActionEnabled?: (item: ComputerListItem, index: number) => boolean
   }>(),
   {
+    fileName: undefined,
     itemActionLabel: '',
+    priorityBadgeLabel: '优先试',
     isItemActionEnabled: () => true,
   },
 )
@@ -30,8 +40,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   'item-action': [{ item: ComputerListItem; index: number }]
 }>()
-
-const platformSkin = ref<ListingPlatformSkin>('adam')
 
 function isKnownBlock(block: ComputerBlock | { type: string }): block is ComputerBlock {
   return (
@@ -63,66 +71,40 @@ const documentStatus = computed(() => {
   return raw
 })
 
-/** 上架素材预览才显示平台样式切换（选品 list 文档不显示） */
-const isListingPreview = computed(() => {
-  const key = props.document.title?.trim() || ''
-  if (key === 'picklist' || key === 'report') return false
-  if (key === 'listingPreview') return true
-  if (/上架|listing/i.test(documentTitle.value)) return true
-  const hasPickList = props.document.blocks.some((b) => b.type === 'list')
-  if (hasPickList) return false
-  const hasHero = props.document.blocks.some((b) => b.type === 'media')
-  const hasListingCopy = props.document.blocks.some(
-    (b) =>
-      b.type === 'section' &&
-      (b.heading === '详情标题' || b.heading === '详情正文' || b.heading === '展示说明'),
-  )
-  return hasHero && hasListingCopy
+const showStoryboard = computed(() => hasStoryboardDoc(props.document))
+
+const storyboardDoc = computed(() => (
+  showStoryboard.value ? toStoryboardDoc(visibleBlocks.value) : null
+))
+
+const storyboardBeats = computed(() => {
+  const doc = storyboardDoc.value
+  if (!doc) return []
+  return buildStoryboardBeats(doc.frames, doc.framePromptsSummary)
 })
 
-const platformSkins = LISTING_PLATFORM_SKINS
+const titleLen = computed(() => (storyboardDoc.value?.detailTitle || '').length)
+const bodyOverLimit = computed(() => (storyboardDoc.value?.detailBody || '').length > 2000)
 
-watch(
-  () => props.document.title,
-  () => {
-    platformSkin.value = 'adam'
-  },
-)
+const resolvedFileName = computed(() => {
+  const override = (props.fileName || '').trim()
+  if (override) return override
+  if (showStoryboard.value && storyboardDoc.value?.detailTitle) {
+    return defaultGitFileName(storyboardDoc.value.detailTitle)
+  }
+  return defaultGitFileName(documentTitle.value)
+})
 
-/** 从双轨 blocks 抽出上架公共文案；切换平台只换预览壳 */
-const listingContent = computed(() => {
-  let heroPlan = ''
-  let heroMounted = false
-  let detailTitle = ''
-  let detailBody = ''
-  let displayNotes = ''
-  let framePromptsSummary = ''
-  const frames: string[] = []
-  for (const block of visibleBlocks.value) {
-    if (block.type === 'media') {
-      heroPlan = mediaPlanText(block)
-      heroMounted = Boolean(block.src || block.mediaObjectId)
-    } else if (block.type === 'list' && isOrderedList(block)) {
-      for (const item of block.items) {
-        const title = (item.title || '').trim()
-        if (title) frames.push(title)
-      }
-    } else if (block.type === 'section') {
-      if (block.heading === '详情标题') detailTitle = block.body
-      else if (block.heading === '详情正文') detailBody = block.body
-      else if (block.heading === '展示说明') displayNotes = block.body
-      else if (block.heading === '生图 Prompt') framePromptsSummary = block.body
-    }
+const fileMeta = computed(() => {
+  if (showStoryboard.value) {
+    return `${titleLen.value} 字标题`
   }
-  return {
-    heroPlan,
-    heroMounted,
-    detailTitle,
-    detailBody,
-    displayNotes,
-    frames,
-    framePromptsSummary,
-  }
+  return documentStatus.value || ''
+})
+
+const leadText = computed(() => {
+  const n = storyboardBeats.value.length
+  return n > 0 ? `上架素材 · ${n} 镜分镜` : '上架素材'
 })
 
 function isOrderedList(block: Extract<ComputerBlock, { type: 'list' }>): boolean {
@@ -161,14 +143,31 @@ function noteText(block: ComputerNoteBlock): string {
   return block.text
 }
 
-const PRIORITY_MARK = '【优先试】'
+const PRIORITY_TITLE_MARKS = ['【优先试】', '【优先发】'] as const
+
+function stripPriorityTitleMark(title: string): string {
+  for (const mark of PRIORITY_TITLE_MARKS) {
+    if (title.startsWith(mark)) {
+      return title.slice(mark.length)
+    }
+  }
+  return title
+}
+
+function hasPriorityTitleMark(title: string): boolean {
+  return PRIORITY_TITLE_MARKS.some((mark) => title.startsWith(mark))
+}
 
 function itemBadge(item: { badge?: string; title: string }): string | undefined {
-  if (item.badge?.trim()) {
-    return item.badge.trim()
+  const raw = item.badge?.trim()
+  if (raw) {
+    if (raw === 'priority') {
+      return props.priorityBadgeLabel
+    }
+    return raw
   }
-  if (item.title.startsWith(PRIORITY_MARK)) {
-    return '优先试'
+  if (hasPriorityTitleMark(item.title)) {
+    return props.priorityBadgeLabel
   }
   return undefined
 }
@@ -178,10 +177,8 @@ function itemHref(item: { href?: string }): string | undefined {
 }
 
 function itemTitle(item: { badge?: string; title: string }): string {
-  if (item.badge || item.title.startsWith(PRIORITY_MARK)) {
-    return item.title.startsWith(PRIORITY_MARK)
-      ? item.title.slice(PRIORITY_MARK.length)
-      : item.title
+  if (item.badge || hasPriorityTitleMark(item.title)) {
+    return stripPriorityTitleMark(item.title)
   }
   return item.title
 }
@@ -205,268 +202,157 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
 </script>
 
 <template>
-  <article class="comp-card">
-    <div class="comp-card-head">
-      <span class="comp-card-title">{{ documentTitle }}</span>
-      <div class="comp-card-head-actions">
-        <div
-          v-if="isListingPreview"
-          class="platform-switch"
-          role="tablist"
-          aria-label="预览平台效果"
-        >
-          <button
-            v-for="skin in platformSkins"
-            :key="skin.id"
-            type="button"
-            class="platform-btn"
-            :class="[`platform-${skin.id}`, { active: platformSkin === skin.id }]"
-            role="tab"
-            :aria-selected="platformSkin === skin.id"
-            :title="`${skin.label}效果`"
-            :aria-label="`${skin.label}浏览器预期效果`"
-            @click="platformSkin = skin.id"
-          >
-            <span class="platform-mark" aria-hidden="true">{{ skin.mark }}</span>
-          </button>
+  <GitView
+    :file-name="resolvedFileName"
+    :meta="fileMeta"
+    :aria-label="showStoryboard ? '上架素材预览' : undefined"
+  >
+    <template v-if="showStoryboard && storyboardDoc">
+      <h1>{{ storyboardDoc.detailTitle || '上架素材' }}</h1>
+      <p class="lead">{{ leadText }}</p>
+
+      <div v-if="storyboardBeats.length" class="thumbs" aria-hidden="true">
+        <div v-for="(_, i) in storyboardBeats.slice(0, 3)" :key="i" class="thumb">
+          <span>{{ String(i + 1).padStart(2, '0') }}</span>
         </div>
-        <span v-else-if="documentStatus" class="status">{{ documentStatus }}</span>
       </div>
-    </div>
-    <div
-      class="comp-card-body"
-      :class="{ 'is-plat': isListingPreview && platformSkin !== 'adam' }"
-    >
-      <ListingPlatformPreview
-        v-if="isListingPreview"
-        :platform="platformSkin"
-        :content="listingContent"
-      />
-      <template v-else>
-        <template v-for="(block, index) in visibleBlocks" :key="index">
-          <div
-            v-if="block.type === 'markdown'"
-            class="cv-markdown"
-          >{{ block.text }}</div>
-          <p
-            v-else-if="block.type === 'note'"
-            class="cv-note"
-            :class="{ mute: block.tone === 'mute' }"
-          >
-            {{ noteText(block) }}
-          </p>
 
-          <component
-            :is="isOrderedList(block) ? 'ol' : 'ul'"
-            v-else-if="block.type === 'list'"
-            class="pick-list"
-          >
-            <li v-for="(item, itemIndex) in block.items" :key="item.title + '-' + itemIndex">
-              <div class="item-body">
-                <div class="item-top">
-                  <div class="t">
-                    <span v-if="itemBadge(item)" class="priority-tag">{{ itemBadge(item) }}</span>
-                    <a
-                      v-if="itemHref(item)"
-                      class="item-title-link"
-                      :href="itemHref(item)"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >{{ itemTitle(item) }}</a>
-                    <template v-else>{{ itemTitle(item) }}</template>
-                    <button
-                      v-if="showItemAction()"
-                      type="button"
-                      class="item-action-btn"
-                      :disabled="!itemActionEnabled(item, itemIndex)"
-                      @click="emitItemAction(item, itemIndex)"
-                    >
-                      {{ itemActionLabel }}
-                    </button>
-                  </div>
-                  <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
-                </div>
-                <div v-if="factLines(item.lines).length" class="item-lines">
-                  <div
-                    v-for="(line, lineIndex) in factLines(item.lines)"
-                    :key="lineIndex"
-                    :class="lineClass(line)"
-                  >
-                    <span v-if="line.label" class="item-line-label">{{ line.label }}</span>
-                    <span class="item-line-text">{{ line.text }}</span>
-                  </div>
-                </div>
-                <div v-if="item.tags?.length" class="dims">
-                  <span
-                    v-for="(tag, tagIndex) in item.tags"
-                    :key="tagIndex"
-                    :class="tagPillClass(tag)"
-                  >{{ displayTagText(tag) }}</span>
-                </div>
-              </div>
-            </li>
-          </component>
-
-          <div v-else-if="block.type === 'media'" class="cv-media">
-            <div
-              v-if="mediaPlanText(block)"
-              class="listing-hero listing-hero-plan-card"
-            >
-              <div class="listing-hero-meta">
-                <span class="listing-hero-kicker">主图方案</span>
-                <span
-                  v-if="block.src || block.mediaObjectId"
-                  class="listing-hero-chip"
-                >占位已挂载</span>
-              </div>
-              <p class="listing-hero-plan">{{ mediaPlanText(block) }}</p>
-            </div>
-            <img
-              v-else-if="block.src"
-              class="listing-hero listing-hero-img"
-              :src="block.src"
-              :alt="block.alt || ''"
-            />
-            <div v-else class="listing-hero listing-hero-empty" aria-hidden="true">
-              主图位
-            </div>
-          </div>
-
-          <div
-            v-else-if="block.type === 'section'"
-            class="listing-copy"
-            :class="{
-              'is-notes': block.tone === 'mute' || block.heading === '展示说明',
-              'is-title': block.heading === '详情标题',
-              'is-body': block.heading === '详情正文' || (block.heading !== '详情标题' && block.tone !== 'mute'),
-            }"
-          >
-            <h4>{{ block.heading }}</h4>
-            <p class="section-body">{{ block.body }}</p>
-          </div>
-        </template>
+      <template v-if="storyboardBeats.length">
+        <h2>主图分镜</h2>
+        <ol class="shots">
+          <li v-for="(beat, i) in storyboardBeats" :key="i">
+            <p class="shot-t">{{ beat.caption }}</p>
+            <pre v-if="beat.prompt" class="prompt">{{ beat.prompt }}</pre>
+            <p v-if="beat.negative" class="neg">negative: {{ beat.negative }}</p>
+          </li>
+        </ol>
       </template>
-    </div>
-  </article>
+
+      <h2>详情文案</h2>
+      <h3 class="listing-copy is-title" :class="{ warn: titleLen > 60 }">
+        {{ storyboardDoc.detailTitle || '—' }}
+      </h3>
+      <p
+        class="body listing-copy is-body section-body"
+        :class="{ warn: bodyOverLimit }"
+      >
+        {{ storyboardDoc.detailBody || '—' }}
+      </p>
+
+      <template v-if="storyboardDoc.displayNotes">
+        <h2>展示说明</h2>
+        <p class="body">{{ storyboardDoc.displayNotes }}</p>
+      </template>
+    </template>
+
+    <template v-else>
+      <h1 v-if="documentTitle">{{ documentTitle }}</h1>
+      <template v-for="(block, index) in visibleBlocks" :key="index">
+        <MarkdownView
+          v-if="block.type === 'markdown'"
+          class="cv-markdown"
+          :source="block.text"
+        />
+        <p
+          v-else-if="block.type === 'note'"
+          class="cv-note"
+          :class="{ mute: block.tone === 'mute' }"
+        >
+          {{ noteText(block) }}
+        </p>
+
+        <component
+          :is="isOrderedList(block) ? 'ol' : 'ul'"
+          v-else-if="block.type === 'list'"
+          class="pick-list"
+        >
+          <li v-for="(item, itemIndex) in block.items" :key="item.title + '-' + itemIndex">
+            <div class="item-body">
+              <div class="item-top">
+                <div class="t">
+                  <span v-if="itemBadge(item)" class="priority-tag">{{ itemBadge(item) }}</span>
+                  <a
+                    v-if="itemHref(item)"
+                    class="item-title-link"
+                    :href="itemHref(item)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >{{ itemTitle(item) }}</a>
+                  <template v-else>{{ itemTitle(item) }}</template>
+                  <button
+                    v-if="showItemAction()"
+                    type="button"
+                    class="item-action-btn"
+                    :disabled="!itemActionEnabled(item, itemIndex)"
+                    @click="emitItemAction(item, itemIndex)"
+                  >
+                    {{ itemActionLabel }}
+                  </button>
+                </div>
+                <div v-if="priceLine(item.lines)" class="item-price">{{ priceLine(item.lines)?.text }}</div>
+              </div>
+              <div v-if="factLines(item.lines).length" class="item-lines">
+                <div
+                  v-for="(line, lineIndex) in factLines(item.lines)"
+                  :key="lineIndex"
+                  :class="lineClass(line)"
+                >
+                  <span v-if="line.label" class="item-line-label">{{ line.label }}</span>
+                  <span class="item-line-text">{{ line.text }}</span>
+                </div>
+              </div>
+              <div v-if="item.tags?.length" class="dims">
+                <span
+                  v-for="(tag, tagIndex) in item.tags"
+                  :key="tagIndex"
+                  :class="tagPillClass(tag)"
+                >{{ displayTagText(tag) }}</span>
+              </div>
+            </div>
+          </li>
+        </component>
+
+        <div v-else-if="block.type === 'media'" class="cv-media">
+          <div
+            v-if="mediaPlanText(block)"
+            class="cv-media-frame cv-media-plan-card"
+          >
+            <div class="cv-media-meta">
+              <span class="cv-media-kicker">主图方案</span>
+              <span
+                v-if="block.src || block.mediaObjectId"
+                class="cv-media-chip"
+              >占位已挂载</span>
+            </div>
+            <p class="cv-media-plan">{{ mediaPlanText(block) }}</p>
+          </div>
+          <img
+            v-else-if="block.src"
+            class="cv-media-frame cv-media-img"
+            :src="block.src"
+            :alt="block.alt || ''"
+          />
+          <div v-else class="cv-media-frame cv-media-empty" aria-hidden="true">
+            主图位
+          </div>
+        </div>
+
+        <div
+          v-else-if="block.type === 'section'"
+          class="listing-copy"
+          :class="storyboardSectionClass(block.heading, block.tone)"
+        >
+          <h4>{{ block.heading }}</h4>
+          <p class="section-body">{{ block.body }}</p>
+        </div>
+      </template>
+    </template>
+  </GitView>
 </template>
 
 <style scoped>
-.comp-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.comp-card-head {
-  padding: 10px 12px 10px 14px;
-  border-bottom: 1px solid var(--line-2);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.comp-card-title {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.comp-card-head-actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.comp-card-head .status {
-  font-weight: 500;
-  color: var(--mute);
-  font-size: 0.75rem;
-}
-
-.platform-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--line-2, #f1f1f1);
-}
-
-.platform-btn {
-  appearance: none;
-  border: 0;
-  margin: 0;
-  padding: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  background: transparent;
-  color: var(--mute);
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.platform-btn:hover {
-  background: rgba(255, 255, 255, 0.7);
-  color: var(--ink);
-}
-
-.platform-btn.active {
-  background: #fff;
-  color: var(--ink);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
-}
-
-.platform-mark {
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.platform-btn.platform-taobao.active {
-  color: #ff5000;
-}
-
-.platform-btn.platform-xianyu.active {
-  color: #ffe60f;
-  background: #1f2937;
-}
-
-.platform-btn.platform-douyin.active {
-  color: #fff;
-  background: #111;
-  box-shadow: none;
-}
-
-.platform-btn.platform-adam.active {
-  color: #0f172a;
-}
-
-.comp-card-body {
-  padding: 14px;
-}
-
-.comp-card-body.is-plat {
-  padding: 12px 12px 14px;
-  background: #f3f4f6;
-}
-
 .cv-markdown {
   margin: 0 0 10px;
-  font-size: 0.8125rem;
-  color: var(--ink);
-  line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .cv-note {
@@ -487,7 +373,6 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
 }
 
 .pick-list li {
-  /* Override any page-level legacy grid (28px index column) */
   display: block;
   padding: 14px 0;
   border-bottom: 1px solid var(--line-2);
@@ -588,10 +473,6 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   line-height: 1.5;
 }
 
-.item-line.is-reason {
-  align-items: start;
-}
-
 .item-line-label {
   font-size: 0.7rem;
   color: var(--mute-2, #a3a3a3);
@@ -600,11 +481,6 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
 .item-line-text {
   color: var(--mute);
   word-break: break-word;
-}
-
-.item-line.is-reason .item-line-text {
-  color: var(--ink);
-  opacity: 0.82;
 }
 
 .priority-tag {
@@ -677,7 +553,7 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   margin-bottom: 4px;
 }
 
-.listing-hero {
+.cv-media-frame {
   width: 100%;
   border-radius: var(--r-md);
   border: 1px solid var(--line);
@@ -687,7 +563,7 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   color: var(--mute);
 }
 
-.listing-hero-plan-card {
+.cv-media-plan-card {
   aspect-ratio: auto;
   min-height: 148px;
   padding: 14px 14px 16px;
@@ -697,21 +573,21 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   box-sizing: border-box;
 }
 
-.listing-hero-meta {
+.cv-media-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.listing-hero-kicker {
+.cv-media-kicker {
   font-size: 0.68rem;
   font-weight: 650;
   letter-spacing: 0.06em;
   color: #475569;
 }
 
-.listing-hero-chip {
+.cv-media-chip {
   flex-shrink: 0;
   font-size: 0.65rem;
   font-weight: 600;
@@ -721,7 +597,7 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   padding: 2px 8px;
 }
 
-.listing-hero-plan {
+.cv-media-plan {
   margin: 0;
   font-size: 0.84rem;
   font-weight: 500;
@@ -730,7 +606,7 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   word-break: break-word;
 }
 
-.listing-hero-img {
+.cv-media-img {
   display: block;
   aspect-ratio: 4 / 3;
   object-fit: contain;
@@ -739,7 +615,7 @@ function mediaPlanText(block: Extract<ComputerBlock, { type: 'media' }>): string
   padding: 0;
 }
 
-.listing-hero-empty {
+.cv-media-empty {
   aspect-ratio: 4 / 3;
   display: grid;
   place-items: center;

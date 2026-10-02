@@ -40,6 +40,7 @@ describe('ComputerRenderer', () => {
     })
     app.mount(host)
     await nextTick()
+    expect(host.querySelector('[data-testid="git-view"]')).toBeTruthy()
     expect(host.textContent).toMatch(/选品清单/)
     expect(host.textContent).toMatch(/已结算/)
     // protocol placeholder `ready` must not surface in the head
@@ -158,19 +159,23 @@ describe('ComputerRenderer', () => {
     host.remove()
   })
 
-  it('renders markdown blocks as plain text', async () => {
+  it('renders markdown blocks with rich formatting and copy control', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp(ComputerRenderer, {
       document: {
         version: 1,
         title: 'draft',
-        blocks: [{ type: 'markdown', text: 'hello **world**' }],
+        blocks: [{ type: 'markdown', text: 'hello **world**\n\n### 成交方向' }],
       },
     })
     app.mount(host)
     await nextTick()
-    expect(host.querySelector('.cv-markdown')?.textContent).toBe('hello **world**')
+    expect(host.querySelector('.cv-markdown [data-testid="markdown-body"] strong')?.textContent).toBe(
+      'world',
+    )
+    expect(host.querySelector('.cv-markdown h3')?.textContent).toBe('成交方向')
+    expect(host.querySelector('[data-testid="markdown-copy"]')).toBeTruthy()
     app.unmount()
     host.remove()
   })
@@ -207,7 +212,7 @@ describe('ComputerRenderer', () => {
     host.remove()
   })
 
-  it('shows listing hero plan text instead of stretching placeholder src', async () => {
+  it('renders listing storyboard inside GitView from title heuristic', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp(ComputerRenderer, {
@@ -250,58 +255,131 @@ describe('ComputerRenderer', () => {
     })
     app.mount(host)
     await nextTick()
-    expect(host.querySelector('.platform-switch')).toBeTruthy()
-    expect(host.querySelectorAll('.platform-btn').length).toBe(4)
-    // Adam：素材卡片，无手机框
-    expect(host.querySelector('.adam-doc')).toBeTruthy()
+    expect(host.querySelector('.platform-switch')).toBeNull()
+    expect(host.querySelector('[data-testid="git-view"]')).toBeTruthy()
     expect(host.querySelector('.iphone')).toBeNull()
-    expect(host.querySelector('.listing-hero-plan-card')).toBeNull()
+    expect(host.querySelector('.cv-media-plan-card')).toBeNull()
     expect(host.textContent).toMatch(/Mac Mini 拓展坞标题/)
     expect(host.textContent).toMatch(/详情段落/)
     expect(host.textContent).toMatch(/white bg product/)
     expect(host.textContent).toMatch(/首图：白底/)
-    // Adam：主图分镜（含成对 Prompt）→ 详情标题 → 详情正文；不再单独出「生图 Prompt」标题
+    // README：主图分镜（含成对 Prompt）→ 详情文案；不再单独出「生图 Prompt」标题
     const text = host.textContent || ''
     expect(text).not.toMatch(/生图 Prompt/)
-    expect(text.indexOf('主图分镜')).toBeLessThan(text.indexOf('详情标题'))
-    expect(text.indexOf('详情标题')).toBeLessThan(text.indexOf('详情正文'))
+    expect(text.indexOf('主图分镜')).toBeLessThan(text.indexOf('详情文案'))
     expect(host.textContent).not.toMatch(/素材规范/)
-    // 淘宝壳仍用 heroPlan 文案作主图位说明
-    const taobao = host.querySelector('.platform-btn.platform-taobao') as HTMLButtonElement
-    taobao.click()
-    await nextTick()
-    expect(host.querySelector('.iphone')).toBeTruthy()
-    expect(host.querySelector('.tb-bar')).toBeTruthy()
-    expect(host.querySelector('.tb-buy')).toBeTruthy()
-    expect(host.textContent).toMatch(/白底俯拍主图方案说明/)
-    expect(host.textContent).toMatch(/Mac Mini 拓展坞标题/)
-    expect(host.textContent).toMatch(/详情段落/)
-    expect(host.textContent).toMatch(/立即购买/)
-    expect(host.textContent).toMatch(/主图分镜/)
-    expect(host.textContent).toMatch(/white bg product/)
-    const xianyu = host.querySelector('.platform-btn.platform-xianyu') as HTMLButtonElement
-    xianyu.click()
-    await nextTick()
-    expect(host.querySelector('.xy-bar')).toBeTruthy()
-    expect(host.textContent).toMatch(/Mac Mini 拓展坞标题/)
-    expect(host.textContent).toMatch(/闲鱼/)
-    const douyin = host.querySelector('.platform-btn.platform-douyin') as HTMLButtonElement
-    douyin.click()
-    await nextTick()
-    expect(host.querySelector('.dy-bar')).toBeTruthy()
-    expect(host.textContent).toMatch(/Mac Mini 拓展坞标题/)
-    expect(host.textContent).toMatch(/封面|立即购买/)
+    expect(host.textContent).not.toMatch(/立即购买/)
+    expect(host.textContent).not.toMatch(/闲鱼/)
     app.unmount()
     host.remove()
   })
 
-  it('hides platform switcher on picklist documents', async () => {
+  it('listing title always uses storyboard layout (media plan stays off-canvas)', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
-    const app = createApp(ComputerRenderer, { document: doc })
+    const app = createApp(ComputerRenderer, {
+      document: {
+        version: 1,
+        title: 'listingPreview',
+        blocks: [
+          { type: 'media', role: 'hero', placeholder: '白底俯拍主图方案说明' },
+          { type: 'section', heading: '详情标题', body: 'Mac Mini 拓展坞标题' },
+          { type: 'section', heading: '详情正文', body: '详情段落' },
+        ],
+      },
+    })
     app.mount(host)
     await nextTick()
+    expect(host.querySelector('[data-testid="git-view"]')).toBeTruthy()
+    expect(host.querySelector('.cv-media-plan-card')).toBeNull()
+    expect(host.textContent).not.toMatch(/白底俯拍主图方案说明/)
+    expect(host.textContent).toMatch(/Mac Mini 拓展坞标题/)
+    expect(host.textContent).toMatch(/详情段落/)
+    app.unmount()
+    host.remove()
+  })
+
+  it('picklist documents stay on block mapping inside GitView', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: doc,
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelector('[data-testid="git-view"]')).toBeTruthy()
+    expect(host.querySelector('.pick-list')).toBeTruthy()
+    expect(host.querySelector('.shots')).toBeNull()
     expect(host.querySelector('.platform-switch')).toBeNull()
+    app.unmount()
+    host.remove()
+  })
+
+  it('uses fileName prop over title slug', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      fileName: 'picklist.md',
+      document: doc,
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelector('.git-filebar .name')?.textContent).toBe('picklist.md')
+    app.unmount()
+    host.remove()
+  })
+
+  it('maps semantic badge key priority to scene label', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: {
+        version: 1,
+        title: '选题清单',
+        blocks: [
+          {
+            type: 'list',
+            ordered: true,
+            items: [
+              {
+                badge: 'priority',
+                title: '【优先发】Mini 拓展坞收纳',
+              },
+            ],
+          },
+        ],
+      },
+      priorityBadgeLabel: '优先发',
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelector('.priority-tag')?.textContent).toBe('优先发')
+    expect(host.textContent).toContain('Mini 拓展坞收纳')
+    expect(host.textContent).not.toContain('【优先发】')
+    expect(host.textContent).not.toMatch(/\bpriority\b/)
+    app.unmount()
+    host.remove()
+  })
+
+  it('defaults priority badge key to 优先试', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(ComputerRenderer, {
+      document: {
+        version: 1,
+        title: '选品清单',
+        blocks: [
+          {
+            type: 'list',
+            ordered: true,
+            items: [{ badge: 'priority', title: 'Mac Mini 拓展坞' }],
+          },
+        ],
+      },
+    })
+    app.mount(host)
+    await nextTick()
+    expect(host.querySelector('.priority-tag')?.textContent).toBe('优先试')
     app.unmount()
     host.remove()
   })
@@ -505,7 +583,11 @@ describe('parseComputerDocument', () => {
     await nextTick()
     expect(host.textContent).toMatch(/主图：白底产品/)
     expect(host.textContent).toMatch(/标题草稿/)
-    expect(host.querySelector('.cv-markdown')).not.toBeNull()
+    const headings = [...host.querySelectorAll('.cv-markdown h2')].map((el) => el.textContent)
+    expect(headings).toEqual(['成交方向', '主图分镜', '标题草稿'])
+    expect(host.querySelector('.cv-markdown ol li')?.textContent).toMatch(/主图：白底产品/)
+    expect(host.querySelector('[data-testid="markdown-copy"]')).toBeTruthy()
+    expect(host.querySelector('[data-testid="git-view"]')).toBeTruthy()
     expect(host.querySelector('.platform-switch')).toBeNull()
     expect(host.querySelector('.listing-stack')).toBeNull()
     expect(host.querySelector('.iphone')).toBeNull()

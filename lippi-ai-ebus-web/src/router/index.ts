@@ -40,7 +40,7 @@ const router = createRouter({
     {
       path: '/scenes/ecommerce',
       name: 'scene-ecommerce',
-      component: () => import('@/views/business/scene/EcommerceWorkspacePlaceholder.vue'),
+      component: () => import('@/views/business/scene/EcommerceWorkspace.vue'),
     },
     {
       path: '/scenes/xiaohongshu',
@@ -50,7 +50,7 @@ const router = createRouter({
     {
       path: '/history',
       name: 'history',
-      component: () => import('@/views/business/history/HistoryPlaceholder.vue'),
+      component: () => import('@/views/business/history/HistoryView.vue'),
     },
     {
       path: '/agent/dry-run',

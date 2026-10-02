@@ -244,17 +244,46 @@
   display: inline-block;
   max-width: 100%;
   margin: 0;
-  line-height: 1.55;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--ink);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-/* 用户消息：浅灰气泡（近白） */
+/* 用户消息：保留浅灰气泡，正文排版对齐 assistant STATUS */
 .msg.user .msg-text {
   padding: 10px 14px;
   border: 1px solid #f0f0f0;
   border-radius: 14px 14px 14px 6px;
   background: #fafafa;
+}
+
+/* Markdown 用户气泡：去掉 pre-wrap，避免 marked 末尾 \n 多出空行 */
+.msg.user .msg-text.md-view,
+.msg.user .msg-text.md-view .md-body {
+  white-space: normal;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.msg.user .msg-text.md-view .md-body :is(p, ul, ol) {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.msg.user .msg-text.md-view .md-body :is(p, ul, ol) + :is(p, ul, ol) {
+  margin-top: 0.35em;
+}
+
+.msg.user .msg-text.md-view .md-body a {
+  font-weight: 400;
 }
 
 /* 示例槽位：整段「…」（气泡里可略装饰；输入层禁止改字宽） */
@@ -294,10 +323,10 @@
   overflow-wrap: break-word;
   word-break: break-word;
   font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: inherit;
+  font-size: 0.8125rem;
+  font-weight: 400;
   letter-spacing: inherit;
-  line-height: 1.7;
+  line-height: 1.6;
   color: var(--ink);
   scrollbar-width: none;
 }
@@ -329,10 +358,10 @@
   background: transparent;
   color: var(--ink);
   font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: inherit;
+  font-size: 0.8125rem;
+  font-weight: 400;
   letter-spacing: inherit;
-  line-height: 1.7;
+  line-height: 1.6;
   width: 100%;
   white-space: pre-wrap;
   overflow-wrap: break-word;
@@ -382,6 +411,14 @@
   color: color-mix(in srgb, #0f766e 70%, var(--ink));
 }
 
+.chat-composer .pill.active,
+.chat-composer .pill[aria-pressed='true'] {
+  background: color-mix(in srgb, #0f766e 14%, #fff);
+  border-color: color-mix(in srgb, #0f766e 45%, #fff);
+  color: #0f766e;
+  font-weight: 600;
+}
+
 .chat-composer .pill:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -410,24 +447,26 @@
   margin-top: 6px;
 }
 
-/* Style D: console activity log (polished) */
+/* Style D: console — R2 扁平过程 + 结果一行（无厚卡片壳） */
 .msg .chat-console {
   position: relative;
-  margin: 0 0 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--line-2, var(--line));
-  border-radius: var(--r-md, 12px);
-  background: color-mix(in srgb, var(--chip) 28%, var(--surface));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-  font-size: 0.75rem;
-  line-height: 1.6;
+  font-size: 0.72rem;
+  line-height: 1.55;
   color: var(--ink);
 }
 
 /* I10: soft ring pulse — green border, white fill (no tint) */
 .msg .chat-console.is-running {
-  border-color: color-mix(in srgb, #16a34a 35%, transparent);
+  border: 1px solid color-mix(in srgb, #16a34a 35%, transparent);
+  border-radius: var(--r-md, 12px);
   background: var(--surface);
+  padding: 10px 12px;
   animation: chat-console-ring-pulse 1.8s ease-in-out infinite;
 }
 
@@ -459,14 +498,14 @@
 
 .msg .chat-event {
   display: grid;
-  grid-template-columns: 58px 44px minmax(0, 1fr);
-  gap: 0 12px;
-  align-items: start;
-  padding: 4px 6px;
-  margin: 0 -6px;
+  grid-template-columns: 52px 40px minmax(0, 1fr);
+  gap: 0 10px;
+  align-items: baseline;
+  padding: 3px 0;
+  margin: 0;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: default;
   transition: background 0.12s ease;
 }
@@ -511,40 +550,41 @@
 }
 
 .msg .chat-event-tag.tag-agent {
-  color: #0f766e;
+  color: var(--mute);
   background: transparent;
 }
 
 .msg .chat-event-tag.tag-llm {
-  color: #1d4ed8;
+  color: var(--mute);
   background: transparent;
 }
 
 .msg .chat-event-tag.tag-tool {
-  color: #c2410c;
+  color: var(--mute);
   background: transparent;
 }
 
 .msg .chat-event-status {
   width: 100%;
   text-align: left;
-  margin-top: 0;
-  padding: 4px 6px;
-  margin-left: -6px;
-  margin-right: -6px;
-  border-top: 0;
-  border-radius: 6px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  margin-left: 0;
+  margin-right: 0;
+  border: 1px solid color-mix(in srgb, #0f766e 14%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, #0f766e 5%, var(--surface));
   font: inherit;
   color: inherit;
-  align-items: start;
+  align-items: baseline;
 }
 
-/* 仅当 STATUS 接在过程事件后时才画分割线，避免单卡多出一条线 */
+/* 仅当 STATUS 接在过程事件后时拉开间距（边框已由结果一行卡承担） */
 .msg .chat-events + .chat-event-status {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-  border-radius: 0 0 6px 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, #0f766e 14%, var(--line));
+  border-radius: 10px;
 }
 
 /* ask_human：Manus 式确认条 — 白底软阴影，主确认深色，补充弱化 */
@@ -706,7 +746,7 @@
 
 .msg .chat-event-status .chat-event-tag.tag-status {
   color: var(--mute);
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .msg .chat-event-status.is-failed .chat-event-tag.tag-status {
@@ -715,16 +755,18 @@
 
 .msg .chat-event-status.is-failed .chat-result-text {
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .msg .chat-event-status.is-preview .chat-event-tag.tag-status {
-  color: #16a34a;
+  color: var(--mute);
 }
 
 .msg .chat-event-status .chat-result-text {
-  font-weight: 500;
-  line-height: 1.55;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  line-height: inherit;
   min-width: 0;
   color: var(--ink);
 }
@@ -738,7 +780,7 @@
 
 .msg .chat-event-title {
   font-size: inherit;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--ink);
   word-break: break-word;
 }
@@ -764,18 +806,31 @@
   border: 0;
   background: transparent;
   padding: 0;
-  margin-left: 8px;
+  margin: 0 0 6px;
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 500;
   color: var(--mute);
   cursor: pointer;
   flex-shrink: 0;
-  line-height: 1.2;
+  line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .msg .chat-process-toggle:hover {
   color: var(--ink);
+}
+
+.msg .chat-process-toggle .chev {
+  display: inline-block;
+  font-size: 0.65rem;
+  transition: transform 0.15s ease;
+}
+
+.msg .chat-process-toggle[aria-expanded='true'] .chev {
+  transform: rotate(90deg);
 }
 
 .msg .chat-stream-toggle {
@@ -783,13 +838,13 @@
   flex-shrink: 0;
   font-size: inherit;
   font-weight: 650;
-  color: var(--mute);
+  color: var(--mute-2);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
 
 .msg .chat-event-status.is-preview .chat-stream-toggle {
-  color: #15803d;
+  color: var(--mute);
 }
 
 .msg .chat-stream-body {
@@ -847,6 +902,28 @@
   max-width: 880px;
   width: 100%;
   margin: 0 auto;
+}
+
+
+/* Composer chrome — shared by ecommerce / xhs workspaces */
+.prompt-box {
+  width: 100%;
+  background: #fafafa;
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow);
+  padding: 14px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.prompt-box:focus-within {
+  border-color: color-mix(in srgb, #0f766e 35%, var(--line));
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px color-mix(in srgb, #0f766e 12%, transparent);
 }
 
 .chat-input-wrap .prompt-box {
@@ -916,79 +993,12 @@
 }
 
 .computer-body {
-  flex: 1;
-  overflow: auto;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 16px;
-}
-
-.comp-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.comp-card-head {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--line-2);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.comp-card-head .status {
-  font-weight: 500;
-  color: var(--mute);
-  font-size: 0.75rem;
-}
-
-.comp-card-body {
-  padding: 14px;
-}
-
-.listing-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.listing-hero {
-  aspect-ratio: 4 / 3;
-  width: 100%;
-  border-radius: var(--r-md);
-  border: 1px solid var(--line);
-  background:
-    radial-gradient(ellipse 70% 50% at 50% 78%, rgba(0, 0, 0, 0.07), transparent),
-    linear-gradient(180deg, #f8f8f8, #ececec);
-  display: grid;
-  place-items: center;
-  color: var(--mute);
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.listing-copy h4 {
-  margin: 0 0 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--mute);
-  letter-spacing: 0.02em;
-}
-
-.listing-copy .title-text {
-  margin: 0 0 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--ink);
-  line-height: 1.45;
-}
-
-.listing-copy .body-text {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--mute);
-  line-height: 1.55;
+  background: #f6f8fa;
 }

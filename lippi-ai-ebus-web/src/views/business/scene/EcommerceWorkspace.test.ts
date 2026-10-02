@@ -5,12 +5,12 @@ import { createApp, nextTick } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, setToken } from '@/api/http'
-import EcommerceWorkspacePlaceholder from '@/views/business/scene/EcommerceWorkspacePlaceholder.vue'
+import EcommerceWorkspace from '@/views/business/scene/EcommerceWorkspace.vue'
 import { DEMO_LISTING } from '@/views/business/scene/ecommerceDemoFixtures'
 import { processStreamText } from '@/composables/agent/agentProgress'
 
 const sessionCss = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), 'ecommerceWorkspaceSession.css'),
+  join(dirname(fileURLToPath(import.meta.url)), 'workspaceSession.css'),
   'utf8',
 )
 
@@ -362,7 +362,7 @@ async function mountWorkspace() {
       {
         path: '/scenes/ecommerce',
         name: 'scene-ecommerce',
-        component: EcommerceWorkspacePlaceholder,
+        component: EcommerceWorkspace,
       },
       { path: '/history', name: 'history', component: { template: '<div />' } },
       { path: '/credits', name: 'credits', component: { template: '<div />' } },
@@ -372,7 +372,7 @@ async function mountWorkspace() {
   })
   await router.push({ name: 'scene-ecommerce' })
   await router.isReady()
-  const app = createApp(EcommerceWorkspacePlaceholder)
+  const app = createApp(EcommerceWorkspace)
   app.use(router)
   app.mount(root)
   await flushUi()
@@ -431,7 +431,7 @@ function emptyRunApiHits(fetchMock: FetchSpy) {
   })
 }
 
-describe('EcommerceWorkspacePlaceholder default session shell', () => {
+describe('EcommerceWorkspace default session shell', () => {
   let unmount: (() => void) | undefined
   let fetchMock: ReturnType<typeof mockCatalogAndCredits>
 
@@ -529,7 +529,7 @@ describe('EcommerceWorkspacePlaceholder default session shell', () => {
   })
 })
 
-describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
+describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
   let unmount: (() => void) | undefined
   let fetchMock: ReturnType<typeof mockCatalogAndCredits>
 
@@ -547,7 +547,19 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     clearToken()
   })
 
-  async function enterViaSend(root: HTMLElement, text = '帮我做家居选品') {
+  async function enterViaSend(
+    root: HTMLElement,
+    text = '帮我做家居选品',
+    opts?: { skillIndex?: number | null },
+  ) {
+    const skillIndex = opts && 'skillIndex' in opts ? opts.skillIndex : 0
+    if (skillIndex != null) {
+      const pills = root.querySelectorAll<HTMLButtonElement>(
+        '[data-testid="session-quick-row"] .pill',
+      )
+      pills[skillIndex]?.click()
+      await flushUi()
+    }
     const area = root.querySelector(
       'textarea[aria-label="继续提问"]',
     ) as HTMLTextAreaElement
@@ -562,7 +574,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     await flushUi()
   }
 
-  it('session picks capsule fills prompt without sending or generation API', async () => {
+  it('session picks capsule toggles selection and fills prompt without sending', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     const callsBefore = fetchMock.mock.calls.length
@@ -577,10 +589,17 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     ) as HTMLTextAreaElement
     expect(area.value).toMatch(/Mac Mini 配件/)
     expect(area.value).not.toMatch(/【/)
+    expect(picks!.getAttribute('aria-pressed')).toBe('true')
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
     expect(mounted.router.currentRoute.value.fullPath).toBe(pathBefore)
     expect(fetchMock.mock.calls.length).toBe(callsBefore)
     expect(picklistApiHits(fetchMock)).toHaveLength(0)
+
+    const kept = area.value
+    picks!.click()
+    await flushUi()
+    expect(picks!.getAttribute('aria-pressed')).toBe('false')
+    expect(area.value).toBe(kept)
   })
 
   it('rejects send when prompt still contains template placeholders', async () => {
@@ -591,7 +610,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.textContent).toMatch(/【】里的占位/)
   })
 
-  it('sends picklist intent when user text contains 【优先试】 but no template slots', async () => {
+  it('sends picklist with skillId when capsule is selected even if text has 【优先试】', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     await enterViaSend(mounted.root, '帮我做家居选品，优先试【优先试】那一类')
@@ -622,6 +641,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(area.value).toMatch(/上架素材/)
     expect(area.value).toMatch(/Mac Mini 拓展坞/)
     expect(area.value).not.toMatch(/【/)
+    expect(listing!.getAttribute('aria-pressed')).toBe('true')
     const slot = mounted.root.querySelector('.prompt-highlight .ph')
     expect(slot?.textContent).toBe('「Mac Mini 拓展坞」')
     expect(mounted.root.querySelectorAll('.chat-scroll .msg').length).toBe(0)
@@ -652,8 +672,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(computer?.textContent).toContain("Adam's Computer")
       expect(computer?.textContent).toMatch(/picklist|选品清单/)
       expect(JSON.stringify(artifactReadyData())).toContain('"artifactRef":"pl-1"')
-      expect(computer?.querySelector('article.comp-card')).toBeTruthy()
-      expect(computer?.querySelectorAll('.comp-card').length).toBe(1)
+      expect(computer?.querySelector('[data-testid="git-view"]')).toBeTruthy()
+      expect(computer?.querySelectorAll('[data-testid="git-view"]').length).toBe(1)
       expect(computer?.querySelector('.cv-note')?.textContent).toMatch(/非实时/)
       expect(computer?.querySelectorAll('.pick-disclaimer').length).toBe(0)
       expect(computer?.querySelectorAll('.pick-list li').length).toBe(8)
@@ -661,7 +681,23 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
       expect(computer?.textContent).toMatch(/候选1/)
       expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/已生成/)
       expect(mounted.root.querySelector('.chat-event-status')?.textContent).toMatch(/已生成/)
-      expect(mounted.root.querySelector('.chat-events')).toBeTruthy()
+      // 成功后默认折叠过程；「执行过程 ›」可展开 TOOL/LLM
+      expect(mounted.root.querySelector('[data-testid="process-events"]')).toBeNull()
+      const processToggle = mounted.root.querySelector(
+        '[data-testid="toggle-process-log"]',
+      ) as HTMLButtonElement
+      expect(processToggle?.getAttribute('aria-label')).toBe('执行过程')
+      expect(processToggle?.textContent).toMatch(/执行过程/)
+      expect(mounted.root.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()
+      expect(
+        mounted.root
+          .querySelector('[data-testid="card-result-actions"]')
+          ?.querySelector('[data-testid="toggle-process-log"]'),
+      ).toBeNull()
+      processToggle.click()
+      await flushUi()
+      expect(mounted.root.querySelector('[data-testid="process-events"]')).toBeTruthy()
+      expect(processToggle.getAttribute('aria-label')).toBe('收起执行过程')
       const eventTexts = [...mounted.root.querySelectorAll('.chat-event')].map((el) => el.textContent || '')
       expect(eventTexts.some((t) => t.includes('AGENT') && t.includes('开始执行'))).toBe(true)
       expect(eventTexts.some((t) => t.includes('TOOL') && t.includes('读取技能说明'))).toBe(true)
@@ -744,6 +780,13 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
 
     expect(mounted.root.textContent).toMatch(/已生成/)
     expect(processStreamText(fullStream)).toBe(prose)
+    expect(mounted.root.querySelector('[data-testid="process-events"]')).toBeNull()
+    const processToggle = mounted.root.querySelector(
+      '[data-testid="toggle-process-log"]',
+    ) as HTMLButtonElement
+    expect(processToggle).toBeTruthy()
+    processToggle.click()
+    await flushUi()
     const stream = mounted.root.querySelector('.chat-event-llm')
     expect(stream).toBeTruthy()
     expect(stream?.querySelector('.chat-stream-body')).toBeNull()
@@ -777,6 +820,13 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     await enterViaSend(mounted.root)
 
     expect(mounted.root.querySelector('.chat-stream-body')).toBeNull()
+    expect(mounted.root.querySelector('[data-testid="process-events"]')).toBeNull()
+    const processToggle = mounted.root.querySelector(
+      '[data-testid="toggle-process-log"]',
+    ) as HTMLButtonElement
+    expect(processToggle).toBeTruthy()
+    processToggle.click()
+    await flushUi()
     expect(mounted.root.querySelector('.chat-event-llm')).toBeTruthy()
     expect(mounted.root.querySelector('.chat-stream-toggle')?.textContent).toContain('[+]')
     ;(mounted.root.querySelector('.chat-event-llm') as HTMLElement).click()
@@ -786,17 +836,25 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
 
   it('does not hardcode picklist-specific step strings in chat source', () => {
     const vueSrc = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), 'EcommerceWorkspacePlaceholder.vue'),
+      join(dirname(fileURLToPath(import.meta.url)), 'EcommerceWorkspace.vue'),
+      'utf8',
+    )
+    const consoleSrc = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../../components/business/workspace/WorkspaceChatConsole.vue',
+      ),
       'utf8',
     )
     expect(vueSrc).not.toMatch(/step-status/)
-    expect(vueSrc).toMatch(/chat-events/)
-    expect(vueSrc).toMatch(/tag-tool/)
+    expect(vueSrc).toMatch(/WorkspaceChatConsole/)
+    expect(consoleSrc).toMatch(/chat-events/)
+    expect(consoleSrc).toMatch(/tag-tool/)
     const runSrc = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), '../../../composables/agent/useAgentPicklistRun.ts'),
       'utf8',
     )
-    const src = `${vueSrc}\n${runSrc}`
+    const src = `${vueSrc}\n${consoleSrc}\n${runSrc}`
     expect(src).not.toMatch(/正在读取技能|解析选品|生成候选清单|调用选品工具/)
     expect(vueSrc).not.toMatch(/FallbackPicklistCard|pick-list--legacy/)
     expect(runSrc).toMatch(/toGenerationArtifact/)
@@ -914,13 +972,18 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(false)
   })
 
-  it('opens Computer with listing preview via demo control after non-picklist send', async () => {
+  it('opens Computer with listing preview via demo control', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    await enterViaSend(mounted.root, '随便聊聊天气')
+    // Seed an agent bubble so demo actions render (no live artifact yet)
+    const area = mounted.root.querySelector(
+      'textarea[aria-label="继续提问"]',
+    ) as HTMLTextAreaElement
+    setTextareaValue(area, '请帮我生成【品类】类选品清单，客单价【最低价】–【最高价】元。')
+    await flushUi()
+    ;(mounted.root.querySelector('.session button[aria-label="发送"]') as HTMLButtonElement).click()
+    await flushUi()
 
-    expect(picklistApiHits(fetchMock)).toHaveLength(0)
-    expect(listingApiHits(fetchMock)).toHaveLength(0)
     const openListing = mounted.root.querySelector(
       '[data-demo="open-listing"]',
     ) as HTMLButtonElement
@@ -933,19 +996,32 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(body?.textContent).toContain(DEMO_LISTING.title)
     expect(body?.textContent).toContain(DEMO_LISTING.body)
     expect(mounted.root.querySelector('.listing-stack')).toBeNull()
-    expect(mounted.root.textContent).toMatch(/上架素材预览/)
-    expect(mounted.root.textContent).toMatch(/详情标题/)
+    expect(mounted.root.querySelector('[aria-label="上架素材预览"]')).toBeTruthy()
+    expect(mounted.root.textContent).toMatch(/详情文案/)
     expect(mounted.root.textContent).toMatch(DEMO_LISTING.title)
-    expect(body?.querySelectorAll('.comp-card').length).toBe(1)
-    expect(body?.querySelector('.listing-copy.is-body .section-body')?.textContent).toContain(
+    expect(body?.querySelectorAll('[data-testid="git-view"]').length).toBe(1)
+    expect(body?.querySelector('.listing-copy.is-body')?.textContent).toContain(
       DEMO_LISTING.body,
     )
   })
 
-  it('listing intent streams billed skulist and shows live Computer (not demo)', async () => {
+  it('free-text send omits skillId', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    await enterViaSend(mounted.root, '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。')
+    await enterViaSend(mounted.root, '随便聊聊天气', { skillIndex: null })
+    const hits = billedRunApiHits(fetchMock)
+    expect(hits.length).toBeGreaterThanOrEqual(1)
+    const body = JSON.parse(String(hits[0]?.[1]?.body || '{}')) as { skillId?: string }
+    expect(body.skillId).toBeUndefined()
+    expect(mounted.root.textContent).not.toMatch(/请用上方胶囊/)
+  })
+
+  it('listing capsule streams billed skulist and shows live Computer (not demo)', async () => {
+    const mounted = await mountWorkspace()
+    unmount = mounted.unmount
+    await enterViaSend(mounted.root, '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。', {
+      skillIndex: 1,
+    })
 
     expect(listingApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
     const body = listingApiHits(fetchMock)[0]?.[1] as RequestInit | undefined
@@ -954,7 +1030,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.textContent).toMatch(/已生成上架素材/)
     expect(mounted.root.textContent).toMatch(/厨房硅胶沥水垫/)
     expect(mounted.root.textContent).toMatch(/易清洗防滑/)
-    expect(mounted.root.querySelector('.platform-switch')).toBeTruthy()
+    expect(mounted.root.querySelector('.platform-switch')).toBeNull()
+    expect(mounted.root.querySelector('[data-testid="git-view"]')).toBeTruthy()
     expect(mounted.root.querySelector('.listing-copy.is-title')).toBeTruthy()
     expect(mounted.root.querySelector('[data-demo="open-listing"]')).toBeNull()
   })
@@ -974,7 +1051,9 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     })
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    await enterViaSend(mounted.root, '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。')
+    await enterViaSend(mounted.root, '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。', {
+      skillIndex: 1,
+    })
 
     expect(listingApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
     expect(resumeApiHits(fetchMock)).toHaveLength(0)
@@ -1003,7 +1082,8 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(mounted.root.querySelector('[data-testid="ask-human"]')).toBeNull()
     expect(mounted.root.querySelector('[data-testid="session-quick-row"]')).toBeTruthy()
     expect(mounted.root.textContent).toMatch(/已生成上架素材/)
-    expect(mounted.root.querySelector('.platform-switch')).toBeTruthy()
+    expect(mounted.root.querySelector('.platform-switch')).toBeNull()
+    expect(mounted.root.querySelector('[data-testid="git-view"]')).toBeTruthy()
     expect(mounted.root.querySelector('.listing-copy.is-title')).toBeTruthy()
     expect(mounted.root.textContent).toMatch(/厨房硅胶沥水垫/)
   })
@@ -1018,7 +1098,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     })
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
-    await enterViaSend(mounted.root, '帮我写上架素材')
+    await enterViaSend(mounted.root, '帮我写上架素材', { skillIndex: 1 })
 
     expect(listingApiHits(fetchMock).length).toBeGreaterThanOrEqual(1)
     expect(mounted.root.querySelector('.chat-scroll')?.textContent).toMatch(/积分不足|升级/)
@@ -1111,22 +1191,25 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     })
   })
 
-  it('shows card actions only on the latest success STATUS card', async () => {
+  it('shows retry/like/dislike only on the latest success STATUS card', async () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     await enterViaSend(mounted.root, '帮我做家居选品')
 
-    expect(mounted.root.querySelectorAll('[data-testid="card-result-actions"]')).toHaveLength(1)
+    expect(mounted.root.querySelectorAll('[data-testid="one-click-retry"]')).toHaveLength(1)
 
     ;(mounted.root.querySelector('[data-testid="one-click-retry"]') as HTMLButtonElement).click()
     await flushUi()
     await flushUi()
 
-    expect(mounted.root.querySelectorAll('[data-testid="card-result-actions"]')).toHaveLength(1)
+    // 旧 STATUS 可有执行过程入口；重试/赞踩仅挂在最新一条
+    expect(mounted.root.querySelectorAll('[data-testid="one-click-retry"]')).toHaveLength(1)
+    expect(mounted.root.querySelectorAll('[data-testid="card-like"]')).toHaveLength(1)
+    expect(mounted.root.querySelectorAll('[data-testid="toggle-process-log"]').length).toBeGreaterThanOrEqual(1)
     const statusCards = mounted.root.querySelectorAll('.chat-event-status.is-preview')
     expect(statusCards.length).toBeGreaterThanOrEqual(2)
     const lastStatus = statusCards[statusCards.length - 1]
-    expect(lastStatus?.closest('.msg')?.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()
+    expect(lastStatus?.closest('.msg')?.querySelector('[data-testid="one-click-retry"]')).toBeTruthy()
   })
 
   it('keeps like highlight when delayed GET restore returns null', async () => {
@@ -1238,6 +1321,23 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     expect(thread).toMatch(/已生成选品成果/)
     expect(thread).not.toContain("I'll load")
     expect(thread).not.toContain('"blocks"')
+    // 历史 STATUS 有「执行过程」入口，展开后可查看中间过程正文
+    expect(mounted.root.querySelector('[data-testid="process-events"]')).toBeNull()
+    const processToggle = mounted.root.querySelector(
+      '[data-testid="toggle-process-log"]',
+    ) as HTMLButtonElement
+    expect(processToggle?.getAttribute('aria-label')).toBe('执行过程')
+    processToggle.click()
+    await flushUi()
+    const processRows = mounted.root.querySelectorAll(
+      '[data-testid="process-events"] .chat-event.expandable',
+    )
+    expect(processRows.length).toBeGreaterThan(0)
+    ;(processRows[0] as HTMLElement).click()
+    await flushUi()
+    expect(
+      mounted.root.querySelector('[data-testid="process-events"] .chat-stream-body')?.textContent,
+    ).toMatch(/load the skill/i)
     const userBubbles = mounted.root.querySelectorAll('.msg.user .msg-text')
     expect(userBubbles.length).toBe(2)
     expect(userBubbles[0]?.textContent).toContain('帮我找杯子')
@@ -1245,7 +1345,6 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     const agentStatuses = mounted.root.querySelectorAll('.chat-event-status.is-preview')
     expect(agentStatuses.length).toBe(2)
     expect(agentStatuses[0]?.querySelector('.chat-event-time')?.textContent).toMatch(/^\d{2}:\d{2}:\d{2}$/)
-    expect(mounted.root.querySelector('.chat-events')).toBeNull()
     expect(items[1]?.classList.contains('on')).toBe(true)
     expect(items[0]?.classList.contains('on')).toBe(false)
     // 侧栏切入：挂上成果但不自动展开 Computer
@@ -1603,7 +1702,7 @@ describe('EcommerceWorkspacePlaceholder session shell (3.4 picklist)', () => {
     const mounted = await mountWorkspace()
     unmount = mounted.unmount
     const listingText = '请为商品「硅胶沥水垫」生成上架素材，优先适配淘宝。'
-    await enterViaSend(mounted.root, listingText)
+    await enterViaSend(mounted.root, listingText, { skillIndex: 1 })
 
     expect(mounted.root.querySelector('[data-testid="card-result-actions"]')).toBeTruthy()
     const before = listingApiHits(fetchMock).length

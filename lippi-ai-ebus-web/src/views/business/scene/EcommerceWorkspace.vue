@@ -3,8 +3,11 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
 import SlotAwarePromptEditor from '@/components/business/scene/SlotAwarePromptEditor.vue'
+import WorkspaceChatConsole from '@/components/business/workspace/WorkspaceChatConsole.vue'
+import WorkspaceDislikeDrawer from '@/components/business/workspace/WorkspaceDislikeDrawer.vue'
+import WorkspaceResultActions from '@/components/business/workspace/WorkspaceResultActions.vue'
+import WorkspaceSessionSidebar from '@/components/business/workspace/WorkspaceSessionSidebar.vue'
 import { ApiError } from '@/api/client'
-import { getFeedbackByArtifact, submitFeedback } from '@/api/business/feedback/feedback'
 import { getScenes, getSceneSkillCapsules } from '@/api/business/scene/scene'
 import type { SceneSkillCapsuleItem } from '@/types/business/scene'
 import {
@@ -17,12 +20,13 @@ import {
   buildFailureDetail,
   canExpandProcessEvent,
   formatEventTime,
-  formatStreamBodyForDisplay,
-  processEventDisplayLabel,
   type ProcessEvent,
 } from '@/composables/agent/agentProgress'
 import { useAgentListingRun } from '@/composables/agent/useAgentListingRun'
 import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
+import { useAgentSkillRun } from '@/composables/agent/useAgentSkillRun'
+import { useChatConsoleExpand } from '@/composables/workspace/useChatConsoleExpand'
+import { useWorkspaceFeedback } from '@/composables/workspace/useWorkspaceFeedback'
 import {
   DEMO_LISTING_VIEW,
   DEMO_PICKS_VIEW,
@@ -31,11 +35,17 @@ import {
 import type { GenerationArtifactPayload } from '@/types/business/agent'
 import { parseComputerDocument, type ComputerListItem } from '@/types/business/computerView'
 import { buildListingHandoffText } from '@/utils/listingHandoff'
-import { splitPromptSlots } from '@/utils/promptSlots'
-import { FEEDBACK_TAG_GOOD_QUALITY, FEEDBACK_TAG_POOR_QUALITY } from '@/types/business/feedback'
 import { toReplayBubblesFromTurns } from '@/utils/sessionReplay'
 import type { HistoryArtifactDetail } from '@/types/business/history'
-import '@/views/business/scene/ecommerceWorkspaceSession.css'
+import type { WorkspaceChatMessage } from '@/types/business/workspaceChat'
+import MarkdownView from '@/components/common/MarkdownView.vue'
+import {
+  type EcommerceComputerKind,
+  ecommerceKindFromArtifactType as kindFromArtifactType,
+  ecommerceKindFromSkillId,
+  previewEcommerceKindFromStatus,
+} from '@/views/business/scene/ecommerce/workspaceKinds'
+import '@/views/business/scene/workspaceSession.css'
 
 /** Stable scene binding for this workbench — Epic 3 session create must carry it */
 const SCENE_CODE = 'ecommerce' as const
@@ -44,24 +54,12 @@ const ATTACH_SOON = '近端暂不支持附件'
 
 const TEMPLATE_SLOT_MARK = /【品类】|【最低价】|【最高价】|【商品名称】|【淘宝\/拼多多\/闲鱼】/
 
-type ComputerKind = 'picks' | 'listing' | null
-
-interface ChatMessage {
-  id: string
-  role: 'user' | 'agent'
-  text: string
-  /** Ordered AGENT / LLM / TOOL rows from SSE */
-  processEvents?: ProcessEvent[]
-  /** Failed STATUS expand panel (reason + tool/model dumps) */
-  statusDetail?: string
-  failed?: boolean
-  /** R1 回放用普通气泡；直播/合成 STATUS 走 console */
-  presentation?: 'bubble' | 'console'
-  /** epoch ms（回放来自 entry.created_at） */
-  at?: number
-}
+type ComputerKind = EcommerceComputerKind
+type ChatMessage = WorkspaceChatMessage
 
 const sessionPrompt = ref('')
+/** 快捷栏选中的 skillId；null = 空选发送不带 skillId */
+const selectedSkillId = ref<string | null>(null)
 /** 工作台快捷胶囊：来自 GET /scenes/{sceneCode}/skills（launch.json） */
 const skillCapsules = ref<SceneSkillCapsuleItem[]>([])
 /** Optional Catalog bizId when list is available; null if unresolved */
@@ -83,8 +81,6 @@ const liveListing = ref<GenerationArtifactPayload | null>(null)
 const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
 const thinkingMessageId = ref<string | null>(null)
-const expandedStreamIds = ref(new Set<string>())
-const expandedStatusIds = ref(new Set<string>())
 
 const {
   running: picklistRunning,
@@ -108,6 +104,16 @@ const {
   reset: resetListingRun,
 } = useAgentListingRun()
 
+const {
+  running: freeRunning,
+  error: freeError,
+  artifact: freeArtifact,
+  sessionId: freeSessionId,
+  processEvents: freeProcessEvents,
+  startSkillRun,
+  reset: resetFreeRun,
+} = useAgentSkillRun()
+
 const listingSupplementOpen = ref(false)
 const listingSupplementText = ref('')
 
@@ -116,27 +122,29 @@ const lastBilledPrompt = ref('')
 const lastBilledKind = ref<ComputerKind>(null)
 /** 当前计费轮次提示词（含 HITL 续跑成功后回填） */
 const pendingBilledPrompt = ref('')
-const feedbackNote = ref('')
-const feedbackBusy = ref(false)
-const feedbackHint = ref('')
-const feedbackTag = ref<string | null>(null)
-const dislikeDrawerOpen = ref(false)
-/** Monotonic seq so a late GET cannot overwrite a newer local like/dislike. */
-let feedbackOpSeq = 0
-const localFeedbackSubmitSeq = new Map<string, number>()
 /** Ignore stale session-switch HTTP after 新任务 / 连点侧栏 */
 let workspaceSwitchSeq = 0
 
-const generationRunning = computed(() => picklistRunning.value || listingRunning.value)
+const generationRunning = computed(
+  () => picklistRunning.value || listingRunning.value || freeRunning.value,
+)
 const listingAwaitingHuman = computed(() => Boolean(listingPendingHuman.value))
 const sessionBusy = computed(() => generationRunning.value || listingAwaitingHuman.value)
-const sessionId = computed(() => picklistSessionId.value ?? listingSessionId.value)
-const processEvents = computed(() =>
-  listingRunning.value ||
-  (listingProcessEvents.value.length > 0 && !picklistRunning.value)
-    ? listingProcessEvents.value
-    : picklistProcessEvents.value,
+const sessionId = computed(
+  () => picklistSessionId.value ?? listingSessionId.value ?? freeSessionId.value,
 )
+const processEvents = computed(() => {
+  if (freeRunning.value || (freeProcessEvents.value.length > 0 && !picklistRunning.value && !listingRunning.value)) {
+    return freeProcessEvents.value
+  }
+  if (
+    listingRunning.value ||
+    (listingProcessEvents.value.length > 0 && !picklistRunning.value)
+  ) {
+    return listingProcessEvents.value
+  }
+  return picklistProcessEvents.value
+})
 
 const computerOpen = computed(() => computerKind.value != null)
 const sessionSendEnabled = computed(
@@ -158,18 +166,41 @@ const activeLiveArtifact = computed(() => {
   return null
 })
 
+const {
+  feedbackNote,
+  feedbackBusy,
+  feedbackHint,
+  feedbackTag,
+  dislikeDrawerOpen,
+  canSubmitFeedback,
+  submitLikeFeedback,
+  openDislikeDrawer,
+  closeDislikeDrawer,
+  submitPoorQualityFeedback,
+  resetFeedbackUi,
+} = useWorkspaceFeedback({
+  getArtifactId: () => activeLiveArtifact.value?.artifactRef?.trim() || '',
+  sessionBusy,
+})
+
+const {
+  expandedStreamIds,
+  expandedStatusIds,
+  expandedProcessLogIds,
+  shouldShowProcessEvents,
+  canToggleProcessLog,
+  toggleProcessLog,
+  toggleStreamExpand,
+  toggleStatusExpand,
+  canExpandStatus,
+  resetConsoleExpand,
+} = useChatConsoleExpand({ generationRunning, thinkingMessageId })
+
 const canOneClickRetry = computed(
   () =>
     Boolean(lastBilledPrompt.value.trim()) &&
     Boolean(lastBilledKind.value) &&
     !sessionBusy.value,
-)
-
-const canSubmitFeedback = computed(
-  () =>
-    Boolean(activeLiveArtifact.value?.artifactRef) &&
-    !sessionBusy.value &&
-    !feedbackBusy.value,
 )
 
 const activeComputerDoc = computed(() => {
@@ -197,26 +228,36 @@ function scrollChatToBottom() {
   })
 }
 
-function fillCapsulePrompt(skill: SceneSkillCapsuleItem) {
+function toggleCapsuleSkill(skill: SceneSkillCapsuleItem) {
+  if (selectedSkillId.value === skill.skillId) {
+    selectedSkillId.value = null
+    return
+  }
+  selectedSkillId.value = skill.skillId
   sessionPrompt.value = skill.examplePrompt || ''
 }
 
-function isListingIntent(text: string): boolean {
-  const t = text.trim()
-  if (!t) return false
-  if (/选品|测款|候选清单/.test(t) && !/上架|listing|主图|详情文案/i.test(t)) {
-    return false
+function inferEcommerceKindFromView(
+  view: GenerationArtifactPayload['view'] | undefined,
+): Exclude<ComputerKind, null> | null {
+  if (!view) return null
+  if (view.blocks.some((b) => b.type === 'list' && b.ordered !== false && /上架|listing/i.test(view.title || ''))) {
+    return 'listing'
   }
-  return /上架|listing|主图|详情文案|上架素材/i.test(t)
-}
-
-function isPicklistIntent(text: string): boolean {
-  const t = text.trim()
-  if (!t) return false
-  if (isListingIntent(t) && !/选品/.test(t)) {
-    return false
+  if (
+    view.blocks.some(
+      (b) =>
+        b.type === 'section' &&
+        (b.heading === '详情标题' || b.heading === '详情正文'),
+    ) &&
+    !view.blocks.some((b) => b.type === 'list')
+  ) {
+    return 'listing'
   }
-  return /选品|测款|品类|候选|可卖|帮我选/.test(t) || t.includes('选品清单')
+  if (view.blocks.some((b) => b.type === 'list')) return 'picks'
+  if (/上架|listing/i.test(view.title || '')) return 'listing'
+  if (/选品|清单/i.test(view.title || '')) return 'picks'
+  return null
 }
 
 function applySoftCreditHint(reason: string): string {
@@ -420,19 +461,12 @@ async function sendFromSession() {
   sessionPrompt.value = ''
   scrollChatToBottom()
 
-  const listing = isListingIntent(text)
-  const picklist = isPicklistIntent(text)
-  if (!listing && !picklist) {
-    messages.value.push({
-      id: nextMsgId(),
-      role: 'agent',
-      text: '近端可生成「选品清单」或「上架素材」。请用上方胶囊，或直接描述品类/客单价，或说明要上架的商品。',
-    })
-    scrollChatToBottom()
+  const kind = ecommerceKindFromSkillId(selectedSkillId.value)
+  if (kind) {
+    await runBilledGeneration(text, kind)
     return
   }
-
-  await runBilledGeneration(text, listing ? 'listing' : 'picks')
+  await runFreeTextGeneration(text)
 }
 
 /** 计费生成（首次发送与一键重试共用；复用 sessionId，新 Run）。 */
@@ -501,6 +535,104 @@ async function runBilledGeneration(text: string, kind: 'picks' | 'listing') {
   })
 }
 
+/** 空选快捷栏：不带 skillId，Computer kind 等成果 view 再定。 */
+async function runFreeTextGeneration(text: string) {
+  pendingBilledPrompt.value = text
+  const thinkingId = nextMsgId()
+  thinkingMessageId.value = thinkingId
+  messages.value.push({
+    id: thinkingId,
+    role: 'agent',
+    text: '正在处理…',
+  })
+  scrollChatToBottom()
+
+  await startSkillRun({
+    text,
+    sceneCode: SCENE_CODE,
+    sceneId: sceneBizId.value ?? undefined,
+    sessionId: sessionId.value ?? undefined,
+  })
+
+  const kind = inferEcommerceKindFromView(freeArtifact.value?.view)
+  if (kind) {
+    const n = freeArtifact.value?.view?.blocks?.length || 0
+    await finishGenerationMessage({
+      thinkingId,
+      error: freeError.value,
+      artifact: freeArtifact.value,
+      kind,
+      successFallback:
+        kind === 'listing'
+          ? '已生成上架素材，右侧 Computer 可查看。'
+          : n > 0
+            ? '已生成选品候选，右侧 Computer 可查看详情。'
+            : '已生成选品成果，右侧 Computer 可查看。',
+      emptyFallback:
+        kind === 'listing'
+          ? '上架已结束，但未收到可用素材，请重试。'
+          : '选品已结束，但未收到可用清单，请重试。',
+      processSnapshot: freeProcessEvents.value.length
+        ? [...freeProcessEvents.value]
+        : undefined,
+    })
+    return
+  }
+
+  const idx = messages.value.findIndex((m) => m.id === thinkingId)
+  if (freeError.value) {
+    const soft = applySoftCreditHint(freeError.value)
+    const statusDetail = buildFailureDetail(
+      soft,
+      freeProcessEvents.value.length ? [...freeProcessEvents.value] : [],
+    )
+    const failedMsg = {
+      id: thinkingId,
+      role: 'agent' as const,
+      text: soft,
+      processEvents: freeProcessEvents.value.length
+        ? [...freeProcessEvents.value]
+        : undefined,
+      failed: true,
+      statusDetail,
+    }
+    if (idx >= 0) messages.value[idx] = failedMsg
+    else messages.value.push({ ...failedMsg, id: nextMsgId() })
+  } else if (freeArtifact.value?.view) {
+    const reply = '已生成结果，右侧 Computer 可查看。'
+    if (idx >= 0) {
+      messages.value[idx] = {
+        id: thinkingId,
+        role: 'agent',
+        text: reply,
+        processEvents: freeProcessEvents.value.length
+          ? [...freeProcessEvents.value]
+          : undefined,
+      }
+    }
+  } else {
+    const empty = '处理已结束，但未收到可用成果，请重试。'
+    const statusDetail = buildFailureDetail(
+      empty,
+      freeProcessEvents.value.length ? [...freeProcessEvents.value] : [],
+    )
+    const failedMsg = {
+      id: thinkingId,
+      role: 'agent' as const,
+      text: empty,
+      processEvents: freeProcessEvents.value.length
+        ? [...freeProcessEvents.value]
+        : undefined,
+      failed: true,
+      statusDetail,
+    }
+    if (idx >= 0) messages.value[idx] = failedMsg
+    else messages.value.push({ ...failedMsg, id: nextMsgId() })
+  }
+  thinkingMessageId.value = null
+  scrollChatToBottom()
+}
+
 async function oneClickRetry() {
   if (!canOneClickRetry.value || !lastBilledKind.value) return
   const text = lastBilledPrompt.value.trim()
@@ -508,58 +640,6 @@ async function oneClickRetry() {
   messages.value.push({ id: nextMsgId(), role: 'user', text: `重试：${text}` })
   scrollChatToBottom()
   await runBilledGeneration(text, kind)
-}
-
-async function submitLikeFeedback() {
-  const artifactRef = activeLiveArtifact.value?.artifactRef?.trim()
-  if (!artifactRef || !canSubmitFeedback.value) return
-  feedbackBusy.value = true
-  feedbackHint.value = ''
-  try {
-    await submitFeedback({
-      artifactId: artifactRef,
-      tag: FEEDBACK_TAG_GOOD_QUALITY,
-    })
-    markLocalFeedbackSubmit(artifactRef)
-    feedbackTag.value = FEEDBACK_TAG_GOOD_QUALITY
-    feedbackHint.value = '已记录「质量好」反馈，不影响积分。'
-  } catch (e) {
-    feedbackHint.value = e instanceof ApiError ? e.message : '反馈提交失败'
-  } finally {
-    feedbackBusy.value = false
-  }
-}
-
-function openDislikeDrawer() {
-  if (!activeLiveArtifact.value?.artifactRef || sessionBusy.value) return
-  dislikeDrawerOpen.value = true
-}
-
-function closeDislikeDrawer() {
-  dislikeDrawerOpen.value = false
-}
-
-async function submitPoorQualityFeedback() {
-  const artifactRef = activeLiveArtifact.value?.artifactRef?.trim()
-  if (!artifactRef || !canSubmitFeedback.value) return
-  feedbackBusy.value = true
-  feedbackHint.value = ''
-  try {
-    await submitFeedback({
-      artifactId: artifactRef,
-      tag: FEEDBACK_TAG_POOR_QUALITY,
-      commentText: feedbackNote.value.trim() || undefined,
-    })
-    markLocalFeedbackSubmit(artifactRef)
-    feedbackTag.value = FEEDBACK_TAG_POOR_QUALITY
-    feedbackNote.value = ''
-    dislikeDrawerOpen.value = false
-    feedbackHint.value = '已记录「质量差」反馈，不影响积分。'
-  } catch (e) {
-    feedbackHint.value = e instanceof ApiError ? e.message : '反馈提交失败'
-  } finally {
-    feedbackBusy.value = false
-  }
 }
 
 function revealComputer() {
@@ -579,9 +659,7 @@ function openListingComputer() {
 }
 
 function previewKindFromStatus(m: ChatMessage): ComputerKind {
-  if (/上架素材|主图位/.test(m.text)) return 'listing'
-  if (/选品/.test(m.text)) return 'picks'
-  return null
+  return previewEcommerceKindFromStatus(m.text)
 }
 
 function canPreviewFromStatus(m: ChatMessage): boolean {
@@ -591,22 +669,6 @@ function canPreviewFromStatus(m: ChatMessage): boolean {
   if (kind === 'listing') return Boolean(liveListing.value?.view)
   if (kind === 'picks') return Boolean(livePicklist.value?.view)
   return Boolean(livePicklist.value?.view || liveListing.value?.view)
-}
-
-function currentFeedbackArtifactId() {
-  return activeLiveArtifact.value?.artifactRef?.trim() || ''
-}
-
-function markLocalFeedbackSubmit(artifactId: string) {
-  const seq = ++feedbackOpSeq
-  localFeedbackSubmitSeq.set(artifactId, seq)
-}
-
-function applyFeedbackRestore(seq: number, artifactId: string, tag: string | null) {
-  if (currentFeedbackArtifactId() !== artifactId) return
-  const localSeq = localFeedbackSubmitSeq.get(artifactId) ?? 0
-  if (localSeq > seq) return
-  feedbackTag.value = tag
 }
 
 function isLatestPreviewableStatus(m: ChatMessage): boolean {
@@ -620,32 +682,10 @@ function isLatestPreviewableStatus(m: ChatMessage): boolean {
   return false
 }
 
-watch(
-  () => activeLiveArtifact.value?.artifactRef?.trim() || '',
-  async (artifactId) => {
-    if (!artifactId) {
-      feedbackOpSeq += 1
-      feedbackTag.value = null
-      return
-    }
-    const seq = ++feedbackOpSeq
-    try {
-      const existing = await getFeedbackByArtifact(artifactId)
-      applyFeedbackRestore(seq, artifactId, existing?.tag?.trim() || null)
-    } catch {
-      applyFeedbackRestore(seq, artifactId, null)
-    }
-  },
-)
-
 /** Preview is showing when Computer is open on the matching live view. */
 function isPreviewOpenFromStatus(m: ChatMessage): boolean {
   const kind = previewKindFromStatus(m) || (livePicklist.value?.view ? 'picks' : 'listing')
   return canPreviewFromStatus(m) && computerKind.value === kind
-}
-
-function canExpandStatus(m: ChatMessage): boolean {
-  return Boolean(m.failed && (m.statusDetail || m.text))
 }
 
 function onStatusCardClick(m: ChatMessage) {
@@ -697,6 +737,7 @@ function replayMessagesFromApi(
         text: bubble.content,
         presentation: 'console' as const,
         at: bubble.at,
+        processEvents: bubble.processEvents,
       }
     }
     return {
@@ -746,12 +787,6 @@ function isConsoleMessage(m: ChatMessage): boolean {
       (generationRunning.value && m.id === thinkingMessageId.value) ||
       (listingAwaitingHuman.value && m.id === thinkingMessageId.value),
   )
-}
-
-function kindFromArtifactType(artifactType?: string | null): ComputerKind {
-  if (artifactType === 'sku') return 'listing'
-  if (artifactType === 'picklist') return 'picks'
-  return null
 }
 
 function lastUserPromptFromReplay(rows: ChatMessage[], titleFallback: string): string {
@@ -846,8 +881,7 @@ async function selectSession(item: SessionSummary) {
   listingSupplementOpen.value = false
   listingSupplementText.value = ''
   thinkingMessageId.value = null
-  expandedStreamIds.value = new Set()
-  expandedStatusIds.value = new Set()
+  resetConsoleExpand()
   picklistSessionId.value = sid
   listingSessionId.value = sid
   selectedSessionId.value = sid
@@ -861,13 +895,7 @@ async function selectSession(item: SessionSummary) {
   lastBilledPrompt.value = ''
   lastBilledKind.value = null
   pendingBilledPrompt.value = ''
-  feedbackNote.value = ''
-  feedbackHint.value = ''
-  feedbackTag.value = null
-  dislikeDrawerOpen.value = false
-  feedbackBusy.value = false
-  feedbackOpSeq += 1
-  localFeedbackSubmitSeq.clear()
+  resetFeedbackUi()
   applyLatestArtifact(null)
   try {
     const [page, latest, picksArt, listingArt] = await Promise.all([
@@ -932,11 +960,11 @@ function newTask() {
   workspaceSwitchSeq += 1
   resetPicklistRun()
   resetListingRun()
+  resetFreeRun()
   listingSupplementOpen.value = false
   listingSupplementText.value = ''
   thinkingMessageId.value = null
-  expandedStreamIds.value = new Set()
-  expandedStatusIds.value = new Set()
+  resetConsoleExpand()
   messages.value = []
   sessionRawTurns.value = []
   sessionHasMore.value = false
@@ -947,49 +975,14 @@ function newTask() {
   livePicklist.value = null
   liveListing.value = null
   sessionPrompt.value = ''
+  selectedSkillId.value = null
   sessionTitle.value = DEMO_SESSION_TITLE
   selectedSessionId.value = null
   lastBilledPrompt.value = ''
   lastBilledKind.value = null
   pendingBilledPrompt.value = ''
-  feedbackNote.value = ''
-  feedbackHint.value = ''
-  feedbackTag.value = null
-  dislikeDrawerOpen.value = false
-  feedbackBusy.value = false
-  feedbackOpSeq += 1
-  localFeedbackSubmitSeq.clear()
+  resetFeedbackUi()
   void loadSessions()
-}
-
-function toggleStreamExpand(id: string) {
-  const next = new Set(expandedStreamIds.value)
-  if (next.has(id)) {
-    next.delete(id)
-  } else {
-    next.add(id)
-  }
-  expandedStreamIds.value = next
-}
-
-function toggleStatusExpand(id: string) {
-  const next = new Set(expandedStatusIds.value)
-  if (next.has(id)) {
-    next.delete(id)
-  } else {
-    next.add(id)
-  }
-  expandedStatusIds.value = next
-}
-
-function eventTag(kind: ProcessEvent['kind']): string {
-  if (kind === 'agent') return 'AGENT'
-  if (kind === 'llm') return 'LLM'
-  return 'TOOL'
-}
-
-function eventTitle(e: ProcessEvent): string {
-  return processEventDisplayLabel(e.title)
 }
 
 watch(picklistArtifact, (value) => {
@@ -1056,30 +1049,14 @@ onMounted(async () => {
     <AppHeader :scene-breadcrumb="SCENE_BREADCRUMB" :hide-secondary-nav="true" />
 
     <div class="session" data-testid="session-shell">
-      <aside class="sidebar" aria-label="会话侧栏">
-        <button type="button" class="side-new" @click="newTask">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          新任务
-        </button>
-        <div class="side-section">会话</div>
-        <p v-if="sessionsError" class="sessions-error" data-testid="sessions-error">{{ sessionsError }}</p>
-        <div class="session-list" data-testid="session-list">
-          <button
-            v-for="s in sessions"
-            :key="s.sessionId"
-            type="button"
-            class="side-item"
-            :class="{ on: selectedSessionId === s.sessionId }"
-            data-testid="session-item"
-            @click="selectSession(s)"
-          >
-            {{ s.title }}
-            <span class="sub">电商开店</span>
-          </button>
-        </div>
-      </aside>
+      <WorkspaceSessionSidebar
+        :sessions="sessions"
+        :selected-session-id="selectedSessionId"
+        :sessions-error="sessionsError"
+        scene-label="电商开店"
+        @new-task="newTask"
+        @select="selectSession"
+      />
 
       <div class="workspace" :class="{ split: computerOpen }">
         <section class="chat-pane">
@@ -1123,191 +1100,44 @@ onMounted(async () => {
                 <span v-else class="msg-avatar-letter" aria-hidden="true">A</span>
               </div>
               <div class="body">
-                <p v-if="m.role === 'user'" class="msg-text">
-                  <template v-for="(seg, i) in splitPromptSlots(m.text)" :key="i">
-                    <span v-if="seg.slot" class="ph">{{ seg.text }}</span>
-                    <template v-else>{{ seg.text }}</template>
-                  </template>
-                </p>
+                <MarkdownView
+                  v-if="m.role === 'user'"
+                  class="msg-text"
+                  :source="m.text"
+                  :show-copy="false"
+                  highlight-slots
+                />
                 <p v-else-if="!isConsoleMessage(m)" class="msg-text agent-text">
                   <span v-if="m.at" class="msg-time">{{ formatEventTime(m.at) }}</span>
                   {{ m.text }}
                 </p>
-                <div
+                <WorkspaceChatConsole
                   v-else-if="m.processEvents?.length || m.text"
-                  class="chat-console"
-                  :class="{
-                    'is-running': generationRunning && m.id === thinkingMessageId,
-                  }"
-                  aria-label="运行日志"
-                  :aria-busy="generationRunning && m.id === thinkingMessageId ? 'true' : undefined"
-                >
-                  <div
-                    v-if="m.processEvents?.length"
-                    class="chat-events"
-                    aria-label="过程事件"
-                  >
-                    <div
-                      v-for="e in m.processEvents"
-                      :key="e.id"
-                      class="chat-event"
-                      :class="{
-                        active: e.kind === 'tool' && !e.done,
-                        'chat-event-llm': e.kind === 'llm',
-                        'chat-event-tool': e.kind === 'tool',
-                        open: canExpandProcessEvent(e) && expandedStreamIds.has(e.id),
-                        expandable: canExpandProcessEvent(e),
-                      }"
-                      role="button"
-                      tabindex="0"
-                      @click="onProcessEventClick(e)"
-                      @keydown.enter.prevent="onProcessEventClick(e)"
-                    >
-                      <span class="chat-event-time">{{ formatEventTime(e.at) }}</span>
-                      <span
-                        class="chat-event-tag"
-                        :class="{
-                          'tag-agent': e.kind === 'agent',
-                          'tag-llm': e.kind === 'llm',
-                          'tag-tool': e.kind === 'tool',
-                        }"
-                      >{{ eventTag(e.kind) }}</span>
-                      <div class="chat-event-main">
-                        <div
-                          class="chat-event-head"
-                          :aria-expanded="
-                            canExpandProcessEvent(e) ? expandedStreamIds.has(e.id) : undefined
-                          "
-                        >
-                          <span class="chat-event-title">{{ eventTitle(e) }}</span>
-                          <span v-if="canExpandProcessEvent(e)" class="chat-stream-toggle">{{
-                            expandedStreamIds.has(e.id) ? '[-]' : '[+]'
-                          }}</span>
-                          <span
-                            v-else-if="e.kind === 'tool' && !e.done"
-                            class="chat-stream-toggle"
-                          >…</span>
-                        </div>
-                      </div>
-                      <pre
-                        v-if="canExpandProcessEvent(e) && expandedStreamIds.has(e.id)"
-                        class="chat-stream-body"
-                        @click.stop
-                      >{{ formatStreamBodyForDisplay(e.body || '') }}</pre>
-                    </div>
-                  </div>
-                  <div
-                    v-if="m.text && !(generationRunning && m.id === thinkingMessageId)"
-                    class="chat-event chat-event-status"
-                    :class="{
-                      'is-preview': canPreviewFromStatus(m),
-                      'is-failed': canExpandStatus(m),
-                      open:
-                        isPreviewOpenFromStatus(m) ||
-                        (canExpandStatus(m) && expandedStatusIds.has(m.id)),
-                      expandable: canPreviewFromStatus(m) || canExpandStatus(m),
-                    }"
-                    role="button"
-                    tabindex="0"
-                    :aria-disabled="!(canPreviewFromStatus(m) || canExpandStatus(m))"
-                    :aria-expanded="
-                      canPreviewFromStatus(m)
-                        ? isPreviewOpenFromStatus(m)
-                        : canExpandStatus(m)
-                          ? expandedStatusIds.has(m.id)
-                          : undefined
-                    "
-                    @click="onStatusCardClick(m)"
-                    @keydown.enter.prevent="onStatusCardClick(m)"
-                  >
-                    <span class="chat-event-time">{{
-                      formatEventTime(
-                        m.at ??
-                          m.processEvents?.[m.processEvents.length - 1]?.at ??
-                          Date.now(),
-                      )
-                    }}</span>
-                    <span class="chat-event-tag tag-status">{{
-                      canExpandStatus(m) ? 'FAIL' : 'OK'
-                    }}</span>
-                    <div class="chat-event-main">
-                      <div class="chat-event-head">
-                        <span class="chat-event-title chat-result-text">{{ m.text }}</span>
-                        <span v-if="canPreviewFromStatus(m)" class="chat-stream-toggle">{{
-                          isPreviewOpenFromStatus(m) ? '关闭' : '查看'
-                        }}</span>
-                        <span v-else-if="canExpandStatus(m)" class="chat-stream-toggle">{{
-                          expandedStatusIds.has(m.id) ? '[-]' : '[+]'
-                        }}</span>
-                      </div>
-                    </div>
-                    <pre
-                      v-if="canExpandStatus(m) && expandedStatusIds.has(m.id)"
-                      class="chat-stream-body"
-                      @click.stop
-                    >{{ formatStreamBodyForDisplay(m.statusDetail || m.text) }}</pre>
-                  </div>
-                </div>
-                <div
+                  :message="m"
+                  :is-running="generationRunning && m.id === thinkingMessageId"
+                  :show-process-events="shouldShowProcessEvents(m)"
+                  :can-toggle-process="canToggleProcessLog(m)"
+                  :process-expanded="expandedProcessLogIds.has(m.id)"
+                  :expanded-stream-ids="expandedStreamIds"
+                  :expanded-status-ids="expandedStatusIds"
+                  :can-preview="canPreviewFromStatus(m)"
+                  :preview-open="isPreviewOpenFromStatus(m)"
+                  :can-expand-fail="canExpandStatus(m)"
+                  @toggle-process="toggleProcessLog(m)"
+                  @process-event-click="onProcessEventClick"
+                  @status-click="onStatusCardClick(m)"
+                />
+                <WorkspaceResultActions
                   v-if="isLatestPreviewableStatus(m)"
-                  class="card-result-actions"
-                  data-testid="card-result-actions"
-                  @click.stop
-                >
-                  <button
-                    type="button"
-                    class="card-action-icon"
-                    data-testid="one-click-retry"
-                    aria-label="重试"
-                    title="重试"
-                    :disabled="!canOneClickRetry"
-                    @click="oneClickRetry"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        fill="currentColor"
-                        d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5a5 5 0 0 1-9.9 1h-2.02A7 7 0 0 0 12 20c3.87 0 7-3.13 7-7s-3.13-7-7-7z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    class="card-action-icon"
-                    data-testid="card-like"
-                    aria-label="点赞"
-                    title="点赞"
-                    :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_GOOD_QUALITY }"
-                    :disabled="!canSubmitFeedback"
-                    @click="submitLikeFeedback"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        fill="currentColor"
-                        d="M9 21h9a2 2 0 0 0 1.86-1.26l2.7-7.05A1.5 1.5 0 0 0 21.18 10H14V6a3 3 0 0 0-3-3l-4 9v9zm-6 0h4V12H3v9z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    class="card-action-icon"
-                    data-testid="card-dislike"
-                    aria-label="点踩"
-                    title="点踩"
-                    :class="{ 'is-on': feedbackTag === FEEDBACK_TAG_POOR_QUALITY }"
-                    :disabled="sessionBusy || feedbackBusy || !activeLiveArtifact?.artifactRef"
-                    @click="openDislikeDrawer"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        fill="currentColor"
-                        d="M15 3H6a2 2 0 0 0-1.86 1.26l-2.7 7.05A1.5 1.5 0 0 0 2.82 14H10v4a3 3 0 0 0 3 3l4-9V3zm6 0h-4v9h4V3z"
-                      />
-                    </svg>
-                  </button>
-                  <p v-if="feedbackHint" class="feedback-hint" data-testid="feedback-hint">
-                    {{ feedbackHint }}
-                  </p>
-                </div>
+                  :can-retry="canOneClickRetry"
+                  :can-submit-feedback="canSubmitFeedback"
+                  :can-dislike="canSubmitFeedback"
+                  :feedback-tag="feedbackTag"
+                  :feedback-hint="feedbackHint"
+                  @retry="oneClickRetry"
+                  @like="submitLikeFeedback"
+                  @dislike="openDislikeDrawer"
+                />
                 <div v-if="m.role === 'agent' && !picksIsLive && !listingIsLive" class="demo-actions">
                   <button
                     type="button"
@@ -1398,8 +1228,10 @@ onMounted(async () => {
                   :key="skill.skillId"
                   type="button"
                   class="pill"
+                  :class="{ active: selectedSkillId === skill.skillId }"
+                  :aria-pressed="selectedSkillId === skill.skillId"
                   :disabled="sessionBusy"
-                  @click="fillCapsulePrompt(skill)"
+                  @click="toggleCapsuleSkill(skill)"
                 >
                   {{ skill.label }}
                 </button>
@@ -1458,6 +1290,7 @@ onMounted(async () => {
             <ComputerRenderer
               v-if="activeComputerDoc"
               :document="activeComputerDoc"
+              :file-name="computerKind === 'picks' ? 'picklist.md' : computerKind === 'listing' ? 'listing.md' : undefined"
               :item-action-label="computerKind === 'picks' ? '做上架素材' : ''"
               :is-item-action-enabled="isPickItemActionEnabled"
               @item-action="onPickItemAction"
@@ -1467,38 +1300,15 @@ onMounted(async () => {
       </div>
     </div>
   </div>
-  <div
-    v-if="dislikeDrawerOpen"
-    class="dislike-drawer"
-    data-testid="dislike-drawer"
-    @click.stop
-  >
-    <p class="dislike-drawer-title">这次成果哪里不好？</p>
-    <textarea
-      v-model="feedbackNote"
-      class="dislike-comment"
-      data-testid="dislike-comment"
-      rows="4"
-      maxlength="512"
-      placeholder="可选短文说明"
-      aria-label="质量差短文"
-      :disabled="feedbackBusy"
-    />
-    <div class="dislike-drawer-actions">
-      <button type="button" class="pill" data-testid="dislike-cancel" @click="closeDislikeDrawer">
-        取消
-      </button>
-      <button
-        type="button"
-        class="pill"
-        data-testid="dislike-submit"
-        :disabled="!canSubmitFeedback"
-        @click="submitPoorQualityFeedback"
-      >
-        提交
-      </button>
-    </div>
-  </div>
+  <WorkspaceDislikeDrawer
+    :open="dislikeDrawerOpen"
+    :note="feedbackNote"
+    :busy="feedbackBusy"
+    :can-submit="canSubmitFeedback"
+    @update:note="feedbackNote = $event"
+    @cancel="closeDislikeDrawer"
+    @submit="submitPoorQualityFeedback"
+  />
 </template>
 
 <style scoped>
@@ -1530,6 +1340,13 @@ onMounted(async () => {
     border-color 0.15s;
 }
 
+.pill.active,
+.pill[aria-pressed='true'] {
+  border-color: color-mix(in srgb, #0f766e 55%, var(--line));
+  background: color-mix(in srgb, #0f766e 12%, var(--surface));
+  color: #0f766e;
+}
+
 .pill:hover:not(:disabled) {
   background: var(--line-2);
 }
@@ -1544,25 +1361,6 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-.prompt-box {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow);
-  padding: 14px 14px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.prompt-box:focus-within {
-  border-color: color-mix(in srgb, #0f766e 35%, var(--line));
-  box-shadow:
-    var(--shadow),
-    0 0 0 3px color-mix(in srgb, #0f766e 12%, transparent);
-}
 
 .prompt-editor {
   border: 0;
@@ -1571,8 +1369,9 @@ onMounted(async () => {
   min-height: 56px;
   background: transparent;
   color: var(--ink);
-  font-size: 0.95rem;
-  line-height: 1.7;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.6;
   width: 100%;
 }
 
@@ -1646,7 +1445,7 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
-  margin-top: 6px;
+  margin-top: 4px;
   padding: 0 2px;
 }
 
