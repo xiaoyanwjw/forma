@@ -6,9 +6,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * pi_session_entry 投影行（回放：role/content + 可选 tool 元数据 + runId + created_at + seq）。
+ * pi_session_entry 只读投影行（回放：role/content + 可选 tool 元数据 + runId + created_at + seq）。
+ * 非 HTTP/Application 出口 DTO。
  */
-public final class PiMessageDTO {
+public final class PiMessage {
 
     private final String role;
     private final String content;
@@ -24,11 +25,11 @@ public final class PiMessageDTO {
      */
     private final String runId;
 
-    public PiMessageDTO(String role, String content, Instant createdAt, long seq) {
+    public PiMessage(String role, String content, Instant createdAt, long seq) {
         this(role, content, createdAt, seq, null, Collections.<PiToolCallRef>emptyList(), null);
     }
 
-    public PiMessageDTO(
+    public PiMessage(
             String role,
             String content,
             Instant createdAt,
@@ -38,7 +39,7 @@ public final class PiMessageDTO {
         this(role, content, createdAt, seq, toolCallId, toolCalls, null);
     }
 
-    public PiMessageDTO(
+    public PiMessage(
             String role,
             String content,
             Instant createdAt,

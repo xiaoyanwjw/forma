@@ -2,7 +2,7 @@ package com.xmut.ebus.domain.business.agent.repository;
 
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
-import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
+import com.xmut.ebus.domain.business.agent.model.PiMessage;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
 
 import java.time.Instant;
@@ -32,5 +32,5 @@ public interface PiSessionQueryRepository {
      * 拉取给定逻辑 runId 的全部可见消息（含 :suspend/:resume），seq 升序。
      * logicalRunIds 空 → 空列表。
      */
-    List<PiMessageDTO> getMessagesByLogicalRunIds(String sessionId, List<String> logicalRunIds);
+    List<PiMessage> getMessagesByLogicalRunIds(String sessionId, List<String> logicalRunIds);
 }

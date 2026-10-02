@@ -3,7 +3,7 @@ package com.xmut.ebus.infrastructure.session;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
-import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
+import com.xmut.ebus.domain.business.agent.model.PiMessage;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
 import com.xmut.ebus.domain.business.agent.model.PiToolCallRef;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
@@ -105,7 +105,7 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
     }
 
     @Override
-    public List<PiMessageDTO> getMessagesByLogicalRunIds(String sessionId, List<String> logicalRunIds) {
+    public List<PiMessage> getMessagesByLogicalRunIds(String sessionId, List<String> logicalRunIds) {
         if (!StringUtils.hasText(sessionId) || logicalRunIds == null || logicalRunIds.isEmpty()) {
             return Collections.emptyList();
         }
@@ -128,9 +128,9 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
         if (rows == null || rows.isEmpty()) {
             return Collections.emptyList();
         }
-        List<PiMessageDTO> out = new ArrayList<PiMessageDTO>();
+        List<PiMessage> out = new ArrayList<PiMessage>();
         for (PiSessionEntryPO row : rows) {
-            PiMessageDTO dto = toReplayMessage(row);
+            PiMessage dto = toReplayMessage(row);
             if (dto != null) {
                 out.add(dto);
             }
@@ -149,7 +149,7 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
         }
     }
 
-    private PiMessageDTO toReplayMessage(PiSessionEntryPO row) {
+    private PiMessage toReplayMessage(PiSessionEntryPO row) {
         if (row == null || !StringUtils.hasText(row.getPayload())) {
             return null;
         }
@@ -169,7 +169,7 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
             if (!hasContent) {
                 return null;
             }
-            return new PiMessageDTO(
+            return new PiMessage(
                     role,
                     message.getContent().trim(),
                     row.getCreatedAt(),
@@ -182,7 +182,7 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
             if (!hasContent && toolCalls.isEmpty()) {
                 return null;
             }
-            return new PiMessageDTO(
+            return new PiMessage(
                     role,
                     hasContent ? message.getContent().trim() : "",
                     row.getCreatedAt(),
@@ -192,7 +192,7 @@ public class PiSessionQueryRepositoryImpl implements PiSessionQueryRepository {
                     row.getRunId());
         }
         if ("tool".equalsIgnoreCase(role)) {
-            return new PiMessageDTO(
+            return new PiMessage(
                     role,
                     hasContent ? message.getContent().trim() : "",
                     row.getCreatedAt(),

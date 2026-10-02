@@ -1,7 +1,7 @@
 package com.xmut.ebus.application.business.session.support;
 
 import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
-import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
+import com.xmut.ebus.domain.business.agent.model.PiMessage;
 import com.xmut.ebus.domain.business.agent.model.PiToolCallRef;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +29,7 @@ class SessionTurnAssemblerTest {
     void clustersListingPlanAndExecIntoOneTurn() {
         Instant t1 = Instant.parse("2026-10-02T08:00:00Z");
         Instant t2 = Instant.parse("2026-10-02T08:01:00Z");
-        List<PiMessageDTO> rows = Arrays.asList(
+        List<PiMessage> rows = Arrays.asList(
                 msg("user", "请帮我生成选品清单", 1L, t1, "pick-1", null, null),
                 msg("assistant", "{\"output\":\"final.json\"}", 2L, t1, "pick-1", null, null),
                 msg("user", "请生成上架素材", 3L, t2, "list-9:suspend", null, null),
@@ -55,7 +55,7 @@ class SessionTurnAssemblerTest {
         assertFalse(SessionTurnAssembler.isHitlOptionUserContent(turns.get(1).getUserPrompt()));
     }
 
-    private static PiMessageDTO msg(
+    private static PiMessage msg(
             String role,
             String content,
             long seq,
@@ -63,7 +63,13 @@ class SessionTurnAssemblerTest {
             String runId,
             String toolCallId,
             List<PiToolCallRef> toolCalls) {
-        return new PiMessageDTO(role, content, at, seq, toolCallId,
-                toolCalls == null ? Collections.<PiToolCallRef>emptyList() : toolCalls, runId);
+        return new PiMessage(
+                role,
+                content,
+                at,
+                seq,
+                toolCallId,
+                toolCalls == null ? Collections.<PiToolCallRef>emptyList() : toolCalls,
+                runId);
     }
 }

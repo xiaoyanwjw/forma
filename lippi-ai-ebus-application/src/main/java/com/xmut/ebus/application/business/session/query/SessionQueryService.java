@@ -10,7 +10,7 @@ import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.common.util.StringUtils;
 import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
-import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
+import com.xmut.ebus.domain.business.agent.model.PiMessage;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
@@ -103,7 +103,7 @@ public class SessionQueryService {
             runIds.add(ref.getLogicalRunId());
         }
 
-        List<PiMessageDTO> messages = keepReplayMessages(
+        List<PiMessage> messages = keepReplayMessages(
                 piSessionQueryRepository.getMessagesByLogicalRunIds(sid, runIds));
         List<SessionTurnDTO> assembled = SessionTurnAssembler.assemble(messages);
         List<SessionTurnDTO> ascending = orderTurnsByRunTipOrder(assembled, newestFirst);
@@ -129,12 +129,12 @@ public class SessionQueryService {
         return out;
     }
 
-    private static List<PiMessageDTO> keepReplayMessages(List<PiMessageDTO> items) {
+    private static List<PiMessage> keepReplayMessages(List<PiMessage> items) {
         if (items == null || items.isEmpty()) {
             return Collections.emptyList();
         }
-        List<PiMessageDTO> kept = new ArrayList<PiMessageDTO>();
-        for (PiMessageDTO message : items) {
+        List<PiMessage> kept = new ArrayList<PiMessage>();
+        for (PiMessage message : items) {
             if (keepReplay(message)) {
                 kept.add(message);
             }
@@ -199,7 +199,7 @@ public class SessionQueryService {
         return keepReplay(role, content, false);
     }
 
-    static boolean keepReplay(PiMessageDTO message) {
+    static boolean keepReplay(PiMessage message) {
         if (message == null) {
             return false;
         }

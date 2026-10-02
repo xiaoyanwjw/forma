@@ -8,7 +8,7 @@ import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
-import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
+import com.xmut.ebus.domain.business.agent.model.PiMessage;
 import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
 import com.xmut.ebus.domain.business.agent.model.PiToolCallRef;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
@@ -104,8 +104,8 @@ class SessionQueryServiceTest {
         String dump = "```json\n{\"view\":{\"version\":1,\"blocks\":[]}}\n```";
         when(piSessionQueryRepository.getMessagesByLogicalRunIds(eq(SESSION), eq(Collections.singletonList("run-a"))))
                 .thenReturn(Arrays.asList(
-                        new PiMessageDTO("user", "你好", t1, 3L, null, Collections.<PiToolCallRef>emptyList(), "run-a"),
-                        new PiMessageDTO("assistant", dump, t1, 6L, null, Collections.<PiToolCallRef>emptyList(), "run-a")));
+                        new PiMessage("user", "你好", t1, 3L, null, Collections.<PiToolCallRef>emptyList(), "run-a"),
+                        new PiMessage("assistant", dump, t1, 6L, null, Collections.<PiToolCallRef>emptyList(), "run-a")));
 
         Page<SessionTurnDTO> page = service.getMessageList(USER, SESSION, null, null);
 
@@ -290,7 +290,7 @@ class SessionQueryServiceTest {
         return new PiSessionMeta(sessionId, userId, sceneCode, null, updatedAt);
     }
 
-    private static PiMessageDTO msg(
+    private static PiMessage msg(
             String role,
             String content,
             long seq,
@@ -298,7 +298,7 @@ class SessionQueryServiceTest {
             String runId,
             String toolCallId,
             List<PiToolCallRef> toolCalls) {
-        return new PiMessageDTO(
+        return new PiMessage(
                 role,
                 content,
                 at,

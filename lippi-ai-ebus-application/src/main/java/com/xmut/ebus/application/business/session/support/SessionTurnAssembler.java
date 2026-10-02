@@ -4,7 +4,7 @@ import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionToolCallDTO;
 import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
 import com.xmut.ebus.common.util.StringUtils;
-import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
+import com.xmut.ebus.domain.business.agent.model.PiMessage;
 import com.xmut.ebus.domain.business.agent.model.PiToolCallRef;
 
 import java.time.Instant;
@@ -60,14 +60,14 @@ public final class SessionTurnAssembler {
      * @param messages 已按 seq 升序的回放行
      * @return 按时间升序的 turns
      */
-    public static List<SessionTurnDTO> assemble(List<PiMessageDTO> messages) {
+    public static List<SessionTurnDTO> assemble(List<PiMessage> messages) {
         if (messages == null || messages.isEmpty()) {
             return Collections.emptyList();
         }
         List<ClusterRow> rows = new ArrayList<ClusterRow>();
         int anon = 0;
         String lastCluster = null;
-        for (PiMessageDTO message : messages) {
+        for (PiMessage message : messages) {
             if (message == null || !StringUtils.hasText(message.getRole())) {
                 continue;
             }
@@ -134,7 +134,7 @@ public final class SessionTurnAssembler {
         return new SessionTurnDTO(runId, at, userPrompt, messages);
     }
 
-    private static SessionMessageDTO toSessionMessage(PiMessageDTO message) {
+    private static SessionMessageDTO toSessionMessage(PiMessage message) {
         String role = message.getRole().toLowerCase(Locale.ROOT);
         List<SessionToolCallDTO> toolCalls = Collections.emptyList();
         if (message.getToolCalls() != null && !message.getToolCalls().isEmpty()) {
