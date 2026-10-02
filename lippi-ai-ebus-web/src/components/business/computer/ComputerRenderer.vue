@@ -25,14 +25,11 @@ const props = withDefaults(
     /** Override README file bar name; default slug(document.title).md */
     fileName?: string
     itemActionLabel?: string
-    /** Semantic badge key `priority` → display text (电商「优先试」/ 小红书「优先发」). */
-    priorityBadgeLabel?: string
     isItemActionEnabled?: (item: ComputerListItem, index: number) => boolean
   }>(),
   {
     fileName: undefined,
     itemActionLabel: '',
-    priorityBadgeLabel: '优先试',
     isItemActionEnabled: () => true,
   },
 )
@@ -158,16 +155,20 @@ function hasPriorityTitleMark(title: string): boolean {
   return PRIORITY_TITLE_MARKS.some((mark) => title.startsWith(mark))
 }
 
+function markLabelFromTitle(title: string): string | undefined {
+  for (const mark of PRIORITY_TITLE_MARKS) {
+    if (title.startsWith(mark)) {
+      return mark.slice(1, -1)
+    }
+  }
+  return undefined
+}
+
 function itemBadge(item: { badge?: string; title: string }): string | undefined {
   const raw = item.badge?.trim()
-  if (raw) {
-    if (raw === 'priority') {
-      return props.priorityBadgeLabel
-    }
-    return raw
-  }
+  if (raw) return raw
   if (hasPriorityTitleMark(item.title)) {
-    return props.priorityBadgeLabel
+    return markLabelFromTitle(item.title)
   }
   return undefined
 }

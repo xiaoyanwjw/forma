@@ -81,7 +81,7 @@ function sampleComputerView(
         items: items.map((it, i) => ({
           ...(opts?.omitItemIds ? {} : { id: `pl-${i + 1}` }),
           ...(opts?.omitItemHrefs ? {} : { href: `https://item.example/${i + 1}` }),
-          badge: it.title.startsWith('【优先试】') ? 'priority' : undefined,
+          badge: it.title.startsWith('【优先试】') ? '优先试' : undefined,
           title: it.title.replace(/^【优先试】/, ''),
           lines: [
             { kind: 'priceBand', text: it.priceBand, emphasis: 'price' },

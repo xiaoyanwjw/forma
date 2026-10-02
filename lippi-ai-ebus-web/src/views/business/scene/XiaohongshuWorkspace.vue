@@ -1016,7 +1016,6 @@ onMounted(async () => {
               :document="activeComputerDoc"
               :file-name="computerKind === 'topiclist' ? 'topiclist.md' : computerKind === 'note' ? 'note.md' : computerKind === 'break' ? 'break.md' : undefined"
               :item-action-label="computerKind === 'topiclist' ? '写成笔记' : ''"
-              priority-badge-label="优先发"
               :is-item-action-enabled="isTopicItemActionEnabled"
               @item-action="onTopicItemAction"
             />

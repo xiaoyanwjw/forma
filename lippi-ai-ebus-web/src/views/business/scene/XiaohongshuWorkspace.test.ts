@@ -98,7 +98,7 @@ function sampleTopiclistView() {
           {
             id: 'tp-1',
             href: 'https://www.xiaohongshu.com/explore/abc',
-            badge: 'priority',
+            badge: '优先发',
             title: '租房党厨房收纳第一篇',
             lines: [
               { kind: 'hook', text: '台面永远堆碗' },
@@ -423,14 +423,6 @@ describe('XiaohongshuWorkspace', () => {
       String((billedRunApiHits(fetchMock, 'xhs-break').at(-1) as [string, RequestInit])[1].body),
     ) as { skillId?: string }
     expect(breakBody.skillId).toBe('xhs-break')
-  })
-
-  it('wires topiclist Computer with 优先发 badge label', () => {
-    const vueSrc = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), 'XiaohongshuWorkspace.vue'),
-      'utf8',
-    )
-    expect(vueSrc).toMatch(/priority-badge-label="优先发"/)
   })
 
   it('topiclist 写成笔记 starts xhs-note with tp-n in the same session', async () => {

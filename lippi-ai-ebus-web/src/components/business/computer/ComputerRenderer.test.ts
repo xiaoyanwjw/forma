@@ -329,7 +329,7 @@ describe('ComputerRenderer', () => {
     host.remove()
   })
 
-  it('maps semantic badge key priority to scene label', async () => {
+  it('renders badge text from document data', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp(ComputerRenderer, {
@@ -342,26 +342,24 @@ describe('ComputerRenderer', () => {
             ordered: true,
             items: [
               {
-                badge: 'priority',
+                badge: '优先发',
                 title: '【优先发】Mini 拓展坞收纳',
               },
             ],
           },
         ],
       },
-      priorityBadgeLabel: '优先发',
     })
     app.mount(host)
     await nextTick()
     expect(host.querySelector('.priority-tag')?.textContent).toBe('优先发')
     expect(host.textContent).toContain('Mini 拓展坞收纳')
     expect(host.textContent).not.toContain('【优先发】')
-    expect(host.textContent).not.toMatch(/\bpriority\b/)
     app.unmount()
     host.remove()
   })
 
-  it('defaults priority badge key to 优先试', async () => {
+  it('does not accept priorityBadgeLabel prop', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp(ComputerRenderer, {
@@ -372,7 +370,7 @@ describe('ComputerRenderer', () => {
           {
             type: 'list',
             ordered: true,
-            items: [{ badge: 'priority', title: 'Mac Mini 拓展坞' }],
+            items: [{ badge: '优先试', title: 'Mac Mini 拓展坞' }],
           },
         ],
       },
