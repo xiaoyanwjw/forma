@@ -2,14 +2,16 @@ package com.xmut.ebus.application.business.session.query;
 
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
 import com.xmut.ebus.application.business.history.query.HistoryQueryService;
-import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
+import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
+import com.xmut.ebus.application.business.session.support.SessionTurnAssembler;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.page.Page;
 import com.xmut.ebus.common.util.StringUtils;
-import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
-import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
+import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
+import com.xmut.ebus.domain.business.agent.model.PiMessage;
+import com.xmut.ebus.domain.business.agent.model.PiSession;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
 import com.xmut.lims.pi.ai.message.Message;
@@ -22,12 +24,14 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /**
- * SessionQuery：本人近 60 天会话列表与 R1 消息（显式 userId ACL）。
+ * SessionQuery：本人近 60 天会话列表与按逻辑 runId 聚合的回合回放。
  */
 @Service
 @RequiredArgsConstructor
@@ -36,9 +40,9 @@ public class SessionQueryService {
     public static final int SESSION_WINDOW_DAYS = 60;
     public static final int DEFAULT_LIMIT = 50;
     public static final int MAX_LIMIT = 100;
-    /** 消息回放默认 / 最大页大小 */
-    public static final int MESSAGE_PAGE_DEFAULT = 100;
-    public static final int MESSAGE_PAGE_MAX = 100;
+    /** 对外按「回合」分页 */
+    public static final int TURN_PAGE_DEFAULT = 20;
+    public static final int TURN_PAGE_MAX = 50;
     public static final String DEFAULT_TITLE = "电商会话";
     public static final String MSG_UNAVAILABLE = "会话不存在或无权查看";
 
@@ -56,9 +60,9 @@ public class SessionQueryService {
         String sceneCode = StringUtils.hasText(sceneCodeOrNull) ? sceneCodeOrNull.trim() : null;
         int capped = clampLimit(limit);
         Instant since = Instant.now(clock).minus(SESSION_WINDOW_DAYS, ChronoUnit.DAYS);
-        List<PiSessionMeta> rows = piSessionQueryRepository.selectByUserSince(uid, since, sceneCode, capped);
+        List<PiSession> rows = piSessionQueryRepository.selectByUserSince(uid, since, sceneCode, capped);
         List<SessionSummaryDTO> out = new ArrayList<SessionSummaryDTO>();
-        for (PiSessionMeta row : rows) {
+        for (PiSession row : rows) {
             if (row == null || !uid.equals(row.getUserId()) || !StringUtils.hasText(row.getSessionId())) {
                 continue;
             }
@@ -72,35 +76,67 @@ public class SessionQueryService {
         return out;
     }
 
+    /**
+     * 按逻辑 runId 两段查询：① 分页 run ② 拉消息，再 Assembler 聚类（页内 tipSeq 升序）。
+     */
     @Transactional(readOnly = true)
-    public Page<SessionMessageDTO> getMessageList(String userId, String sessionId, String nextToken, Integer limit) {
+    public Page<SessionTurnDTO> getMessageList(String userId, String sessionId, String nextToken, Integer limit) {
         String uid = StringUtils.requireHasText(userId, "userId required");
         String sid = StringUtils.requireHasText(sessionId, "sessionId required");
 
-        PiSessionMeta row = piSessionQueryRepository.findBySessionId(sid)
+        PiSession row = piSessionQueryRepository.findBySessionId(sid)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE));
         if (!uid.equals(row.getUserId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE);
         }
-        
-        int pageSize = clampMessagePage(limit);
-        Page<PiMessageDTO> page = piSessionQueryRepository.getMessageList(sid, nextToken, pageSize);
-        List<SessionMessageDTO> out = new ArrayList<SessionMessageDTO>();
-        if (page != null) {
-            for (PiMessageDTO message : page.getItems()) {
-                if (!keepReplay(message)) {
-                    continue;
-                }
-                String role = message.getRole().toLowerCase(Locale.ROOT);
-                out.add(new SessionMessageDTO(
-                        role,
-                        message.getContent(),
-                        message.getCreatedAt(),
-                        message.getSeq()));
+
+        int turnLimit = clampTurnPage(limit);
+        Page<PiLogicalRunRef> runPage = piSessionQueryRepository.getLogicalRunIds(sid, nextToken, turnLimit);
+        if (runPage == null || runPage.getItems() == null || runPage.getItems().isEmpty()) {
+            return Page.empty();
+        }
+        List<PiLogicalRunRef> newestFirst = runPage.getItems();
+        List<String> runIds = new ArrayList<String>(newestFirst.size());
+        for (PiLogicalRunRef ref : newestFirst) {
+            runIds.add(ref.getLogicalRunId());
+        }
+        List<PiMessage> messages = keepReplayMessages(
+                piSessionQueryRepository.getMessagesByLogicalRunIds(sid, runIds));
+        List<SessionTurnDTO> assembled = SessionTurnAssembler.assemble(messages);
+        List<SessionTurnDTO> ascending = orderTurnsByRunTipOrder(assembled, newestFirst);
+        return Page.of(ascending, runPage.getNextToken());
+    }
+
+    /** 按 ① 返回的 tipSeq 升序排放 turns（聊天新在后）。 */
+    private static List<SessionTurnDTO> orderTurnsByRunTipOrder(
+            List<SessionTurnDTO> assembled, List<PiLogicalRunRef> newestFirst) {
+        Map<String, SessionTurnDTO> byRun = new HashMap<String, SessionTurnDTO>();
+        for (SessionTurnDTO turn : assembled) {
+            if (turn != null && StringUtils.hasText(turn.getRunId())) {
+                byRun.put(turn.getRunId(), turn);
             }
         }
-        String token = page == null ? null : page.getNextToken();
-        return Page.of(out, token);
+        List<SessionTurnDTO> out = new ArrayList<SessionTurnDTO>(newestFirst.size());
+        for (int i = newestFirst.size() - 1; i >= 0; i--) {
+            SessionTurnDTO turn = byRun.get(newestFirst.get(i).getLogicalRunId());
+            if (turn != null) {
+                out.add(turn);
+            }
+        }
+        return out;
+    }
+
+    private static List<PiMessage> keepReplayMessages(List<PiMessage> items) {
+        if (items == null || items.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<PiMessage> kept = new ArrayList<PiMessage>();
+        for (PiMessage message : items) {
+            if (keepReplay(message)) {
+                kept.add(message);
+            }
+        }
+        return kept;
     }
 
     /**
@@ -142,11 +178,11 @@ public class SessionQueryService {
         return Math.min(limit.intValue(), MAX_LIMIT);
     }
 
-    static int clampMessagePage(Integer limit) {
+    static int clampTurnPage(Integer limit) {
         if (limit == null || limit.intValue() <= 0) {
-            return MESSAGE_PAGE_DEFAULT;
+            return TURN_PAGE_DEFAULT;
         }
-        return Math.min(limit.intValue(), MESSAGE_PAGE_MAX);
+        return Math.min(limit.intValue(), TURN_PAGE_MAX);
     }
 
     static boolean keepReplay(Message message) {
@@ -156,18 +192,33 @@ public class SessionQueryService {
         return keepReplay(message.getRole(), message.getContent());
     }
 
-    static boolean keepReplay(PiMessageDTO message) {
+    static boolean keepReplay(String role, String content) {
+        return keepReplay(role, content, false);
+    }
+
+    static boolean keepReplay(PiMessage message) {
         if (message == null) {
             return false;
         }
-        return keepReplay(message.getRole(), message.getContent());
+        boolean hasToolMeta = StringUtils.hasText(message.getToolCallId())
+                || (message.getToolCalls() != null && !message.getToolCalls().isEmpty());
+        return keepReplay(message.getRole(), message.getContent(), hasToolMeta);
     }
 
-    static boolean keepReplay(String role, String content) {
-        if (!StringUtils.hasText(content) || role == null) {
+    static boolean keepReplay(String role, String content, boolean hasToolMeta) {
+        if (role == null) {
             return false;
         }
-        return "user".equalsIgnoreCase(role) || "assistant".equalsIgnoreCase(role);
+        if ("tool".equalsIgnoreCase(role)) {
+            return true;
+        }
+        if ("user".equalsIgnoreCase(role)) {
+            return StringUtils.hasText(content);
+        }
+        if ("assistant".equalsIgnoreCase(role)) {
+            return StringUtils.hasText(content) || hasToolMeta;
+        }
+        return false;
     }
 
     static String titleFrom(List<Message> messages) {

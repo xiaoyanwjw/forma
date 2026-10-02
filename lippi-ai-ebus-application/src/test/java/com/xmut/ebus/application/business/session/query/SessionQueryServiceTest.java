@@ -2,13 +2,15 @@ package com.xmut.ebus.application.business.session.query;
 
 import com.xmut.ebus.application.business.history.dto.HistoryArtifactDetailDTO;
 import com.xmut.ebus.application.business.history.query.HistoryQueryService;
-import com.xmut.ebus.application.business.session.dto.SessionMessageDTO;
 import com.xmut.ebus.application.business.session.dto.SessionSummaryDTO;
+import com.xmut.ebus.application.business.session.dto.SessionTurnDTO;
 import com.xmut.ebus.common.exception.BusinessException;
 import com.xmut.ebus.common.exception.ErrorCode;
 import com.xmut.ebus.common.page.Page;
-import com.xmut.ebus.domain.business.agent.model.PiMessageDTO;
-import com.xmut.ebus.domain.business.agent.model.PiSessionMeta;
+import com.xmut.ebus.domain.business.agent.model.PiLogicalRunRef;
+import com.xmut.ebus.domain.business.agent.model.PiMessage;
+import com.xmut.ebus.domain.business.agent.model.PiSession;
+import com.xmut.ebus.domain.business.agent.model.PiToolCallRef;
 import com.xmut.ebus.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.ebus.domain.business.agent.repository.PiSessionQueryRepository;
 import com.xmut.lims.pi.ai.message.Message;
@@ -33,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -70,8 +73,8 @@ class SessionQueryServiceTest {
 
     @Test
     void listOnlyReturnsCurrentUsersSessions() {
-        PiSessionMeta own = meta(SESSION, USER, "ecommerce", NOW.minus(1, ChronoUnit.HOURS));
-        PiSessionMeta leaked = meta("sess-other", OTHER, "ecommerce", NOW.minus(2, ChronoUnit.HOURS));
+        PiSession own = meta(SESSION, USER, "ecommerce", NOW.minus(1, ChronoUnit.HOURS));
+        PiSession leaked = meta("sess-other", OTHER, "ecommerce", NOW.minus(2, ChronoUnit.HOURS));
         when(piSessionQueryRepository.selectByUserSince(eq(USER), any(Instant.class), isNull(), eq(50)))
                 .thenReturn(Arrays.asList(own, leaked));
         when(sessionStore.load(SESSION)).thenReturn(Collections.singletonList(Message.user("找水杯")));
@@ -92,46 +95,60 @@ class SessionQueryServiceTest {
     }
 
     @Test
-    void getMessageListReturnsPageWithNextToken() {
+    void getMessageListReturnsTurnPageWithNextToken() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
-        String dump = "```json\n{\"view\":{\"version\":1,\"blocks\":[]}}\n```";
+        when(piSessionQueryRepository.getLogicalRunIds(eq(SESSION), isNull(), eq(20)))
+                .thenReturn(Page.of(Collections.singletonList(new PiLogicalRunRef("run-a", 6L)), "6"));
         Instant t1 = NOW.minus(3, ChronoUnit.MINUTES);
-        Instant t2 = NOW.minus(2, ChronoUnit.MINUTES);
-        Instant t3 = NOW.minus(1, ChronoUnit.MINUTES);
-        when(piSessionQueryRepository.getMessageList(eq(SESSION), isNull(), eq(100)))
-                .thenReturn(Page.of(Arrays.asList(
-                        new PiMessageDTO("user", "你好", t1, 3L),
-                        new PiMessageDTO("assistant", "这是回复", t2, 4L),
-                        new PiMessageDTO("assistant", dump, t3, 6L)), "3"));
+        String dump = "```json\n{\"view\":{\"version\":1,\"blocks\":[]}}\n```";
+        when(piSessionQueryRepository.getMessagesByLogicalRunIds(eq(SESSION), eq(Collections.singletonList("run-a"))))
+                .thenReturn(Arrays.asList(
+                        new PiMessage("user", "你好", t1, 3L, null, Collections.<PiToolCallRef>emptyList(), "run-a"),
+                        new PiMessage("assistant", dump, t1, 6L, null, Collections.<PiToolCallRef>emptyList(), "run-a")));
 
-        Page<SessionMessageDTO> page = service.getMessageList(USER, SESSION, null, null);
+        Page<SessionTurnDTO> page = service.getMessageList(USER, SESSION, null, null);
 
-        assertEquals("3", page.getNextToken());
-        assertEquals(3, page.getItems().size());
-        assertEquals("user", page.getItems().get(0).getRole());
-        assertEquals("你好", page.getItems().get(0).getContent());
-        assertEquals(t1, page.getItems().get(0).getCreatedAt());
-        assertEquals(Long.valueOf(3L), page.getItems().get(0).getSeq());
-        assertEquals("assistant", page.getItems().get(1).getRole());
-        assertEquals(Long.valueOf(4L), page.getItems().get(1).getSeq());
-        assertEquals(dump, page.getItems().get(2).getContent());
-        assertEquals(Long.valueOf(6L), page.getItems().get(2).getSeq());
-        verify(sessionStore, never()).load(any());
+        assertEquals("6", page.getNextToken());
+        assertEquals(1, page.getItems().size());
+        assertEquals("run-a", page.getItems().get(0).getRunId());
+        assertEquals("你好", page.getItems().get(0).getUserPrompt());
+    }
+
+    @Test
+    void getMessageListClustersListingSuspendResumeIntoOneTurn() {
+        when(piSessionQueryRepository.findBySessionId(SESSION))
+                .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
+        when(piSessionQueryRepository.getLogicalRunIds(eq(SESSION), isNull(), eq(20)))
+                .thenReturn(Page.of(Collections.singletonList(new PiLogicalRunRef("list-9", 4L)), null));
+        Instant t = NOW.minus(1, ChronoUnit.MINUTES);
+        when(piSessionQueryRepository.getMessagesByLogicalRunIds(eq(SESSION), eq(Collections.singletonList("list-9"))))
+                .thenReturn(Arrays.asList(
+                        msg("user", "请生成上架素材", 1L, t, "list-9:suspend", null, null),
+                        msg("assistant", "{\"output\":\"plan/final.json\"}", 2L, t, "list-9:suspend", null, null),
+                        msg("user", "{\"optionId\":\"confirm_execute\"}", 3L, t, "list-9:resume", null, null),
+                        msg("assistant", "{\"output\":\"exec/final.json\"}", 4L, t, "list-9:resume", null, null)));
+
+        Page<SessionTurnDTO> page = service.getMessageList(USER, SESSION, null, null);
+
+        assertNull(page.getNextToken());
+        assertEquals(1, page.getItems().size());
+        assertEquals("list-9", page.getItems().get(0).getRunId());
+        assertEquals(4, page.getItems().get(0).getMessages().size());
     }
 
     @Test
     void getMessageListPassesNextTokenAndClampsLimit() {
         when(piSessionQueryRepository.findBySessionId(SESSION))
                 .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
-        when(piSessionQueryRepository.getMessageList(eq(SESSION), eq("10"), eq(100)))
-                .thenReturn(Page.<PiMessageDTO>empty());
+        when(piSessionQueryRepository.getLogicalRunIds(eq(SESSION), eq("10"), eq(50)))
+                .thenReturn(Page.<PiLogicalRunRef>empty());
 
-        Page<SessionMessageDTO> page = service.getMessageList(USER, SESSION, "10", 500);
+        Page<SessionTurnDTO> page = service.getMessageList(USER, SESSION, "10", 500);
 
-        assertNull(page.getNextToken());
         assertTrue(page.getItems().isEmpty());
-        verify(piSessionQueryRepository).getMessageList(SESSION, "10", 100);
+        verify(piSessionQueryRepository).getLogicalRunIds(SESSION, "10", 50);
+        verify(piSessionQueryRepository, never()).getMessagesByLogicalRunIds(anyString(), anyList());
     }
 
     @Test
@@ -143,7 +160,7 @@ class SessionQueryServiceTest {
                 () -> service.getMessageList(USER, SESSION, null, null));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
         assertEquals(SessionQueryService.MSG_UNAVAILABLE, ex.getMessage());
-        verify(piSessionQueryRepository, never()).getMessageList(anyString(), any(), anyInt());
+        verify(piSessionQueryRepository, never()).getLogicalRunIds(anyString(), any(), anyInt());
     }
 
     @Test
@@ -177,7 +194,7 @@ class SessionQueryServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.getMessageList(USER, SESSION, null, null));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
-        verify(piSessionQueryRepository, never()).getMessageList(anyString(), any(), anyInt());
+        verify(piSessionQueryRepository, never()).getLogicalRunIds(anyString(), any(), anyInt());
     }
 
     @Test
@@ -241,8 +258,26 @@ class SessionQueryServiceTest {
         assertFalse(found.isPresent());
     }
 
-    private static PiSessionMeta meta(String sessionId, String userId, String sceneCode, Instant updatedAt) {
-        return new PiSessionMeta(sessionId, userId, sceneCode, null, updatedAt);
+    private static PiSession meta(String sessionId, String userId, String sceneCode, Instant updatedAt) {
+        return new PiSession(sessionId, userId, sceneCode, null, updatedAt);
+    }
+
+    private static PiMessage msg(
+            String role,
+            String content,
+            long seq,
+            Instant at,
+            String runId,
+            String toolCallId,
+            List<PiToolCallRef> toolCalls) {
+        return new PiMessage(
+                role,
+                content,
+                at,
+                seq,
+                toolCallId,
+                toolCalls == null ? Collections.<PiToolCallRef>emptyList() : toolCalls,
+                runId);
     }
 
     private static String repeat(char ch, int n) {
