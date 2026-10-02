@@ -22,8 +22,6 @@ import {
   formatEventTime,
   type ProcessEvent,
 } from '@/composables/agent/agentProgress'
-import { useAgentListingRun } from '@/composables/agent/useAgentListingRun'
-import { useAgentPicklistRun } from '@/composables/agent/useAgentPicklistRun'
 import { useAgentSkillRun } from '@/composables/agent/useAgentSkillRun'
 import { useChatConsoleExpand } from '@/composables/workspace/useChatConsoleExpand'
 import { useWorkspaceFeedback } from '@/composables/workspace/useWorkspaceFeedback'
@@ -41,6 +39,7 @@ import type { WorkspaceChatMessage } from '@/types/business/workspaceChat'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import {
   type EcommerceComputerKind,
+  ECOM_SKILL_BY_KIND,
   ecommerceKindFromArtifactType as kindFromArtifactType,
   ecommerceKindFromSkillId,
   previewEcommerceKindFromStatus,
@@ -83,35 +82,15 @@ const computerEl = ref<HTMLElement | null>(null)
 const thinkingMessageId = ref<string | null>(null)
 
 const {
-  running: picklistRunning,
-  error: picklistError,
-  artifact: picklistArtifact,
-  sessionId: picklistSessionId,
-  processEvents: picklistProcessEvents,
-  startPicklistRun,
-  reset: resetPicklistRun,
-} = useAgentPicklistRun()
-
-const {
-  running: listingRunning,
-  error: listingError,
-  artifact: listingArtifact,
-  sessionId: listingSessionId,
-  pendingHuman: listingPendingHuman,
-  processEvents: listingProcessEvents,
-  startListingRun,
-  resumeListingRun,
-  reset: resetListingRun,
-} = useAgentListingRun()
-
-const {
-  running: freeRunning,
-  error: freeError,
-  artifact: freeArtifact,
-  sessionId: freeSessionId,
-  processEvents: freeProcessEvents,
+  running: generationRunning,
+  error: skillError,
+  artifact: skillArtifact,
+  sessionId,
+  processEvents,
+  pendingHuman,
   startSkillRun,
-  reset: resetFreeRun,
+  resumeSkillRun,
+  reset: resetSkillRun,
 } = useAgentSkillRun()
 
 const listingSupplementOpen = ref(false)
@@ -125,26 +104,8 @@ const pendingBilledPrompt = ref('')
 /** Ignore stale session-switch HTTP after 新任务 / 连点侧栏 */
 let workspaceSwitchSeq = 0
 
-const generationRunning = computed(
-  () => picklistRunning.value || listingRunning.value || freeRunning.value,
-)
-const listingAwaitingHuman = computed(() => Boolean(listingPendingHuman.value))
+const listingAwaitingHuman = computed(() => Boolean(pendingHuman.value))
 const sessionBusy = computed(() => generationRunning.value || listingAwaitingHuman.value)
-const sessionId = computed(
-  () => picklistSessionId.value ?? listingSessionId.value ?? freeSessionId.value,
-)
-const processEvents = computed(() => {
-  if (freeRunning.value || (freeProcessEvents.value.length > 0 && !picklistRunning.value && !listingRunning.value)) {
-    return freeProcessEvents.value
-  }
-  if (
-    listingRunning.value ||
-    (listingProcessEvents.value.length > 0 && !picklistRunning.value)
-  ) {
-    return listingProcessEvents.value
-  }
-  return picklistProcessEvents.value
-})
 
 const computerOpen = computed(() => computerKind.value != null)
 const sessionSendEnabled = computed(
@@ -348,8 +309,8 @@ async function finishGenerationMessage(opts: {
 }
 
 function applyListingArtifactToComputer() {
-  if (listingArtifact.value?.view) {
-    liveListing.value = listingArtifact.value
+  if (skillArtifact.value?.view) {
+    liveListing.value = skillArtifact.value
     computerKind.value = 'listing'
     revealComputer()
   }
@@ -361,10 +322,10 @@ function presentListingHumanInput(thinkingId: string) {
   applyListingArtifactToComputer()
   const idx = messages.value.findIndex((m) => m.id === thinkingId)
   const question =
-    listingPendingHuman.value?.question ||
+    pendingHuman.value?.question ||
     '策划分镜已出。请确认出执行稿，或补充需求。'
-  const snapshot = listingProcessEvents.value.length
-    ? [...listingProcessEvents.value]
+  const snapshot = processEvents.value.length
+    ? [...processEvents.value]
     : undefined
   const next = {
     id: thinkingId,
@@ -382,25 +343,25 @@ function presentListingHumanInput(thinkingId: string) {
 }
 
 async function finishListingAfterStream(thinkingId: string) {
-  if (listingPendingHuman.value) {
+  if (pendingHuman.value) {
     presentListingHumanInput(thinkingId)
     return
   }
   await finishGenerationMessage({
     thinkingId,
-    error: listingError.value,
-    artifact: listingArtifact.value,
+    error: skillError.value,
+    artifact: skillArtifact.value,
     kind: 'listing',
     successFallback: '已生成上架素材，右侧 Computer 可查看主图位与文案。',
     emptyFallback: '上架素材已结束，但未收到可用成果，请重试。',
-    processSnapshot: listingProcessEvents.value.length
-      ? [...listingProcessEvents.value]
+    processSnapshot: processEvents.value.length
+      ? [...processEvents.value]
       : undefined,
   })
 }
 
 async function confirmListingExecute() {
-  if (!listingPendingHuman.value || listingRunning.value) return
+  if (!pendingHuman.value || generationRunning.value) return
   listingSupplementOpen.value = false
   const thinkingId = thinkingMessageId.value
   if (thinkingId) {
@@ -412,14 +373,14 @@ async function confirmListingExecute() {
           id: cur.id,
           role: 'agent',
           text: '正在根据确认生成执行稿…',
-          processEvents: listingProcessEvents.value.length
-            ? [...listingProcessEvents.value]
+          processEvents: processEvents.value.length
+            ? [...processEvents.value]
             : cur.processEvents,
         }
       }
     }
   }
-  await resumeListingRun({ optionId: 'confirm_execute' })
+  await resumeSkillRun({ optionId: 'confirm_execute' })
   if (thinkingId) {
     await finishListingAfterStream(thinkingId)
   }
@@ -430,9 +391,9 @@ function openListingSupplement() {
 }
 
 async function submitListingSupplement() {
-  if (!listingPendingHuman.value || listingRunning.value) return
+  if (!pendingHuman.value || generationRunning.value) return
   const note = listingSupplementText.value.trim()
-  await resumeListingRun({ optionId: 'supplement', freeText: note || undefined })
+  await resumeSkillRun({ optionId: 'supplement', freeText: note || undefined })
   listingSupplementText.value = ''
   listingSupplementOpen.value = false
   const thinkingId = thinkingMessageId.value
@@ -513,24 +474,27 @@ async function runBilledGeneration(text: string, kind: 'picks' | 'listing') {
     sessionId: sessionId.value ?? undefined,
   }
 
+  await startSkillRun({
+    ...shared,
+    skillId: ECOM_SKILL_BY_KIND[kind],
+  })
+
   if (kind === 'listing') {
-    await startListingRun(shared)
     await finishListingAfterStream(thinkingId)
     return
   }
 
-  await startPicklistRun(shared)
-  const n = picklistArtifact.value?.view?.blocks?.length || 0
+  const n = skillArtifact.value?.view?.blocks?.length || 0
   await finishGenerationMessage({
     thinkingId,
-    error: picklistError.value,
-    artifact: picklistArtifact.value,
+    error: skillError.value,
+    artifact: skillArtifact.value,
     kind: 'picks',
     successFallback:
       n > 0 ? '已生成选品候选，右侧 Computer 可查看详情。' : '已生成选品成果，右侧 Computer 可查看。',
     emptyFallback: '选品已结束，但未收到可用清单，请重试。',
-    processSnapshot: picklistProcessEvents.value.length
-      ? [...picklistProcessEvents.value]
+    processSnapshot: processEvents.value.length
+      ? [...processEvents.value]
       : undefined,
   })
 }
@@ -554,13 +518,13 @@ async function runFreeTextGeneration(text: string) {
     sessionId: sessionId.value ?? undefined,
   })
 
-  const kind = inferEcommerceKindFromView(freeArtifact.value?.view)
+  const kind = inferEcommerceKindFromView(skillArtifact.value?.view)
   if (kind) {
-    const n = freeArtifact.value?.view?.blocks?.length || 0
+    const n = skillArtifact.value?.view?.blocks?.length || 0
     await finishGenerationMessage({
       thinkingId,
-      error: freeError.value,
-      artifact: freeArtifact.value,
+      error: skillError.value,
+      artifact: skillArtifact.value,
       kind,
       successFallback:
         kind === 'listing'
@@ -572,41 +536,41 @@ async function runFreeTextGeneration(text: string) {
         kind === 'listing'
           ? '上架已结束，但未收到可用素材，请重试。'
           : '选品已结束，但未收到可用清单，请重试。',
-      processSnapshot: freeProcessEvents.value.length
-        ? [...freeProcessEvents.value]
+      processSnapshot: processEvents.value.length
+        ? [...processEvents.value]
         : undefined,
     })
     return
   }
 
   const idx = messages.value.findIndex((m) => m.id === thinkingId)
-  if (freeError.value) {
-    const soft = applySoftCreditHint(freeError.value)
+  if (skillError.value) {
+    const soft = applySoftCreditHint(skillError.value)
     const statusDetail = buildFailureDetail(
       soft,
-      freeProcessEvents.value.length ? [...freeProcessEvents.value] : [],
+      processEvents.value.length ? [...processEvents.value] : [],
     )
     const failedMsg = {
       id: thinkingId,
       role: 'agent' as const,
       text: soft,
-      processEvents: freeProcessEvents.value.length
-        ? [...freeProcessEvents.value]
+      processEvents: processEvents.value.length
+        ? [...processEvents.value]
         : undefined,
       failed: true,
       statusDetail,
     }
     if (idx >= 0) messages.value[idx] = failedMsg
     else messages.value.push({ ...failedMsg, id: nextMsgId() })
-  } else if (freeArtifact.value?.view) {
+  } else if (skillArtifact.value?.view) {
     const reply = '已生成结果，右侧 Computer 可查看。'
     if (idx >= 0) {
       messages.value[idx] = {
         id: thinkingId,
         role: 'agent',
         text: reply,
-        processEvents: freeProcessEvents.value.length
-          ? [...freeProcessEvents.value]
+        processEvents: processEvents.value.length
+          ? [...processEvents.value]
           : undefined,
       }
     }
@@ -614,14 +578,14 @@ async function runFreeTextGeneration(text: string) {
     const empty = '处理已结束，但未收到可用成果，请重试。'
     const statusDetail = buildFailureDetail(
       empty,
-      freeProcessEvents.value.length ? [...freeProcessEvents.value] : [],
+      processEvents.value.length ? [...processEvents.value] : [],
     )
     const failedMsg = {
       id: thinkingId,
       role: 'agent' as const,
       text: empty,
-      processEvents: freeProcessEvents.value.length
-        ? [...freeProcessEvents.value]
+      processEvents: processEvents.value.length
+        ? [...processEvents.value]
         : undefined,
       failed: true,
       statusDetail,
@@ -876,14 +840,12 @@ async function selectSession(item: SessionSummary) {
   const sid = item.sessionId?.trim()
   if (!sid) return
   const seq = ++workspaceSwitchSeq
-  resetPicklistRun()
-  resetListingRun()
+  resetSkillRun()
   listingSupplementOpen.value = false
   listingSupplementText.value = ''
   thinkingMessageId.value = null
   resetConsoleExpand()
-  picklistSessionId.value = sid
-  listingSessionId.value = sid
+  sessionId.value = sid
   selectedSessionId.value = sid
   sessionTitle.value = item.title || DEMO_SESSION_TITLE
   messages.value = []
@@ -958,9 +920,7 @@ async function loadMoreSessionHistory() {
 
 function newTask() {
   workspaceSwitchSeq += 1
-  resetPicklistRun()
-  resetListingRun()
-  resetFreeRun()
+  resetSkillRun()
   listingSupplementOpen.value = false
   listingSupplementText.value = ''
   thinkingMessageId.value = null
@@ -985,15 +945,15 @@ function newTask() {
   void loadSessions()
 }
 
-watch(picklistArtifact, (value) => {
-  if (value?.view) {
-    livePicklist.value = value
-  }
-})
-
-watch(listingArtifact, (value) => {
-  if (value?.view) {
+watch(skillArtifact, (value) => {
+  if (!value?.view) return
+  const kind = inferEcommerceKindFromView(value.view)
+  if (kind === 'listing') {
     liveListing.value = value
+    return
+  }
+  if (kind === 'picks') {
+    livePicklist.value = value
   }
 })
 
@@ -1163,7 +1123,7 @@ onMounted(async () => {
           <div class="chat-input-wrap">
             <div class="chat-composer">
               <div
-                v-if="listingAwaitingHuman && listingPendingHuman"
+                v-if="listingAwaitingHuman && pendingHuman"
                 class="ask-human"
                 data-testid="ask-human"
               >
@@ -1171,13 +1131,13 @@ onMounted(async () => {
                   <span class="ask-human-eyebrow">需要你确认</span>
                   <span class="ask-human-hint">右侧 Computer 可先看策划</span>
                 </div>
-                <p class="ask-human-q">{{ listingPendingHuman.question }}</p>
+                <p class="ask-human-q">{{ pendingHuman.question }}</p>
                 <div class="ask-human-actions" role="group" aria-label="确认策划">
                   <button
                     type="button"
                     class="ask-human-primary"
                     data-testid="ask-human-confirm"
-                    :disabled="listingRunning"
+                    :disabled="generationRunning"
                     @click="confirmListingExecute"
                   >
                     确认，出执行稿
@@ -1186,7 +1146,7 @@ onMounted(async () => {
                     type="button"
                     class="ask-human-secondary"
                     data-testid="ask-human-supplement"
-                    :disabled="listingRunning"
+                    :disabled="generationRunning"
                     @click="openListingSupplement"
                   >
                     {{ listingSupplementOpen ? '收起补充' : '补充需求' }}
@@ -1203,13 +1163,13 @@ onMounted(async () => {
                     rows="3"
                     placeholder="写下要改的分镜、标题或详情大纲"
                     aria-label="补充需求"
-                    :disabled="listingRunning"
+                    :disabled="generationRunning"
                   />
                   <button
                     type="button"
                     class="ask-human-primary ask-human-primary-sm"
                     data-testid="ask-human-supplement-submit"
-                    :disabled="listingRunning"
+                    :disabled="generationRunning"
                     @click="submitListingSupplement"
                   >
                     提交补充

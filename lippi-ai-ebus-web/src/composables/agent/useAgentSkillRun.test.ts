@@ -92,6 +92,31 @@ describe('useAgentSkillRun HITL', () => {
     )
   })
 
+  it('resets runId at the start of each startSkillRun', async () => {
+    vi.mocked(streamAgentRun)
+      .mockImplementationOnce(() =>
+        eventsOf(sse('run_started', { runId: 'r-old', sessionId: 's1' }), sse('run_settled')),
+      )
+      .mockImplementationOnce(() => eventsOf(sse('run_settled')))
+
+    const mounted = withSetup(() => useAgentSkillRun())
+    unmount = mounted.unmount
+    await mounted.result.startSkillRun({
+      text: '第一轮',
+      skillId: 'ecommerce-skulist',
+      sceneCode: 'ecommerce',
+    })
+    expect(mounted.result.runId.value).toBe('r-old')
+
+    await mounted.result.startSkillRun({
+      text: '第二轮',
+      skillId: 'ecommerce-picklist',
+      sceneCode: 'ecommerce',
+    })
+    expect(mounted.result.runId.value).toBeNull()
+    expect(mounted.result.pendingHuman.value).toBeNull()
+  })
+
   it('keeps skillId optional on startSkillRun', async () => {
     vi.mocked(streamAgentRun).mockImplementation(() =>
       eventsOf(sse('run_started', { runId: 'r-free', sessionId: 's2' }), sse('run_settled')),

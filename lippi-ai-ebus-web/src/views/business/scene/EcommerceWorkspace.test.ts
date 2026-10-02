@@ -848,10 +848,13 @@ describe('EcommerceWorkspace session shell (3.4 picklist)', () => {
     )
     expect(vueSrc).not.toMatch(/step-status/)
     expect(vueSrc).toMatch(/WorkspaceChatConsole/)
+    expect(vueSrc).not.toMatch(/useAgentPicklistRun|useAgentListingRun/)
+    expect(vueSrc).toMatch(/useAgentSkillRun/)
+    expect(vueSrc).toMatch(/resumeSkillRun/)
     expect(consoleSrc).toMatch(/chat-events/)
     expect(consoleSrc).toMatch(/tag-tool/)
     const runSrc = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), '../../../composables/agent/useAgentPicklistRun.ts'),
+      join(dirname(fileURLToPath(import.meta.url)), '../../../composables/agent/useAgentSkillRun.ts'),
       'utf8',
     )
     const src = `${vueSrc}\n${consoleSrc}\n${runSrc}`

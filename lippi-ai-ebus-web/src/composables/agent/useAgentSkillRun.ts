@@ -18,7 +18,7 @@ import {
   applyToolStarted,
   type ProcessEvent,
 } from '@/composables/agent/agentProgress'
-import { CREDITS_CHANGED_EVENT } from '@/composables/agent/useAgentPicklistRun'
+const CREDITS_CHANGED_EVENT = 'ebus:credits-changed'
 
 const DEFAULT_ASK_OPTIONS: AskHumanOption[] = [
   { id: 'confirm_execute', label: '确认，出执行稿' },
@@ -148,6 +148,7 @@ export function useAgentSkillRun() {
     events.value = []
     eventNames.value = []
     artifact.value = null
+    runId.value = null
     pendingHuman.value = null
     processEvents.value = []
 
@@ -232,6 +233,8 @@ export function useAgentSkillRun() {
     reset,
   }
 }
+
+export { CREDITS_CHANGED_EVENT }
 
 function toGenerationArtifact(data: Record<string, unknown>): GenerationArtifactPayload | null {
   const view = parseComputerDocument(data.view)
