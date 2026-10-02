@@ -1,3 +1,6 @@
+-- MySQL SUBSTRING_INDEX is used by session run paging; H2 needs an alias.
+CREATE ALIAS IF NOT EXISTS SUBSTRING_INDEX FOR "com.xmut.ebus.H2SubstringIndex.substringIndex";
+
 CREATE TABLE IF NOT EXISTS ebus_user (
     id            BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     biz_id        VARCHAR(36)  NOT NULL,

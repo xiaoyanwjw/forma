@@ -26,6 +26,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -107,12 +108,15 @@ class SessionQueryIntegrationTest {
         mockMvc.perform(get("/api/v1/sessions/" + mine + "/messages")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.items.length()").value(2))
-                .andExpect(jsonPath("$.data.nextToken").value(null))
-                .andExpect(jsonPath("$.data.items[0].role").value("user"))
-                .andExpect(jsonPath("$.data.items[0].content").value("找杯子"))
-                .andExpect(jsonPath("$.data.items[0].seq").isNumber())
-                .andExpect(jsonPath("$.data.items[1].role").value("assistant"));
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.nextToken").value(nullValue()))
+                .andExpect(jsonPath("$.data.items[0].runId").value("run-mine"))
+                .andExpect(jsonPath("$.data.items[0].userPrompt").value("找杯子"))
+                .andExpect(jsonPath("$.data.items[0].messages.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].messages[0].role").value("user"))
+                .andExpect(jsonPath("$.data.items[0].messages[0].content").value("找杯子"))
+                .andExpect(jsonPath("$.data.items[0].messages[0].seq").isNumber())
+                .andExpect(jsonPath("$.data.items[0].messages[1].role").value("assistant"));
 
         mockMvc.perform(get("/api/v1/sessions/" + theirs + "/messages")
                         .header("Authorization", "Bearer " + token))
