@@ -3,7 +3,6 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearToken, getToken, setToken } from '@/api/http'
 import SceneGallery from '@/views/business/scene/SceneGallery.vue'
-import EcommerceWorkspace from '@/views/business/scene/EcommerceWorkspace.vue'
 
 async function flushUi() {
   await nextTick()
@@ -66,14 +65,9 @@ async function mountGallery(startPath = '/scenes') {
       { path: '/credits', name: 'credits', component: { template: '<div />' } },
       { path: '/scenes', name: 'scenes', component: SceneGallery },
       {
-        path: '/scenes/ecommerce',
-        name: 'scene-ecommerce',
-        component: EcommerceWorkspace,
-      },
-      {
-        path: '/scenes/xiaohongshu',
-        name: 'scene-xiaohongshu',
-        component: { template: '<div>xhs</div>' },
+        path: '/scenes/:sceneCode',
+        name: 'scene-workspace',
+        component: { template: '<div>workspace</div>' },
       },
       { path: '/history', name: 'history', component: { template: '<div />' } },
     ],
@@ -271,7 +265,8 @@ describe('SceneGallery', () => {
     expect(live?.getAttribute('href')).toBe('/scenes/ecommerce')
     live?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
     await flushUi()
-    expect(mounted.router.currentRoute.value.name).toBe('scene-ecommerce')
+    expect(mounted.router.currentRoute.value.name).toBe('scene-workspace')
+    expect(mounted.router.currentRoute.value.params.sceneCode).toBe('ecommerce')
   })
 
   it('AVAILABLE xiaohongshu card navigates to Xiaohongshu workspace', async () => {
@@ -309,7 +304,8 @@ describe('SceneGallery', () => {
     expect(xhs?.getAttribute('href')).toBe('/scenes/xiaohongshu')
     xhs?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
     await flushUi()
-    expect(mounted.router.currentRoute.value.name).toBe('scene-xiaohongshu')
+    expect(mounted.router.currentRoute.value.name).toBe('scene-workspace')
+    expect(mounted.router.currentRoute.value.params.sceneCode).toBe('xiaohongshu')
   })
 
   it('401 clears token and shows login guide without fake cards', async () => {

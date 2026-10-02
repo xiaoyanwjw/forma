@@ -38,14 +38,9 @@ const router = createRouter({
       component: () => import('@/views/business/scene/SceneGallery.vue'),
     },
     {
-      path: '/scenes/ecommerce',
-      name: 'scene-ecommerce',
-      component: () => import('@/views/business/scene/EcommerceWorkspace.vue'),
-    },
-    {
-      path: '/scenes/xiaohongshu',
-      name: 'scene-xiaohongshu',
-      component: () => import('@/views/business/scene/XiaohongshuWorkspace.vue'),
+      path: '/scenes/:sceneCode',
+      name: 'scene-workspace',
+      component: () => import('@/views/business/scene/Workspace.vue'),
     },
     {
       path: '/history',

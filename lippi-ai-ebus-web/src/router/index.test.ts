@@ -5,8 +5,7 @@ import CreditPlan from '@/views/business/credit/CreditPlan.vue'
 import LandingPage from '@/views/marketing/LandingPage.vue'
 import AgentDryRun from '@/views/agent/AgentDryRun.vue'
 import SceneGallery from '@/views/business/scene/SceneGallery.vue'
-import EcommerceWorkspace from '@/views/business/scene/EcommerceWorkspace.vue'
-import XiaohongshuWorkspace from '@/views/business/scene/XiaohongshuWorkspace.vue'
+import Workspace from '@/views/business/scene/Workspace.vue'
 import HistoryView from '@/views/business/history/HistoryView.vue'
 import AccountSettings from '@/views/identity/AccountSettings.vue'
 
@@ -98,22 +97,18 @@ describe('router scene/history shell placeholders', () => {
     }
   })
 
-  it('resolve /scenes/ecommerce points to EcommerceWorkspace', async () => {
-    const resolved = router.resolve({ name: 'scene-ecommerce' })
-    expect(resolved.path).toBe('/scenes/ecommerce')
-    const loader = resolved.matched[0]?.components?.default
+  it('resolve /scenes/:sceneCode points both scenes at Workspace', async () => {
+    const ecommerce = router.resolve('/scenes/ecommerce')
+    const xiaohongshu = router.resolve('/scenes/xiaohongshu')
+    expect(ecommerce.name).toBe('scene-workspace')
+    expect(ecommerce.params.sceneCode).toBe('ecommerce')
+    expect(xiaohongshu.name).toBe('scene-workspace')
+    expect(xiaohongshu.params.sceneCode).toBe('xiaohongshu')
+    expect(ecommerce.matched[0]).toBe(xiaohongshu.matched[0])
+    const loader = ecommerce.matched[0]?.components?.default
     expect(typeof loader).toBe('function')
     const mod = await (loader as () => Promise<{ default: unknown }>)()
-    expect(mod.default).toBe(EcommerceWorkspace)
-  })
-
-  it('resolve /scenes/xiaohongshu points to XiaohongshuWorkspace', async () => {
-    const resolved = router.resolve({ name: 'scene-xiaohongshu' })
-    expect(resolved.path).toBe('/scenes/xiaohongshu')
-    const loader = resolved.matched[0]?.components?.default
-    expect(typeof loader).toBe('function')
-    const mod = await (loader as () => Promise<{ default: unknown }>)()
-    expect(mod.default).toBe(XiaohongshuWorkspace)
+    expect(mod.default).toBe(Workspace)
   })
 
   it('resolve /history points to HistoryView', async () => {

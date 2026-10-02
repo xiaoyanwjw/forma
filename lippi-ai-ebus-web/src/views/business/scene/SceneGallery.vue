@@ -5,12 +5,11 @@ import AppHeader from '@/components/common/AppHeader.vue'
 import SceneCard from '@/components/business/scene/SceneCard.vue'
 import SceneIcon from '@/components/business/scene/SceneIcon.vue'
 import { getScenes } from '@/api/business/scene/scene'
+import { getSceneWorkspaceSpec } from '@/views/business/scene/workspace/registry'
 import { ApiError } from '@/api/client'
 import { clearToken } from '@/api/http'
 import type { Scene } from '@/types/business/scene'
 
-const ECOMMERCE_WORKSPACE = { name: 'scene-ecommerce' } as const
-const XHS_WORKSPACE = { name: 'scene-xiaohongshu' } as const
 const TOAST_MS = 4500
 
 const router = useRouter()
@@ -30,13 +29,8 @@ function workspaceTarget(scene: Scene) {
   if (scene.status !== 'AVAILABLE') {
     return undefined
   }
-  if (scene.sceneCode === 'ecommerce') {
-    return ECOMMERCE_WORKSPACE
-  }
-  if (scene.sceneCode === 'xiaohongshu') {
-    return XHS_WORKSPACE
-  }
-  return undefined
+  if (!getSceneWorkspaceSpec(scene.sceneCode)) return undefined
+  return { name: 'scene-workspace', params: { sceneCode: scene.sceneCode } }
 }
 
 function clearToastTimer() {

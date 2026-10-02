@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 import type { Scene } from '@/types/business/scene'
 
 const props = defineProps<{
   scene: Scene
   /** Available card navigates here; ignored for COMING_SOON */
-  to?: { name: string } | string
+  to?: RouteLocationRaw
 }>()
 
 const emit = defineEmits<{
