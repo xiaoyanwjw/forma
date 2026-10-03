@@ -1,6 +1,7 @@
 -- Forma schema (final). Identity / credits / scene / Pi session / generation / artifact / media / feedback.
 -- Compose initdb runs this directory alphabetically on a *new* volume only.
 -- Existing volumes: recreate (`docker compose down -v`) or apply equivalent DDL by hand.
+-- Manual apply must use utf8mb4, e.g. mysql --default-character-set=utf8mb4.
 
 -- Identity
 CREATE TABLE IF NOT EXISTS forma_user (

@@ -9,9 +9,9 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 生产默认 UTC（Spine：存储 UTC）；本地 dev 见 application-dev.yml
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:lippi_ebus}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=${DB_SERVER_TIMEZONE:UTC}
-    username: ${DB_USERNAME:ebus}
-    password: ${DB_PASSWORD:ebus123}
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:forma}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=${DB_SERVER_TIMEZONE:UTC}
+    username: ${DB_USERNAME:forma}
+    password: ${DB_PASSWORD:forma123}
 
 mybatis:
   mapper-locations: classpath*:mybatis/mapper/**/*.xml

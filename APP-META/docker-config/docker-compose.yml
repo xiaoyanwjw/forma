@@ -4,9 +4,9 @@ services:
     container_name: forma-mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
-      MYSQL_DATABASE: ${DB_NAME:-lippi_ebus}
-      MYSQL_USER: ${DB_USERNAME:-ebus}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-ebus123}
+      MYSQL_DATABASE: ${DB_NAME:-forma}
+      MYSQL_USER: ${DB_USERNAME:-forma}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-forma123}
       # 本地开发库直接显示北京时间；生产部署勿照搬此 compose
       TZ: ${MYSQL_TZ:-Asia/Shanghai}
     command:
@@ -44,9 +44,9 @@ services:
       SERVER_PORT: "8080"
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_NAME: ${DB_NAME:-lippi_ebus}
-      DB_USERNAME: ${DB_USERNAME:-ebus}
-      DB_PASSWORD: ${DB_PASSWORD:-ebus123}
+      DB_NAME: ${DB_NAME:-forma}
+      DB_USERNAME: ${DB_USERNAME:-forma}
+      DB_PASSWORD: ${DB_PASSWORD:-forma123}
       DB_SERVER_TIMEZONE: ${DB_SERVER_TIMEZONE:-Asia/Shanghai}
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-please-32bytes!!}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
