@@ -2,6 +2,8 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
+https://github.com/user-attachments/assets/cc93e364-aab7-44cf-a837-154b0f841f07
+
 **Forma** is a personal assistant: it turns skills from daily work into jobs an agent can finish. A kind of job is a **scene**; how that job is done is a **Skill**. Pick a scene, run the agent, review the shaped result in Computer.
 
 ```text
