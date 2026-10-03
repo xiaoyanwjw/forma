@@ -12,7 +12,7 @@
 
 不要在对话里贴分文件全文。结算由服务端读对应 **`plan/view.json`** / **`exec/view.json`**，并与同目录 **`plan/artifact.json`** / **`exec/artifact.json`** 对齐落库。
 
-`artifact` = 领域实体；`view` = 视图实体。两边同一事实。下方示例**按文件分开**给出；`final.json` 只做合并，不再另造一套字段。
+`artifact` = 领域实体；`view` = 由 `render_view` 渲染的视图实体。两边同一事实。下方示例**按文件分开**给出；**勿**再合并或交付 `final.json`。
 
 本 Skill **一条 Workflow**：策划分文件 + 指针 + `ask_human` → 确认后执行分文件 + 指针。
 
@@ -50,7 +50,7 @@ metadata:
 | 假设 | 信息不足时写 `assumptions`；有交接时写入原链与条目 id 摘要 |
 | 交接 | 输入含「原链」或「来源选品条目」时，`picklistItemId` **必填**且与输入一致（黄金路径） |
 | 禁止 | 伪造销量/榜单/资质；**不要**输出 `platformCopies` / `preferredPlatform` |
-| 确认 | 盘上 `plan/final.json` 就绪并发出指针后必须 `ask_human`；**禁止**未确认前输出 `framePrompts` 或上架四字段 |
+| 确认 | 盘上 `plan/artifact.json` + `plan/view.json` 就绪并发出指针后必须 `ask_human`；**禁止**未确认前输出 `framePrompts` 或上架四字段 |
 
 ## 策划 artifact（领域）
 
