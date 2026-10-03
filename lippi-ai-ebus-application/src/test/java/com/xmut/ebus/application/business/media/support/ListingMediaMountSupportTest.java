@@ -85,6 +85,21 @@ class ListingMediaMountSupportTest {
     }
 
     @Test
+    void injectHeroMedia_patchesV2HtmlContent() {
+        Map<String, Object> view = new LinkedHashMap<String, Object>();
+        view.put("version", 2);
+        view.put("title", "上架");
+        view.put("format", "html");
+        view.put("content", "<article class=\"markdown-body\"><h1>T</h1></article>");
+        ListingMediaMountSupport.injectHeroMedia(view, "m-1", "https://cdn.example/a.png", new LinkedHashMap<String, Object>());
+        String content = String.valueOf(view.get("content"));
+        assertTrue(content.contains("data-adam-media-object-id=\"m-1\""));
+        assertTrue(content.contains("data-adam-media-role=\"hero\""));
+        assertTrue(content.contains("https://cdn.example/a.png"));
+        assertFalse(view.containsKey("blocks"));
+    }
+
+    @Test
     void mount_deletesOrphanWhenIssueReadUrlFails() {
         mediaStore.failIssue = true;
         Map<String, Object> view = new LinkedHashMap<String, Object>();

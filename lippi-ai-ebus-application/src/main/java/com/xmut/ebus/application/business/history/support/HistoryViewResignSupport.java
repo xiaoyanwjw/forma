@@ -12,6 +12,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 历史详情：对 payload.view 中 media 块按 mediaObjectId 重签可读 URL（非第二真相）。
@@ -19,6 +21,10 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 public class HistoryViewResignSupport {
+
+    private static final Pattern V2_MEDIA_IMG = Pattern.compile(
+            "<img[^>]*data-adam-media-object-id=\"([^\"]+)\"[^>]*>",
+            Pattern.CASE_INSENSITIVE);
 
     private final MediaStore mediaStore;
 
@@ -28,6 +34,13 @@ public class HistoryViewResignSupport {
             return Collections.emptyMap();
         }
         Map<String, Object> copy = deepCopyMap(view);
+        Object version = copy.get("version");
+        if (version instanceof Number && ((Number) version).intValue() == 2) {
+            Object contentObj = copy.get("content");
+            if (contentObj instanceof String) {
+                copy.put("content", resignV2HtmlContent((String) contentObj, ownerUserId));
+            }
+        }
         Object blocksObj = copy.get("blocks");
         if (!(blocksObj instanceof List)) {
             return copy;
@@ -65,6 +78,39 @@ public class HistoryViewResignSupport {
         }
         copy.put("blocks", blocks);
         return copy;
+    }
+
+    private String resignV2HtmlContent(String content, String ownerUserId) {
+        Matcher matcher = V2_MEDIA_IMG.matcher(content);
+        StringBuffer out = new StringBuffer();
+        while (matcher.find()) {
+            String fullImg = matcher.group(0);
+            String mediaObjectId = matcher.group(1);
+            String freshUrl = issueReadUrlIfOwned(mediaObjectId, ownerUserId);
+            if (!StringUtils.hasText(freshUrl)) {
+                matcher.appendReplacement(out, Matcher.quoteReplacement(fullImg));
+                continue;
+            }
+            String patched = fullImg.replaceFirst("src=\"[^\"]*\"", "src=\"" + freshUrl + "\"");
+            matcher.appendReplacement(out, Matcher.quoteReplacement(patched));
+        }
+        matcher.appendTail(out);
+        return out.toString();
+    }
+
+    private String issueReadUrlIfOwned(String mediaObjectId, String ownerUserId) {
+        Optional<MediaObject> media = mediaStore.findById(mediaObjectId);
+        if (!media.isPresent()
+                || !StringUtils.hasText(ownerUserId)
+                || !ownerUserId.equals(media.get().getUserId())) {
+            return null;
+        }
+        try {
+            String url = mediaStore.issueReadUrl(mediaObjectId);
+            return StringUtils.hasText(url) ? url : null;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private static String stringVal(Object value) {

@@ -15,6 +15,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Listing 成功路径：系统挂载占位主图（非用户上传、非模型生图），并写回 view + artifact。
@@ -122,11 +124,36 @@ public class ListingMediaMountSupport {
         }
     }
 
+    private static final Pattern V2_HERO_IMG =
+            Pattern.compile("<img[^>]*data-adam-media-role=\"hero\"[^>]*>", Pattern.CASE_INSENSITIVE);
+
     @SuppressWarnings("unchecked")
     static void injectHeroMedia(Map<String, Object> view,
                                 String mediaObjectId,
                                 String readUrl,
                                 Map<String, Object> payload) {
+        Object version = view.get("version");
+        if (version instanceof Number && ((Number) version).intValue() == 2) {
+            String content = view.get("content") instanceof String ? (String) view.get("content") : "";
+            String img = "<img data-adam-media-object-id=\"" + mediaObjectId
+                    + "\" data-adam-media-role=\"hero\" alt=\"\" src=\"" + readUrl + "\">";
+            String patched;
+            Matcher heroMatcher = V2_HERO_IMG.matcher(content);
+            if (heroMatcher.find()) {
+                patched = heroMatcher.replaceFirst(Matcher.quoteReplacement(img));
+            } else {
+                int articleClose = content.indexOf("</article>");
+                if (articleClose >= 0) {
+                    patched = content.substring(0, articleClose) + img + content.substring(articleClose);
+                } else {
+                    patched = content + img;
+                }
+            }
+            view.put("content", patched);
+            view.remove("blocks");
+            return;
+        }
+
         Object blocksObj = view.get("blocks");
         List<Object> blocks;
         if (blocksObj instanceof List) {
