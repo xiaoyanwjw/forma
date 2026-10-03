@@ -141,7 +141,43 @@ public class GenerationOutputParser {
         } catch (IOException ex) {
             throw new IllegalArgumentException("invalid output path");
         }
+        JsonNode fileRoot;
+        try {
+            fileRoot = objectMapper.readTree(fileText);
+        } catch (Exception ex) {
+            return parseEnvelope(fileText, runWorkspaceRoot, false);
+        }
+        if (isViewV2Document(fileRoot)) {
+            Map<String, Object> view = objectMapper.convertValue(fileRoot, MAP_TYPE);
+            Path artifactFile = file.getParent().resolve("artifact.json");
+            if (!Files.isRegularFile(artifactFile)) {
+                throw new IllegalArgumentException("artifact file missing: " + artifactFile.getFileName());
+            }
+            Map<String, Object> artifact;
+            try {
+                artifact = objectMapper.readValue(Files.readAllBytes(artifactFile), MAP_TYPE);
+            } catch (IOException ex) {
+                throw new IllegalArgumentException("invalid output path");
+            }
+            return new ParsedGenerationOutput(view, artifact);
+        }
         return parseEnvelope(fileText, runWorkspaceRoot, false);
+    }
+
+    static boolean isViewV2Document(JsonNode n) {
+        if (n == null || !n.isObject()) {
+            return false;
+        }
+        if (n.path("version").asInt(0) != 2) {
+            return false;
+        }
+        if (!n.path("format").isTextual()) {
+            return false;
+        }
+        if (!n.path("content").isTextual()) {
+            return false;
+        }
+        return true;
     }
 
     private Map<String, Object> resolveBusinessPayload(JsonNode root, boolean artifactObject, JsonNode artifactNode) {

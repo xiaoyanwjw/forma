@@ -94,6 +94,32 @@ class GenerationOutputParserTest {
   }
 
     @Test
+    void outputPointer_viewJson_loadsSiblingArtifact() throws Exception {
+        Path run = Files.createTempDirectory("parse-ws-");
+        Files.write(run.resolve("artifact.json"),
+                "{\"title\":\"选题\",\"items\":[{\"id\":\"tp-1\"}]}".getBytes(StandardCharsets.UTF_8));
+        Files.write(run.resolve("view.json"),
+                ("{\"version\":2,\"title\":\"选题\",\"format\":\"html\",\"content\":\"<p>x</p>\"}")
+                        .getBytes(StandardCharsets.UTF_8));
+        ParsedGenerationOutput out = parser.parse("{\"output\":\"view.json\"}", run);
+        assertEquals(2, ((Number) out.getRawView().get("version")).intValue());
+        assertEquals("html", out.getRawView().get("format"));
+        assertEquals("选题", out.getBusinessPayload().get("title"));
+    }
+
+    @Test
+    void outputPointer_planView_loadsPlanArtifact() throws Exception {
+        Path plan = Files.createTempDirectory("parse-ws-").resolve("plan");
+        Files.createDirectories(plan);
+        Files.write(plan.resolve("artifact.json"), "{\"title\":\"策划\"}".getBytes(StandardCharsets.UTF_8));
+        Files.write(plan.resolve("view.json"),
+                "{\"version\":2,\"title\":\"策划\",\"format\":\"html\",\"content\":\"<p>p</p>\"}"
+                        .getBytes(StandardCharsets.UTF_8));
+        ParsedGenerationOutput out = parser.parse("{\"output\":\"plan/view.json\"}", plan.getParent());
+        assertEquals("策划", out.getBusinessPayload().get("title"));
+    }
+
+    @Test
     void outputPointer_readsFileForDualTrack() throws Exception {
         Path run = Files.createTempDirectory("parse-ws-");
         String body = "{\"view\":{\"version\":1,\"title\":\"t\",\"blocks\":[]},\"artifact\":{\"items\":[]}}";
