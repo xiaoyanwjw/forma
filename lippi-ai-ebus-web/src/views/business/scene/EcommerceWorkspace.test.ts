@@ -56,45 +56,35 @@ const SAMPLE_ITEMS = Array.from({ length: 8 }, (_, i) => ({
   risk: '低｜勿夸大',
 }))
 
+function docView(partial: { title: string; format?: 'html' | 'markdown'; content: string }) {
+  return {
+    version: 2 as const,
+    title: partial.title,
+    format: partial.format ?? 'html',
+    content: partial.content,
+  }
+}
+
 function sampleComputerView(
   items = SAMPLE_ITEMS,
   opts?: { omitItemIds?: boolean; omitItemHrefs?: boolean },
 ) {
-  return {
-    version: 1,
-    title: 'picklist',
-    status: 'settled',
-    blocks: [
-      {
-        type: 'note',
-        text: '基于通用电商知识推断，非实时平台数据',
-        tone: 'mute',
-      },
-      {
-        type: 'list',
-        ordered: true,
-        items: items.map((it, i) => ({
-          ...(opts?.omitItemIds ? {} : { id: `pl-${i + 1}` }),
-          ...(opts?.omitItemHrefs ? {} : { href: `https://item.example/${i + 1}` }),
-          badge: it.title.startsWith('【优先试】') ? '优先试' : undefined,
-          title: it.title.replace(/^【优先试】/, ''),
-          lines: [
-            { kind: 'priceBand', text: it.priceBand, emphasis: 'price' },
-            { kind: 'painPoint', text: it.painPoint },
-            { kind: 'angle', text: it.angle },
-            { kind: 'diff', text: it.diff },
-            { kind: 'niche', text: it.niche },
-          ],
-          tags: [
-            { kind: 'demand', text: it.demand, tone: 'positive' },
-            { kind: 'competition', text: it.competition, tone: 'caution' },
-            { kind: 'margin', text: it.margin, tone: 'info' },
-            { kind: 'risk', text: it.risk, tone: 'safe' },
-          ],
-        })),
-      },
-    ],
-  }
+  const lis = items
+    .map((it, i) => {
+      const title = it.title.replace(/^【优先试】/, '')
+      const id = opts?.omitItemIds ? '' : `pl-${i + 1}`
+      const href = opts?.omitItemHrefs ? '' : `https://item.example/${i + 1}`
+      const handoff =
+        href && id
+          ? `<button type="button" data-adam-action="handoff" data-adam-skill-id="ecommerce-skulist" data-adam-prompt="请为该选品生成上架素材。原链：${href} 来源选品条目：${id}">做上架素材</button>`
+          : ''
+      return `<li>${title} ${it.demand} 需求${handoff}</li>`
+    })
+    .join('')
+  return docView({
+    title: '选品清单',
+    content: `<article><p class="cv-note">基于通用电商知识推断，非实时平台数据</p><ol class="pick-list">${lis}</ol></article>`,
+  })
 }
 
 function artifactReadyData(view = sampleComputerView()) {
@@ -151,24 +141,11 @@ function sseBody(chunks: string[]) {
 }
 
 function sampleListingView() {
-  return {
-    version: 1,
+  return docView({
     title: '硅胶沥水垫 · 上架素材',
-    status: 'ready',
-    blocks: [
-      {
-        type: 'media',
-        role: 'hero',
-        mediaObjectId: 'media-1',
-        src: 'data:image/png;base64,AAAA',
-        placeholder: '白底主图方案',
-        alt: '主图',
-      },
-      { type: 'section', heading: '详情标题', body: '厨房硅胶沥水垫' },
-      { type: 'section', heading: '详情正文', body: '易清洗防滑' },
-      { type: 'section', heading: '展示说明', body: '主图突出颜色', tone: 'mute' },
-    ],
-  }
+    content:
+      '<article><h2 class="listing-copy is-title">厨房硅胶沥水垫</h2><p>易清洗防滑</p><p>主图突出颜色</p><p>白底主图方案</p></article>',
+  })
 }
 
 function listingArtifactReadyData(view = sampleListingView()) {
@@ -179,18 +156,12 @@ function listingArtifactReadyData(view = sampleListingView()) {
 }
 
 function samplePlanView() {
-  return {
-    version: 1,
+  return docView({
     title: '硅胶沥水垫 · 策划分镜',
-    status: 'ready',
-    blocks: [
-      {
-        type: 'markdown',
-        text:
-          '## 成交方向\n痛点：台面长期积水\n\n## 主图分镜\n1. 主图：白底产品\n2. 对比：湿台面\n3. 场景：沥水收纳\n\n## 标题草稿\n硅胶沥水垫',
-      },
-    ],
-  }
+    format: 'markdown',
+    content:
+      '## 成交方向\n痛点：台面长期积水\n\n## 主图分镜\n1. 主图：白底产品\n2. 对比：湿台面\n3. 场景：沥水收纳\n\n## 标题草稿\n硅胶沥水垫',
+  })
 }
 
 function listingPlanReadyData() {
@@ -1651,10 +1622,14 @@ describe('Workspace ecommerce session shell', () => {
     const listingBefore = listingApiHits(fetchMock).length
 
     const handoffBtn = mounted.root.querySelector(
-      '.item-action-btn',
+      '[data-adam-action="handoff"]',
     ) as HTMLButtonElement
     expect(handoffBtn).toBeTruthy()
-    expect(handoffBtn.disabled).toBe(false)
+    expect(handoffBtn.getAttribute('data-adam-skill-id')).toBe('ecommerce-skulist')
+    const prompt = handoffBtn.getAttribute('data-adam-prompt') || ''
+    expect(prompt).toContain('原链：')
+    expect(prompt).toContain('https://item.example/1')
+    expect(prompt).toContain('来源选品条目：pl-1')
     handoffBtn.click()
     await flushUi()
     await flushUi()
@@ -1693,12 +1668,7 @@ describe('Workspace ecommerce session shell', () => {
     await enterViaSend(mounted.root)
 
     const listingBefore = listingApiHits(fetchMock).length
-    const handoffBtn = mounted.root.querySelector(
-      '.item-action-btn',
-    ) as HTMLButtonElement
-    expect(handoffBtn).toBeTruthy()
-    expect(handoffBtn.disabled).toBe(true)
-    handoffBtn.click()
+    expect(mounted.root.querySelector('[data-adam-action="handoff"]')).toBeNull()
     await flushUi()
     await flushUi()
 

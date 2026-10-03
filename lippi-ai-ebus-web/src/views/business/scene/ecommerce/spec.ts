@@ -1,4 +1,3 @@
-import { listingHandoffTextForItem } from '@/utils/listingHandoff'
 import type { SceneWorkspaceSpec } from '@/views/business/scene/workspace/types'
 
 export const ecommerceSpec: SceneWorkspaceSpec = {
@@ -16,12 +15,4 @@ export const ecommerceSpec: SceneWorkspaceSpec = {
     listing: 'listing',
     skulist: 'listing',
   },
-  itemHandoffs: [
-    {
-      whenPane: 'picks',
-      actionLabel: '做上架素材',
-      targetSkillId: 'ecommerce-skulist',
-      buildText: listingHandoffTextForItem,
-    },
-  ],
 }

@@ -111,9 +111,10 @@ describe('HistoryView', () => {
         return jsonOk({
           ...list[0],
           view: {
-            version: 1,
+            version: 2,
             title: '选品清单',
-            blocks: [{ type: 'note', text: '历史预览', tone: 'mute' }],
+            format: 'html',
+            content: '<p>历史预览</p>',
           },
         })
       }
@@ -192,9 +193,10 @@ describe('HistoryView', () => {
           ...withSession,
           sessionId: 'sess-1',
           view: {
-            version: 1,
+            version: 2,
             title: '选品清单',
-            blocks: [{ type: 'note', text: '历史预览', tone: 'mute' }],
+            format: 'html',
+            content: '<p>历史预览</p>',
           },
         })
       }
@@ -203,9 +205,10 @@ describe('HistoryView', () => {
           ...withoutSession,
           sessionId: null,
           view: {
-            version: 1,
+            version: 2,
             title: '上架素材',
-            blocks: [{ type: 'note', text: '无会话预览', tone: 'mute' }],
+            format: 'html',
+            content: '<p>无会话预览</p>',
           },
         })
       }

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
-import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
+import DocPreview from '@/components/business/computer/DocPreview.vue'
 import { ApiError } from '@/api/client'
 import { getHistoryArtifact, getHistoryArtifacts } from '@/api/business/history/history'
 import { getSessionMessages } from '@/api/business/session/session'
 import { formatEventTime } from '@/composables/agent/agentProgress'
-import { parseComputerDocument } from '@/types/business/computerView'
+import { parseComputerDocView } from '@/types/business/computerView'
 import type { HistoryArtifactDetail, HistoryArtifactSummary } from '@/types/business/history'
 import type { SessionTurn } from '@/types/business/session'
 import { toReplayBubblesFromTurns } from '@/utils/sessionReplay'
@@ -49,7 +49,7 @@ type HistoryChatBubble = {
 
 const computerDoc = computed(() => {
   if (!detail.value?.view) return null
-  return parseComputerDocument(detail.value.view)
+  return parseComputerDocView(detail.value.view)
 })
 
 const sessionId = computed(() => detail.value?.sessionId?.trim() || '')
@@ -358,7 +358,7 @@ onMounted(() => {
               <span class="mute">{{ detail?.title }}</span>
             </div>
             <div class="computer-body">
-              <ComputerRenderer :document="computerDoc" />
+              <DocPreview :document="computerDoc" />
             </div>
           </div>
           <p v-else class="hint">该成果暂无可用预览。</p>

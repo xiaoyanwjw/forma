@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
-import ComputerRenderer from '@/components/business/computer/ComputerRenderer.vue'
+import DocPreview from '@/components/business/computer/DocPreview.vue'
 import SlotAwarePromptEditor from '@/components/business/scene/SlotAwarePromptEditor.vue'
 import WorkspaceChatConsole from '@/components/business/workspace/WorkspaceChatConsole.vue'
 import WorkspaceDislikeDrawer from '@/components/business/workspace/WorkspaceDislikeDrawer.vue'
@@ -28,21 +28,12 @@ import { useAgentSkillRun } from '@/composables/agent/useAgentSkillRun'
 import { useChatConsoleExpand } from '@/composables/workspace/useChatConsoleExpand'
 import { useWorkspaceFeedback } from '@/composables/workspace/useWorkspaceFeedback'
 import type { GenerationArtifactPayload } from '@/types/business/agent'
-import {
-  parseComputerDocument,
-  type ComputerDocument,
-  type ComputerPanelView,
-  type ComputerListItem,
-} from '@/types/business/computerView'
+import { parseComputerDocView, type ComputerDocView } from '@/types/business/computerView'
 import { hasPromptSlots } from '@/utils/promptSlots'
 import { toReplayBubblesFromTurns, type ReplayArtifactKind } from '@/utils/sessionReplay'
 import type { HistoryArtifactDetail } from '@/types/business/history'
 import type { WorkspaceChatMessage } from '@/types/business/workspaceChat'
 import { getSceneWorkspaceSpec } from '@/views/business/scene/workspace/registry'
-import {
-  buildXhsBreakToolbarText,
-  XHS_BREAK_TOOLBAR,
-} from '@/views/business/scene/xiaohongshu/spec'
 import '@/views/business/scene/workspaceSession.css'
 
 const ATTACH_SOON = '近端暂不支持附件'
@@ -114,7 +105,7 @@ const sessionNextToken = ref<string | null>(null)
 const sessionHistoryLoading = ref(false)
 const sessionReplayPane = ref<string | null>(null)
 const activePane = ref<string | null>(null)
-type LiveArtifactPayload = { artifactRef: string; view: ComputerPanelView }
+type LiveArtifactPayload = { artifactRef: string; view: ComputerDocView }
 
 const liveByPane = ref<Record<string, LiveArtifactPayload | null>>({})
 const chatScrollEl = ref<HTMLElement | null>(null)
@@ -202,33 +193,16 @@ const canOneClickRetry = computed(
     !sessionBusy.value,
 )
 
-const activeComputerDoc = computed((): ComputerDocument | null => {
+const activeComputerDoc = computed((): ComputerDocView | null => {
   const pane = activePane.value
   if (!pane) return null
-  const view = liveByPane.value[pane]?.view
-  if (!view || view.version !== 1) return null
-  return view
+  return liveByPane.value[pane]?.view ?? null
 })
 
 const computerFileName = computed(() => {
   const pane = activePane.value
   if (!pane) return undefined
   return FILE_BY_PANE[pane] ?? `${pane}.md`
-})
-
-const activeItemHandoff = computed(() => {
-  const pane = activePane.value
-  if (!pane) return null
-  return spec.value?.itemHandoffs?.find((handoff) => handoff.whenPane === pane) ?? null
-})
-
-const itemActionLabel = computed(() => activeItemHandoff.value?.actionLabel ?? '')
-
-const breakToolbar = computed(() => {
-  if (spec.value?.sceneCode !== 'xiaohongshu') return null
-  if (activePane.value !== XHS_BREAK_TOOLBAR.whenPane) return null
-  if (!liveByPane.value.break?.view) return null
-  return XHS_BREAK_TOOLBAR
 })
 
 function nextMsgId() {
@@ -265,12 +239,8 @@ function emptyText(pane: string) {
   return PANE_COPY[pane]?.empty ?? '处理已结束，但未收到可用成果，请重试。'
 }
 
-function successText(pane: string, blockCount: number) {
-  if (pane === 'picks') {
-    return blockCount > 0
-      ? '已生成选品候选，右侧 Computer 可查看详情。'
-      : '已生成选品成果，右侧 Computer 可查看。'
-  }
+function successText(pane: string, contentLength = 0) {
+  if (contentLength <= 0) return emptyText(pane)
   return PANE_COPY[pane]?.success ?? '已生成结果，右侧 Computer 可查看。'
 }
 
@@ -289,53 +259,18 @@ function paneFromArtifactType(artifactType?: string | null): string | null {
   return spec.value.paneByArtifactType[key] ?? null
 }
 
-function inferPaneFromView(view: ComputerPanelView | undefined): string | null {
+function inferPaneFromView(view: ComputerDocView | undefined): string | null {
   if (!view || !spec.value) return null
-  if (view.version === 2) {
-    const title = view.title || ''
-    if (spec.value.sceneCode === 'ecommerce') {
-      if (/上架|listing/i.test(title)) return 'listing'
-      if (/选品|清单/i.test(title)) return 'picks'
-      return null
-    }
-    if (spec.value.sceneCode === 'xiaohongshu') {
-      if (/拆解|爆文/.test(title)) return 'break'
-      if (/笔记/.test(title)) return 'note'
-      if (/选题/.test(title)) return 'topiclist'
-      return 'note'
-    }
+  const title = view.title || ''
+  if (spec.value.sceneCode === 'ecommerce') {
+    if (/上架|listing/i.test(title)) return 'listing'
+    if (/选品|清单/i.test(title)) return 'picks'
     return null
   }
-  if (spec.value.sceneCode === 'ecommerce') return inferEcommercePane(view)
-  if (spec.value.sceneCode === 'xiaohongshu') return inferXhsPane(view)
-  return null
-}
-
-function inferEcommercePane(view: ComputerDocument): string | null {
-  if (view.blocks.some((b) => b.type === 'list' && b.ordered !== false && /上架|listing/i.test(view.title || ''))) {
-    return 'listing'
-  }
-  if (
-    view.blocks.some(
-      (b) => b.type === 'section' && (b.heading === '详情标题' || b.heading === '详情正文'),
-    ) &&
-    !view.blocks.some((b) => b.type === 'list')
-  ) {
-    return 'listing'
-  }
-  if (view.blocks.some((b) => b.type === 'list')) return 'picks'
-  if (/上架|listing/i.test(view.title || '')) return 'listing'
-  if (/选品|清单/i.test(view.title || '')) return 'picks'
-  return null
-}
-
-function inferXhsPane(view: ComputerDocument): string | null {
-  const title = view.title || ''
   if (/拆解|爆文/.test(title)) return 'break'
   if (/笔记/.test(title)) return 'note'
   if (/选题/.test(title)) return 'topiclist'
-  if (view.blocks.some((b) => b.type === 'list')) return 'topiclist'
-  return 'note'
+  return null
 }
 
 function preferredLivePane(): string | null {
@@ -491,8 +426,7 @@ async function finishGenerationMessage(opts: {
     feedbackHint.value = ''
     revealComputer()
     void loadSessions()
-    const blockCount = opts.artifact.view.content.trim() ? 1 : 0
-    const reply = successText(opts.pane, blockCount)
+    const reply = successText(opts.pane, opts.artifact.view.content.trim().length)
     replaceThinking(opts.thinkingId, {
       id: opts.thinkingId,
       role: 'agent',
@@ -637,32 +571,13 @@ async function sendFromSession() {
   await runSkill(text, selectedSkillId.value ?? undefined)
 }
 
-function isItemActionEnabled(item: ComputerListItem, index: number): boolean {
-  const handoff = activeItemHandoff.value
-  if (!handoff) return false
-  return Boolean(handoff.buildText(item, index))
-}
-
-async function onItemAction(payload: { item: ComputerListItem; index: number }) {
-  const handoff = activeItemHandoff.value
-  if (!handoff || sessionBusy.value) return
-  const text = handoff.buildText(payload.item, payload.index)?.trim()
-  if (!text) return
+async function onDocHandoff(payload: { skillId: string; prompt: string }) {
+  const text = payload.prompt.trim()
+  const skillId = payload.skillId.trim()
+  if (!text || !skillId || sessionBusy.value) return
   messages.value.push({ id: nextMsgId(), role: 'user', text })
   scrollChatToBottom()
-  await runSkill(text, handoff.targetSkillId)
-}
-
-async function onBreakToolbar() {
-  if (sessionBusy.value || !breakToolbar.value) return
-  const text = buildXhsBreakToolbarText({
-    view: liveByPane.value.break?.view,
-    lastPrompt: lastBilledPrompt.value || pendingBilledPrompt.value,
-  })?.trim()
-  if (!text) return
-  messages.value.push({ id: nextMsgId(), role: 'user', text })
-  scrollChatToBottom()
-  await runSkill(text, breakToolbar.value.targetSkillId)
+  await runSkill(text, skillId)
 }
 
 async function confirmHumanOption(optionId: string) {
@@ -792,7 +707,7 @@ function mergeSessionArtifact(
   open = false,
 ): string | null {
   if (!detail?.id || !detail.view) return null
-  const view = parseComputerDocument(detail.view)
+  const view = parseComputerDocView(detail.view)
   if (!view) return null
   const pane = paneFromArtifactType(detail.artifactType) || inferPaneFromView(view)
   if (!pane) return null
@@ -1233,16 +1148,6 @@ watch(sceneCode, () => {
                 Adam's Computer
               </div>
               <div class="computer-bar-actions">
-                <button
-                  v-if="breakToolbar"
-                  type="button"
-                  class="pill"
-                  data-testid="break-note-handoff"
-                  :disabled="sessionBusy"
-                  @click="onBreakToolbar"
-                >
-                  {{ breakToolbar.actionLabel }}
-                </button>
                 <button type="button" class="icon-btn" id="close-computer" aria-label="关闭" @click="closeComputer">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M18 6L6 18M6 6l12 12" />
@@ -1251,13 +1156,11 @@ watch(sceneCode, () => {
               </div>
             </div>
             <div class="computer-body">
-              <ComputerRenderer
+              <DocPreview
                 v-if="activeComputerDoc"
                 :document="activeComputerDoc"
                 :file-name="computerFileName"
-                :item-action-label="itemActionLabel"
-                :is-item-action-enabled="isItemActionEnabled"
-                @item-action="onItemAction"
+                @handoff="onDocHandoff"
               />
             </div>
           </aside>

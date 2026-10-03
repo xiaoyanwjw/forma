@@ -1,19 +1,4 @@
-import {
-  buildXhsBreakNoteHandoffText,
-  extractTargetProductFromPrompt,
-  extractXhsBreakHandoffFromView,
-  noteHandoffTextForItem,
-} from '@/utils/xhsNoteHandoff'
-import type {
-  SceneWorkspaceSpec,
-  SceneWorkspaceToolbarMeta,
-} from '@/views/business/scene/workspace/types'
-
-export const XHS_BREAK_TOOLBAR: SceneWorkspaceToolbarMeta = {
-  whenPane: 'break',
-  actionLabel: '按骨架写笔记',
-  targetSkillId: 'xhs-note',
-}
+import type { SceneWorkspaceSpec } from '@/views/business/scene/workspace/types'
 
 export const xhsSpec: SceneWorkspaceSpec = {
   sceneCode: 'xiaohongshu',
@@ -32,26 +17,4 @@ export const xhsSpec: SceneWorkspaceSpec = {
     xhs_break: 'break',
     break: 'break',
   },
-  itemHandoffs: [
-    {
-      whenPane: 'topiclist',
-      actionLabel: '写成笔记',
-      targetSkillId: 'xhs-note',
-      buildText: noteHandoffTextForItem,
-    },
-  ],
-  toolbarHandoffs: undefined,
-}
-
-export function buildXhsBreakToolbarText(ctx: {
-  view?: Parameters<typeof extractXhsBreakHandoffFromView>[0]
-  lastPrompt?: string | null
-}): string | null {
-  const fromView = extractXhsBreakHandoffFromView(ctx.view)
-  const targetProduct =
-    fromView.targetProduct || extractTargetProductFromPrompt(ctx.lastPrompt)
-  return buildXhsBreakNoteHandoffText({
-    ...fromView,
-    targetProduct,
-  })
 }

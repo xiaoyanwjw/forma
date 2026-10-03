@@ -61,50 +61,36 @@ const TOPIC_TEMPLATE = XHS_SKILLS.skills[0]!.examplePrompt
 const NOTE_TEMPLATE = XHS_SKILLS.skills[1]!.examplePrompt
 const BREAK_TEMPLATE = XHS_SKILLS.skills[2]!.examplePrompt
 
+const BREAK_NOTE_PROMPT =
+  '请按骨架写一篇小红书笔记。骨架：场景痛点一句 → 方案物件一句。商品：硅胶沥水垫。'
+
 function sampleBreakView() {
-  return {
-    version: 1,
+  return docView({
     title: '硅胶沥水垫 · 爆文拆解改写',
-    status: 'settled',
-    blocks: [
-      {
-        type: 'markdown',
-        text:
-          '## 拆解要点\n痛点开场（台面积水）→ 低成本方案（一块垫）。\n\n## 骨架\n场景痛点一句 → 方案物件一句 → 2 个可拍使用动作\n\n## 改写稿\n洗完碗水槽边那圈又湿了。我垫了一块硅胶沥水垫。',
-      },
-    ],
+    content:
+      '<h2>拆解要点</h2><p>场景痛点一句 → 方案物件一句</p><p>硅胶沥水垫</p>' +
+      `<button type="button" data-adam-action="handoff" data-adam-skill-id="xhs-note" data-adam-prompt="${BREAK_NOTE_PROMPT}">按骨架写笔记</button>`,
+  })
+}
+
+function docView(partial: { title: string; format?: 'html' | 'markdown'; content: string }) {
+  return {
+    version: 2 as const,
+    title: partial.title,
+    format: partial.format ?? 'html',
+    content: partial.content,
   }
 }
 
+const TOPIC_NOTE_PROMPT = '请把选题 tp-1「租房党厨房收纳第一篇」写成小红书种草笔记。'
+
 function sampleTopiclistView() {
-  return {
-    version: 1,
+  return docView({
     title: '选题清单',
-    status: 'settled',
-    blocks: [
-      {
-        type: 'note',
-        text: '非实时平台全站行情',
-        tone: 'mute',
-      },
-      {
-        type: 'list',
-        ordered: true,
-        items: [
-          {
-            id: 'tp-1',
-            href: 'https://www.xiaohongshu.com/explore/abc',
-            badge: '优先发',
-            title: '租房党厨房收纳第一篇',
-            lines: [
-              { kind: 'hook', text: '台面永远堆碗' },
-              { kind: 'angle', text: '租房收纳' },
-            ],
-          },
-        ],
-      },
-    ],
-  }
+    content:
+      '<p class="priority-tag">优先发</p><p>租房党厨房收纳第一篇</p>' +
+      `<button type="button" data-adam-action="handoff" data-adam-skill-id="xhs-note" data-adam-prompt="${TOPIC_NOTE_PROMPT}">写成笔记</button>`,
+  })
 }
 
 function okScenes(data: unknown) {
@@ -188,12 +174,10 @@ function mockCatalogAndCredits() {
           ? sampleTopiclistView()
           : skillId === 'xhs-break'
             ? sampleBreakView()
-            : {
-                version: 1,
+            : docView({
                 title: '笔记种草稿',
-                status: 'settled',
-                blocks: [{ type: 'markdown', text: '## 草稿\n正文' }],
-              }
+                content: '<h2>笔记种草稿</h2><p>正文</p>',
+              })
       return new Response(
         sseBody([
           'event: run_started\ndata: {"runId":"r1","sessionId":"s-xhs","holdId":"h1"}\n\n',
@@ -399,11 +383,13 @@ describe('Workspace xiaohongshu', () => {
     await flushUi()
     await sendFilledPrompt(mounted.root)
 
-    const btn = mounted.root.querySelector('.item-action-btn') as HTMLButtonElement
+    const btn = mounted.root.querySelector(
+      '[data-adam-action="handoff"]',
+    ) as HTMLButtonElement
     expect(btn).toBeTruthy()
-    expect(btn.disabled).toBe(false)
-    expect(mounted.root.querySelector('.priority-tag')?.textContent).toBe('优先发')
-    expect(mounted.root.textContent).not.toMatch(/\bpriority\b/)
+    const prompt = btn.getAttribute('data-adam-prompt') || ''
+    expect(btn.getAttribute('data-adam-skill-id')).toBe('xhs-note')
+    expect(prompt).toBe(TOPIC_NOTE_PROMPT)
     btn.click()
     await flushUi()
     await flushUi()
@@ -419,7 +405,7 @@ describe('Workspace xiaohongshu', () => {
     expect(body.skillId).toBe('xhs-note')
     expect(body.sceneCode).toBe('xiaohongshu')
     expect(body.sessionId).toBe('s-xhs')
-    expect(body.text).toMatch(/tp-1/)
+    expect(body.text).toBe(prompt)
   })
 
   it('按骨架写笔记 starts xhs-note with skeleton and targetProduct', async () => {
@@ -433,9 +419,12 @@ describe('Workspace xiaohongshu', () => {
     await sendFilledPrompt(mounted.root)
 
     const btn = mounted.root.querySelector(
-      '[data-testid="break-note-handoff"]',
+      '[data-adam-action="handoff"]',
     ) as HTMLButtonElement
     expect(btn).toBeTruthy()
+    const prompt = btn.getAttribute('data-adam-prompt') || ''
+    expect(btn.getAttribute('data-adam-skill-id')).toBe('xhs-note')
+    expect(prompt).toBe(BREAK_NOTE_PROMPT)
     btn.click()
     await flushUi()
     await flushUi()
@@ -447,6 +436,7 @@ describe('Workspace xiaohongshu', () => {
       skillId?: string
     }
     expect(body.skillId).toBe('xhs-note')
+    expect(body.text).toBe(prompt)
     expect(body.text).toContain('场景痛点一句')
     expect(body.text).toContain('硅胶沥水垫')
   })
@@ -460,7 +450,7 @@ describe('Workspace xiaohongshu', () => {
     pills[0]!.click()
     await flushUi()
     await sendFilledPrompt(mounted.root)
-    expect(mounted.root.querySelector('.item-action-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-adam-action="handoff"]')).toBeTruthy()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
       '租房党厨房收纳第一篇',
     )
@@ -468,7 +458,7 @@ describe('Workspace xiaohongshu', () => {
     pills[1]!.click()
     await flushUi()
     await sendFilledPrompt(mounted.root)
-    expect(mounted.root.querySelector('.item-action-btn')).toBeNull()
+    expect(mounted.root.querySelector('[data-adam-action="handoff"]')).toBeNull()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain('笔记种草稿')
     expect(mounted.root.querySelector('.computer-body')?.textContent).not.toContain(
       '租房党厨房收纳第一篇',
@@ -480,7 +470,7 @@ describe('Workspace xiaohongshu', () => {
     expect(topicStatus).toBeTruthy()
     ;(topicStatus!.closest('.chat-event-status') as HTMLElement).click()
     await flushUi()
-    expect(mounted.root.querySelector('.item-action-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-adam-action="handoff"]')).toBeTruthy()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
       '租房党厨房收纳第一篇',
     )
@@ -488,12 +478,10 @@ describe('Workspace xiaohongshu', () => {
 
   it('session replay maps xhs artifact types to the matching Computer', async () => {
     const topicView = sampleTopiclistView()
-    const noteView = {
-      version: 1,
+    const noteView = docView({
       title: '笔记种草稿',
-      status: 'settled',
-      blocks: [{ type: 'markdown', text: '## 正文\n硅胶沥水垫分享' }],
-    }
+      content: '<h2>笔记种草稿</h2><p>硅胶沥水垫分享</p>',
+    })
     const topicDump = JSON.stringify({
       artifactType: 'xhs_topiclist',
       view: topicView,
@@ -577,7 +565,7 @@ describe('Workspace xiaohongshu', () => {
     expect(chat).toContain('已生成选题清单')
     expect(chat).toContain('已生成笔记草稿')
     expect(chat).not.toMatch(/已生成选品成果|已生成上架素材/)
-    expect(mounted.root.querySelector('.item-action-btn')).toBeNull()
+    expect(mounted.root.querySelector('[data-adam-action="handoff"]')).toBeNull()
 
     const noteStatus = Array.from(mounted.root.querySelectorAll('.chat-result-text')).find((el) =>
       el.textContent?.includes('笔记草稿'),
@@ -594,7 +582,7 @@ describe('Workspace xiaohongshu', () => {
     expect(topicStatus).toBeTruthy()
     ;(topicStatus!.closest('.chat-event-status') as HTMLElement).click()
     await flushUi()
-    expect(mounted.root.querySelector('.item-action-btn')).toBeTruthy()
+    expect(mounted.root.querySelector('[data-adam-action="handoff"]')).toBeTruthy()
     expect(mounted.root.querySelector('.computer-body')?.textContent).toContain(
       '租房党厨房收纳第一篇',
     )
