@@ -41,6 +41,8 @@ APP-META/docker-config/build/
 # Local agent / planning notes (not shipped)
 _bmad/
 docs/
+.agents/
+.claude/
 
 # Local editor history
 .history/
