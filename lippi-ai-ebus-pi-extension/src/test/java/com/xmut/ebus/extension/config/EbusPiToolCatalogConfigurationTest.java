@@ -2,6 +2,7 @@ package com.xmut.ebus.extension.config;
 
 import com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.ebus.extension.tool.sku.port.SkuSearchProperties;
+import com.xmut.ebus.extension.tool.view.RenderViewToolHandler;
 import com.xmut.ebus.extension.tool.xhs.FetchXhsNoteToolHandler;
 import com.xmut.ebus.extension.tool.xhs.SearchXhsNoteToolHandler;
 import com.xmut.lims.pi.agent.tool.ToolDefinition;
@@ -45,6 +46,10 @@ class EbusPiToolCatalogConfigurationTest {
                 handlerClassOf(defs, "search_xhs_note"));
         assertEquals("com.xmut.ebus.extension.tool.xhs.FetchXhsNoteToolHandler",
                 handlerClassOf(defs, "fetch_xhs_note"));
+        assertEquals(RenderViewToolHandler.class.getName(), handlerClassOf(defs, "render_view"));
+        assertTrue(defs.stream().anyMatch(d -> "render_view".equals(d.getId())
+                && d.getSchema() != null
+                && d.getSchema().getParametersSchema() != null));
         assertTrue(handlerClassOf(defs, "search_sku") != null
                 && defs.stream().anyMatch(d -> "search_sku".equals(d.getId())
                 && d.getSchema() != null
