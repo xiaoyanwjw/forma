@@ -2,17 +2,16 @@
 
 ## 交付方式
 
-1. **工作区文件（真源，分步）：**
-   - 领域实体 → `artifact.json`（**仅** artifact 对象，见下方示例）
-   - 视图实体 → `view.json`（**仅** view 对象，见下方示例）
-   - 再用 `write_file` 合并为 run 根下 **`final.json`**：`{ "view": <view.json 根对象>, "artifact": <artifact.json 根对象> }`。支持的合并是 `write_file`；勿依赖 `python3`。
+1. **工作区文件：**
+   - 领域实体 → `write_file` → `artifact.json`（**仅** artifact 对象，见下方示例）
+   - 视图 → 调用 **`render_view`**（默认读 `artifact.json`，写 `view.json`，模板 `references/view.mustache`；**默认 `format: markdown`**）。**勿**手写 `content`。
 2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
 
 ```json
-{"output":"final.json"}
+{"output":"view.json"}
 ```
 
-不要在对话里贴整包 `{view, artifact}`，也不要在对话里贴 `artifact.json` / `view.json` 全文。结算由服务端读 `final.json` 后再投影 / 落库。
+不要在对话里贴 `artifact.json` / `view.json` 全文。结算由服务端读 **`view.json`**，并与同目录 **`artifact.json`** 对齐落库。
 
 `artifact` = 领域实体（成稿事实）；`view` = 视图实体（界面渲染）。两边同一事实。
 
@@ -62,9 +61,9 @@
 | `version` | **`2`** |
 | `title` | 给人看的中文标题 |
 | `format` | **`markdown`**（推荐；前端 `marked` 渲染为 README 风文档） |
-| `content` | 完整 Markdown 字符串 |
+| `content` | 由 [view.mustache](view.mustache) 渲染的 Markdown 字符串 |
 
-`content` 固定小标题（与 `artifact` 同一事实）：
+`content` 固定小标题（模板与 `artifact` 同一事实）：
 
 | 小节 | 内容 |
 |------|------|
@@ -107,30 +106,14 @@
 }
 ```
 
-### `view.json`（视图实体）
+### `view.json`（`render_view` 产出）
 
-```json
-{
-  "version": 2,
-  "title": "Mac Mini 拓展坞 · 种草笔记",
-  "format": "markdown",
-  "content": "## 标题备选\n1. Mini 背后那一团线，我换成拓展坞就不想拆了\n2. 接显示器总缺口？先看这块坞怎么走线\n3. 桌面只留一根视频线：Mini 底座拓展\n\n## 正文\nMini 接到显示器后，机身底下永远拖着一串转接头。后来换成一块和机身差不多宽的拓展坞，HDMI、U盘、网线都从底座走，桌上只剩电源和一根视频线。\n\n没拿过苹果官方认证材料，就不写兼容保证；买之前对一下自己的口：HDMI 版本、是不是要 2.5G 网口。\n\n如果你也是居家办公把 Mini 接到外接屏，可以先看坞的宽度和走线孔，别只看主图颜色。\n\n## 标签\nMac Mini · 桌搭 · 拓展坞 · 居家办公 · 理线 · 显示器\n\n## 配图提示\n1. 首图：线乱桌面 vs 坞藏线后，左右对比，字幕「桌面清了」\n2. 图2：HDMI / USB / 网口特写，手插上 U 盘\n3. 图3：机身下走线孔，线从底座出去\n\n## 假设\n交接 tp-1；钩子=接口不够线乱；角度=居家办公 Mini 桌搭；未提供官方认证故不写"
-}
-```
-
-### `final.json`（合并，非手写第二套事实）
-
-```json
-{
-  "view": { "...同 view.json 根对象..." },
-  "artifact": { "...同 artifact.json 根对象..." }
-}
-```
+对上例 `artifact.json` 调用 `render_view` 后，`view.json` 含 v2 字段；`format` 为 **`markdown`**，`content` 由 [view.mustache](view.mustache) 填充。
 
 **对话终稿指针：**
 
 ```json
-{"output":"final.json"}
+{"output":"view.json"}
 ```
 
 失败路径：不要输出指针或本 JSON，只回人话（见 SKILL § Failures）。

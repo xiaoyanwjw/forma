@@ -2,15 +2,15 @@
 
 ## 交付方式
 
-1. **工作区文件（真源，分步）：** 先领域实体，再视图实体，最后合并信封（支持的合并是 `write_file`；勿依赖 `python3`）：
-   - **策划：** `plan/artifact.json`（仅 artifact）→ `plan/view.json`（仅 view）→ **`plan/final.json`** = `{ "view": <view 根>, "artifact": <artifact 根> }`
-   - **执行**（仅 `confirm_execute` 后）：`exec/artifact.json` → `exec/view.json` → **`exec/final.json`**（同上信封）
-   - **补充：** 重写 `plan/artifact.json` / `plan/view.json` 后合并 `plan/final.json`，再发指针并 `ask_human`
+1. **工作区文件：** 先领域实体，再 **`render_view`**（勿手写 HTML `content`）：
+   - **策划：** `write_file` → `plan/artifact.json` → **`render_view`**（`artifact`: `plan/artifact.json`，`out`: `plan/view.json`，`template`: `references/plan/view.mustache`）
+   - **执行**（仅 `confirm_execute` 后）：`exec/artifact.json` → **`render_view`**（`artifact`: `exec/artifact.json`，`out`: `exec/view.json`，`template`: `references/exec/view.mustache`）
+   - **补充：** 重写 `plan/artifact.json` 后重跑策划 `render_view`，再发指针并 `ask_human`
 2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
-   - 策划（含补充后重出）：`{"output":"plan/final.json"}`
-   - 执行终态：`{"output":"exec/final.json"}`
+   - 策划（含补充后重出）：`{"output":"plan/view.json"}`
+   - 执行终态：`{"output":"exec/view.json"}`
 
-不要在对话里贴整包 `{view, artifact}`，也不要贴分文件全文。结算由服务端读对应 `final.json`。
+不要在对话里贴分文件全文。结算由服务端读对应 **`plan/view.json`** / **`exec/view.json`**，并与同目录 **`plan/artifact.json`** / **`exec/artifact.json`** 对齐落库。
 
 `artifact` = 领域实体；`view` = 视图实体。两边同一事实。下方示例**按文件分开**给出；`final.json` 只做合并，不再另造一套字段。
 
@@ -78,9 +78,9 @@ metadata:
 | `version` | **`2`** |
 | `title` | 给人看的中文标题 |
 | `format` | **`html`** |
-| `content` | 完整 HTML；根节点建议 `<article class="markdown-body">` |
+| `content` | 由 [plan/view.mustache](plan/view.mustache) 渲染的 HTML；根节点 `<article class="markdown-body">` |
 
-HTML 固定小节（与 `artifact` 同一事实）：
+HTML 固定小节（模板与 `artifact` 同一事实）：
 
 | 小节 | 内容 |
 |------|------|
@@ -119,9 +119,9 @@ HTML 固定小节（与 `artifact` 同一事实）：
 | `version` | **`2`** |
 | `title` | 给人看的中文标题 |
 | `format` | **`html`** |
-| `content` | 完整 HTML 文档（分镜与文案均以 **标题 + 段落/列表** 表达，不再用 blocks 拼装） |
+| `content` | 由 [exec/view.mustache](exec/view.mustache) 渲染的 HTML 文档 |
 
-HTML 结构建议（与 `artifact` 同一事实）：
+HTML 结构（模板与 `artifact` 同一事实）：
 
 1. `<h1>` = 标题  
 2. **主图占位**（结算前由系统 patch `src`）：  
@@ -166,27 +166,11 @@ HTML 结构建议（与 `artifact` 同一事实）：
 }
 ```
 
-### `plan/view.json`
+### `plan/view.json`（`render_view` 产出）
 
-```json
-{
-  "version": 2,
-  "title": "Mac Mini 拓展坞 · 策划分镜",
-  "format": "html",
-  "content": "<article class=\"markdown-body\"><h1>Mac Mini 拓展坞 · 策划分镜</h1><h2>成交方向</h2><p>居家办公把 Mini 接到显示器：接口不够 + 线要藏。</p><h2>主图分镜</h2><ol><li>首图：桌面前后对比 + 「线藏住了」角标</li><li>图2：HDMI / USB / 网口特写</li><li>图3：机身下走线隐藏</li></ol><h2>标题草稿</h2><p>Mac Mini 拓展坞 多口扩展 走线隐藏</p><h2>详情大纲</h2><ol><li>Mini 接显示器总缺口？一块坞把口补齐</li><li>多口扩展 + 底部走线，桌面只留一套线</li><li>机身同宽，不额外占桌面</li></ol><h2>假设</h2><p>交接 pl-1；原链 https://item.taobao.com/example-sku-1；参考 Mac Mini 扩展 / 接口不够 / 居家办公。</p></article>"
-}
-```
+对上例 `plan/artifact.json` 调用策划 `render_view` 后，`plan/view.json` 含 v2 字段；`content` 由 [plan/view.mustache](plan/view.mustache) 填充。
 
-### `plan/final.json`（合并）
-
-```json
-{
-  "view": { "...同 plan/view.json 根对象..." },
-  "artifact": { "...同 plan/artifact.json 根对象..." }
-}
-```
-
-指针：`{"output":"plan/final.json"}`
+指针：`{"output":"plan/view.json"}`
 
 ## 执行示例
 
@@ -234,27 +218,11 @@ HTML 结构建议（与 `artifact` 同一事实）：
 }
 ```
 
-### `exec/view.json`
+### `exec/view.json`（`render_view` 产出）
 
-```json
-{
-  "version": 2,
-  "title": "Mac Mini 拓展坞 · 上架素材",
-  "format": "html",
-  "content": "<article class=\"markdown-body\"><h1>Mac Mini 拓展坞 · 上架素材</h1><p><img data-adam-media-role=\"hero\" alt=\"主图占位\" src=\"\"></p><p>首图：线乱桌面 vs 坞藏线后；角标「线藏住了」。续图：接口特写 / 底部走线。</p><h2>主图分镜</h2><ol><li><p>首图：桌面前后对比 + 「线藏住了」角标</p><p><code>Product photo, Mac Mini with matching-width USB-C hub dock…</code></p></li><li><p>图2：HDMI / USB / 网口特写</p></li><li><p>图3：机身下走线隐藏</p></li></ol><h2>详情标题</h2><p>Mac Mini 拓展坞 多口扩展 走线隐藏 桌面不乱</p><h2>详情正文</h2><p>Mini 接显示器后接口不够、线乱，换成一块和机身差不多宽的拓展坞。</p><p>HDMI、USB、网线从底座走，桌上只留电源和一根视频线。</p><p>买前对一下自己的口，说明书里没有的认证不要写。</p><h2>展示说明</h2><p class=\"cv-note\">主图顺序：①桌面前后对比 ②接口特写 ③底部走线。图内文案宜短。勿写官方原装或未提供的认证，勿编造带宽实测。</p><h2>生图 Prompt</h2><ol><li><p>Product photo, Mac Mini with matching-width USB-C hub dock under the chassis, clean desk, HDMI USB ethernet cables exiting the base, short Chinese text overlay 线藏住了, commercial e-commerce style, soft daylight</p><p>negative: cluttered props, watermark, Apple official logo claims</p></li><li><p>Close-up of Mac Mini dock ports HDMI USB ethernet, hand inserting a USB drive, desk background blur, e-commerce detail shot</p><p>negative: blurry, distorted text</p></li><li><p>Cable routing through Mac Mini dock underside, hidden wiring, clean home office desk, e-commerce lifestyle photo</p><p>negative: messy cables covering the product, unrelated products</p></li></ol></article>"
-}
-```
+对上例 `exec/artifact.json` 调用执行 `render_view` 后，`exec/view.json` 含 v2 字段；`content` 由 [exec/view.mustache](exec/view.mustache) 填充，且含 `data-adam-media-role="hero"` 占位图。
 
-### `exec/final.json`（合并）
-
-```json
-{
-  "view": { "...同 exec/view.json 根对象..." },
-  "artifact": { "...同 exec/artifact.json 根对象..." }
-}
-```
-
-指针：`{"output":"exec/final.json"}`
+指针：`{"output":"exec/view.json"}`
 
 失败路径：不要输出本 JSON，只回人话（见 SKILL § Failures）。
 

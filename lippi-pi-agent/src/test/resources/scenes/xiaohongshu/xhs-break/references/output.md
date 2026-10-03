@@ -2,17 +2,16 @@
 
 ## 交付方式
 
-1. **工作区文件（真源，分步）：**
-   - 领域实体 → `artifact.json`（**仅** artifact 对象，见下方示例）
-   - 视图实体 → `view.json`（**仅** view 对象，见下方示例）
-   - 再用 `write_file` 合并为 run 根下 **`final.json`**：`{ "view": <view.json 根对象>, "artifact": <artifact.json 根对象> }`。支持的合并是 `write_file`；勿依赖 `python3`。
+1. **工作区文件：**
+   - 领域实体 → `write_file` → `artifact.json`（**仅** artifact 对象，见下方示例）
+   - 视图 → 调用 **`render_view`**（默认读 `artifact.json`，写 `view.json`，模板 `references/view.mustache`）。**勿**手写 HTML `content`。
 2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
 
 ```json
-{"output":"final.json"}
+{"output":"view.json"}
 ```
 
-不要在对话里贴整包 `{view, artifact}`，也不要在对话里贴分文件全文。结算由服务端读 `final.json` 后再投影 / 落库。
+不要在对话里贴 `artifact.json` / `view.json` 全文。结算由服务端读 **`view.json`**，并与同目录 **`artifact.json`** 对齐落库。
 
 无原文（链接失败且无粘贴）时**不要**写这些文件，只回人话。
 
@@ -64,15 +63,15 @@
 | `version` | **`2`** |
 | `title` | 给人看的中文标题 |
 | `format` | **`html`** |
-| `content` | 完整 HTML 字符串；根节点建议 `<article class="markdown-body">` |
+| `content` | 由 [view.mustache](view.mustache) 渲染的 HTML；根节点 `<article class="markdown-body">` |
 
-正文结构建议：
+正文结构（模板固定）：
 
 1. `<h1>` = 标题
 2. `<h2>拆解要点</h2>` = `structure`
 3. `<h2>骨架</h2>` = `skeleton`
 4. `<h2>改写稿</h2>` = `rewrite`
-5. 文末 **必须** 含手递按钮（见下一节）
+5. 文末手递按钮；`data-adam-prompt` 由工具注入 **`handoffPrompt`**（见下一节）
 
 不要把原文全文再贴一遍到 view（原文留在 artifact）。
 
@@ -98,7 +97,7 @@
 >按骨架写笔记</button>
 ```
 
-`data-adam-prompt` 正文须与下列逻辑一致（与前端原 `buildXhsBreakNoteHandoffText` 同形；长字段可截断：`structure` ≤240 字、`skeleton` / `rewrite` 各 ≤400 字，超出加 `…`）：
+`handoffPrompt` / `data-adam-prompt` 正文须与下列逻辑一致（工具 `ViewRenderHelpers.buildXhsBreakNoteHandoffText`；长字段截断：`structure` ≤240 字、`skeleton` / `rewrite` 各 ≤400 字，超出加 `…`）：
 
 - 有 `targetProduct` 时首行：  
   `请按这次爆文拆解的骨架，写一篇关于「{targetProduct}」的小红书种草笔记，语气像真人分享。`
@@ -131,30 +130,14 @@
 }
 ```
 
-### `view.json`（视图实体）
+### `view.json`（`render_view` 产出）
 
-```json
-{
-  "version": 2,
-  "title": "Mac Mini 拓展坞 · 爆文拆解改写",
-  "format": "html",
-  "content": "<article class=\"markdown-body\"><h1>Mac Mini 拓展坞 · 爆文拆解改写</h1><h2>拆解要点</h2><p>痛点开场（接口不够线乱）→ 方案（拓展坞）→ 使用动作（插口/走线）→ 桌面收束。未用官方认证压人。</p><h2>骨架</h2><p>场景痛点一句 → 方案物件一句 → 2 个可拍使用动作 → 收纳/体积收束 → 不承诺未提供数据</p><h2>改写稿</h2><p>Mini 接到显示器后，机身底下永远拖着一串转接头。我没有换主机，只加了一块 Mac Mini 拓展坞：HDMI、U盘、网线从底座走，桌上只剩电源和一根视频线。官方认证我没看到说明书就不写，买之前对一下自己的口。</p><p><button type=\"button\" data-adam-action=\"handoff\" data-adam-skill-id=\"xhs-note\" data-adam-prompt=\"请按这次爆文拆解的骨架，写一篇关于「Mac Mini 拓展坞」的小红书种草笔记，语气像真人分享。\n结构要点：痛点开场（接口不够线乱）→ 方案（拓展坞）→ 使用动作（插口/走线）→ 桌面收束。未用官方认证压人。\n骨架：场景痛点一句 → 方案物件一句 → 2 个可拍使用动作 → 收纳/体积收束 → 不承诺未提供数据\n改写参考：Mini 接到显示器后，机身底下永远拖着一串转接头。我没有换主机，只加了一块 Mac Mini 拓展坞：HDMI、U盘、网线从底座走，桌上只剩电源和一根视频线。官方认证我没看到说明书就不写，买之前对一下自己的口。\">按骨架写笔记</button></p></article>"
-}
-```
-
-### `final.json`（合并，非手写第二套事实）
-
-```json
-{
-  "view": { "...同 view.json 根对象..." },
-  "artifact": { "...同 artifact.json 根对象..." }
-}
-```
+对上例 `artifact.json` 调用 `render_view` 后，`view.json` 含 v2 字段；`content` 由 [view.mustache](view.mustache) 填充，且含 `data-adam-skill-id="xhs-note"` 手递按钮。
 
 **对话终稿指针：**
 
 ```json
-{"output":"final.json"}
+{"output":"view.json"}
 ```
 
 失败路径示例（仅人话，无 JSON）：

@@ -12,6 +12,7 @@ import com.xmut.lims.pi.ai.tool.ToolResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -31,6 +32,9 @@ public final class RenderViewToolHandler implements ToolHandler {
     static final String DEFAULT_ARTIFACT = "artifact.json";
     static final String DEFAULT_OUT = "view.json";
     static final String DEFAULT_TEMPLATE = "references/view.mustache";
+
+    private static final Map<String, String> SKILL_DEFAULT_FORMAT =
+            Collections.unmodifiableMap(defaultSkillFormats());
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE =
             new TypeReference<Map<String, Object>>() {
@@ -64,7 +68,10 @@ public final class RenderViewToolHandler implements ToolHandler {
             String artifactRel = orDefault(textArg(call, "artifact"), DEFAULT_ARTIFACT);
             String outRel = orDefault(textArg(call, "out"), DEFAULT_OUT);
             String templateRel = orDefault(textArg(call, "template"), DEFAULT_TEMPLATE);
-            String formatParam = orDefault(textArg(call, "format"), "html");
+            String formatParam = textArg(call, "format");
+            String formatResolved = StringUtils.hasText(formatParam)
+                    ? formatParam.trim()
+                    : orDefault(SKILL_DEFAULT_FORMAT.get(ctx.getActiveSkillId()), "html");
             Path workspace = Paths.get(ctx.getWorkspaceRoot());
             Path artifactPath = LocalFileSupport.resolveUnder(workspace, artifactRel);
             Path outPath = LocalFileSupport.resolveUnder(workspace, outRel);
@@ -75,7 +82,7 @@ public final class RenderViewToolHandler implements ToolHandler {
             data = ViewRenderHelpers.enrich(ctx.getActiveSkillId(), data);
             String content = renderer.render(templateLoader.load(ctx.getActiveSkillId(), templateRel), data);
             String title = data.get("title") instanceof String ? (String) data.get("title") : "draft";
-            String format = "markdown".equalsIgnoreCase(formatParam) ? "markdown" : "html";
+            String format = "markdown".equalsIgnoreCase(formatResolved) ? "markdown" : "html";
             Map<String, Object> view = new LinkedHashMap<String, Object>();
             view.put("version", Integer.valueOf(2));
             view.put("title", title);
@@ -106,6 +113,12 @@ public final class RenderViewToolHandler implements ToolHandler {
             throw new IllegalArgumentException("artifact must be a JSON object");
         }
         return objectMapper.convertValue(root, MAP_TYPE);
+    }
+
+    private static Map<String, String> defaultSkillFormats() {
+        Map<String, String> formats = new LinkedHashMap<String, String>();
+        formats.put("xhs-note", "markdown");
+        return formats;
     }
 
     private static String orDefault(String value, String fallback) {

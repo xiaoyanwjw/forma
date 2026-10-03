@@ -3,7 +3,7 @@ name: xhs-break
 description: >-
   用 fetch_xhs_note 或用户粘贴正文拆解一篇小红书笔记，产出结构、骨架与改写稿（JSON：view + artifact）。
   在用户提到拆解爆文、仿写结构、按爆文改写成自己的商品时使用。
-allowed-tools: read_skill fetch_xhs_note write_file read_file bash
+allowed-tools: read_skill fetch_xhs_note write_file read_file render_view
 metadata:
   output:
     billing: true
@@ -34,13 +34,11 @@ metadata:
 
 4. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**，再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
 
-5. **构造视图实体。** 上拆解要点、下骨架+改写；文末含「按骨架写笔记」手递按钮（`data-adam-skill-id="xhs-note"`，prompt 合同见 output）。再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
+5. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `references/view.mustache`）。模板文末含「按骨架写笔记」手递按钮；`handoffPrompt` 由工具注入，合同见 [output.md §手递](references/output.md#手递按钮与-prompt-合同)。勿手写 HTML `view.content`。
 
-6. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`。支持的合并是 `write_file`；勿依赖 `python3`。
+6. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"view.json"}`。
 
-7. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"final.json"}`。
-
-8. **过 Verification。** 全部勾上再发指针。
+7. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
 ## Tool: fetch_xhs_note
 
@@ -64,7 +62,7 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** `final.json`（`view` + `artifact` 信封）+ **对话**指针 `{"output":"final.json"}`。完整字段与示例 → [output.md](references/output.md)。
+成功终态：**盘上** `artifact.json` + **`view.json`**（`render_view` 产出）+ **对话**指针 `{"output":"view.json"}`。完整字段与示例 → [output.md](references/output.md)。
 
 速记：
 
@@ -81,8 +79,8 @@ metadata:
 - [ ] 有链接且无粘贴时，本轮 `fetch_xhs_note` **至多 1 次**且成功；已有粘贴则 **0** 次 fetch
 - [ ] `source=apify` 时 `sourceTitle` / `sourceBody` 来自工具，未编造
 - [ ] `source=paste` 时正文来自用户粘贴，未用假链冒充拉取成功
-- [ ] 已写 `artifact.json`、`view.json`，且已用 `write_file` 写出 **`final.json`**
-- [ ] 终稿对话**仅** `{"output":"final.json"}`
+- [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
+- [ ] 终稿对话**仅** `{"output":"view.json"}`
 - [ ] `structure` / `skeleton` / `rewrite` 均非空，且拆解可对照原文
 - [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.content` 上为拆解要点、下为骨架+改写
 - [ ] 文末含手递按钮：标签「按骨架写笔记」，`data-adam-skill-id="xhs-note"`，`data-adam-prompt` 符合 output 合同

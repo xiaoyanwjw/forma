@@ -3,7 +3,7 @@ name: xhs-note
 description: >-
   一次成稿产出小红书种草笔记：标题备选、正文、标签与配图提示（JSON：view + artifact）。
   在用户提到写笔记、种草文案、标题 tags，或从选题/爆文点「写成笔记」时使用。
-allowed-tools: read_skill write_file read_file bash
+allowed-tools: read_skill write_file read_file render_view
 metadata:
   output:
     billing: true
@@ -47,13 +47,11 @@ metadata:
 
 4. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**（`titleOptions` 3–5、`body`、`tags` 5–10、`imageHints` 3–5、交接字段等），再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
 
-5. **构造视图实体。** 按同一事实拼出完整 **view**（v2：`format: markdown` + `content` 含固定小标题段）。再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
+5. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `references/view.mustache`；`format` 默认为 **markdown**）。勿手写 `view.content`。
 
-6. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`。支持的合并是 `write_file`；勿依赖 `python3`。
+6. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"view.json"}`。
 
-7. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"final.json"}`。
-
-8. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重拼。
+7. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
 ## Quality
 
@@ -67,7 +65,7 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** `final.json`（`view` + `artifact` 信封）+ **对话**指针 `{"output":"final.json"}`。完整字段与示例 → [output.md](references/output.md)。
+成功终态：**盘上** `artifact.json` + **`view.json`**（`render_view` 产出）+ **对话**指针 `{"output":"view.json"}`。完整字段与示例 → [output.md](references/output.md)。
 
 速记：
 
@@ -81,8 +79,8 @@ metadata:
 输出前逐项自检（全部通过才允许发指针）：
 
 - [ ] 本轮**未**调用 `search_xhs_note` / `fetch_xhs_note` / `ask_human`
-- [ ] 已写 `artifact.json`、`view.json`，且已用 `write_file` 写出 **`final.json`**
-- [ ] 终稿对话**仅** `{"output":"final.json"}`；**未**在对话里贴整包大 JSON
+- [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
+- [ ] 终稿对话**仅** `{"output":"view.json"}`；**未**在对话里贴整包大 JSON
 - [ ] 输入含选题条目 id 时 `topicItemId` 必填且一致；口述笔记可省略
 - [ ] `titleOptions` 为 3–5 条互不重复的可发标题
 - [ ] `body` 非空，真人分享感，未编造未提供功效/数据

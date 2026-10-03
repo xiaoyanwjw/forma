@@ -101,9 +101,50 @@ class ViewRenderHelpersTest {
     }
 
     @Test
+    void enrich_break_buildsHandoffWithTruncation() {
+        Map<String, Object> artifact = new LinkedHashMap<String, Object>();
+        artifact.put("targetProduct", "Mac Mini 拓展坞");
+        artifact.put("structure", repeat('s', 300));
+        artifact.put("skeleton", "骨架一句");
+        artifact.put("rewrite", "改写一句");
+
+        Map<String, Object> enriched = ViewRenderHelpers.enrich("xhs-break", artifact);
+
+        String prompt = (String) enriched.get("handoffPrompt");
+        assertNotNull(prompt);
+        assertTrue(prompt.contains("Mac Mini 拓展坞"));
+        assertTrue(prompt.contains("结构要点："));
+        assertTrue(prompt.contains(repeat('s', 240) + "…"));
+        assertTrue(prompt.contains("骨架：骨架一句"));
+    }
+
+    @Test
+    void enrich_note_addsNumberedListsAndTagsDisplay() {
+        Map<String, Object> artifact = new LinkedHashMap<String, Object>();
+        artifact.put("titleOptions", java.util.Arrays.asList("标题 A", "标题 B"));
+        artifact.put("imageHints", java.util.Collections.singletonList("首图提示"));
+        artifact.put("tags", java.util.Arrays.asList("Mac Mini", "桌搭"));
+
+        Map<String, Object> enriched = ViewRenderHelpers.enrich("xhs-note", artifact);
+
+        @SuppressWarnings("unchecked")
+        List<String> titles = (List<String>) enriched.get("titleOptionsNumbered");
+        assertEquals("1. 标题 A", titles.get(0));
+        assertEquals("Mac Mini · 桌搭", enriched.get("tagsDisplay"));
+    }
+
+    @Test
     void enrich_unknownSkill_returnsIdentity() {
         Map<String, Object> artifact = new LinkedHashMap<String, Object>();
         artifact.put("title", "x");
         assertEquals(artifact, ViewRenderHelpers.enrich("other-skill", artifact));
+    }
+
+    private static String repeat(char c, int count) {
+        StringBuilder sb = new StringBuilder(count);
+        for (int i = 0; i < count; i++) {
+            sb.append(c);
+        }
+        return sb.toString();
     }
 }

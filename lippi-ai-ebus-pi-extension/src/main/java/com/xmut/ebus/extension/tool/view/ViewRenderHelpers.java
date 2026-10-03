@@ -13,6 +13,8 @@ public final class ViewRenderHelpers {
 
     private static final String PRIORITY_TOPIC = "【优先发】";
     private static final String PRIORITY_PICK = "【优先试】";
+    private static final int BREAK_STRUCTURE_MAX = 240;
+    private static final int BREAK_TEXT_MAX = 400;
 
     private ViewRenderHelpers() {
     }
@@ -30,6 +32,15 @@ public final class ViewRenderHelpers {
         if ("ecommerce-picklist".equals(skillId)) {
             return enrichPickList(deepCopy(source));
         }
+        if ("xhs-break".equals(skillId)) {
+            return enrichBreak(deepCopy(source));
+        }
+        if ("xhs-note".equals(skillId)) {
+            return enrichNote(deepCopy(source));
+        }
+        if ("ecommerce-skulist".equals(skillId)) {
+            return enrichSkulist(deepCopy(source));
+        }
         return source;
     }
 
@@ -41,6 +52,135 @@ public final class ViewRenderHelpers {
     private static Map<String, Object> enrichPickList(Map<String, Object> artifact) {
         enrichItems(artifact, ViewRenderHelpers::pickItemHelpers);
         return artifact;
+    }
+
+    private static Map<String, Object> enrichBreak(Map<String, Object> artifact) {
+        String handoff = buildXhsBreakNoteHandoffText(
+                trimString(artifact.get("targetProduct")),
+                trimString(artifact.get("structure")),
+                trimString(artifact.get("skeleton")),
+                trimString(artifact.get("rewrite")));
+        if (handoff != null) {
+            artifact.put("handoffPrompt", handoff);
+        }
+        return artifact;
+    }
+
+    private static Map<String, Object> enrichNote(Map<String, Object> artifact) {
+        putNumberedLines(artifact, "titleOptions", "titleOptionsNumbered");
+        putNumberedLines(artifact, "imageHints", "imageHintsNumbered");
+        Object tags = artifact.get("tags");
+        if (tags instanceof List) {
+            List<?> list = (List<?>) tags;
+            List<String> parts = new ArrayList<String>(list.size());
+            for (Object entry : list) {
+                String trimmed = trimString(entry);
+                if (StringUtils.hasText(trimmed)) {
+                    parts.add(trimmed);
+                }
+            }
+            if (!parts.isEmpty()) {
+                artifact.put("tagsDisplay", joinWithMiddleDot(parts));
+            }
+        }
+        return artifact;
+    }
+
+    private static Map<String, Object> enrichSkulist(Map<String, Object> artifact) {
+        String detailBody = trimString(artifact.get("detailBody"));
+        if (StringUtils.hasText(detailBody)) {
+            artifact.put("detailParagraphs", splitParagraphs(detailBody));
+        }
+        zipFramePrompts(artifact);
+        return artifact;
+    }
+
+    private static void putNumberedLines(
+            Map<String, Object> artifact,
+            String sourceKey,
+            String targetKey) {
+        Object raw = artifact.get(sourceKey);
+        if (!(raw instanceof List)) {
+            return;
+        }
+        List<?> list = (List<?>) raw;
+        List<String> numbered = new ArrayList<String>(list.size());
+        int index = 1;
+        for (Object entry : list) {
+            String trimmed = trimString(entry);
+            if (!StringUtils.hasText(trimmed)) {
+                continue;
+            }
+            numbered.add(index + ". " + trimmed);
+            index++;
+        }
+        if (!numbered.isEmpty()) {
+            artifact.put(targetKey, numbered);
+        }
+    }
+
+    private static void zipFramePrompts(Map<String, Object> artifact) {
+        Object rawFrames = artifact.get("frames");
+        Object rawPrompts = artifact.get("framePrompts");
+        if (!(rawFrames instanceof List) || !(rawPrompts instanceof List)) {
+            return;
+        }
+        List<?> frames = (List<?>) rawFrames;
+        List<?> prompts = (List<?>) rawPrompts;
+        int size = Math.min(frames.size(), prompts.size());
+        if (size == 0) {
+            return;
+        }
+        List<Map<String, Object>> entries = new ArrayList<Map<String, Object>>(size);
+        for (int i = 0; i < size; i++) {
+            Map<String, Object> entry = new LinkedHashMap<String, Object>();
+            String frame = trimString(frames.get(i));
+            if (StringUtils.hasText(frame)) {
+                entry.put("frame", frame);
+            }
+            Object promptObj = prompts.get(i);
+            if (promptObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> promptMap = (Map<String, Object>) promptObj;
+                String prompt = trimString(promptMap.get("prompt"));
+                if (StringUtils.hasText(prompt)) {
+                    entry.put("prompt", prompt);
+                }
+                String negative = trimString(promptMap.get("negative"));
+                if (StringUtils.hasText(negative)) {
+                    entry.put("negative", negative);
+                }
+            }
+            entries.add(entry);
+        }
+        artifact.put("frameEntries", entries);
+    }
+
+    private static List<String> splitParagraphs(String body) {
+        String normalized = body.replace("\r\n", "\n").trim();
+        if (normalized.isEmpty()) {
+            return new ArrayList<String>();
+        }
+        String[] lines = normalized.split("\n");
+        List<String> paragraphs = new ArrayList<String>();
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty()) {
+                paragraphs.add(trimmed);
+            }
+        }
+        return paragraphs;
+    }
+
+    private static String joinWithMiddleDot(List<String> parts) {
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (sb.length() > 0) {
+                sb.append(" · ");
+            }
+            sb.append(part);
+        }
+        return sb.toString();
     }
 
     private static void enrichItems(Map<String, Object> artifact, ItemEnricher enricher) {
@@ -121,6 +261,34 @@ public final class ViewRenderHelpers {
         return joinLines(lines);
     }
 
+    static String buildXhsBreakNoteHandoffText(
+            String targetProduct,
+            String structure,
+            String skeleton,
+            String rewrite) {
+        List<String> lines = new ArrayList<String>();
+        if (StringUtils.hasText(targetProduct)) {
+            lines.add(String.format(
+                    "请按这次爆文拆解的骨架，写一篇关于「%s」的小红书种草笔记，语气像真人分享。",
+                    targetProduct.trim()));
+        } else {
+            lines.add("请按这次爆文拆解的骨架写一篇小红书种草笔记，语气像真人分享。");
+        }
+        structure = truncate(trimString(structure), BREAK_STRUCTURE_MAX);
+        skeleton = truncate(trimString(skeleton), BREAK_TEXT_MAX);
+        rewrite = truncate(trimString(rewrite), BREAK_TEXT_MAX);
+        if (StringUtils.hasText(structure)) {
+            lines.add("结构要点：" + structure);
+        }
+        if (StringUtils.hasText(skeleton)) {
+            lines.add("骨架：" + skeleton);
+        }
+        if (StringUtils.hasText(rewrite)) {
+            lines.add("改写参考：" + rewrite);
+        }
+        return joinLines(lines);
+    }
+
     static String buildListingHandoffText(
             String title,
             String id,
@@ -187,6 +355,17 @@ public final class ViewRenderHelpers {
             return value;
         }
         return value.replace(mark, "").trim();
+    }
+
+    private static String truncate(String value, int maxChars) {
+        if (!StringUtils.hasText(value)) {
+            return value;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() <= maxChars) {
+            return trimmed;
+        }
+        return trimmed.substring(0, maxChars) + "…";
     }
 
     private static String trimString(Object value) {

@@ -3,7 +3,7 @@ name: ecommerce-skulist
 description: >-
   生成上架素材：先策划分镜（短字段 + view），经 ask_human 确认或补充后，再出执行稿与生图 Prompt（view + artifact）。
   在用户提到上架、主图、详情文案、商品素材，或从选品候选点「做上架素材」时使用。
-allowed-tools: ask_human, read_skill, write_file, read_file, bash
+allowed-tools: ask_human, read_skill, write_file, read_file, render_view
 metadata:
   output:
     billing: true
@@ -46,9 +46,9 @@ metadata:
 
 4. **构造领域实体（策划）。** 按 [output.md](references/output.md) §策划拼出策划 **artifact**（`driver` / `frames` 3～5 条≤40 字 / `modules` 3～5 条 / `titleDraft` / `assumptions` / 交接字段等），再 `write_file` → `plan/artifact.json`（相对 run 根，**仅**策划 artifact）。可用 `read_file` 自检。
 
-5. **构造视图实体（策划）。** 按同一事实拼出策划 **view**（v2 HTML：`content` 含 `<h2>成交方向` / `主图分镜` / `标题草稿` / `详情大纲` / 可选 `假设`）。**不要** hero 占位图、详情三件套、生图 Prompt。再 `write_file` → `plan/view.json`（**仅**策划 view）。可用 `read_file` 自检。
+5. **渲染策划视图。** 调用 **`render_view`**（`artifact`: `plan/artifact.json`，`out`: `plan/view.json`，`template`: `references/plan/view.mustache`）。**不要** hero 占位图、详情三件套、生图 Prompt。勿手写 HTML `content`。
 
-6. **拼出策划终态并指针。** `write_file` 合并为 `plan/final.json`（`view`←`plan/view.json`，`artifact`←`plan/artifact.json`）。支持的合并是 `write_file`；勿依赖 `python3`。对话**仅**输出 `{"output":"plan/final.json"}`（无围栏、无整包 JSON）。过下方「策划」Verification 再发。
+6. **策划指针。** 对话**仅**输出 `{"output":"plan/view.json"}`（无围栏、无整包 JSON）。过下方「策划」Verification 再发。
 
 7. **立刻 `ask_human`**（勿在 Computer / JSON 里自造确认按钮）：
 
@@ -73,9 +73,9 @@ metadata:
    - `heroPlan`：首图画面任务 + 短卖点。  
    再 `write_file` → `exec/artifact.json`（**仅**执行 artifact）。见 [output.md](references/output.md) §执行。
 
-9. **构造视图实体（执行）。** 拼出执行 **view**（v2 HTML：`content` 含 hero 占位 `<img data-adam-media-role="hero" …>`、`heroPlan` 摘要、`<h2>主图分镜` 等与 `frames` / `framePrompts` 对齐的段落，以及详情三件套 + 「生图 Prompt」有序列表）。再 `write_file` → `exec/view.json`（**仅**执行 view）。
+9. **渲染执行视图。** 调用 **`render_view`**（`artifact`: `exec/artifact.json`，`out`: `exec/view.json`，`template`: `references/exec/view.mustache`）。模板含 hero 占位 `<img data-adam-media-role="hero" …>`。勿手写 HTML `content`。
 
-10. **拼出执行终态并指针。** `write_file` 合并为 `exec/final.json`。过下方「执行」Verification 后，对话**仅**输出 `{"output":"exec/final.json"}`。**禁止**输出 `platformCopies` / `preferredPlatform`。
+10. **执行指针。** 过下方「执行」Verification 后，对话**仅**输出 `{"output":"exec/view.json"}`。**禁止**输出 `platformCopies` / `preferredPlatform`。
 
 ## Quality
 
@@ -90,15 +90,15 @@ metadata:
 
 ## Output
 
-- **策划：** 盘上 `plan/final.json` + 指针 `{"output":"plan/final.json"}` → 随后 `ask_human`
-- **执行：** 盘上 `exec/final.json` + 指针 `{"output":"exec/final.json"}`  
+- **策划：** 盘上 `plan/artifact.json` + `plan/view.json`（`render_view`）+ 指针 `{"output":"plan/view.json"}` → 随后 `ask_human`
+- **执行：** 盘上 `exec/artifact.json` + `exec/view.json`（`render_view`）+ 指针 `{"output":"exec/view.json"}`  
 字段、示例与好坏例 → [output.md](references/output.md)。
 
-应用层：首次 `ask_human` 前以 `listing_plan` 落库（读 `plan/final.json`）；确认后按 `persistAs: sku` 落库（读 `exec/final.json`）。同一 `runId` 工作区在策划 settle 后**保留**，供补充/执行继续写盘。
+应用层：首次 `ask_human` 前以 `listing_plan` 落库（读 `plan/view.json` + 同目录 `plan/artifact.json`）；确认后按 `persistAs: sku` 落库（读 `exec/view.json` + 同目录 `exec/artifact.json`）。同一 `runId` 工作区在策划 settle 后**保留**，供补充/执行继续写盘。
 
 ## Verification
 
-### 策划指针前（`plan/final.json`）
+### 策划指针前（`plan/view.json`）
 
 - [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.title` / `artifact.title` 为同一中文标题
 - [ ] `artifact.templateId` = `domestic-generic-default`
@@ -108,11 +108,11 @@ metadata:
 - [ ] 策划 `view.content` HTML 含成交方向 / 主图分镜 / 标题草稿 / 详情大纲；**无** hero 占位；**无** `framePrompts` / 上架四字段
 - [ ] HTML 与 `artifact` 短字段同一事实
 - [ ] **未** 输出 v1 `blocks` JSON 视图
-- [ ] 已写 `plan/artifact.json`、`plan/view.json`，且已写出 **`plan/final.json`**
-- [ ] 对话**仅** `{"output":"plan/final.json"}`；发指针后**必须** `ask_human`（未确认前禁止执行稿）
+- [ ] 已写 `plan/artifact.json`，且已成功 **`render_view`** 写出 **`plan/view.json`**
+- [ ] 对话**仅** `{"output":"plan/view.json"}`；发指针后**必须** `ask_human`（未确认前禁止执行稿）
 - [ ] 未编造 BSR / 销量 / 资质；未宣称违禁功效
 
-### 执行指针前（`exec/final.json`）
+### 执行指针前（`exec/view.json`）
 
 - [ ] 继承策划必填字段（含交接路径下的 `picklistItemId`）；四字段均非空
 - [ ] `framePrompts.length` = `frames.length`；每条 `prompt` 非空；非空壳「8k/杰作/最佳质量」
@@ -122,8 +122,8 @@ metadata:
 - [ ] **未** 输出 v1 `blocks` JSON 视图
 - [ ] `mediaObjectIds` 可 `[]`（系统挂载后 settle 前须有真实 id）
 - [ ] **不要** `platformCopies`
-- [ ] 已写 `exec/artifact.json`、`exec/view.json`，且已写出 **`exec/final.json`**
-- [ ] 对话**仅** `{"output":"exec/final.json"}`
+- [ ] 已写 `exec/artifact.json`，且已成功 **`render_view`** 写出 **`exec/view.json`**
+- [ ] 对话**仅** `{"output":"exec/view.json"}`
 - [ ] 成功路径除指针外无闲聊（`ask_human` 除外）
 
 ## Failures

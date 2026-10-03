@@ -150,6 +150,71 @@ class RenderViewToolHandlerTest {
     }
 
     @Test
+    void handle_xhs_note_defaults_to_markdown_format() throws Exception {
+        InMemorySkillCatalog catalog = new InMemorySkillCatalog();
+        catalog.registerBootstrap(Skill.builder()
+                .id("xhs-note")
+                .description("note")
+                .promptRef("classpath:scenes/xiaohongshu/xhs-note/SKILL.md")
+                .allowedTools(Collections.<String>emptyList())
+                .build());
+        RenderViewToolHandler handler = new RenderViewToolHandler(
+                new CatalogSkillTemplateLoader(catalog, new DefaultResourceLoader()),
+                new MustacheViewRenderer());
+        Path run = Files.createTempDirectory("render-view-note-");
+        String artifact = "{"
+                + "\"title\":\"笔记\","
+                + "\"body\":\"正文\","
+                + "\"titleOptions\":[\"标题一\"],"
+                + "\"tags\":[\"桌搭\"],"
+                + "\"imageHints\":[\"首图\"]"
+                + "}";
+        Files.write(run.resolve("artifact.json"), artifact.getBytes(StandardCharsets.UTF_8));
+
+        ToolResult result = handler.handle(
+                call(JsonNodeFactory.instance.objectNode()),
+                new ToolContext("r1", "t1", "xhs-note", run.toString()));
+
+        assertTrue(result.isSuccess());
+        JsonNode view = MAPPER.readTree(Files.readAllBytes(run.resolve("view.json")));
+        assertEquals("markdown", view.get("format").asText());
+        assertTrue(view.get("content").asText().contains("## 标题备选"));
+    }
+
+    @Test
+    void handle_break_skill_template_renders_handoff_button() throws Exception {
+        InMemorySkillCatalog catalog = new InMemorySkillCatalog();
+        catalog.registerBootstrap(Skill.builder()
+                .id("xhs-break")
+                .description("break")
+                .promptRef("classpath:scenes/xiaohongshu/xhs-break/SKILL.md")
+                .allowedTools(Collections.<String>emptyList())
+                .build());
+        RenderViewToolHandler handler = new RenderViewToolHandler(
+                new CatalogSkillTemplateLoader(catalog, new DefaultResourceLoader()),
+                new MustacheViewRenderer());
+        Path run = Files.createTempDirectory("render-view-break-");
+        String artifact = "{"
+                + "\"title\":\"拆解\","
+                + "\"structure\":\"要点\","
+                + "\"skeleton\":\"骨架\","
+                + "\"rewrite\":\"改写\","
+                + "\"targetProduct\":\"拓展坞\""
+                + "}";
+        Files.write(run.resolve("artifact.json"), artifact.getBytes(StandardCharsets.UTF_8));
+
+        ToolResult result = handler.handle(
+                call(JsonNodeFactory.instance.objectNode()),
+                new ToolContext("r1", "t1", "xhs-break", run.toString()));
+
+        assertTrue(result.isSuccess());
+        JsonNode view = MAPPER.readTree(Files.readAllBytes(run.resolve("view.json")));
+        String content = view.get("content").asText();
+        assertTrue(content.contains("data-adam-skill-id=\"xhs-note\""));
+        assertTrue(content.contains("按骨架写笔记"));
+    }
+
+    @Test
     void handle_topiclist_skill_template_renders_handoff_button() throws Exception {
         InMemorySkillCatalog catalog = new InMemorySkillCatalog();
         catalog.registerBootstrap(Skill.builder()
