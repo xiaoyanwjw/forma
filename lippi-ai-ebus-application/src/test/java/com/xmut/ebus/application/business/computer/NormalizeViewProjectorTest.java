@@ -158,4 +158,30 @@ class NormalizeViewProjectorTest {
         assertEquals("视角", lines.get(0).get("label"));
         assertEquals("需求", tags.get(0).get("label"));
     }
+
+    @Test
+    void project_keepsV2HtmlDocument() {
+        Map<String, Object> raw = new LinkedHashMap<String, Object>();
+        raw.put("version", Integer.valueOf(2));
+        raw.put("title", "选题清单");
+        raw.put("format", "html");
+        raw.put("content", "<h1>Hi</h1><button data-adam-action=\"handoff\" data-adam-skill-id=\"xhs-note\" data-adam-prompt=\"写笔记\">写成笔记</button>");
+        Map<String, Object> out = projector.project(ViewProjectContext.builder().rawView(raw).build());
+        assertEquals(Integer.valueOf(2), out.get("version"));
+        assertEquals("html", out.get("format"));
+        assertEquals("选题清单", out.get("title"));
+        assertTrue(String.valueOf(out.get("content")).contains("data-adam-action"));
+        assertFalse(out.containsKey("blocks"));
+    }
+
+    @Test
+    void project_rejectsBlankV2ContentAsEmptyMap() {
+        Map<String, Object> raw = new LinkedHashMap<String, Object>();
+        raw.put("version", Integer.valueOf(2));
+        raw.put("title", "x");
+        raw.put("format", "markdown");
+        raw.put("content", "  ");
+        Map<String, Object> out = projector.project(ViewProjectContext.builder().rawView(raw).build());
+        assertTrue(out.isEmpty());
+    }
 }

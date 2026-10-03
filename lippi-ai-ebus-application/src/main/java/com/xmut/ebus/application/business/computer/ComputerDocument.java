@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Versioned Computer preview document (view protocol v1).
+ * Versioned Computer preview document (view protocol v1 blocks or v2 format+content).
  */
 public final class ComputerDocument {
 
@@ -32,6 +32,15 @@ public final class ComputerDocument {
             doc.put("status", status);
         }
         doc.put("blocks", new ArrayList<Map<String, Object>>(blocks));
+        return doc;
+    }
+
+    public static Map<String, Object> v2(String title, String format, String content) {
+        Map<String, Object> doc = new LinkedHashMap<String, Object>();
+        doc.put("version", Integer.valueOf(2));
+        doc.put("title", title);
+        doc.put("format", format);
+        doc.put("content", content);
         return doc;
     }
 }

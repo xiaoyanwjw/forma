@@ -717,13 +717,10 @@ class AgentApplicationServiceTest {
         assertFalse(ready.getData().containsKey("artifactType"));
         @SuppressWarnings("unchecked")
         Map<String, Object> view = (Map<String, Object>) ready.getData().get("view");
-        assertEquals(Integer.valueOf(1), view.get("version"));
+        assertEquals(Integer.valueOf(2), view.get("version"));
         assertEquals("draft", view.get("title"));
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> blocks = (List<Map<String, Object>>) view.get("blocks");
-        assertEquals(1, blocks.size());
-        assertEquals("markdown", blocks.get(0).get("type"));
-        assertEquals("这是一段草稿回复", blocks.get(0).get("text"));
+        assertEquals("markdown", view.get("format"));
+        assertEquals("这是一段草稿回复", view.get("content"));
 
         assertEquals(SseEventName.RUN_SETTLED, events.get(events.size() - 1).getName());
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_FAILED));

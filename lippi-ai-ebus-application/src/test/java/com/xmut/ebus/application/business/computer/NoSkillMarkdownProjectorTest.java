@@ -2,7 +2,6 @@ package com.xmut.ebus.application.business.computer;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,12 +34,10 @@ class NoSkillMarkdownProjectorTest {
                 .skillBound(false)
                 .finalResponse("  hello world  ")
                 .build());
-        assertEquals(Integer.valueOf(1), view.get("version"));
+        assertEquals(Integer.valueOf(2), view.get("version"));
         assertEquals("draft", view.get("title"));
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> blocks = (List<Map<String, Object>>) view.get("blocks");
-        assertEquals(1, blocks.size());
-        assertEquals("markdown", blocks.get(0).get("type"));
-        assertEquals("hello world", blocks.get(0).get("text"));
+        assertEquals("markdown", view.get("format"));
+        assertEquals("hello world", view.get("content"));
+        assertFalse(view.containsKey("blocks"));
     }
 }

@@ -34,8 +34,26 @@ public class NormalizeViewProjector implements ComputerViewProjector {
         Map<String, Object> raw = context.getRawView();
         Object versionObj = raw.get("version");
         int version = versionObj instanceof Number ? ((Number) versionObj).intValue() : 0;
+        if (version == 2) {
+            String title = raw.get("title") instanceof String ? ((String) raw.get("title")).trim() : "";
+            if (!StringUtils.hasText(title)) {
+                title = "draft";
+            }
+            String format = raw.get("format") instanceof String
+                    ? ((String) raw.get("format")).trim().toLowerCase()
+                    : "";
+            if (!"markdown".equals(format) && !"html".equals(format)) {
+                return new LinkedHashMap<String, Object>();
+            }
+            String content = raw.get("content") instanceof String ? ((String) raw.get("content")) : "";
+            if (!StringUtils.hasText(content.trim())) {
+                return new LinkedHashMap<String, Object>();
+            }
+            content = content.replace("\u0000", "");
+            return ComputerDocument.v2(title, format, content);
+        }
         if (version != 1) {
-            return new ComputerDocument(1, "draft", null, new ArrayList<Map<String, Object>>()).toMap();
+            return new LinkedHashMap<String, Object>();
         }
         String title = raw.get("title") instanceof String ? ((String) raw.get("title")).trim() : "";
         if (!StringUtils.hasText(title)) {

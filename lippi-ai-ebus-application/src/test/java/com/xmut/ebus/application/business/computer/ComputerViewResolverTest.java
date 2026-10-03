@@ -74,10 +74,9 @@ class ComputerViewResolverTest {
                 .skillBound(false)
                 .finalResponse("plain")
                 .build());
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> blocks = (List<Map<String, Object>>) view.get("blocks");
-        assertEquals("markdown", blocks.get(0).get("type"));
-        assertEquals("plain", blocks.get(0).get("text"));
+        assertEquals(Integer.valueOf(2), view.get("version"));
+        assertEquals("markdown", view.get("format"));
+        assertEquals("plain", view.get("content"));
     }
 
     @Test
