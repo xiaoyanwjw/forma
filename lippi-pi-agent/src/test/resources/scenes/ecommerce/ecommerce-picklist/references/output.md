@@ -21,17 +21,18 @@
 1. [对齐规则](#对齐规则)
 2. [artifact（领域实体）](#artifact领域实体)
 3. [view（视图实体）](#view视图实体)
-4. [示例](#示例)
-5. [质量对照（条目）](#质量对照条目)
+4. [手递按钮与 prompt 合同](#手递按钮与-prompt-合同)
+5. [示例](#示例)
+6. [质量对照（条目）](#质量对照条目)
 
 ## 对齐规则
 
 | 规则 | 说明 |
 |------|------|
-| 同一事实 | `view` 每个候选对应一条 `artifact.items[]` |
-| id 一致 | `items[].id` = `list.items[].id` = `pl-{n}`，从 1 按最终顺序编号，同序同值 |
-| 链接一致 | `sourceUrl` = 该条 `detailUrl`；list `href` = 同一 `sourceUrl`；仅绝对 `https:`；禁止编造 |
-| 条数 | 成功时两边均为 **8–12**（下方示例为简洁只写 1 条） |
+| 同一事实 | `view.content` 中每条 `<li>` 对应一条 `artifact.items[]` |
+| id 一致 | 每条手递 prompt 含 `来源选品条目：pl-{n}`，与 `artifact.items[].id` 同序同值 |
+| 链接一致 | `sourceUrl` = 该条 `detailUrl`；prompt「原链」= 同一 URL；仅绝对 `https:`；禁止编造 |
+| 条数 | 成功时 `artifact.items` 与 HTML 有序列表均为 **8–12**（下方示例为简洁只写 1 条） |
 | 免责声明 | 非空，且必须包含字面量 **`非实时平台全站行情`**。推荐整句：`候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。` |
 
 ## artifact（领域实体）
@@ -42,7 +43,7 @@
 |------|------|
 | `title` | 与 `view.title` 相同的中文清单标题 |
 | `templateId` | `domestic-generic-default` |
-| `disclaimer` | 同 view note 的免责声明合同 |
+| `disclaimer` | 同 view 正文免责声明合同 |
 | `assumptions` | 可选；用户信息不足时的搜索假设 |
 | `items` | 成功时长度 **8–12** |
 
@@ -50,7 +51,7 @@
 
 | 字段 | 要求 |
 |------|------|
-| `id` | 必填；本清单内唯一；格式 `pl-{n}` 从 1 顺序；与 list 同序同 id |
+| `id` | 必填；本清单内唯一；格式 `pl-{n}` 从 1 顺序 |
 | `title` | 全清单恰好 **1–2** 条以 `【优先试】` 开头 |
 | `priceBand` | 价格带（以工具抽样为准） |
 | `painPoint` / `angle` / `diff` | 痛点 / 角度 / 差异化 |
@@ -58,7 +59,7 @@
 | `demand` / `competition` / `margin` / `risk` | 以 `高｜` / `中｜` / `低｜` 开头，后接简评 |
 | `sourceUrl` | = 该条 `detailUrl` |
 
-不要把 `blocks` / `badge` / `lines` / `tags` 写进 `artifact`。
+不要把 `blocks` / `format` / `content` 写进 `artifact`。
 
 ## view（视图实体）
 
@@ -66,33 +67,57 @@
 
 | 字段 | 要求 |
 |------|------|
-| `version` | `1` |
-| `title` | **给人看的中文标题**（由本轮生成，建议与 `artifact.title` 一致）；勿写裸 key `report` / `picklist` |
-| `status` | 可选；成功可写 `ready`（界面不展示） |
-| `blocks` | 仅 `note` / `list` / `markdown` / `media` / `section` |
+| `version` | **`2`** |
+| `title` | **给人看的中文标题**（建议与 `artifact.title` 一致）；勿写裸 key `report` / `picklist` |
+| `format` | **`html`** |
+| `content` | 完整 HTML 字符串；根节点建议 `<article class="markdown-body">` |
 
-选品常用两块：
+正文结构建议：
 
-1. `note`（`tone: mute`）：放免责声明（含 `非实时平台全站行情`）
-2. `list`（`ordered: true`）：每条候选一行
+1. `<h1>` = 清单标题（可与 `title` 相同）
+2. 免责声明段落（`class="cv-note"` 或 `<blockquote>`，含 `非实时平台全站行情`）
+3. `<ol>` 有序列表：每条候选一个 `<li>`
+4. 每条 `<li>` 内展示：商品名（**不加** `【优先试】`）、价格带 / 痛点 / 角度等短事实；优先试条目可加「优先试」标记
+5. 每条 `<li>` 末尾 **必须** 含手递按钮（见下一节）
 
-### list.items[]
+**禁止** 再输出 v1 `blocks` / `list` JSON 视图。
 
-| 字段 | 要求 |
-|------|------|
-| `id` | 必填；本清单内唯一；格式 `pl-{n}` 从 1 顺序；与对应 `artifact.items[].id` 同序同值 |
-| `title` | 商品名；此处**不加** `【优先试】` |
-| `href` | = 对应 `artifact.items[].sourceUrl` |
-| `badge` | 优先试条目用 `"priority"`（全清单 1–2 条） |
-| `lines` | 短事实；`kind` 如 `priceBand` / `painPoint` / `angle` / `diff` / `niche` |
-| `tags` | 评分条；`kind`：`demand` / `competition` / `margin` / `risk` |
+### HTML 与转义
 
-`tone` 仅：`mute` / `positive` / `warning` / `neutral`。  
-验收：每条 list 的 `href` 能打开真实商品页。
+- 写入真实 `view.json` 时，`content` 是 JSON 字符串；属性内的 ASCII 双引号用 HTML 实体（如 `&quot;`）转义。
+- `data-adam-prompt` 内多行 prompt 在 JSON 里用 `\n` 表示换行。
+
+验收：每条有 `https:` 原链的条目，其按钮 prompt 含同一原链；点击由前端开跑 `ecommerce-skulist`。
+
+## 手递按钮与 prompt 合同
+
+每条候选 **一条** 按钮：
+
+```html
+<button
+  type="button"
+  data-adam-action="handoff"
+  data-adam-skill-id="ecommerce-skulist"
+  data-adam-prompt="…"
+>做上架素材</button>
+```
+
+`data-adam-prompt` 正文须与下列模板一致（`{title}` 为去掉 `【优先试】` 后的商品名；可选行仅在有值时追加）：
+
+```text
+请为商品「{title}」生成上架素材。
+原链：{https href}
+来源选品条目：{id}
+参考：{niche?}
+痛点：{painPoint?}
+角度：{angle?}
+```
+
+缺 `title`、缺 `id`、或非 `https:` 原链 → **不要** 为该条写按钮（此类条目不应进入成功清单）。
 
 ## 示例
 
-各 1 条示意（交付时两边均 8–12）。先写领域实体，再写视图实体，最后合并。
+各 1 条示意（交付时均为 8–12）。先写领域实体，再写视图实体，最后合并。
 
 ### `artifact.json`（领域实体）
 
@@ -125,41 +150,10 @@
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "title": "Mac Mini 配件 79–199 元选品清单",
-  "status": "ready",
-  "blocks": [
-    {
-      "type": "note",
-      "tone": "mute",
-      "text": "候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。"
-    },
-    {
-      "type": "list",
-      "ordered": true,
-      "items": [
-        {
-          "id": "pl-1",
-          "badge": "优先试",
-          "title": "Mac Mini 拓展坞",
-          "href": "https://item.taobao.com/example-sku-1",
-          "lines": [
-            { "kind": "priceBand", "text": "79–199 元", "emphasis": "price" },
-            { "kind": "painPoint", "label": "痛点", "text": "Mini 接显示器后接口不够、线乱" },
-            { "kind": "angle", "label": "切入", "text": "居家办公桌搭、接口对比好拍" },
-            { "kind": "diff", "label": "差异", "text": "机身同宽+底部走线好出图" },
-            { "kind": "niche", "label": "细分", "text": "Mac Mini 扩展" }
-          ],
-          "tags": [
-            { "kind": "demand", "label": "需求", "text": "高｜Mini 接显示器接口搜索意图清晰", "tone": "positive" },
-            { "kind": "competition", "label": "竞争", "text": "中｜供给多但同质，接口对比可切", "tone": "neutral" },
-            { "kind": "margin", "label": "利润", "text": "中｜中客单测款友好，注意包邮后毛利", "tone": "neutral" },
-            { "kind": "risk", "label": "风险", "text": "低｜勿写官方原装或未提供认证", "tone": "positive" }
-          ]
-        }
-      ]
-    }
-  ]
+  "format": "html",
+  "content": "<article class=\"markdown-body\"><h1>Mac Mini 配件 79–199 元选品清单</h1><p class=\"cv-note\">候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。</p><ol><li><p><span class=\"priority-tag\">优先试</span> <strong>Mac Mini 拓展坞</strong></p><p>79–199 元 · 痛点：Mini 接显示器后接口不够、线乱 · 切入：居家办公桌搭、接口对比好拍 · 细分：Mac Mini 扩展</p><p>需求：高｜Mini 接显示器接口搜索意图清晰 · 竞争：中｜供给多但同质 · 利润：中｜中客单测款友好 · 风险：低｜勿写官方原装或未提供认证</p><p><button type=\"button\" data-adam-action=\"handoff\" data-adam-skill-id=\"ecommerce-skulist\" data-adam-prompt=\"请为商品「Mac Mini 拓展坞」生成上架素材。\n原链：https://item.taobao.com/example-sku-1\n来源选品条目：pl-1\n参考：Mac Mini 扩展\n痛点：Mini 接显示器后接口不够、线乱\n角度：居家办公桌搭、接口对比好拍\">做上架素材</button></p></li></ol></article>"
 }
 ```
 

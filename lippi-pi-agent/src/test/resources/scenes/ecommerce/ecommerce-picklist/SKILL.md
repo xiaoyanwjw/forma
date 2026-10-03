@@ -29,7 +29,7 @@ metadata:
    默认避开（用户未点名时）：重货/泡货、强季节、高退货尺码服饰、大牌极透明价、特殊资质、侵权/假认证/违禁功效。
 4. **分配 id。** 按最终清单顺序为每条赋 `pl-1`…`pl-n`；后续领域实体与视图实体的 `id` **同序同值**。
 5. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**（测款领域对象：条目、质量字段、assumptions 等），再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
-6. **构造视图实体。** 按同一批 `pl-n` 与顺序拼出完整 **view**（展示用：list / blocks / note 等），再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
+6. **构造视图实体。** 按同一批 `pl-n` 与顺序拼出完整 **view**（v2：`format: html` + `content` 含免责声明、有序列表与「做上架素材」手递按钮），再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
 7. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`（相对 run 根）。内容是一个 JSON 对象：`view` 取 `view.json` 的对象，`artifact` 取 `artifact.json` 的对象。这是支持的合并方式。环境里若已有 `bash` / `python3` 可以用它们拼文件，但不要依赖 `python3`；没有它们时仍用 `write_file` 写 `final.json`。
 8. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
 9. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重拼。
@@ -63,11 +63,12 @@ metadata:
 
 速记：
 
-- 每条 `id` = `pl-{n}`；list 与 artifact **同 id 同序**
-- `artifact.items[].sourceUrl` = 工具 `detailUrl`；同条 list `href` = 该 URL；绝对 `https:`；禁止假链
-- disclaimer / note 必须包含字面量：`非实时平台全站行情`
+- 每条 `id` = `pl-{n}`；HTML 列表与 artifact **同 id 同序**（手递 prompt 含 `来源选品条目：pl-n`）
+- `artifact.items[].sourceUrl` = 工具 `detailUrl`；同条手递 prompt「原链」= 该 URL；绝对 `https:`；禁止假链
+- 免责声明（HTML 正文）必须包含字面量：`非实时平台全站行情`
 - 推荐整句：`候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。`
-- 两边均为 8–12 条；`view.version` = `1`
+- 两边均为 8–12 条；`view.version` = **`2`**；`view.format` = **`html`**
+- 每条 `<li>` 含 `data-adam-action="handoff"` 按钮，`data-adam-skill-id="ecommerce-skulist"`，prompt 合同见 [output.md §手递](references/output.md#手递按钮与-prompt-合同)
 - `view.title` 与 `artifact.title`：本轮生成的中文清单标题（同一文案）
 
 ## Verification
@@ -77,16 +78,17 @@ metadata:
 - [ ] 本轮恰好 **1** 次 `search_sku`，且成功
 - [ ] 已写 `artifact.json`、`view.json`，且已用 `write_file` 写出 **`final.json`**
 - [ ] 终稿对话**仅** `{"output":"final.json"}`；**未**在对话里贴整包大 JSON
-- [ ] `final.json` 内 `artifact.items` 与 `view` list 均为 **8–12** 条，条数一致、顺序对应
-- [ ] 每条 `id` 非空，格式 `pl-n`（从 1 顺序）；list 与 artifact **同 id 同序**
+- [ ] `final.json` 内 `artifact.items` 与 HTML `<ol>` 条目均为 **8–12** 条，条数一致、顺序对应
+- [ ] 每条 `id` 非空，格式 `pl-n`（从 1 顺序）；手递 prompt 与 artifact **同 id 同序**
 - [ ] 至少 **3** 个不同 `niche`，且无空泛「日用」「家居」三连凑数
-- [ ] 恰好 **1–2** 条 `artifact.title` 以 `【优先试】` 开头；对应 list `badge: "priority"`（list 标题不加该前缀）
+- [ ] 恰好 **1–2** 条 `artifact.items[].title` 以 `【优先试】` 开头；HTML 对应条目标「优先试」（展示标题不加该前缀）
 - [ ] 优先试条目含可行动「为何先测」理由（痛点/角度/差异至少一处说清相对下一条的优势）
-- [ ] 每条 `sourceUrl` / `href` 均来自工具 `detailUrl`，绝对 `https:`，无编造
+- [ ] 每条 `sourceUrl` 来自工具 `detailUrl`，绝对 `https:`，无编造；同条手递 prompt「原链」一致
 - [ ] `demand` / `competition` / `margin` / `risk` 均以 `高｜` / `中｜` / `低｜` 开头，且挂钩本条可观察事实
-- [ ] `view.version` = `1`；`view.title` / `artifact.title` 为同一中文标题
-- [ ] `blocks` 仅白名单类型；含 mute `note` 免责声明
-- [ ] disclaimer / note 含字面量 `非实时平台全站行情`
+- [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.content` 非空
+- [ ] 每条 `<li>` 含手递按钮：`data-adam-skill-id="ecommerce-skulist"`，标签「做上架素材」，`data-adam-prompt` 符合 output 合同（含 niche/痛点/角度可选行）
+- [ ] `view.title` / `artifact.title` 为同一中文标题；正文免责声明含字面量 `非实时平台全站行情`
+- [ ] **未** 输出 v1 `blocks` / `list` JSON 视图
 - [ ] 未编造 BSR / 生意参谋 / 实时销量榜等全站指标
 - [ ] 成功路径除指针外无闲聊；失败路径无人话以外的假 JSON
 

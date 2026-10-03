@@ -30,7 +30,7 @@ metadata:
    - **工具失败 / 空 hits：** 仍须产出 **8–12** 条合格选题；`artifact.source` = `model_fallback`；**禁止**编造笔记链接（不要写 `sourceNoteUrl`，list 不要写 `href`）。
 4. **分配 id。** 按最终清单顺序为每条赋 `tp-1`…`tp-n`；后续领域实体与视图实体的 `id` **同序同值**。
 5. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**，再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
-6. **构造视图实体。** 按同一批 `tp-n` 与顺序拼出完整 **view**（mute `note` + 有序 `list`），再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
+6. **构造视图实体。** 按同一批 `tp-n` 与顺序拼出完整 **view**（v2：`format: html` + `content` 含免责声明、有序列表与「写成笔记」手递按钮），再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
 7. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`（相对 run 根）。内容是一个 JSON 对象：`view` 取 `view.json` 的对象，`artifact` 取 `artifact.json` 的对象。环境里若已有 `bash` / `python3` 可以用它们拼文件，但不要依赖 `python3`；没有它们时仍用 `write_file` 写 `final.json`。
 8. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
 9. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重拼。
@@ -65,12 +65,13 @@ metadata:
 
 速记：
 
-- 每条 `id` = `tp-{n}`；list 与 artifact **同 id 同序**
+- 每条 `id` = `tp-{n}`；HTML 列表与 artifact **同 id 同序**（手递 prompt 含 `（条目 tp-n）`）
 - `artifact.source` = `apify` 或 `model_fallback`
-- `sourceNoteUrl`（及 list `href`）仅检索成功且 URL 来自工具 hits；fallback **不写链接**
-- disclaimer / note 必须包含字面量：`非实时平台全站行情`
+- `sourceNoteUrl` 仅检索成功且 URL 来自工具 hits；有链时手递 prompt 含「原笔记」；fallback **不写链接、不写原笔记行**
+- 免责声明（HTML 正文）必须包含字面量：`非实时平台全站行情`
 - 推荐整句：`选题基于配置的笔记检索抽样与服务端排序，非实时平台全站行情。有链接时可打开笔记页核对。`
-- 两边均为 8–12 条；`view.version` = `1`
+- 两边均为 8–12 条；`view.version` = **`2`**；`view.format` = **`html`**
+- 每条 `<li>` 含 `data-adam-action="handoff"` 按钮，`data-adam-skill-id="xhs-note"`，prompt 合同见 [output.md §手递](references/output.md#手递按钮与-prompt-合同)
 - `view.title` 与 `artifact.title`：本轮生成的中文清单标题（同一文案）
 
 ## Verification
@@ -80,17 +81,17 @@ metadata:
 - [ ] 本轮恰好 **1** 次 `search_xhs_note`（成功或失败都只这一次）
 - [ ] 已写 `artifact.json`、`view.json`，且已用 `write_file` 写出 **`final.json`**
 - [ ] 终稿对话**仅** `{"output":"final.json"}`；**未**在对话里贴整包大 JSON
-- [ ] `final.json` 内 `artifact.items` 与 `view` list 均为 **8–12** 条，条数一致、顺序对应
-- [ ] 每条 `id` 非空，格式 `tp-n`（从 1 顺序）；list 与 artifact **同 id 同序**
+- [ ] `final.json` 内 `artifact.items` 与 HTML `<ol>` 条目均为 **8–12** 条，条数一致、顺序对应
+- [ ] 每条 `id` 非空，格式 `tp-n`（从 1 顺序）；手递 prompt 与 artifact **同 id 同序**
 - [ ] 至少 **3** 个不同 `angle`（或人群切口），且无空泛「日常」「种草」三连凑数
-- [ ] 恰好 **1–2** 条 `artifact.items[].title` 以 `【优先发】` 开头；对应 list `badge: "优先试"`（list 标题不加该前缀）
-- [ ] list 每行带展示用 `label`（组件不猜中文）
+- [ ] 恰好 **1–2** 条 `artifact.items[].title` 以 `【优先发】` 开头；HTML 对应条目标「优先发」（展示标题不加该前缀）
 - [ ] 优先发条目含可行动「为何先发」理由（hook/angle/whyFirst 至少一处说清相对下一条的优势）
-- [ ] `source=apify` 时每条 `sourceNoteUrl` / `href` 均来自工具 `noteUrl`，绝对 `https:`，无编造
-- [ ] `source=model_fallback` 时无 `sourceNoteUrl`、无 list `href`、无假链
-- [ ] `view.version` = `1`；`view.title` / `artifact.title` 为同一中文标题
-- [ ] `blocks` 仅白名单类型；含 mute `note` 免责声明 + 有序 `list`
-- [ ] disclaimer / note 含字面量 `非实时平台全站行情`
+- [ ] `source=apify` 时每条 `sourceNoteUrl` 来自工具 `noteUrl`，绝对 `https:`，无编造；有链时手递 prompt 含同一「原笔记」URL
+- [ ] `source=model_fallback` 时无 `sourceNoteUrl`、手递 prompt 无「原笔记」行、无假链
+- [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.content` 非空
+- [ ] 每条 `<li>` 含手递按钮：`data-adam-skill-id="xhs-note"`，标签「写成笔记」，`data-adam-prompt` 符合 output 合同
+- [ ] `view.title` / `artifact.title` 为同一中文标题；正文免责声明含字面量 `非实时平台全站行情`
+- [ ] **未** 输出 v1 `blocks` / `list` JSON 视图
 - [ ] 未编造官方热榜 / 全站实时推广池 / 实时互动榜
 - [ ] 成功路径除指针外无闲聊；失败路径无人话以外的假 JSON
 
