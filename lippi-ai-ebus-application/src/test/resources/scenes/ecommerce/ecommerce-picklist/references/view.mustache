@@ -1,0 +1,16 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<p class="cv-note">{{disclaimer}}</p>
+<ol>
+{{#items}}
+<li>
+{{#displayTitle}}<p><strong>{{displayTitle}}</strong></p>{{/displayTitle}}
+<p>{{priceBand}} · 痛点：{{painPoint}} · 切入：{{angle}} · 细分：{{niche}}</p>
+<p>需求：{{demand}} · 竞争：{{competition}} · 利润：{{margin}} · 风险：{{risk}}</p>
+{{#handoffPrompt}}
+<p><button type="button" data-adam-action="handoff" data-adam-skill-id="ecommerce-skulist" data-adam-prompt="{{handoffPrompt}}">做上架素材</button></p>
+{{/handoffPrompt}}
+</li>
+{{/items}}
+</ol>
+</article>

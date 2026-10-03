@@ -2,19 +2,18 @@
 
 ## 交付方式
 
-1. **工作区文件（真源，分步）：**
-   - 领域实体 → `artifact.json`（**仅** artifact 对象，见下方示例）
-   - 视图实体 → `view.json`（**仅** view 对象，见下方示例）
-   - 再用 `write_file` 合并为 run 根下 **`final.json`**：`{ "view": <view.json 根对象>, "artifact": <artifact.json 根对象> }`。支持的合并是 `write_file`；勿依赖 `python3`。
+1. **工作区文件：**
+   - 领域实体 → `write_file` → `artifact.json`（**仅** artifact 对象，见下方示例）
+   - 视图 → 调用 **`render_view`**（默认读 `artifact.json`，写 `view.json`，模板 `references/view.mustache`）。**勿**手写 HTML `content`。
 2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
 
 ```json
-{"output":"final.json"}
+{"output":"view.json"}
 ```
 
-不要在对话里贴整包 `{view, artifact}`，也不要在对话里贴 `artifact.json` / `view.json` 全文。结算由服务端读 `final.json` 后再投影 / 落库。
+不要在对话里贴 `artifact.json` / `view.json` 全文。结算由服务端读 **`view.json`**，并与同目录 **`artifact.json`** 对齐落库。
 
-`artifact` = 领域实体（选题事实）；`view` = 视图实体（界面渲染）。两边同一事实，不是互相拷贝。
+`artifact` = 领域实体（选题事实）；`view` = 由模板渲染的界面文档。条目顺序与 id 须一致。
 
 ## Contents
 
@@ -65,31 +64,25 @@
 
 ## view（视图实体）
 
-写入 **`view.json` 的根对象**（文件里不要再包一层 `"view":`）。
+**`view.json`** 由 `render_view` 写出（根对象，无 `"view":` 包裹）。
 
 | 字段 | 要求 |
 |------|------|
-| `version` | **`2`** |
-| `title` | **给人看的中文标题**（建议与 `artifact.title` 一致）；勿写裸 key |
+| `version` | **`2`**（工具默认） |
+| `title` | 来自 `artifact.title` |
 | `format` | **`html`** |
-| `content` | 完整 HTML 字符串；根节点建议 `<article class="markdown-body">` |
+| `content` | Mustache 渲染 [view.mustache](view.mustache) 的结果 |
 
-正文结构建议：
+模板数据根 = 整棵 **artifact**；渲染前工具在内存为每条 `items[]` 注入（**不写回** `artifact.json`）：
 
-1. `<h1>` = 清单标题
-2. 免责声明段落（含 `非实时平台全站行情`）
-3. `<ol>` 有序列表：每条选题一个 `<li>`
-4. 每条 `<li>` 内展示：选题名（**不加** `【优先发】`）、钩子 / 角度 / 优先理由 / 风险；优先发条目可加「优先发」标记；有真链时可附可点击链接
-5. 每条 `<li>` 末尾 **必须** 含手递按钮（见下一节）
+| 注入字段 | 含义 |
+|----------|------|
+| `displayTitle` | `title` 去掉 `【优先发】` 前缀 |
+| `handoffPrompt` | 符合下方手递合同的多行 prompt；缺 `title`/`id` 或无链规则时不注入 |
 
-**禁止** 再输出 v1 `blocks` / `list` JSON 视图。
+**禁止** v1 `blocks` / `list` JSON 视图；**禁止**模型手写 `content`。
 
-### HTML 与转义
-
-- 写入真实 `view.json` 时，`content` 是 JSON 字符串；属性内的 ASCII 双引号用 HTML 实体（如 `&quot;`）转义。
-- `data-adam-prompt` 内多行 prompt 在 JSON 里用 `\n` 表示换行。
-
-验收：有 `https:` 原笔记时 prompt 含「原笔记」行；点击由前端开跑 `xhs-note`。
+验收：有 `https:` 原笔记时 `handoffPrompt` 含「原笔记」行；HTML 按钮由模板输出，点击开跑 `xhs-note`。
 
 ## 手递按钮与 prompt 合同
 
@@ -117,7 +110,7 @@
 
 ## 示例
 
-各 1 条示意（交付时均为 8–12）。先写领域实体，再写视图实体，最后合并。
+各 1 条示意（交付时均为 8–12）。先写 `artifact.json`，再 `render_view`。
 
 ### `artifact.json`（领域实体）
 
@@ -142,32 +135,14 @@
 }
 ```
 
-### `view.json`（视图实体）
+### `view.json`（`render_view` 产出）
 
-```json
-{
-  "version": 2,
-  "title": "Mac Mini 桌搭 · 居家办公种草选题清单",
-  "format": "html",
-  "content": "<article class=\"markdown-body\"><h1>Mac Mini 桌搭 · 居家办公种草选题清单</h1><p class=\"cv-note\">选题基于配置的笔记检索抽样与服务端排序，非实时平台全站行情。有链接时可打开笔记页核对。</p><ol><li><p><span class=\"priority-tag\">优先发</span> <strong>Mini 背后一串转接头：一块拓展坞收干净</strong></p><p>视角：Mini 接到显示器后，背后永远拖着一串转接头？ · 切入：居家办公 Mac Mini 桌搭</p><p>优先：痛点具体、接口对比好拍，比全屋改造更好当天发 · 风险：勿宣称未提供的认证或除菌数据</p><p><button type=\"button\" data-adam-action=\"handoff\" data-adam-skill-id=\"xhs-note\" data-adam-prompt=\"请根据选题「Mini 背后一串转接头：一块拓展坞收干净」（条目 tp-1）写一篇小红书种草笔记，语气像真人分享。\n角度：居家办公 Mac Mini 桌搭\n钩子：Mini 接到显示器后，背后永远拖着一串转接头？\n原笔记：https://www.xiaohongshu.com/explore/example-note-1\">写成笔记</button></p></li></ol></article>"
-}
-```
-
-### `final.json`（合并，非手写第二套事实）
-
-把上面两个**根对象**包进信封即可（不要改写字段）：
-
-```json
-{
-  "view": { "...同 view.json 根对象..." },
-  "artifact": { "...同 artifact.json 根对象..." }
-}
-```
+对上例 `artifact.json` 调用 `render_view` 后，`view.json` 含 v2 字段；`content` 由 [view.mustache](view.mustache) 填充，且含 `data-adam-skill-id="xhs-note"` 手递按钮。
 
 **对话终稿指针：**
 
 ```json
-{"output":"final.json"}
+{"output":"view.json"}
 ```
 
 失败路径：不要输出指针或本 JSON，只回人话（见 SKILL § Failures）。

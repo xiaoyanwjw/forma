@@ -150,6 +150,41 @@ class RenderViewToolHandlerTest {
     }
 
     @Test
+    void handle_topiclist_skill_template_renders_handoff_button() throws Exception {
+        InMemorySkillCatalog catalog = new InMemorySkillCatalog();
+        catalog.registerBootstrap(Skill.builder()
+                .id("xhs-topiclist")
+                .description("topiclist")
+                .promptRef("classpath:scenes/xiaohongshu/xhs-topiclist/SKILL.md")
+                .allowedTools(Collections.<String>emptyList())
+                .build());
+        RenderViewToolHandler handler = new RenderViewToolHandler(
+                new CatalogSkillTemplateLoader(catalog, new DefaultResourceLoader()),
+                new MustacheViewRenderer());
+        Path run = Files.createTempDirectory("render-view-topiclist-");
+        String artifact = "{"
+                + "\"title\":\"选题清单\","
+                + "\"disclaimer\":\"非实时平台全站行情\","
+                + "\"items\":[{\"id\":\"tp-1\",\"title\":\"【优先发】测试选题\","
+                + "\"hook\":\"钩子\",\"angle\":\"角度\",\"whyFirst\":\"优先\",\"risk\":\"风险\","
+                + "\"sourceNoteUrl\":\"https://www.xiaohongshu.com/explore/example\"}"
+                + "]}";
+        Files.write(run.resolve("artifact.json"), artifact.getBytes(StandardCharsets.UTF_8));
+
+        ToolResult result = handler.handle(
+                call(JsonNodeFactory.instance.objectNode()),
+                new ToolContext("r1", "t1", "xhs-topiclist", run.toString()));
+
+        assertTrue(result.isSuccess());
+        JsonNode view = MAPPER.readTree(Files.readAllBytes(run.resolve("view.json")));
+        String content = view.get("content").asText();
+        assertTrue(content.contains("data-adam-skill-id=\"xhs-note\""));
+        assertTrue(content.contains("写成笔记"));
+        assertTrue(content.contains("测试选题"));
+        assertFalse(content.contains("【优先发】"));
+    }
+
+    @Test
     void catalog_loader_reads_template_next_to_skill_prompt() {
         InMemorySkillCatalog catalog = new InMemorySkillCatalog();
         catalog.registerBootstrap(Skill.builder()

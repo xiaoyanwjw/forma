@@ -1,0 +1,16 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<p>{{disclaimer}}</p>
+<ol>
+{{#items}}
+<li>
+{{#displayTitle}}<p><strong>{{displayTitle}}</strong></p>{{/displayTitle}}
+<p>视角：{{hook}} · 切入：{{angle}}</p>
+<p>优先：{{whyFirst}} · 风险：{{risk}}</p>
+{{#handoffPrompt}}
+<p><button type="button" data-adam-action="handoff" data-adam-skill-id="xhs-note" data-adam-prompt="{{handoffPrompt}}">写成笔记</button></p>
+{{/handoffPrompt}}
+</li>
+{{/items}}
+</ol>
+</article>

@@ -1,9 +1,9 @@
 ---
 name: ecommerce-picklist
 description: >-
-  经配置的商品检索（如 Mock / Apify 淘宝搜）用 search_sku 产出 8–12 条带原链与 pl-n item id 的可测款选品清单（JSON：view + artifact）。
+  经配置的商品检索（如 Mock / Apify 淘宝搜）用 search_sku 产出 8–12 条带原链与 pl-n item id 的可测款选品清单（artifact + render_view → view.json）。
   在用户提到选品、卖什么、候选清单、测款方向时使用。
-allowed-tools: read_skill search_sku write_file read_file bash
+allowed-tools: read_skill search_sku write_file read_file render_view
 metadata:
   output:
     billing: true
@@ -29,10 +29,9 @@ metadata:
    默认避开（用户未点名时）：重货/泡货、强季节、高退货尺码服饰、大牌极透明价、特殊资质、侵权/假认证/违禁功效。
 4. **分配 id。** 按最终清单顺序为每条赋 `pl-1`…`pl-n`；后续领域实体与视图实体的 `id` **同序同值**。
 5. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**（测款领域对象：条目、质量字段、assumptions 等），再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
-6. **构造视图实体。** 按同一批 `pl-n` 与顺序拼出完整 **view**（v2：`format: html` + `content` 含免责声明、有序列表与「做上架素材」手递按钮），再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
-7. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`（相对 run 根）。内容是一个 JSON 对象：`view` 取 `view.json` 的对象，`artifact` 取 `artifact.json` 的对象。这是支持的合并方式。环境里若已有 `bash` / `python3` 可以用它们拼文件，但不要依赖 `python3`；没有它们时仍用 `write_file` 写 `final.json`。
-8. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"final.json"}`。禁止在对话里粘贴整包 `{view, artifact}`。
-9. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重拼。
+6. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `references/view.mustache`）。勿手写 HTML `view.content`。
+7. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"view.json"}`。禁止在对话里粘贴整包 JSON 或 `artifact.json` / `view.json` 全文。
+8. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
 ## Tool: search_sku
 
@@ -59,7 +58,7 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** `final.json`（`view` + `artifact` 信封）+ **对话**指针 `{"output":"final.json"}`。完整字段、对齐、文件示例与好坏例 → [output.md](references/output.md)。
+成功终态：**盘上** `artifact.json` + **`view.json`**（`render_view` 产出）+ **对话**指针 `{"output":"view.json"}`。完整字段、模板与好坏例 → [output.md](references/output.md)。
 
 速记：
 
@@ -67,8 +66,8 @@ metadata:
 - `artifact.items[].sourceUrl` = 工具 `detailUrl`；同条手递 prompt「原链」= 该 URL；绝对 `https:`；禁止假链
 - 免责声明（HTML 正文）必须包含字面量：`非实时平台全站行情`
 - 推荐整句：`候选基于配置的商品检索抽样与服务端排序，非实时平台全站行情。点击可打开商品页核对。`
-- 两边均为 8–12 条；`view.version` = **`2`**；`view.format` = **`html`**
-- 每条 `<li>` 含 `data-adam-action="handoff"` 按钮，`data-adam-skill-id="ecommerce-skulist"`，prompt 合同见 [output.md §手递](references/output.md#手递按钮与-prompt-合同)
+- 两边均为 8–12 条；`view.json` 由模板生成，`view.version` = **`2`**；`view.format` = **`html`**
+- 模板 [view.mustache](references/view.mustache) 为每条 `<li>` 输出手递按钮（`data-adam-skill-id="ecommerce-skulist"`）；prompt 由工具注入 `handoffPrompt`，合同见 [output.md §手递](references/output.md#手递按钮与-prompt-合同)
 - `view.title` 与 `artifact.title`：本轮生成的中文清单标题（同一文案）
 
 ## Verification
@@ -76,12 +75,12 @@ metadata:
 输出前逐项自检（全部通过才允许发指针）：
 
 - [ ] 本轮恰好 **1** 次 `search_sku`，且成功
-- [ ] 已写 `artifact.json`、`view.json`，且已用 `write_file` 写出 **`final.json`**
-- [ ] 终稿对话**仅** `{"output":"final.json"}`；**未**在对话里贴整包大 JSON
-- [ ] `final.json` 内 `artifact.items` 与 HTML `<ol>` 条目均为 **8–12** 条，条数一致、顺序对应
+- [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
+- [ ] 终稿对话**仅** `{"output":"view.json"}`；**未**在对话里贴整包大 JSON
+- [ ] `artifact.items` 与 `view.json` 内 HTML `<ol>` 条目均为 **8–12** 条，条数一致、顺序对应
 - [ ] 每条 `id` 非空，格式 `pl-n`（从 1 顺序）；手递 prompt 与 artifact **同 id 同序**
 - [ ] 至少 **3** 个不同 `niche`，且无空泛「日用」「家居」三连凑数
-- [ ] 恰好 **1–2** 条 `artifact.items[].title` 以 `【优先试】` 开头；HTML 对应条目标「优先试」（展示标题不加该前缀）
+- [ ] 恰好 **1–2** 条 `artifact.items[].title` 以 `【优先试】` 开头；HTML 展示标题不加该前缀（模板用 `displayTitle`）
 - [ ] 优先试条目含可行动「为何先测」理由（痛点/角度/差异至少一处说清相对下一条的优势）
 - [ ] 每条 `sourceUrl` 来自工具 `detailUrl`，绝对 `https:`，无编造；同条手递 prompt「原链」一致
 - [ ] `demand` / `competition` / `margin` / `risk` 均以 `高｜` / `中｜` / `低｜` 开头，且挂钩本条可观察事实
