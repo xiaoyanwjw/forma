@@ -9,7 +9,7 @@ import type {
   HumanInputRequiredPayload,
   StreamAgentRunOptions,
 } from '@/types/business/agent'
-import { parseComputerDocument } from '@/types/business/computerView'
+import { parseComputerDocView } from '@/types/business/computerView'
 import {
   applyAgentEnded,
   applyAgentStarted,
@@ -241,7 +241,7 @@ export function useAgentSkillRun() {
 export { CREDITS_CHANGED_EVENT }
 
 function toGenerationArtifact(data: Record<string, unknown>): GenerationArtifactPayload | null {
-  const view = parseComputerDocument(data.view)
+  const view = parseComputerDocView(data.view)
   const artifactRef = typeof data.artifactRef === 'string' ? data.artifactRef.trim() : ''
   if (!view || !artifactRef) return null
   return { artifactRef, view }

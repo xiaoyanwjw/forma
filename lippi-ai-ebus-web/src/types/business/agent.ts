@@ -1,4 +1,4 @@
-import type { ComputerDocument } from '@/types/business/computerView'
+import type { ComputerDocView } from '@/types/business/computerView'
 
 /** AD-4 闭合 SSE 事件名（禁止同义别名） */
 export const AD4_EVENT_NAMES = [
@@ -61,7 +61,7 @@ export interface StreamAgentRunOptions {
 /** artifact_ready：仅 view + artifactRef */
 export interface GenerationArtifactPayload {
   artifactRef: string
-  view: ComputerDocument
+  view: ComputerDocView
 }
 
 export type AskHumanOptionId = 'confirm_execute' | 'supplement'

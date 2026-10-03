@@ -1,3 +1,12 @@
+export type ComputerDocFormat = 'markdown' | 'html'
+
+export interface ComputerDocView {
+  version: 2
+  title: string
+  format: ComputerDocFormat
+  content: string
+}
+
 export type ComputerNoteTone = 'mute' | 'default'
 
 /** Generic tag emphasis — domain mapping belongs in projectors, not the renderer. */
@@ -84,6 +93,9 @@ export interface ComputerDocument {
   status?: string
   blocks: ComputerBlock[]
 }
+
+/** Task 6–8: workspace panel may hold v2 doc or legacy v1 blocks. */
+export type ComputerPanelView = ComputerDocView | ComputerDocument
 
 export function displayTagText(tag: ComputerTag): string {
   const label = tag.label?.trim()
@@ -304,4 +316,18 @@ export function parseComputerDocument(raw: unknown): ComputerDocument | null {
     document.status = raw.status
   }
   return document
+}
+
+export function parseComputerDocView(raw: unknown): ComputerDocView | null {
+  if (!isRecord(raw)) return null
+  if (raw.version !== 2) return null
+  if (typeof raw.title !== 'string' || !raw.title.trim()) return null
+  if (raw.format !== 'markdown' && raw.format !== 'html') return null
+  if (typeof raw.content !== 'string' || !raw.content.trim()) return null
+  return {
+    version: 2,
+    title: raw.title.trim(),
+    format: raw.format,
+    content: raw.content,
+  }
 }

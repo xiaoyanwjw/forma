@@ -31,6 +31,7 @@ import type { GenerationArtifactPayload } from '@/types/business/agent'
 import {
   parseComputerDocument,
   type ComputerDocument,
+  type ComputerPanelView,
   type ComputerListItem,
 } from '@/types/business/computerView'
 import { hasPromptSlots } from '@/utils/promptSlots'
@@ -113,7 +114,9 @@ const sessionNextToken = ref<string | null>(null)
 const sessionHistoryLoading = ref(false)
 const sessionReplayPane = ref<string | null>(null)
 const activePane = ref<string | null>(null)
-const liveByPane = ref<Record<string, GenerationArtifactPayload | null>>({})
+type LiveArtifactPayload = { artifactRef: string; view: ComputerPanelView }
+
+const liveByPane = ref<Record<string, LiveArtifactPayload | null>>({})
 const chatScrollEl = ref<HTMLElement | null>(null)
 const computerEl = ref<HTMLElement | null>(null)
 const thinkingMessageId = ref<string | null>(null)
@@ -199,10 +202,12 @@ const canOneClickRetry = computed(
     !sessionBusy.value,
 )
 
-const activeComputerDoc = computed(() => {
+const activeComputerDoc = computed((): ComputerDocument | null => {
   const pane = activePane.value
   if (!pane) return null
-  return liveByPane.value[pane]?.view ?? null
+  const view = liveByPane.value[pane]?.view
+  if (!view || view.version !== 1) return null
+  return view
 })
 
 const computerFileName = computed(() => {
@@ -242,7 +247,7 @@ function processSnapshot(): ProcessEvent[] | undefined {
   return processEvents.value.length ? [...processEvents.value] : undefined
 }
 
-function setLive(pane: string, payload: GenerationArtifactPayload) {
+function setLive(pane: string, payload: LiveArtifactPayload) {
   liveByPane.value = { ...liveByPane.value, [pane]: payload }
 }
 
@@ -284,8 +289,23 @@ function paneFromArtifactType(artifactType?: string | null): string | null {
   return spec.value.paneByArtifactType[key] ?? null
 }
 
-function inferPaneFromView(view: ComputerDocument | undefined): string | null {
+function inferPaneFromView(view: ComputerPanelView | undefined): string | null {
   if (!view || !spec.value) return null
+  if (view.version === 2) {
+    const title = view.title || ''
+    if (spec.value.sceneCode === 'ecommerce') {
+      if (/上架|listing/i.test(title)) return 'listing'
+      if (/选品|清单/i.test(title)) return 'picks'
+      return null
+    }
+    if (spec.value.sceneCode === 'xiaohongshu') {
+      if (/拆解|爆文/.test(title)) return 'break'
+      if (/笔记/.test(title)) return 'note'
+      if (/选题/.test(title)) return 'topiclist'
+      return 'note'
+    }
+    return null
+  }
   if (spec.value.sceneCode === 'ecommerce') return inferEcommercePane(view)
   if (spec.value.sceneCode === 'xiaohongshu') return inferXhsPane(view)
   return null
@@ -471,7 +491,8 @@ async function finishGenerationMessage(opts: {
     feedbackHint.value = ''
     revealComputer()
     void loadSessions()
-    const reply = successText(opts.pane, opts.artifact.view.blocks?.length || 0)
+    const blockCount = opts.artifact.view.content.trim() ? 1 : 0
+    const reply = successText(opts.pane, blockCount)
     replaceThinking(opts.thinkingId, {
       id: opts.thinkingId,
       role: 'agent',
