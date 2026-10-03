@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.ebus.extension.config.SkuToolsConfiguration;
+import com.xmut.ebus.extension.config.ViewToolsConfiguration;
 import com.xmut.ebus.extension.config.XhsToolsConfiguration;
 import com.xmut.ebus.extension.tool.xhs.port.XhsNoteFetchHit;
 import com.xmut.ebus.extension.tool.xhs.port.XhsNoteFetchPort;
@@ -122,7 +123,10 @@ class FetchXhsNoteToolHandlerTest {
     @Test
     void catalogResolvesFetchXhsNote() {
         new ApplicationContextRunner()
-                .withUserConfiguration(SkuToolsConfiguration.class, XhsToolsConfiguration.class)
+                .withUserConfiguration(
+                        SkuToolsConfiguration.class,
+                        XhsToolsConfiguration.class,
+                        ViewToolsConfiguration.class)
                 .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class))
                 .run(context -> {
                     assertTrue(context.getBean(ToolCatalog.class).resolve("fetch_xhs_note").isPresent());

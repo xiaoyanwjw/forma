@@ -1,6 +1,7 @@
 package com.xmut.ebus.extension.config;
 
 import com.xmut.ebus.extension.tool.sku.SearchSkuToolHandler;
+import com.xmut.ebus.extension.tool.view.RenderViewToolHandler;
 import com.xmut.ebus.extension.tool.xhs.FetchXhsNoteToolHandler;
 import com.xmut.ebus.extension.tool.xhs.SearchXhsNoteToolHandler;
 import com.xmut.lims.pi.agent.config.PiAutoConfiguration;
@@ -26,7 +27,8 @@ class EbusPrimaryToolCatalogOverrideTest {
             .withUserConfiguration(
                     EbusModelCatalogAutoConfiguration.class,
                     SkuToolsConfiguration.class,
-                    XhsToolsConfiguration.class)
+                    XhsToolsConfiguration.class,
+                    ViewToolsConfiguration.class)
             .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class));
 
     @Test
@@ -64,6 +66,7 @@ class EbusPrimaryToolCatalogOverrideTest {
             assertThat(catalog.resolve("search_sku")).isPresent();
             assertThat(catalog.resolve("search_xhs_note")).isPresent();
             assertThat(catalog.resolve("fetch_xhs_note")).isPresent();
+            assertThat(catalog.resolve("render_view")).isPresent();
             assertThat(catalog.resolve("ask_human")).isPresent();
             assertThat(catalog.resolve("write_file")).isPresent();
             assertThat(catalog.resolve("read_file")).isPresent();
@@ -74,6 +77,7 @@ class EbusPrimaryToolCatalogOverrideTest {
             assertThat(catalog.handlerOf("search_sku").get()).isInstanceOf(SearchSkuToolHandler.class);
             assertThat(catalog.handlerOf("search_xhs_note").get()).isInstanceOf(SearchXhsNoteToolHandler.class);
             assertThat(catalog.handlerOf("fetch_xhs_note").get()).isInstanceOf(FetchXhsNoteToolHandler.class);
+            assertThat(catalog.handlerOf("render_view").get()).isInstanceOf(RenderViewToolHandler.class);
             assertThat(catalog.handlerOf("ask_human")).isPresent();
             assertThat(catalog.handlerOf("ask_human").get()).isInstanceOf(AskHumanToolHandler.class);
             assertThat(catalog.handlerOf("write_file").get()).isInstanceOf(WriteFileToolHandler.class);
