@@ -10,8 +10,6 @@ https://github.com/user-attachments/assets/cc93e364-aab7-44cf-a837-154b0f841f07
 Daily skills → Scene / Skill → Agent → usable result in Computer
 ```
 
-The browser never talks to the model directly. Model calls go through backend **Pi** (`pi-ai` / `pi-agent`); business tools and scene resources live in `forma-pi-extension`. First scenes: e-commerce listing and Xiaohongshu seeding.
-
 ## Why
 
 
