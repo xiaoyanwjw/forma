@@ -37,7 +37,7 @@ Users already inside the ecommerce scene generate picklists and Listing kits on 
 - Only **CreditLedger** mutates balances: check → reserve 1 → settle only after usable artifact is projected and persisted; else release. Agent tools must not write the ledger.
 - Creating a billed session / **GenerationRun** requires `sceneId` or `sceneCode`; credits remain site-wide (not per-scene ledgers).
 - Model calls only via backend `pi-ai`; business entry via **AgentSession**. Prompt/skill/tool bodies live in repo code packs keyed by `sceneCode`; never accept or return system prompts/tool defs from the browser. Ecommerce pack must cover both picklist and Listing paths.
-- Artifacts: picklist (`artifact_type=picklist`) and Listing/sku (`artifact_type=sku`) via ArtifactStore; Listing images via MediaStore/OSS with **`mediaObjectId`** as canonical image identity (no second URL source of truth; no large image BLOBs in MySQL).
+- Artifacts: picklist (`artifact_type=picklist`) and Listing/sku (`artifact_type=sku`) via ArtifactStore; images via MediaStore/OSS with **`mediaObjectId`** as canonical identity when present (optional for near-term sku settle; no second URL source of truth; no large image BLOBs in MySQL).
 - Each billed attempt (including retry) = new GenerationRun + new hold; may reuse the chat session; successful artifacts stay as independent history rows (retry does not silently overwrite).
 - REST/SSE (except public auth/landing): JWT required to start billed generation.
 

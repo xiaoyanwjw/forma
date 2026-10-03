@@ -1,8 +1,8 @@
-# Phase 2: `lippi-ai-ebus-pi-extension` 物理拆分 Implementation Plan
+# Phase 2: `forma-pi-extension` 物理拆分 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把业务 Tool（SKU/XHS：json + Handler + Port 管线）与业务 Skill 资源迁入新模块 `lippi-ai-ebus-pi-extension`，经 Boot 2.7 `spring.factories` 自动装配；`starter` 依赖 extension 后即可注册业务 tools 并扫到业务 skills。
+**Goal:** 把业务 Tool（SKU/XHS：json + Handler + Port 管线）与业务 Skill 资源迁入新模块 `forma-pi-extension`，经 Boot 2.7 `spring.factories` 自动装配；`starter` 依赖 extension 后即可注册业务 tools 并扫到业务 skills。
 
 **Architecture:** 新建扁平 Maven 模块（AD-13）。业务代码包根 `com.xmut.ebus.extension`。AutoConfiguration 只经 `META-INF/spring.factories` 加载；`EbusApplication` 排除对该包的 component-scan，避免与 auto-config 双注册。依赖：`starter → extension → pi-agent (+ common + okhttp)`；`extension ↛ application`；`pi-agent ↛ extension`。计费 / persist / SSE / `SceneCapabilityPackLoader` 仍留 application。
 
@@ -11,9 +11,9 @@
 ## Global Constraints
 
 - Spec: `docs/superpowers/specs/2026-10-02-pi-tool-skill-dynamic-injection-design.md` §5–§6（accepted）— **本计划仅 Phase 2**
-- Artifact 名钉死：`lippi-ai-ebus-pi-extension`
+- Artifact 名钉死：`forma-pi-extension`
 - 配置类名钉死：`SkuToolsConfiguration`、`XhsToolsConfiguration`（可再包一层 `*AutoConfiguration` `@Import`，但工厂必须最终启用这两类）
-- Pi 内置 **不迁**：`BaseToolsConfiguration` + `tools/base/*.tool.json` 留在 `lippi-pi-agent`
+- Pi 内置 **不迁**：`BaseToolsConfiguration` + `tools/base/*.tool.json` 留在 `pi-agent`
 - 迁入：Sku/Xhs Handler + Port/Searcher/Properties/Apify 客户端、`tools/sku|xhs/*.tool.json`、生产 `scenes/ecommerce/**` 与 `scenes/xiaohongshu/**`
 - 不迁：CreditLedger、SSE、`SceneCapabilityPackLoader`、`ArtifactPersistPlugin`、domain
 - 依赖方向：`starter → extension → pi-agent`；`extension ↛ application`；`pi-agent ↛ extension`；`pi-agent ↛ Apify/Credit`（Apify 只在 extension）
@@ -27,7 +27,7 @@
 
 | Path | Responsibility |
 |------|----------------|
-| `lippi-ai-ebus-pi-extension/pom.xml` | 模块 POM：依赖 `lippi-pi-agent`、`lippi-ai-ebus-common`、`okhttp`、`spring-boot-autoconfigure` |
+| `forma-pi-extension/pom.xml` | 模块 POM：依赖 `pi-agent`、`forma-common`、`okhttp`、`spring-boot-autoconfigure` |
 | `…/src/main/java/com/xmut/ebus/extension/config/SkuToolsConfiguration.java` | 自 application 迁入；包名改 extension |
 | `…/config/XhsToolsConfiguration.java` | 同上 |
 | `…/config/EbusModelCatalogAutoConfiguration.java` | 承接原 `PiToolCatalogConfiguration` 的 `@Primary ModelCatalog` overlay |
@@ -35,11 +35,11 @@
 | `…/resources/tools/sku/*.tool.json`、`tools/xhs/*.tool.json` | schema；`handlerClass` → `com.xmut.ebus.extension.tool…` |
 | `…/resources/scenes/{ecommerce,xiaohongshu}/**` | 自 starter 迁入的生产 Skill 资源 |
 | `…/resources/META-INF/spring.factories` | `EnableAutoConfiguration=SkuToolsConfiguration,XhsToolsConfiguration,EbusModelCatalogAutoConfiguration` |
-| `lippi-ai-ebus-starter/pom.xml` | 增加对 extension 的依赖 |
-| `lippi-ai-ebus-starter/.../EbusApplication.java` | 排除 `com.xmut.ebus.extension` 的 component-scan |
+| `forma-starter/pom.xml` | 增加对 extension 的依赖 |
+| `forma-starter/.../EbusApplication.java` | 排除 `com.xmut.ebus.extension` 的 component-scan |
 | `pom.xml`（parent） | `<modules>` + `dependencyManagement` 增加 extension |
-| `lippi-ai-ebus-application/.../PiToolCatalogConfiguration.java` | **删除**（逻辑进 extension） |
-| `lippi-ai-ebus-application/.../SkuToolsConfiguration.java` 等 | **删除**（迁走后无残留） |
+| `forma-application/.../PiToolCatalogConfiguration.java` | **删除**（逻辑进 extension） |
+| `forma-application/.../SkuToolsConfiguration.java` 等 | **删除**（迁走后无残留） |
 
 ## Spec → Task
 
@@ -58,16 +58,16 @@
 ### Task 1: 脚手架模块 + AutoConfiguration 接线 + 防双注册
 
 **Files:**
-- Create: `lippi-ai-ebus-pi-extension/pom.xml`
-- Create: `lippi-ai-ebus-pi-extension/src/main/resources/META-INF/spring.factories`（先空类占位或仅占位 Configuration）
-- Create: `lippi-ai-ebus-pi-extension/src/main/java/com/xmut/ebus/extension/config/ExtensionMarkerConfiguration.java`（临时空 `@Configuration`，Task 2/3 删或替换）
-- Create: `lippi-ai-ebus-pi-extension/src/test/java/com/xmut/ebus/extension/ExtensionAutoConfigurationSmokeTest.java`
-- Modify: root `pom.xml` — `<module>lippi-ai-ebus-pi-extension</module>` + `dependencyManagement` 条目
-- Modify: `lippi-ai-ebus-starter/pom.xml` — 依赖 `lippi-ai-ebus-pi-extension`
-- Modify: `lippi-ai-ebus-starter/src/main/java/com/xmut/ebus/EbusApplication.java` — 排除 extension 包扫描
+- Create: `forma-pi-extension/pom.xml`
+- Create: `forma-pi-extension/src/main/resources/META-INF/spring.factories`（先空类占位或仅占位 Configuration）
+- Create: `forma-pi-extension/src/main/java/com/xmut/ebus/extension/config/ExtensionMarkerConfiguration.java`（临时空 `@Configuration`，Task 2/3 删或替换）
+- Create: `forma-pi-extension/src/test/java/com/xmut/ebus/extension/ExtensionAutoConfigurationSmokeTest.java`
+- Modify: root `pom.xml` — `<module>forma-pi-extension</module>` + `dependencyManagement` 条目
+- Modify: `forma-starter/pom.xml` — 依赖 `forma-pi-extension`
+- Modify: `forma-starter/src/main/java/com/xmut/ebus/EbusApplication.java` — 排除 extension 包扫描
 
 **Interfaces:**
-- Produces: artifact `com.lippi:lippi-ai-ebus-pi-extension:1.0.0-SNAPSHOT`
+- Produces: artifact `com.lippi:forma-pi-extension:1.0.0-SNAPSHOT`
 - Produces: `spring.factories` 键 `org.springframework.boot.autoconfigure.EnableAutoConfiguration`
 - Produces: `EbusApplication` 不再 component-scan `com.xmut.ebus.extension.**`（仅 auto-config 加载）
 - Consumes: Phase 1 已有 `PiAutoConfiguration` / `ToolCatalog` 合并路径（不动）
@@ -120,36 +120,36 @@ void spring_factories_lists_extension_configs() throws IOException {
 - [ ] **Step 2: Run — expect FAIL（模块/资源不存在）**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension -am test
+mvn -pl forma-pi-extension -am test
 ```
 
 Expected: module missing or test compile fail.
 
 - [ ] **Step 3: 实现模块 POM + parent 接线**
 
-`lippi-ai-ebus-pi-extension/pom.xml` 最小依赖：
+`forma-pi-extension/pom.xml` 最小依赖：
 
 ```xml
-<artifactId>lippi-ai-ebus-pi-extension</artifactId>
+<artifactId>forma-pi-extension</artifactId>
 <dependencies>
-  <dependency><groupId>com.lippi</groupId><artifactId>lippi-pi-agent</artifactId></dependency>
-  <dependency><groupId>com.lippi</groupId><artifactId>lippi-ai-ebus-common</artifactId></dependency>
+  <dependency><groupId>com.lippi</groupId><artifactId>pi-agent</artifactId></dependency>
+  <dependency><groupId>com.lippi</groupId><artifactId>forma-common</artifactId></dependency>
   <dependency><groupId>com.squareup.okhttp3</groupId><artifactId>okhttp</artifactId></dependency>
   <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-autoconfigure</artifactId></dependency>
   <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
 </dependencies>
 ```
 
-**禁止**依赖 `lippi-ai-ebus-application`。
+**禁止**依赖 `forma-application`。
 
-Parent `pom.xml`：在 `lippi-pi-agent` 之后、`lippi-ai-ebus-domain` 之前插入 `<module>lippi-ai-ebus-pi-extension</module>`；`dependencyManagement` 增加同版本条目。
+Parent `pom.xml`：在 `pi-agent` 之后、`forma-domain` 之前插入 `<module>forma-pi-extension</module>`；`dependencyManagement` 增加同版本条目。
 
 `starter/pom.xml` 增加：
 
 ```xml
 <dependency>
   <groupId>com.lippi</groupId>
-  <artifactId>lippi-ai-ebus-pi-extension</artifactId>
+  <artifactId>forma-pi-extension</artifactId>
 </dependency>
 ```
 
@@ -177,9 +177,9 @@ public class EbusApplication { ... }
 - [ ] **Step 5: Run PASS + Commit**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension,lippi-ai-ebus-starter -am -Dtest=ExtensionAutoConfigurationSmokeTest test
-git add lippi-ai-ebus-pi-extension pom.xml lippi-ai-ebus-starter
-git commit -m "chore(extension): scaffold lippi-ai-ebus-pi-extension with spring.factories"
+mvn -pl forma-pi-extension,forma-starter -am -Dtest=ExtensionAutoConfigurationSmokeTest test
+git add forma-pi-extension pom.xml forma-starter
+git commit -m "chore(extension): scaffold forma-pi-extension with spring.factories"
 ```
 
 ---
@@ -193,7 +193,7 @@ git commit -m "chore(extension): scaffold lippi-ai-ebus-pi-extension with spring
   - `ApifyOkHttpTransport`, `ApifyActorTransport`（XHS 仍依赖这两类 — 先迁到 `extension.tool.sku`，Task 3 改 import）
 - Move: `SkuToolsConfiguration` → `com.xmut.ebus.extension.config.SkuToolsConfiguration`
 - Move: `tools/sku/search_sku.tool.json` → extension resources；改 `handlerClass`
-- Move tests（application 下 sku 相关 `*Test`）→ `lippi-ai-ebus-pi-extension/src/test/java/...`
+- Move tests（application 下 sku 相关 `*Test`）→ `forma-pi-extension/src/test/java/...`
 - Modify: `spring.factories` — 加入 `SkuToolsConfiguration`；可保留 Marker 至 Task 5 再删
 - Delete: application 内对应源文件 / 资源 / 测试
 
@@ -224,7 +224,7 @@ void search_sku_json_handlerClass_points_at_extension_package() throws Exception
 - [ ] **Step 2: Run — expect FAIL（仍是旧 FQCN 或资源仍在 application）**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension -am -Dtest=SearchSkuToolJsonTest test
+mvn -pl forma-pi-extension -am -Dtest=SearchSkuToolJsonTest test
 ```
 
 - [ ] **Step 3: `git mv` / 改 package / 更新 Configuration import / factories**
@@ -240,12 +240,12 @@ com.xmut.ebus.extension.config.SkuToolsConfiguration
 ```
 
 临时：application 内若仍有 `XhsToolsConfiguration` 引用 `ApifyOkHttpTransport`，改为 import `com.xmut.ebus.extension.tool.sku.ApifyOkHttpTransport`，并让 **application 临时 test/compile 依赖 extension**（仅过渡；Task 3 结束后 application 主代码不再依赖 extension）。  
-**更干净做法（推荐本 Task 采用）：** Task 2 同步把 `ApifyOkHttpTransport`/`ApifyActorTransport` 迁走后，**立即**改 application 里 XHS 客户端的 import 指向 extension，并为 `lippi-ai-ebus-application` 增加对 `lippi-ai-ebus-pi-extension` 的 **临时** compile 依赖；Task 3 迁完 XHS 后 **删除** application→extension 依赖（验收：application 主源码无 `extension` import）。
+**更干净做法（推荐本 Task 采用）：** Task 2 同步把 `ApifyOkHttpTransport`/`ApifyActorTransport` 迁走后，**立即**改 application 里 XHS 客户端的 import 指向 extension，并为 `forma-application` 增加对 `forma-pi-extension` 的 **临时** compile 依赖；Task 3 迁完 XHS 后 **删除** application→extension 依赖（验收：application 主源码无 `extension` import）。
 
 - [ ] **Step 4: Run SKU 相关测试**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension -am -DfailIfNoTests=false \
+mvn -pl forma-pi-extension -am -DfailIfNoTests=false \
   -Dtest=SkuSearcherTest,SearchSkuToolHandlerTest,FallbackSkuSearchClientTest,ApifyTaobaoSkuSearchClientTest,ApifyTaobaoHitMapperTest,SkuSearchPropertiesTest,ModelSkuRerankerTest,SearchSkuToolJsonTest test
 ```
 
@@ -268,7 +268,7 @@ git commit -m "feat(extension): move SKU tools and search_sku.tool.json into pi-
 - Move: 全部 xhs `*Test` → extension
 - Modify: `spring.factories` 加入 `XhsToolsConfiguration`
 - Delete: application 内 xhs 源码/资源/测试
-- Modify: `lippi-ai-ebus-application/pom.xml` — **移除** Task 2 临时的 extension 依赖（迁完后 application 主代码不应再 import extension）
+- Modify: `forma-application/pom.xml` — **移除** Task 2 临时的 extension 依赖（迁完后 application 主代码不应再 import extension）
 - Modify: 仍留在 application 的测试（若有）改为不引用 Sku/Xhs 类型，或迁到 extension/starter
 
 **Interfaces:**
@@ -294,7 +294,7 @@ void xhs_tool_json_handlerClasses_are_extension_fqcns() { /* load + assert both 
 - [ ] **Step 2: Run expect FAIL**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension -am -Dtest=XhsToolJsonTest test
+mvn -pl forma-pi-extension -am -Dtest=XhsToolJsonTest test
 ```
 
 - [ ] **Step 3: 迁代码、改 factories、删 application→extension 依赖**
@@ -302,7 +302,7 @@ mvn -pl lippi-ai-ebus-pi-extension -am -Dtest=XhsToolJsonTest test
 验证 application 主源码：
 
 ```bash
-rg "com\\.xmut\\.ebus\\.extension" lippi-ai-ebus-application/src/main || echo "clean"
+rg "com\\.xmut\\.ebus\\.extension" forma-application/src/main || echo "clean"
 ```
 
 Expected: `clean`（无匹配）。
@@ -310,7 +310,7 @@ Expected: `clean`（无匹配）。
 - [ ] **Step 4: Run XHS + 跨模块冒烟**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension -am -DfailIfNoTests=false \
+mvn -pl forma-pi-extension -am -DfailIfNoTests=false \
   -Dtest=XhsNoteSearcherTest,SearchXhsNoteToolHandlerTest,FetchXhsNoteToolHandlerTest,ApifyXhsNoteSearchClientTest,ApifyXhsNoteFetchClientTest,ModelXhsNoteRerankerTest,XhsToolJsonTest test
 ```
 
@@ -325,10 +325,10 @@ git commit -m "feat(extension): move XHS tools and tool.json into pi-extension"
 ### Task 4: ModelCatalog overlay 迁入；清理 application 配置残留
 
 **Files:**
-- Create: `lippi-ai-ebus-pi-extension/.../config/EbusModelCatalogAutoConfiguration.java`  
+- Create: `forma-pi-extension/.../config/EbusModelCatalogAutoConfiguration.java`  
   （逻辑从 `PiToolCatalogConfiguration` 剪切：`@Primary @Bean ModelCatalog modelCatalog(...)` + `overlayRerankUseCases`）
 - Modify: `spring.factories` 增加该类；可删除 `ExtensionMarkerConfiguration`（若仍存在）
-- Delete: `lippi-ai-ebus-application/.../PiToolCatalogConfiguration.java`
+- Delete: `forma-application/.../PiToolCatalogConfiguration.java`
 - Move/adapt: `EbusPiToolCatalogConfigurationTest`、`EbusPrimaryToolCatalogOverrideTest` → extension 或 starter  
   - Override 测：断言 **唯一** `ToolCatalog` + 八个生产 id 仍 resolve（handlers 来自 extension auto-config + pi Base）
 - Delete: application 内已空的 `config` 测试若无其它用途
@@ -358,7 +358,7 @@ void modelCatalog_resolves_sku_and_xhs_rerank_use_cases() {
 - [ ] **Step 2: Run expect FAIL**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension -Dtest=EbusModelCatalogAutoConfigurationTest test
+mvn -pl forma-pi-extension -Dtest=EbusModelCatalogAutoConfigurationTest test
 ```
 
 - [ ] **Step 3: 剪切实现；删 application `PiToolCatalogConfiguration`；更新 factories**
@@ -375,7 +375,7 @@ com.xmut.ebus.extension.config.EbusModelCatalogAutoConfiguration
 - [ ] **Step 4: Run**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension,lippi-ai-ebus-starter -am -DfailIfNoTests=false \
+mvn -pl forma-pi-extension,forma-starter -am -DfailIfNoTests=false \
   -Dtest=EbusModelCatalogAutoConfigurationTest,EbusPrimaryToolCatalogOverrideTest,EbusPiToolCatalogConfigurationTest test
 ```
 
@@ -392,10 +392,10 @@ git commit -m "feat(extension): move ModelCatalog rerank overlay; drop applicati
 ### Task 5: 迁生产 scenes + Phase 2 验收回归
 
 **Files:**
-- Move: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/**` → `lippi-ai-ebus-pi-extension/src/main/resources/scenes/ecommerce/**`
-- Move: `lippi-ai-ebus-starter/src/main/resources/scenes/xiaohongshu/**` → `…/scenes/xiaohongshu/**`
+- Move: `forma-starter/src/main/resources/scenes/ecommerce/**` → `forma-pi-extension/src/main/resources/scenes/ecommerce/**`
+- Move: `forma-starter/src/main/resources/scenes/xiaohongshu/**` → `…/scenes/xiaohongshu/**`
 - Keep: `application` / `pi-agent` 的 **test** `scenes/**` 镜像（可不迁；仅作单测夹具）
-- Modify: `AGENTS.md` Boundaries / structure 一行：业务 Skill/Tool 在 `lippi-ai-ebus-pi-extension`
+- Modify: `AGENTS.md` Boundaries / structure 一行：业务 Skill/Tool 在 `forma-pi-extension`
 - Optional: Spine AD-11 图补 `starter → extension`（若改 Spine，单独 commit 说明；**Ask first** 若团队视 Spine 为需审批 — 本仓 AGENTS 写「Ask first」改依赖方向：本任务 **只改 AGENTS 一句 + 代码依赖已落地**；Spine 补丁作为可选 Step）
 
 **Interfaces:**
@@ -406,14 +406,14 @@ git commit -m "feat(extension): move ModelCatalog rerank overlay; drop applicati
 
 ```bash
 # 确认 starter 生产 resources 不再含 scenes
-test ! -d lippi-ai-ebus-starter/src/main/resources/scenes && echo "starter scenes gone"
-test -f lippi-ai-ebus-pi-extension/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md && echo "extension has picklist"
+test ! -d forma-starter/src/main/resources/scenes && echo "starter scenes gone"
+test -f forma-pi-extension/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md && echo "extension has picklist"
 ```
 
 - [ ] **Step 2: 验收命令（Spec §5.4）**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -DfailIfNoTests=false \
+mvn -pl forma-starter -am -DfailIfNoTests=false \
   -Dtest=SceneCapabilityPackBootstrapTest,SkillsTest,ToolCatalogTest,XhsNoteSearcherTest,EbusPrimaryToolCatalogOverrideTest,SkuSearcherTest,SearchXhsNoteToolHandlerTest,FetchXhsNoteToolHandlerTest test
 ```
 
@@ -425,14 +425,14 @@ Expected: BUILD SUCCESS.
 2. `spring.factories` 仅列 extension 三类 Configuration  
 3. 八个生产 tool id 均可 `resolve` 且 handler 非 null  
 4. `rg "EnableAutoConfiguration" -g 'spring.factories'` 含 extension  
-5. `mvn -pl lippi-ai-ebus-pi-extension dependency:tree` **不含** `lippi-ai-ebus-application`
+5. `mvn -pl forma-pi-extension dependency:tree` **不含** `forma-application`
 
 - [ ] **Step 3: 文档钉**
 
 `AGENTS.md` Project structure 表增加一行：
 
 ```text
-| `lippi-ai-ebus-pi-extension/` | 业务 Pi 扩展：SKU/XHS tools + scenes 资源（spring.factories） |
+| `forma-pi-extension/` | 业务 Pi 扩展：SKU/XHS tools + scenes 资源（spring.factories） |
 ```
 
 Boundaries **Never** 保持「前端直连大模型…」；可选在 Always 加：业务 tool/skill 资源进 extension，不进 pi-agent。
@@ -446,8 +446,8 @@ git commit -m "feat(extension): move ecommerce/xhs scenes; document pi-extension
 - [ ] **Step 5: 最终自检（无新代码则不必空提交）**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -DskipTests compile
-rg "PiToolCatalogConfiguration|SkuToolsConfiguration|XhsToolsConfiguration" lippi-ai-ebus-application/src/main || echo "application clean of tool configs"
+mvn -pl forma-starter -am -DskipTests compile
+rg "PiToolCatalogConfiguration|SkuToolsConfiguration|XhsToolsConfiguration" forma-application/src/main || echo "application clean of tool configs"
 ```
 
 ---
@@ -456,7 +456,7 @@ rg "PiToolCatalogConfiguration|SkuToolsConfiguration|XhsToolsConfiguration" lipp
 
 | Spec Phase 2 要求 | Task |
 |-------------------|------|
-| Artifact `lippi-ai-ebus-pi-extension` | 1 |
+| Artifact `forma-pi-extension` | 1 |
 | `spring.factories` AutoConfiguration | 1–4 |
 | `starter` 依赖 extension | 1 |
 | 迁 Sku/Xhs configs + handlers + json | 2–3 |

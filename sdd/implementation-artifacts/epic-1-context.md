@@ -30,7 +30,7 @@
 ## Technical Decisions
 
 - Vue SPA + Spring Boot 模块化单体；前端不持模型密钥、不直改积分。
-- 扁平 `lippi-ai-ebus-*` + `lippi-ai-ebus-web`；Pi vendor-copy 为 `lippi-pi-ai` / `lippi-pi-agent`；包根 `com.xmut.ebus`；无 `backend/` 包一层；领域代码不进 `starter`。
+- 扁平 `forma-*` + `forma-web`；Pi vendor-copy 为 `pi-ai` / `pi-agent`；包根 `com.xmut.ebus`；无 `backend/` 包一层；领域代码不进 `starter`。
 - 依赖：`starter → interfaces → application → domain`；`domain`/`pi-*` 不依赖 `interfaces`。
 - `APP-META` compose 至少 starter + MySQL；密钥走环境变量/secrets。
 - 栈：Java 8、Spring Boot 2.7.x、MyBatis + MySQL、JWT；业务 ID 一律 UUID 字符串。

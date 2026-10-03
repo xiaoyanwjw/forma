@@ -59,12 +59,12 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-interfaces/.../CreditController.java` — `GET /api/v1/credits`
-- `lippi-ai-ebus-application/.../dto/CreditBalanceDTO.java` — `tier`/`available`/`balance`/`reserved`/`nextResetAt`/`periodAnchorAt`
-- `lippi-ai-ebus-web/src/api/{http,client}.ts` + `api/identity/afterLogin.ts` — JWT 与统一 `request`
-- `lippi-ai-ebus-web/src/views/identity/AuthMe.vue` + `AuthLogin.vue` / `AuthRegister.vue` — 现登录后 `push({ name: 'me' })`
-- `lippi-ai-ebus-web/src/router/index.ts` — 现仅 login/register/me
-- `lippi-ai-ebus-web/src/api/identity/auth.ts` + `types/identity/auth.ts` + `auth.flow.test.ts` — FE 分层范本
+- `forma-interfaces/.../CreditController.java` — `GET /api/v1/credits`
+- `forma-application/.../dto/CreditBalanceDTO.java` — `tier`/`available`/`balance`/`reserved`/`nextResetAt`/`periodAnchorAt`
+- `forma-web/src/api/{http,client}.ts` + `api/identity/afterLogin.ts` — JWT 与统一 `request`
+- `forma-web/src/views/identity/AuthMe.vue` + `AuthLogin.vue` / `AuthRegister.vue` — 现登录后 `push({ name: 'me' })`
+- `forma-web/src/router/index.ts` — 现仅 login/register/me
+- `forma-web/src/api/identity/auth.ts` + `types/identity/auth.ts` + `auth.flow.test.ts` — FE 分层范本
 - UX：参考 Manus `manus.im/pricing` 三卡层次；`app.html`（侧栏「免费 · 14/20」与不足文案）；旧 `pricing.html` 三行稿已 superseded
 - Continuity（1.3）：公开仅 GET；写路径勿动；`available = balance − reserved`
 
@@ -75,11 +75,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lippi-ai-ebus-web/src/types/business/credit.ts` — `CreditBalance` + 静态三档价目常量（标签/额度/月费文案）— 类型唯一出处
-- [x] `lippi-ai-ebus-web/src/api/business/credit/credit.ts` — `getCredits()` → `GET /api/v1/credits` — 只 HTTP
-- [x] `lippi-ai-ebus-web/src/views/business/credit/CreditPlan.vue` — `/credits`：摘要 + 三张套餐卡 + `available===0` 不足人话 — FR2/NFR3（人改 UX：卡非行）
-- [x] `lippi-ai-ebus-web/src/router/index.ts` + Login/Register 跳转 + `/me`↔`/credits` 链 — 登录默认落 credits
-- [x] `lippi-ai-ebus-web` 测（api 与/或页面关键断言）— 覆盖矩阵：未登录、成功展示、不足文案、三卡当前档
+- [x] `forma-web/src/types/business/credit.ts` — `CreditBalance` + 静态三档价目常量（标签/额度/月费文案）— 类型唯一出处
+- [x] `forma-web/src/api/business/credit/credit.ts` — `getCredits()` → `GET /api/v1/credits` — 只 HTTP
+- [x] `forma-web/src/views/business/credit/CreditPlan.vue` — `/credits`：摘要 + 三张套餐卡 + `available===0` 不足人话 — FR2/NFR3（人改 UX：卡非行）
+- [x] `forma-web/src/router/index.ts` + Login/Register 跳转 + `/me`↔`/credits` 链 — 登录默认落 credits
+- [x] `forma-web` 测（api 与/或页面关键断言）— 覆盖矩阵：未登录、成功展示、不足文案、三卡当前档
 - [x] `README.md`（若缺）— 补登录后 `/credits` 一句 — 人可跟测
 
 **Acceptance Criteria:**
@@ -134,7 +134,7 @@ context:
 ## Verification
 
 **Commands:**
-- `cd lippi-ai-ebus-web && npm run lint && npm test && npm run build` -- expected: 全绿
+- `cd forma-web && npm run lint && npm test && npm run build` -- expected: 全绿
 - （可选）后端已有 credits 测不必重跑全 reactor，除非改了 BE
 
 **Manual checks (if no CLI):**

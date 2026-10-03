@@ -6,7 +6,7 @@
 
 **Architecture:** 恢复/实现薄 `ToolDefinition` JSON 加载器；`InMemoryToolCatalog.merge(scanned, coded)` + `ToolHandlerAutoBinder`；`BaseToolsConfiguration` / `SkuToolsConfiguration` / `XhsToolsConfiguration` 只注册 Handler（及业务 Port）。本计划 **不含** Phase 2 extension 模块。
 
-**Tech Stack:** Java 8 / Spring Boot 2.7、`lippi-pi-agent`、`lippi-ai-ebus-application`、JUnit 5 + Mockito
+**Tech Stack:** Java 8 / Spring Boot 2.7、`pi-agent`、`forma-application`、JUnit 5 + Mockito
 
 ## Global Constraints
 
@@ -25,12 +25,12 @@
 
 | Path | Responsibility |
 |------|----------------|
-| `lippi-pi-agent/.../tool/ToolDefinitionJsonLoader.java` (+test) | 扫盘解析 `*.tool.json` → `List<ToolDefinition>` |
-| `lippi-pi-agent/.../config/AgentConfiguration.java` | `ToolCatalog` = merge；删「仅 read_skill of()」 |
-| `lippi-pi-agent/.../config/BaseToolsConfiguration.java` | Handler Beans：ask_human / write_file / read_file / bash（+ read_skill 若并入） |
-| `lippi-pi-agent/.../resources/tools/base/*.tool.json` | 五工具 schema |
-| `lippi-pi-agent/.../tool/workspace/*`（迁入） | 原 ebus workspace handlers + path guard（去 ebus 包名） |
-| `lippi-ai-ebus-application/.../SkuToolsConfiguration.java` | SkuSearcher 管线 + SearchSkuToolHandler Bean |
+| `pi-agent/.../tool/ToolDefinitionJsonLoader.java` (+test) | 扫盘解析 `*.tool.json` → `List<ToolDefinition>` |
+| `pi-agent/.../config/AgentConfiguration.java` | `ToolCatalog` = merge；删「仅 read_skill of()」 |
+| `pi-agent/.../config/BaseToolsConfiguration.java` | Handler Beans：ask_human / write_file / read_file / bash（+ read_skill 若并入） |
+| `pi-agent/.../resources/tools/base/*.tool.json` | 五工具 schema |
+| `pi-agent/.../tool/workspace/*`（迁入） | 原 ebus workspace handlers + path guard（去 ebus 包名） |
+| `forma-application/.../SkuToolsConfiguration.java` | SkuSearcher 管线 + SearchSkuToolHandler Bean |
 | `.../resources/tools/sku/search_sku.tool.json` | schema |
 | `.../XhsToolsConfiguration.java` | Xhs handlers + ports |
 | `.../resources/tools/xhs/*.tool.json` | schema |
@@ -52,9 +52,9 @@
 ### Task 1: `ToolDefinitionJsonLoader` + catalog merge 接线
 
 **Files:**
-- Create: `lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/tool/ToolDefinitionJsonLoader.java`
-- Create: `lippi-pi-agent/src/test/java/com/xmut/lims/pi/agent/tool/ToolDefinitionJsonLoaderTest.java`
-- Create: `lippi-pi-agent/src/test/resources/tools/fixture/demo_echo.tool.json`（仅测）
+- Create: `pi-agent/src/main/java/com/xmut/lims/pi/agent/tool/ToolDefinitionJsonLoader.java`
+- Create: `pi-agent/src/test/java/com/xmut/lims/pi/agent/tool/ToolDefinitionJsonLoaderTest.java`
+- Create: `pi-agent/src/test/resources/tools/fixture/demo_echo.tool.json`（仅测）
 - Modify: `AgentConfiguration.java` — `toolConfig` Bean 改为扫描 + merge + fail-fast
 - Modify: `ToolCatalogTest.java`（或新测）覆盖「有 json 无 handler 失败」
 
@@ -80,7 +80,7 @@ void load_reads_id_handlerClass_and_parameters() throws Exception {
 - [ ] **Step 2: Run — expect FAIL（类不存在）**
 
 ```bash
-mvn -pl lippi-pi-agent -Dtest=ToolDefinitionJsonLoaderTest test
+mvn -pl pi-agent -Dtest=ToolDefinitionJsonLoaderTest test
 ```
 
 - [ ] **Step 3: 实现 loader（Jackson 读树 → ToolDefinition.builder）**
@@ -109,14 +109,14 @@ git commit -m "feat(pi-agent): load tool schemas from *.tool.json and merge hand
 ### Task 2: Base 五工具 json + `BaseToolsConfiguration` + workspace 迁入 pi-agent
 
 **Files:**
-- Create: `lippi-pi-agent/src/main/resources/tools/base/read_skill.tool.json`
+- Create: `pi-agent/src/main/resources/tools/base/read_skill.tool.json`
 - Create: `.../ask_human.tool.json`
 - Create: `.../write_file.tool.json`、`read_file.tool.json`、`bash.tool.json`
-- Create: `lippi-pi-agent/.../config/BaseToolsConfiguration.java`
+- Create: `pi-agent/.../config/BaseToolsConfiguration.java`
 - Move（包名改为 `com.xmut.lims.pi.agent.tool...`）:
   - `AskHumanToolHandler`（自 ebus；`TOOL_NAME` 仍对齐 `ToolPolicyExtension.ASK_HUMAN_TOOL`）
   - `WriteFileToolHandler` / `ReadFileToolHandler` / `BashToolHandler` + `WorkspaceToolSupport`
-  - `WorkspacePathGuard`（自 ebus application workspace 包；或抽到 `lippi-pi-agent` 内）
+  - `WorkspacePathGuard`（自 ebus application workspace 包；或抽到 `pi-agent` 内）
 - Delete ebus 旧 handler 类（或 deprecate 转发一期——**优先直接迁并改 import**）
 - Update ebus 测试 import
 
@@ -136,7 +136,7 @@ git commit -m "feat(pi-agent): load tool schemas from *.tool.json and merge hand
 - [ ] **Step 4: Run**
 
 ```bash
-mvn -pl lippi-pi-agent,lippi-ai-ebus-application -am -DfailIfNoTests=false \
+mvn -pl pi-agent,forma-application -am -DfailIfNoTests=false \
   -Dtest=ToolDefinitionJsonLoaderTest,ToolCatalogTest,AskHumanToolHandlerTest,WriteFileToolHandlerTest,ReadFileToolHandlerTest,BashToolHandlerTest test
 ```
 
@@ -153,7 +153,7 @@ git commit -m "feat(pi-agent): base tools via tool.json and BaseToolsConfigurati
 ### Task 3: Sku / Xhs `*.tool.json` + 业务 Configuration；瘦身 `PiToolCatalogConfiguration`
 
 **Files:**
-- Create: `lippi-ai-ebus-application/src/main/resources/tools/sku/search_sku.tool.json`
+- Create: `forma-application/src/main/resources/tools/sku/search_sku.tool.json`
 - Create: `.../tools/xhs/search_xhs_note.tool.json`、`fetch_xhs_note.tool.json`
 - Create: `.../config/SkuToolsConfiguration.java`
 - Create: `.../config/XhsToolsConfiguration.java`
@@ -185,7 +185,7 @@ void resolves_search_sku_schema_from_json() {
 - [ ] **Step 4: Run**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -DfailIfNoTests=false \
+mvn -pl forma-starter -am -DfailIfNoTests=false \
   -Dtest=EbusPiToolCatalogConfigurationTest,SearchSkuToolHandlerTest,SearchXhsNoteToolHandlerTest,FetchXhsNoteToolHandlerTest,EbusPrimaryToolCatalogOverrideTest test
 ```
 
@@ -208,9 +208,9 @@ git commit -m "feat(ebus): sku/xhs tools via tool.json; drop monolithic ToolCata
 - [ ] **Step 1: Run**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -DfailIfNoTests=false \
+mvn -pl forma-starter -am -DfailIfNoTests=false \
   -Dtest=SceneCapabilityPackBootstrapTest,SkillsTest,ToolCatalogTest,XhsNoteSearcherTest test
-cd lippi-ai-ebus-web && npm test -- --run XiaohongshuWorkspace 2>/dev/null || true
+cd forma-web && npm test -- --run XiaohongshuWorkspace 2>/dev/null || true
 ```
 
 - [ ] **Step 2: 确认生产 tool id 集合**

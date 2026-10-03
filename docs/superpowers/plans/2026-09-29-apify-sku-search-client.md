@@ -50,9 +50,9 @@
 ### Task 1: `SkuSearchProperties` + 启用 ConfigurationProperties
 
 **Files:**
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/sku/SkuSearchProperties.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/sku/SkuSearchProperties.java`
 - Modify: 在 application 或 starter 的 `@SpringBootApplication` / 已有 `@EnableConfigurationProperties` 处注册（查现有 pattern；若无则在 `EbusPiToolCatalogConfiguration` 上 `@EnableConfigurationProperties(SkuSearchProperties.class)`）
-- Test: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/sku/SkuSearchPropertiesTest.java`（可选：用 `@ConfigurationPropertiesBinding` 或纯 setter 默认值单测）
+- Test: `forma-application/src/test/java/com/xmut/ebus/application/business/sku/SkuSearchPropertiesTest.java`（可选：用 `@ConfigurationPropertiesBinding` 或纯 setter 默认值单测）
 
 **Interfaces:**
 - Produces:
@@ -85,7 +85,7 @@ void defaults_to_mock_client_and_default_actor() {
 - [ ] **Step 2: Run 失败（类不存在）**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=SkuSearchPropertiesTest -DfailIfNoTests=false test
+mvn -pl forma-application -am -Dtest=SkuSearchPropertiesTest -DfailIfNoTests=false test
 ```
 
 - [ ] **Step 3: 实现 Properties + Enable**
@@ -95,8 +95,8 @@ mvn -pl lippi-ai-ebus-application -am -Dtest=SkuSearchPropertiesTest -DfailIfNoT
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/sku/SkuSearchProperties.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/sku/SkuSearchPropertiesTest.java \
+git add forma-application/src/main/java/com/xmut/ebus/application/business/sku/SkuSearchProperties.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/sku/SkuSearchPropertiesTest.java \
   # + EnableConfigurationProperties 改动文件
 git commit -m "$(cat <<'EOF'
 feat(sku): add ebus.sku-search.client configuration properties
@@ -188,7 +188,7 @@ void search_propagates_transport_failure() {
 - [ ] **Step 6: Run 相关测 PASS**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=ApifyTaobaoHitMapperTest,ApifyTaobaoSkuSearchClientTest test
+mvn -pl forma-application -am -Dtest=ApifyTaobaoHitMapperTest,ApifyTaobaoSkuSearchClientTest test
 ```
 
 - [ ] **Step 7: Commit**
@@ -307,7 +307,7 @@ public SkuSearchPort skuSearchPort(SkuSearchProperties props) {
 - [ ] **Step 3: 编译 + 跑 sku 相关测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=SkuSearchPropertiesTest,ApifyTaobaoHitMapperTest,ApifyTaobaoSkuSearchClientTest,FallbackSkuSearchClientTest,SearchSkuToolHandlerTest test
+mvn -pl forma-application -am -Dtest=SkuSearchPropertiesTest,ApifyTaobaoHitMapperTest,ApifyTaobaoSkuSearchClientTest,FallbackSkuSearchClientTest,SearchSkuToolHandlerTest test
 ```
 
 - [ ] **Step 4: Commit**
@@ -325,7 +325,7 @@ EOF
 ### Task 5: Picklist Skill 文案 + mirrors
 
 **Files:**
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
 - Modify: `.../references/output.md`（disclaimer 推荐句）
 - Sync: application + pi-agent test `scenes/ecommerce/ecommerce-picklist/`
 
@@ -343,11 +343,11 @@ EOF
 
 ```bash
 rsync -a --delete \
-  lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/ \
-  lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/ecommerce-picklist/
+  forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/ \
+  forma-application/src/test/resources/scenes/ecommerce/ecommerce-picklist/
 rsync -a --delete \
-  lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/ \
-  lippi-pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist/
+  forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/ \
+  pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist/
 ```
 
 - [ ] **Step 3: Commit**

@@ -23,15 +23,15 @@
 
 | 文件 | 职责 |
 |------|------|
-| `lippi-ai-ebus-common/.../cas/CasRetry.java` | 方法级注解 |
-| `lippi-ai-ebus-common/.../cas/CasConflictException.java` | 可重试冲突信号 |
-| `lippi-ai-ebus-common/.../cas/CasRetryAspect.java` | Around 切面 |
-| `lippi-ai-ebus-common/.../cas/CasRetryAutoConfiguration.java` | 注册 Aspect Bean |
-| `lippi-ai-ebus-common/src/main/resources/META-INF/spring.factories` | Boot 2.7 自动配置入口 |
-| `lippi-ai-ebus-common/pom.xml` | 增加 `spring-boot-starter-aop` + test 用 `spring-boot-starter-test`（若尚无） |
-| `lippi-ai-ebus-common/.../cas/CasRetryAspectTest.java` | 切面行为单测（Spring 上下文 + `@EnableAspectJAutoProxy`） |
-| `lippi-ai-ebus-application/.../credit/service/CreditCasWriter.java` | `@CasRetry` 单次尝试 |
-| `lippi-ai-ebus-application/.../credit/service/CreditApplicationService.java` | 编排 + 事务；删 for |
+| `forma-common/.../cas/CasRetry.java` | 方法级注解 |
+| `forma-common/.../cas/CasConflictException.java` | 可重试冲突信号 |
+| `forma-common/.../cas/CasRetryAspect.java` | Around 切面 |
+| `forma-common/.../cas/CasRetryAutoConfiguration.java` | 注册 Aspect Bean |
+| `forma-common/src/main/resources/META-INF/spring.factories` | Boot 2.7 自动配置入口 |
+| `forma-common/pom.xml` | 增加 `spring-boot-starter-aop` + test 用 `spring-boot-starter-test`（若尚无） |
+| `forma-common/.../cas/CasRetryAspectTest.java` | 切面行为单测（Spring 上下文 + `@EnableAspectJAutoProxy`） |
+| `forma-application/.../credit/service/CreditCasWriter.java` | `@CasRetry` 单次尝试 |
+| `forma-application/.../credit/service/CreditApplicationService.java` | 编排 + 事务；删 for |
 | `…/CreditApplicationServiceTest.java` | 改为 mock `CreditCasWriter` 或拆测 |
 | `…/CreditCasWriterTest.java` | 单次尝试：0 行抛 `CasConflictException` 等 |
 
@@ -42,10 +42,10 @@
 ### Task 1: common — 注解、异常、AOP 依赖
 
 **Files:**
-- Modify: `lippi-ai-ebus-common/pom.xml`
-- Create: `lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/cas/CasConflictException.java`
-- Create: `lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/cas/CasRetry.java`
-- Test: `lippi-ai-ebus-common/src/test/java/com/xmut/ebus/common/cas/CasConflictExceptionTest.java`（可选极简）
+- Modify: `forma-common/pom.xml`
+- Create: `forma-common/src/main/java/com/xmut/ebus/common/cas/CasConflictException.java`
+- Create: `forma-common/src/main/java/com/xmut/ebus/common/cas/CasRetry.java`
+- Test: `forma-common/src/test/java/com/xmut/ebus/common/cas/CasConflictExceptionTest.java`（可选极简）
 
 **Interfaces:**
 - Consumes: `com.xmut.ebus.common.exception.ErrorCode`
@@ -53,7 +53,7 @@
 
 - [ ] **Step 1: 在 pom 增加 AOP 依赖**
 
-在 `lippi-ai-ebus-common/pom.xml` 的 `<dependencies>` 中加入：
+在 `forma-common/pom.xml` 的 `<dependencies>` 中加入：
 
 ```xml
         <dependency>
@@ -118,15 +118,15 @@ public @interface CasRetry {
 
 - [ ] **Step 4: 编译 common**
 
-Run: `mvn -pl lippi-ai-ebus-common -am -DskipTests compile`  
+Run: `mvn -pl forma-common -am -DskipTests compile`  
 Expected: `BUILD SUCCESS`
 
 - [ ] **Step 5: Commit（仅当用户要求提交时）**
 
 ```bash
-git add lippi-ai-ebus-common/pom.xml \
-  lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/cas/CasConflictException.java \
-  lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/cas/CasRetry.java
+git add forma-common/pom.xml \
+  forma-common/src/main/java/com/xmut/ebus/common/cas/CasConflictException.java \
+  forma-common/src/main/java/com/xmut/ebus/common/cas/CasRetry.java
 git commit -m "$(cat <<'EOF'
 feat(common): add CasRetry annotation and CasConflictException
 
@@ -139,8 +139,8 @@ EOF
 ### Task 2: common — `CasRetryAspect`（TDD）
 
 **Files:**
-- Create: `lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/cas/CasRetryAspect.java`
-- Create: `lippi-ai-ebus-common/src/test/java/com/xmut/ebus/common/cas/CasRetryAspectTest.java`
+- Create: `forma-common/src/main/java/com/xmut/ebus/common/cas/CasRetryAspect.java`
+- Create: `forma-common/src/test/java/com/xmut/ebus/common/cas/CasRetryAspectTest.java`
 
 **Interfaces:**
 - Consumes: `@CasRetry`、`CasConflictException`、`BusinessException`、`ErrorCode`
@@ -247,7 +247,7 @@ class CasRetryAspectTest {
 
 - [ ] **Step 2: 跑测确认失败**
 
-Run: `mvn -pl lippi-ai-ebus-common -Dtest=CasRetryAspectTest test`  
+Run: `mvn -pl forma-common -Dtest=CasRetryAspectTest test`  
 Expected: 编译失败或找不到 `CasRetryAspect`
 
 - [ ] **Step 3: 实现 `CasRetryAspect`**
@@ -285,14 +285,14 @@ public class CasRetryAspect {
 
 - [ ] **Step 4: 跑测确认通过**
 
-Run: `mvn -pl lippi-ai-ebus-common -Dtest=CasRetryAspectTest test`  
+Run: `mvn -pl forma-common -Dtest=CasRetryAspectTest test`  
 Expected: `Tests run: 3, Failures: 0` / `BUILD SUCCESS`
 
 - [ ] **Step 5: Commit（仅当用户要求时）**
 
 ```bash
-git add lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/cas/CasRetryAspect.java \
-  lippi-ai-ebus-common/src/test/java/com/xmut/ebus/common/cas/CasRetryAspectTest.java
+git add forma-common/src/main/java/com/xmut/ebus/common/cas/CasRetryAspect.java \
+  forma-common/src/test/java/com/xmut/ebus/common/cas/CasRetryAspectTest.java
 git commit -m "$(cat <<'EOF'
 feat(common): add CasRetryAspect with unit tests
 
@@ -305,8 +305,8 @@ EOF
 ### Task 3: common — 自动配置
 
 **Files:**
-- Create: `lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/cas/CasRetryAutoConfiguration.java`
-- Create: `lippi-ai-ebus-common/src/main/resources/META-INF/spring.factories`
+- Create: `forma-common/src/main/java/com/xmut/ebus/common/cas/CasRetryAutoConfiguration.java`
+- Create: `forma-common/src/main/resources/META-INF/spring.factories`
 
 **Interfaces:**
 - Consumes: `CasRetryAspect`
@@ -336,7 +336,7 @@ public class CasRetryAutoConfiguration {
 
 - [ ] **Step 2: `spring.factories`**
 
-路径：`lippi-ai-ebus-common/src/main/resources/META-INF/spring.factories`
+路径：`forma-common/src/main/resources/META-INF/spring.factories`
 
 ```properties
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
@@ -345,14 +345,14 @@ com.xmut.ebus.common.cas.CasRetryAutoConfiguration
 
 - [ ] **Step 3: 编译**
 
-Run: `mvn -pl lippi-ai-ebus-common -am -DskipTests compile`  
+Run: `mvn -pl forma-common -am -DskipTests compile`  
 Expected: `BUILD SUCCESS`
 
 - [ ] **Step 4: Commit（仅当用户要求时）**
 
 ```bash
-git add lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/cas/CasRetryAutoConfiguration.java \
-  lippi-ai-ebus-common/src/main/resources/META-INF/spring.factories
+git add forma-common/src/main/java/com/xmut/ebus/common/cas/CasRetryAutoConfiguration.java \
+  forma-common/src/main/resources/META-INF/spring.factories
 git commit -m "$(cat <<'EOF'
 feat(common): auto-configure CasRetryAspect
 
@@ -365,10 +365,10 @@ EOF
 ### Task 4: `CreditCasWriter` + 改编排服务
 
 **Files:**
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/credit/service/CreditCasWriter.java`
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/credit/service/CreditApplicationService.java`
-- Create: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/credit/service/CreditCasWriterTest.java`
-- Modify: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/credit/service/CreditApplicationServiceTest.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/credit/service/CreditCasWriter.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/credit/service/CreditApplicationService.java`
+- Create: `forma-application/src/test/java/com/xmut/ebus/application/business/credit/service/CreditCasWriterTest.java`
+- Modify: `forma-application/src/test/java/com/xmut/ebus/application/business/credit/service/CreditApplicationServiceTest.java`
 
 **Interfaces:**
 - Consumes: repos、`Clock`、`ObjectProvider<CreditApplicationService>`（或 `@Lazy`）用于 `ensureReady`；`@CasRetry` / `CasConflictException`
@@ -472,7 +472,7 @@ public class CreditCasWriter {
 Run:
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -DfailIfNoTests=false \
+mvn -pl forma-application -am -DfailIfNoTests=false \
   -Dtest=CreditCasWriterTest,CreditApplicationServiceTest,CasRetryAspectTest,CreditPeriodSupportTest \
   test
 ```
@@ -482,9 +482,9 @@ Expected: `BUILD SUCCESS`，Failures: 0
 - [ ] **Step 6: Commit（仅当用户要求时）**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/credit/service/CreditCasWriter.java \
-  lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/credit/service/CreditApplicationService.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/credit/service/
+git add forma-application/src/main/java/com/xmut/ebus/application/business/credit/service/CreditCasWriter.java \
+  forma-application/src/main/java/com/xmut/ebus/application/business/credit/service/CreditApplicationService.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/credit/service/
 git commit -m "$(cat <<'EOF'
 refactor(credit): use @CasRetry via CreditCasWriter
 
@@ -503,7 +503,7 @@ EOF
 - [ ] **Step 1: 跑 Credit 集成测**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -DfailIfNoTests=false \
+mvn -pl forma-starter -am -DfailIfNoTests=false \
   -Dtest=CreditIntegrationTest,CreditRegisterRollbackIntegrationTest,CreditApplicationServiceTest,CreditCasWriterTest,CasRetryAspectTest \
   test
 ```
@@ -512,7 +512,7 @@ Expected: `BUILD SUCCESS`；日志中可见 `updateAddReserved` / `updateBalance
 
 - [ ] **Step 2: 确认无手写 CAS for**
 
-Run: `rg -n 'MAX_CAS_RETRIES|for \\(int attempt' --glob '*.java' lippi-ai-ebus-application`  
+Run: `rg -n 'MAX_CAS_RETRIES|for \\(int attempt' --glob '*.java' forma-application`  
 Expected: 无匹配（或仅注释）
 
 - [ ] **Step 3: 更新设计文档状态行**

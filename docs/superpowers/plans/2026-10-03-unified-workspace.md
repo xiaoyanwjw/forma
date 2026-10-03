@@ -20,7 +20,7 @@
 - 槽位：高亮与发送拦截统一 **`「…」`**（`hasPromptSlots`）  
 - 删除演示预览与 DEMO Computer 假数据路径  
 - 不改 SSE 事件名 / 积分账本；handoff 文案模板可留在 Spec `buildText`  
-- 测试命令在 `lippi-ai-ebus-web/`：`npm test -- --run <paths>`
+- 测试命令在 `forma-web/`：`npm test -- --run <paths>`
 
 ---
 
@@ -46,8 +46,8 @@
 ### Task 1: HITL → `useAgentSkillRun`
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/composables/agent/useAgentSkillRun.ts`
-- Create: `lippi-ai-ebus-web/src/composables/agent/useAgentSkillRun.test.ts`（若尚无）
+- Modify: `forma-web/src/composables/agent/useAgentSkillRun.ts`
+- Create: `forma-web/src/composables/agent/useAgentSkillRun.test.ts`（若尚无）
 - Modify: copy helpers from `useAgentListingRun.ts`（`toHumanInputRequired` / `parseAskHumanOptions` / `DEFAULT_ASK_OPTIONS`）
 
 **Interfaces:**
@@ -84,7 +84,7 @@ it('sets pendingHuman on human_input_required and clears on resume settle', asyn
 - [ ] **Step 2: Run test — expect FAIL**（缺 `pendingHuman` / `resumeSkillRun`）
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/composables/agent/useAgentSkillRun.test.ts
+cd forma-web && npm test -- --run src/composables/agent/useAgentSkillRun.test.ts
 ```
 
 - [ ] **Step 3: Implement HITL in `useAgentSkillRun`**
@@ -99,14 +99,14 @@ Port from `useAgentListingRun`:
 - [ ] **Step 4: Tests green**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/composables/agent/useAgentSkillRun.test.ts
+cd forma-web && npm test -- --run src/composables/agent/useAgentSkillRun.test.ts
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/composables/agent/useAgentSkillRun.ts \
-  lippi-ai-ebus-web/src/composables/agent/useAgentSkillRun.test.ts
+git add forma-web/src/composables/agent/useAgentSkillRun.ts \
+  forma-web/src/composables/agent/useAgentSkillRun.test.ts
 git commit -m "$(cat <<'EOF'
 feat(web): add HITL resume to useAgentSkillRun
 
@@ -120,8 +120,8 @@ EOF
 ### Task 2: Ecommerce listing/picklist → skill run only
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspace.vue`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspace.test.ts`（HITL 断言仍绿；可改 mock 为通用 `/runs` + skillId）
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspace.vue`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspace.test.ts`（HITL 断言仍绿；可改 mock 为通用 `/runs` + skillId）
 - Later delete: `useAgentListingRun.ts`, `useAgentPicklistRun.ts`（本 Task 末若无引用则删；`CREDITS_CHANGED_EVENT` 先挪到 `useAgentSkillRun.ts` 或 `agentCredits.ts`）
 
 **Interfaces:**
@@ -156,7 +156,7 @@ Remove `useAgentPicklistRun` / `useAgentListingRun` imports. Keep HITL UI bindin
 - [ ] **Step 3: Run ecommerce HITL + picklist send tests**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/views/business/scene/EcommerceWorkspace.test.ts
+cd forma-web && npm test -- --run src/views/business/scene/EcommerceWorkspace.test.ts
 ```
 
 - [ ] **Step 4: Delete unused listing/picklist composables** if grep shows no imports; move `CREDITS_CHANGED_EVENT` export to skill-run module and fix imports
@@ -216,7 +216,7 @@ function itemBadge(item: { badge?: string; title: string }): string | undefined 
 - [ ] **Step 3: Tests green**（computer + xhs workspace）
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run \
+cd forma-web && npm test -- --run \
   src/components/business/computer/ComputerRenderer.test.ts \
   src/views/business/scene/XiaohongshuWorkspace.test.ts
 ```
@@ -237,11 +237,11 @@ EOF
 ### Task 4: `SceneWorkspaceSpec` + registry
 
 **Files:**
-- Create: `lippi-ai-ebus-web/src/views/business/scene/workspace/types.ts`
-- Create: `lippi-ai-ebus-web/src/views/business/scene/ecommerce/spec.ts`
-- Create: `lippi-ai-ebus-web/src/views/business/scene/xiaohongshu/spec.ts`
-- Create: `lippi-ai-ebus-web/src/views/business/scene/workspace/registry.ts`
-- Create: `lippi-ai-ebus-web/src/views/business/scene/workspace/registry.test.ts`
+- Create: `forma-web/src/views/business/scene/workspace/types.ts`
+- Create: `forma-web/src/views/business/scene/ecommerce/spec.ts`
+- Create: `forma-web/src/views/business/scene/xiaohongshu/spec.ts`
+- Create: `forma-web/src/views/business/scene/workspace/registry.ts`
+- Create: `forma-web/src/views/business/scene/workspace/registry.test.ts`
 - Reuse handoff builders: `utils/listingHandoff.ts`, `utils/xhsNoteHandoff.ts`
 
 **Interfaces:**
@@ -303,7 +303,7 @@ Workspace wires toolbar using those constants + builder.
 - [ ] **Step 3: Tests green + commit**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/views/business/scene/workspace/registry.test.ts
+cd forma-web && npm test -- --run src/views/business/scene/workspace/registry.test.ts
 git commit -m "$(cat <<'EOF'
 feat(web): add SceneWorkspaceSpec registry for ecommerce and xhs
 
@@ -317,9 +317,9 @@ EOF
 ### Task 5: Unified `Workspace.vue` + router
 
 **Files:**
-- Create: `lippi-ai-ebus-web/src/views/business/scene/Workspace.vue`
-- Create: `lippi-ai-ebus-web/src/views/business/scene/Workspace.test.ts`（先迁 2–3 个冒烟：胶囊选中带 skillId、空选无 skillId、listing HITL 或 xhs topic send）
-- Modify: `lippi-ai-ebus-web/src/router/index.ts`, `router/index.test.ts`
+- Create: `forma-web/src/views/business/scene/Workspace.vue`
+- Create: `forma-web/src/views/business/scene/Workspace.test.ts`（先迁 2–3 个冒烟：胶囊选中带 skillId、空选无 skillId、listing HITL 或 xhs topic send）
+- Modify: `forma-web/src/router/index.ts`, `router/index.test.ts`
 - Modify: delete demo buttons / DEMO view fallbacks（不要再 `return DEMO_*_VIEW`）
 
 **Interfaces:**
@@ -396,7 +396,7 @@ async function mountWorkspace(sceneCode: 'ecommerce' | 'xiaohongshu') {
 - [ ] **Step 2: Full related suite green**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run \
+cd forma-web && npm test -- --run \
   src/views/business/scene/ \
   src/composables/agent/useAgentSkillRun.test.ts \
   src/components/business/computer/ComputerRenderer.test.ts \
@@ -406,7 +406,7 @@ cd lippi-ai-ebus-web && npm test -- --run \
 - [ ] **Step 3: Grep gate**
 
 ```bash
-cd lippi-ai-ebus-web && rg -n "priorityBadgeLabel|useAgentListingRun|useAgentPicklistRun|detectXhsKind|isPicklistIntent|isListingIntent|EcommerceWorkspace|XiaohongshuWorkspace|data-demo=\"open-" src || true
+cd forma-web && rg -n "priorityBadgeLabel|useAgentListingRun|useAgentPicklistRun|detectXhsKind|isPicklistIntent|isListingIntent|EcommerceWorkspace|XiaohongshuWorkspace|data-demo=\"open-" src || true
 ```
 
 Expected: no hits in `src/`（测试名字符串除外）
@@ -429,8 +429,8 @@ EOF
 - [ ] **Step 1: Run focused suite + type-check**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/views/business/scene/ src/composables/agent/useAgentSkillRun.test.ts src/components/business/computer/ComputerRenderer.test.ts src/router/index.test.ts
-cd lippi-ai-ebus-web && npm run type-check
+cd forma-web && npm test -- --run src/views/business/scene/ src/composables/agent/useAgentSkillRun.test.ts src/components/business/computer/ComputerRenderer.test.ts src/router/index.test.ts
+cd forma-web && npm run type-check
 ```
 
 Expected: all green

@@ -21,12 +21,12 @@
 
 | 路径 | 职责 |
 |------|------|
-| `lippi-ai-ebus-application/.../computer/ComputerDocuments.java`（或 `dto/computer/`） | 不可变 view DTO + 序列化为 `Map` |
+| `forma-application/.../computer/ComputerDocuments.java`（或 `dto/computer/`） | 不可变 view DTO + 序列化为 `Map` |
 | `.../picklist/support/PicklistViewProjector.java` | `PicklistArtifactDTO` → `ComputerDocument` |
 | `.../agent/service/AgentApplicationService.java` | `toArtifactReady` 挂 `view` |
 | `.../PicklistViewProjectorTest.java` | 投影快照 |
 | `.../AgentApplicationServiceTest.java` | `artifact_ready` 含 `view` |
-| `lippi-ai-ebus-web/src/types/business/computerView.ts` | TS 协议类型 + `parseComputerDocument` |
+| `forma-web/src/types/business/computerView.ts` | TS 协议类型 + `parseComputerDocument` |
 | `.../components/business/computer/ComputerRenderer.vue` | 块分发 |
 | `.../computer/blocks/ComputerNoteBlock.vue` 等（可内联同目录） | 四块 UI |
 | `.../scene/ecommerceDemoFixtures.ts` | `DEMO_LISTING_VIEW` |
@@ -39,10 +39,10 @@
 ### Task 1: Backend ComputerDocument + PicklistViewProjector
 
 **Files:**
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/computer/ComputerDocument.java`
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/computer/ComputerBlock.java`（可用静态工厂 + `Map` 避免深层 Jackson 多态折腾；或简单 POJO + `toMap()`）
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/picklist/support/PicklistViewProjector.java`
-- Test: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/picklist/support/PicklistViewProjectorTest.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/computer/ComputerDocument.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/computer/ComputerBlock.java`（可用静态工厂 + `Map` 避免深层 Jackson 多态折腾；或简单 POJO + `toMap()`）
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/picklist/support/PicklistViewProjector.java`
+- Test: `forma-application/src/test/java/com/xmut/ebus/application/business/picklist/support/PicklistViewProjectorTest.java`
 
 **Interfaces:**
 - Consumes: `PicklistArtifactDTO`（已有）
@@ -97,7 +97,7 @@ void projectsDisclaimerAssumptionsPriorityAndDims() {
 
 - [ ] **Step 2: Run test — expect FAIL**
 
-Run: `mvn -pl lippi-ai-ebus-application -am test -Dtest=PicklistViewProjectorTest -DfailIfNoTests=false`  
+Run: `mvn -pl forma-application -am test -Dtest=PicklistViewProjectorTest -DfailIfNoTests=false`  
 Expected: 编译失败或测试找不到 `PicklistViewProjector`
 
 - [ ] **Step 3: Implement projector**
@@ -121,8 +121,8 @@ Expected: BUILD SUCCESS / tests pass
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/picklist/support/PicklistViewProjector.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/picklist/support/PicklistViewProjectorTest.java
+git add forma-application/src/main/java/com/xmut/ebus/application/business/picklist/support/PicklistViewProjector.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/picklist/support/PicklistViewProjectorTest.java
 git commit -m "feat(picklist): project ComputerDocument view from artifact"
 ```
 
@@ -131,8 +131,8 @@ git commit -m "feat(picklist): project ComputerDocument view from artifact"
 ### Task 2: Wire view into artifact_ready
 
 **Files:**
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/service/AgentApplicationService.java`（`toArtifactReady` ~591–616；构造器注入 `PicklistViewProjector`）
-- Modify: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/service/AgentApplicationServiceTest.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/service/AgentApplicationService.java`（`toArtifactReady` ~591–616；构造器注入 `PicklistViewProjector`）
+- Modify: `forma-application/src/test/java/com/xmut/ebus/application/business/agent/service/AgentApplicationServiceTest.java`
 
 **Interfaces:**
 - Consumes: `PicklistViewProjector#project`
@@ -157,7 +157,7 @@ assertEquals("选品清单", view.get("title"));
 
 - [ ] **Step 2: Run test — expect FAIL**（无 view 字段）
 
-Run: `mvn -pl lippi-ai-ebus-application -am test -Dtest=AgentApplicationServiceTest#streamPicklistRunSettlesOnUsableArtifact -DfailIfNoTests=false`
+Run: `mvn -pl forma-application -am test -Dtest=AgentApplicationServiceTest#streamPicklistRunSettlesOnUsableArtifact -DfailIfNoTests=false`
 
 - [ ] **Step 3: Implement wiring**
 
@@ -173,8 +173,8 @@ Spring：若当前用手写 `@Bean`/构造注入，同步改配置或仅构造�
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/service/AgentApplicationService.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/service/AgentApplicationServiceTest.java
+git add forma-application/src/main/java/com/xmut/ebus/application/business/agent/service/AgentApplicationService.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent/service/AgentApplicationServiceTest.java
 git commit -m "feat(agent): attach ComputerDocument view on picklist artifact_ready"
 ```
 
@@ -183,9 +183,9 @@ git commit -m "feat(agent): attach ComputerDocument view on picklist artifact_re
 ### Task 3: FE computerView types + ComputerRenderer
 
 **Files:**
-- Create: `lippi-ai-ebus-web/src/types/business/computerView.ts`
-- Create: `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.vue`
-- Create: `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.test.ts`
+- Create: `forma-web/src/types/business/computerView.ts`
+- Create: `forma-web/src/components/business/computer/ComputerRenderer.vue`
+- Create: `forma-web/src/components/business/computer/ComputerRenderer.test.ts`
 
 **Interfaces:**
 - Produces: `ComputerDocument`, `parseComputerDocument(raw: unknown): ComputerDocument | null`, `<ComputerRenderer :document="doc" />`
@@ -240,7 +240,7 @@ describe('ComputerRenderer', () => {
 
 - [ ] **Step 2: Run — FAIL**
 
-Run: `cd lippi-ai-ebus-web && npm test -- --run src/components/business/computer/ComputerRenderer.test.ts`
+Run: `cd forma-web && npm test -- --run src/components/business/computer/ComputerRenderer.test.ts`
 
 - [ ] **Step 3: Implement types + renderer**
 
@@ -257,8 +257,8 @@ Run: `cd lippi-ai-ebus-web && npm test -- --run src/components/business/computer
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/types/business/computerView.ts \
-  lippi-ai-ebus-web/src/components/business/computer/
+git add forma-web/src/types/business/computerView.ts \
+  forma-web/src/components/business/computer/
 git commit -m "feat(web): add ComputerRenderer for view protocol blocks"
 ```
 
@@ -267,9 +267,9 @@ git commit -m "feat(web): add ComputerRenderer for view protocol blocks"
 ### Task 4: Listing demo fixture as ComputerDocument
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/ecommerceDemoFixtures.ts`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts`
+- Modify: `forma-web/src/views/business/scene/ecommerceDemoFixtures.ts`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts`
 
 **Interfaces:**
 - Produces: `DEMO_LISTING_VIEW: ComputerDocument`；工作台 `computerDocument` computed
@@ -331,9 +331,9 @@ const activeComputerDoc = computed(() => {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/views/business/scene/ecommerceDemoFixtures.ts \
-  lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
-  lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
+git add forma-web/src/views/business/scene/ecommerceDemoFixtures.ts \
+  forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
+  forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
 git commit -m "feat(web): render listing demo via ComputerDocument fixture"
 ```
 
@@ -342,8 +342,8 @@ git commit -m "feat(web): render listing demo via ComputerDocument fixture"
 ### Task 5: Parse artifact view + picklist Computer on view
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/types/business/agent.ts` — `PicklistArtifactPayload.view?: ComputerDocument`
-- Modify: `lippi-ai-ebus-web/src/composables/agent/useAgentPicklistRun.ts` — `toPicklistArtifact` 解析 view
+- Modify: `forma-web/src/types/business/agent.ts` — `PicklistArtifactPayload.view?: ComputerDocument`
+- Modify: `forma-web/src/composables/agent/useAgentPicklistRun.ts` — `toPicklistArtifact` 解析 view
 - Modify: `EcommerceWorkspacePlaceholder.vue` / `.test.ts` — SSE mock 带 `view`；断言 Renderer 内容 / 无旧 `.pick-list` 手写结构（若 class 迁到 Renderer 内可断言文案）
 
 **Interfaces:**
@@ -396,10 +396,10 @@ if (livePicklist.value?.view) return livePicklist.value.view
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/types/business/agent.ts \
-  lippi-ai-ebus-web/src/composables/agent/useAgentPicklistRun.ts \
-  lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
-  lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
+git add forma-web/src/types/business/agent.ts \
+  forma-web/src/composables/agent/useAgentPicklistRun.ts \
+  forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
+  forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
 git commit -m "feat(web): consume artifact_ready.view in ecommerce Computer"
 ```
 
@@ -409,12 +409,12 @@ git commit -m "feat(web): consume artifact_ready.view in ecommerce Computer"
 
 - [ ] **Step 1: Backend**
 
-Run: `mvn -pl lippi-ai-ebus-application -am test -Dtest=PicklistViewProjectorTest,AgentApplicationServiceTest -DfailIfNoTests=false`  
+Run: `mvn -pl forma-application -am test -Dtest=PicklistViewProjectorTest,AgentApplicationServiceTest -DfailIfNoTests=false`  
 Expected: SUCCESS
 
 - [ ] **Step 2: Frontend**
 
-Run: `cd lippi-ai-ebus-web && npm test -- --run src/components/business/computer src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts && npm run lint`  
+Run: `cd forma-web && npm test -- --run src/components/business/computer src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts && npm run lint`  
 Expected: 全绿
 
 - [ ] **Step 3: Manual smoke（可选）**  

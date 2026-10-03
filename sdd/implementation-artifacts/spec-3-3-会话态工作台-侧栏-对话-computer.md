@@ -55,12 +55,12 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` + `.test.ts` — 2.5 空态；本故事扩展空态↔会话态，或抽会话子组件同路由
-- `lippi-ai-ebus-web/src/components/layout/AppHeader.vue` — 复用 `sceneBreadcrumb`；勿改全站顶栏契约
-- `lippi-ai-ebus-web/src/styles/tokens.css` — 已有 `--sidebar-w` 等；会话壳样式对齐 `manus-chat.css`
+- `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` + `.test.ts` — 2.5 空态；本故事扩展空态↔会话态，或抽会话子组件同路由
+- `forma-web/src/components/layout/AppHeader.vue` — 复用 `sceneBreadcrumb`；勿改全站顶栏契约
+- `forma-web/src/styles/tokens.css` — 已有 `--sidebar-w` 等；会话壳样式对齐 `manus-chat.css`
 - `sdd/.../mockups/scene-ecommerce.html` + `manus-chat.css` — `#session` / `.sidebar` / `.chat-pane` / `.computer` / `.workspace.split` 结构与断点金样
-- `lippi-ai-ebus-web/src/types/business/agent.ts` + `api/business/agent/agent.ts` + `composables/useAgentEmptyRun.ts` — **本故事不接线**；留给 3.4+
-- `lippi-ai-ebus-web/src/views/business/agent/AgentDryRun.vue` — 干跑页可留；勿把生产壳绑死 dry-run
+- `forma-web/src/types/business/agent.ts` + `api/business/agent/agent.ts` + `composables/useAgentEmptyRun.ts` — **本故事不接线**；留给 3.4+
+- `forma-web/src/views/business/agent/AgentDryRun.vue` — 干跑页可留；勿把生产壳绑死 dry-run
 - **勿改：** `AgentController` / `AgentApplicationService`；`CreditLedger`；画廊/`SceneCatalog`；`HistoryPlaceholder`（3.8）
 
 ## Tasks & Acceptance
@@ -119,8 +119,8 @@ context:
 ## Verification
 
 **Commands:**
-- `cd lippi-ai-ebus-web && npm run lint` -- 无新增 lint 错误
-- `cd lippi-ai-ebus-web && npm test -- EcommerceWorkspace` -- 会话壳相关单测绿
+- `cd forma-web && npm run lint` -- 无新增 lint 错误
+- `cd forma-web && npm test -- EcommerceWorkspace` -- 会话壳相关单测绿
 
 **Manual checks:**
 - 桌面：空态→会话→演示打开/关闭 Computer→新任务回空态；窄屏：侧栏收起后对话仍可读

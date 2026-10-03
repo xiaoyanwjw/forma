@@ -25,7 +25,7 @@
 | Path | Role |
 |------|------|
 | `APP-META/bootstrap/sql/010_ebus_artifact.sql` | Replace former `010_ebus_picklist.sql` |
-| `lippi-ai-ebus-starter/src/test/resources/schema-h2.sql` | H2 DDL for artifact |
+| `forma-starter/src/test/resources/schema-h2.sql` | H2 DDL for artifact |
 | `domain/.../artifact/model/Artifact.java` | Aggregate |
 | `domain/.../artifact/model/ArtifactType.java` | Enum `PICKLIST("picklist")`, `SKU("sku")` |
 | `domain/.../artifact/repository/ArtifactRepository.java` | Port |
@@ -45,7 +45,7 @@
 **Files:**
 - Create: `APP-META/bootstrap/sql/010_ebus_artifact.sql`
 - Delete: `APP-META/bootstrap/sql/010_ebus_picklist.sql`
-- Modify: `lippi-ai-ebus-starter/src/test/resources/schema-h2.sql` (replace picklist tables)
+- Modify: `forma-starter/src/test/resources/schema-h2.sql` (replace picklist tables)
 
 **Interfaces:**
 - Produces: MySQL + H2 DDL matching spec columns
@@ -105,7 +105,7 @@ CREATE INDEX IF NOT EXISTS idx_ebus_artifact_user_type ON ebus_artifact (user_id
 ```bash
 git add APP-META/bootstrap/sql/010_ebus_artifact.sql \
   APP-META/bootstrap/sql/010_ebus_picklist.sql \
-  lippi-ai-ebus-starter/src/test/resources/schema-h2.sql
+  forma-starter/src/test/resources/schema-h2.sql
 git commit -m "chore(db): replace picklist tables with ebus_artifact"
 ```
 
@@ -114,15 +114,15 @@ git commit -m "chore(db): replace picklist tables with ebus_artifact"
 ### Task 2: Domain Artifact + repository port
 
 **Files:**
-- Create: `lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/artifact/model/ArtifactType.java`
-- Create: `lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/artifact/model/Artifact.java`
-- Create: `lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/artifact/repository/ArtifactRepository.java`
-- Test: `lippi-ai-ebus-domain/src/test/java/com/xmut/ebus/domain/business/artifact/model/ArtifactTypeTest.java` (or application-module unit if domain has no test module — prefer create under `lippi-ai-ebus-application/.../ArtifactTypeTest` only if domain lacks tests; check: use `lippi-ai-ebus-domain` test if exists, else put enum assert in Task 3)
+- Create: `forma-domain/src/main/java/com/xmut/ebus/domain/business/artifact/model/ArtifactType.java`
+- Create: `forma-domain/src/main/java/com/xmut/ebus/domain/business/artifact/model/Artifact.java`
+- Create: `forma-domain/src/main/java/com/xmut/ebus/domain/business/artifact/repository/ArtifactRepository.java`
+- Test: `forma-domain/src/test/java/com/xmut/ebus/domain/business/artifact/model/ArtifactTypeTest.java` (or application-module unit if domain has no test module — prefer create under `forma-application/.../ArtifactTypeTest` only if domain lacks tests; check: use `forma-domain` test if exists, else put enum assert in Task 3)
 
 **Interfaces:**
 - Produces: `ArtifactType.fromCode(String)`, `Artifact.create(...)`, `ArtifactRepository.save/findById/findByRunId`
 
-- [ ] **Step 1: Write failing enum test** (place in `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/domain/artifact/ArtifactTypeTest.java` if domain has no test sources — first check `lippi-ai-ebus-domain/src/test`; if missing, create domain test dir)
+- [ ] **Step 1: Write failing enum test** (place in `forma-application/src/test/java/com/xmut/ebus/domain/artifact/ArtifactTypeTest.java` if domain has no test sources — first check `forma-domain/src/test`; if missing, create domain test dir)
 
 ```java
 @Test
@@ -136,8 +136,8 @@ void codes_are_picklist_and_sku() {
 
 - [ ] **Step 2: Run — expect FAIL** (class missing)
 
-Run: `mvn -pl lippi-ai-ebus-domain -am test -Dtest=ArtifactTypeTest -DfailIfNoTests=false`  
-(If test lives in application module, `-pl lippi-ai-ebus-application`)
+Run: `mvn -pl forma-domain -am test -Dtest=ArtifactTypeTest -DfailIfNoTests=false`  
+(If test lives in application module, `-pl forma-application`)
 
 - [ ] **Step 3: Implement types + aggregate + port**
 
@@ -193,7 +193,7 @@ git commit -m "feat(artifact): add Artifact domain and repository port"
 - Create: `…/resources/mybatis/mapper/ArtifactMapper.xml`
 - Create: `…/repository/business/artifact/ArtifactRepositoryImpl.java`
 - Delete: PicklistMapper.java/xml, PicklistPO, PicklistItemPO, PicklistRepositoryImpl, domain Picklist/PicklistItem/PicklistRepository
-- Test: rewrite `lippi-ai-ebus-starter/src/test/java/com/xmut/ebus/PicklistRepositoryIntegrationTest.java` → `ArtifactRepositoryIntegrationTest.java`
+- Test: rewrite `forma-starter/src/test/java/com/xmut/ebus/PicklistRepositoryIntegrationTest.java` → `ArtifactRepositoryIntegrationTest.java`
 
 **Interfaces:**
 - Consumes: `ArtifactRepository`
@@ -236,7 +236,7 @@ class ArtifactRepositoryIntegrationTest {
 
 - [ ] **Step 2: Run — expect FAIL** (missing bean / table)
 
-Run: `mvn -pl lippi-ai-ebus-starter -am test -Dtest=ArtifactRepositoryIntegrationTest -DfailIfNoTests=false`
+Run: `mvn -pl forma-starter -am test -Dtest=ArtifactRepositoryIntegrationTest -DfailIfNoTests=false`
 
 - [ ] **Step 3: Implement Mapper + Impl** (mirror PicklistMapper style)
 
@@ -306,7 +306,7 @@ void persistUsableSavesPicklistArtifact() throws Exception {
 
 - [ ] **Step 2: Run — FAIL** (API mismatch)
 
-Run: `mvn -pl lippi-ai-ebus-application -am test -Dtest=PicklistApplicationServiceTest -DfailIfNoTests=false`
+Run: `mvn -pl forma-application -am test -Dtest=PicklistApplicationServiceTest -DfailIfNoTests=false`
 
 - [ ] **Step 3: Implement persistUsable**
 
@@ -351,8 +351,8 @@ PersistPicklistCommand persistCommand = PersistPicklistCommand.builder()
 - [ ] **Step 5: Run**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am test -Dtest=PicklistApplicationServiceTest,AgentApplicationServiceTest,PicklistViewProjectorTest,PicklistArtifactParserTest -DfailIfNoTests=false
-mvn -pl lippi-ai-ebus-starter -am test -Dtest=ArtifactRepositoryIntegrationTest,AgentPicklistRunIntegrationTest -DfailIfNoTests=false
+mvn -pl forma-application -am test -Dtest=PicklistApplicationServiceTest,AgentApplicationServiceTest,PicklistViewProjectorTest,PicklistArtifactParserTest -DfailIfNoTests=false
+mvn -pl forma-starter -am test -Dtest=ArtifactRepositoryIntegrationTest,AgentPicklistRunIntegrationTest -DfailIfNoTests=false
 ```
 
 Expected: SUCCESS
@@ -387,7 +387,7 @@ ER diagram: `GenerationRun ||--o| Artifact` instead of Picklist/ListingPack tabl
 - [ ] **Step 2: Full verification**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am test
+mvn -pl forma-starter -am test
 ```
 
 Expected: BUILD SUCCESS

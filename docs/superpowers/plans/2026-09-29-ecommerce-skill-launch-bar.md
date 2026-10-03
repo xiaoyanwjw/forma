@@ -4,9 +4,9 @@
 
 **Goal:** 让电商 Pack（选品 → 点候选硬交接 → Listing 策划/确认/执行）达到可上线：功能红线过关，Skill 按业界作者实践做质量打磨，并用人工 scorecard 放行。
 
-**Architecture:** 权威 Skill 在 `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/`；FE 在 Computer 选品 list 上增加「做上架素材」，用 `view.list.items[].id` + 标题/原链组装 listing 提示词并同 `sessionId` 调 `streamListingRun`；Skill 侧补 item id、handoff 必填与质量原则/好坏对照；eval 文档支撑人工放行。不改积分账本语义、不接生图/上架 API、不做 CI 自动评模型。
+**Architecture:** 权威 Skill 在 `forma-starter/src/main/resources/scenes/ecommerce/`；FE 在 Computer 选品 list 上增加「做上架素材」，用 `view.list.items[].id` + 标题/原链组装 listing 提示词并同 `sessionId` 调 `streamListingRun`；Skill 侧补 item id、handoff 必填与质量原则/好坏对照；eval 文档支撑人工放行。不改积分账本语义、不接生图/上架 API、不做 CI 自动评模型。
 
-**Tech Stack:** Vue3 / Vitest（`lippi-ai-ebus-web`）、Java 8 / Spring Boot 2.7（Pack 由 starter classpath 注册）、Markdown Skill / references
+**Tech Stack:** Vue3 / Vitest（`forma-web`）、Java 8 / Spring Boot 2.7（Pack 由 starter classpath 注册）、Markdown Skill / references
 
 ## Global Constraints
 
@@ -14,9 +14,9 @@
 - 黄金路径：同会话选品 → 点候选 → skulist 策划 → ask_human → 执行；禁止用手打商品名「作弊」验收 H1
 - Open points 钉死：`items[].id` = `pl-1` 顺序号；交接缺字段 **FE 主拦 + skill Verification 双保险**；按钮文案 **做上架素材**；质量对照例先放 `output.md`，过长再拆 `quality.md`
 - `artifact_ready` 仅 `view` + `artifactRef` → **list item 必须带 `id`**（与 artifact `items[].id` 同值），FE 才能交接
-- Skill 权威副本：`lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/**`；改完后 **同步**  
-  `lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/**` 与  
-  `lippi-pi-agent/src/test/resources/scenes/ecommerce/**`
+- Skill 权威副本：`forma-starter/src/main/resources/scenes/ecommerce/**`；改完后 **同步**  
+  `forma-application/src/test/resources/scenes/ecommerce/**` 与  
+  `pi-agent/src/test/resources/scenes/ecommerce/**`
 - 质量层：遵循 spec §6.0（concise、progressive disclosure、自由度匹配、好坏对照）；禁止把 SKILL.md 堆成百科
 - P/H/Q 红线不可豁免；不引入自动 Eval Harness
 
@@ -24,10 +24,10 @@
 
 | Path | Responsibility |
 |------|----------------|
-| `lippi-ai-ebus-web/src/types/business/computerView.ts` | `ComputerListItem.id?` 解析 |
-| `lippi-ai-ebus-web/src/utils/listingHandoff.ts` | 组装 listing 提示词；缺字段返回 null |
-| `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.vue` | list 行「做上架素材」；emit handoff |
-| `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` | 接 emit → 同 session `streamListingRun` |
+| `forma-web/src/types/business/computerView.ts` | `ComputerListItem.id?` 解析 |
+| `forma-web/src/utils/listingHandoff.ts` | 组装 listing 提示词；缺字段返回 null |
+| `forma-web/src/components/business/computer/ComputerRenderer.vue` | list 行「做上架素材」；emit handoff |
+| `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` | 接 emit → 同 session `streamListingRun` |
 | `.../ecommerce-picklist/SKILL.md` + `references/output.md` | id + 质量原则 + 好坏例 |
 | `.../ecommerce-skulist/SKILL.md` + `references/output.md` | handoff + 质量原则 + 好坏例 |
 | `docs/superpowers/evals/ecommerce-launch/{cases,scorecard,RELEASE}.md` | 人工评测与放行 |
@@ -48,10 +48,10 @@
 ### Task 1: FE — `listingHandoff` 纯函数 + list `id` 类型
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/types/business/computerView.ts`
-- Create: `lippi-ai-ebus-web/src/utils/listingHandoff.ts`
-- Create: `lippi-ai-ebus-web/src/utils/listingHandoff.test.ts`
-- Modify: `lippi-ai-ebus-web/src/types/business/computerView.ts`（parse list item `id`；若已有 parse 测则扩 `ComputerRenderer.test.ts` 或 computerView 测）
+- Modify: `forma-web/src/types/business/computerView.ts`
+- Create: `forma-web/src/utils/listingHandoff.ts`
+- Create: `forma-web/src/utils/listingHandoff.test.ts`
+- Modify: `forma-web/src/types/business/computerView.ts`（parse list item `id`；若已有 parse 测则扩 `ComputerRenderer.test.ts` 或 computerView 测）
 
 **Interfaces:**
 - Produces:
@@ -108,7 +108,7 @@ describe('buildListingHandoffText', () => {
 - [ ] **Step 2: Run 确认失败**
 
 ```bash
-cd lippi-ai-ebus-web && npx vitest run src/utils/listingHandoff.test.ts
+cd forma-web && npx vitest run src/utils/listingHandoff.test.ts
 ```
 
 Expected: FAIL module not found / function missing
@@ -153,7 +153,7 @@ export function buildListingHandoffText(input: ListingHandoffInput): string | nu
 - [ ] **Step 4: Run 确认通过**
 
 ```bash
-cd lippi-ai-ebus-web && npx vitest run src/utils/listingHandoff.test.ts
+cd forma-web && npx vitest run src/utils/listingHandoff.test.ts
 ```
 
 Expected: PASS
@@ -161,9 +161,9 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/utils/listingHandoff.ts \
-  lippi-ai-ebus-web/src/utils/listingHandoff.test.ts \
-  lippi-ai-ebus-web/src/types/business/computerView.ts
+git add forma-web/src/utils/listingHandoff.ts \
+  forma-web/src/utils/listingHandoff.test.ts \
+  forma-web/src/types/business/computerView.ts
 git commit -m "$(cat <<'EOF'
 feat(web): add listing handoff text builder and list item id
 
@@ -176,8 +176,8 @@ EOF
 ### Task 2: FE — ComputerRenderer 选品行「做上架素材」
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.vue`
-- Modify: `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.test.ts`
+- Modify: `forma-web/src/components/business/computer/ComputerRenderer.vue`
+- Modify: `forma-web/src/components/business/computer/ComputerRenderer.test.ts`
 
 **Interfaces:**
 - Consumes: `buildListingHandoffText`, `lineTextByKind`
@@ -192,7 +192,7 @@ EOF
 - [ ] **Step 2: Run 确认失败**
 
 ```bash
-cd lippi-ai-ebus-web && npx vitest run src/components/business/computer/ComputerRenderer.test.ts
+cd forma-web && npx vitest run src/components/business/computer/ComputerRenderer.test.ts
 ```
 
 Expected: FAIL（无按钮 / 无 emit）
@@ -238,7 +238,7 @@ function emitHandoff(item: ComputerListItem) {
 - [ ] **Step 4: Run 确认通过**
 
 ```bash
-cd lippi-ai-ebus-web && npx vitest run src/components/business/computer/ComputerRenderer.test.ts
+cd forma-web && npx vitest run src/components/business/computer/ComputerRenderer.test.ts
 ```
 
 Expected: PASS
@@ -246,8 +246,8 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.vue \
-  lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.test.ts
+git add forma-web/src/components/business/computer/ComputerRenderer.vue \
+  forma-web/src/components/business/computer/ComputerRenderer.test.ts
 git commit -m "$(cat <<'EOF'
 feat(web): add picklist listing-handoff button on Computer list
 
@@ -260,8 +260,8 @@ EOF
 ### Task 3: FE — 工作台同 session 发起 skulist
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts`
 
 **Interfaces:**
 - Consumes: Computer `@listing-handoff`；现有 `useAgentListingRun` / 启动 listing 的同一路径（与胶囊「生成上架素材」发送等价，但 text 来自 handoff）
@@ -276,7 +276,7 @@ EOF
 - [ ] **Step 2: Run 确认失败**
 
 ```bash
-cd lippi-ai-ebus-web && npx vitest run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
+cd forma-web && npx vitest run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
 ```
 
 Expected: FAIL（无 handoff 路径）
@@ -307,7 +307,7 @@ async function onListingHandoff(payload: { text: string }) {
 - [ ] **Step 4: Run 相关测通过**
 
 ```bash
-cd lippi-ai-ebus-web && npx vitest run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts src/utils/listingHandoff.test.ts src/components/business/computer/ComputerRenderer.test.ts
+cd forma-web && npx vitest run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts src/utils/listingHandoff.test.ts src/components/business/computer/ComputerRenderer.test.ts
 ```
 
 Expected: PASS
@@ -315,8 +315,8 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
-  lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
+git add forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
+  forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
 git commit -m "$(cat <<'EOF'
 feat(web): wire picklist item handoff into same-session listing run
 
@@ -329,8 +329,8 @@ EOF
 ### Task 4: Pack — `ecommerce-picklist` 功能 id + 质量层
 
 **Files:**
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/references/output.md`
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/references/output.md`
 - Sync copies after edit（Task 6 可合并；本任务先改 starter）
 
 **Interfaces:**
@@ -376,7 +376,7 @@ EOF
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist
+git add forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist
 git commit -m "$(cat <<'EOF'
 feat(pack): raise ecommerce-picklist with item ids and quality bar
 
@@ -389,8 +389,8 @@ EOF
 ### Task 5: Pack — `ecommerce-skulist` handoff + 质量层
 
 **Files:**
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md`
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/references/output.md`
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md`
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/references/output.md`
 
 **Interfaces:**
 - Produces: Handoff 段；用户消息含「原链」或「来源选品条目」时 `picklistItemId` **必填**且与输入一致  
@@ -422,7 +422,7 @@ EOF
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist
+git add forma-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist
 git commit -m "$(cat <<'EOF'
 feat(pack): add skulist handoff contract and listing quality bar
 
@@ -436,22 +436,22 @@ EOF
 
 **Files:**
 - Sync:  
-  `lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/**`  
-  `lippi-pi-agent/src/test/resources/scenes/ecommerce/**`  
+  `forma-application/src/test/resources/scenes/ecommerce/**`  
+  `pi-agent/src/test/resources/scenes/ecommerce/**`  
   ← 与 starter 权威目录内容一致
 
 - [ ] **Step 1: 同步**
 
 ```bash
 rsync -a --delete \
-  lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ \
-  lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/
+  forma-starter/src/main/resources/scenes/ecommerce/ \
+  forma-application/src/test/resources/scenes/ecommerce/
 rsync -a --delete \
-  lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ \
-  lippi-pi-agent/src/test/resources/scenes/ecommerce/
+  forma-starter/src/main/resources/scenes/ecommerce/ \
+  pi-agent/src/test/resources/scenes/ecommerce/
 diff -qr \
-  lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce \
-  lippi-ai-ebus-application/src/test/resources/scenes/ecommerce
+  forma-starter/src/main/resources/scenes/ecommerce \
+  forma-application/src/test/resources/scenes/ecommerce
 ```
 
 Expected: no differences
@@ -459,7 +459,7 @@ Expected: no differences
 - [ ] **Step 2: 跑相关后端测**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -Dtest=SceneCapabilityPackBootstrapTest,SceneCapabilityPackLoaderTest -DfailIfNoTests=false test
+mvn -pl forma-starter -am -Dtest=SceneCapabilityPackBootstrapTest,SceneCapabilityPackLoaderTest -DfailIfNoTests=false test
 ```
 
 Expected: PASS（或仅 skip 不存在的测名时调整为仓库内真实类名）
@@ -467,8 +467,8 @@ Expected: PASS（或仅 skip 不存在的测名时调整为仓库内真实类名
 - [ ] **Step 3: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/test/resources/scenes/ecommerce \
-  lippi-pi-agent/src/test/resources/scenes/ecommerce
+git add forma-application/src/test/resources/scenes/ecommerce \
+  pi-agent/src/test/resources/scenes/ecommerce
 git commit -m "$(cat <<'EOF'
 chore(pack): sync ecommerce scene skill mirrors
 

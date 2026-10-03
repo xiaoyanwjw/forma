@@ -1,0 +1,44 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<div class="forma-deck">
+<span class="forma-sh"><span class="k">状态</span><span class="v pink">可改写</span></span>
+{{#productName}}<span class="forma-sh"><span class="k">对象</span><span class="v gray">{{productName}}</span></span>{{/productName}}
+</div>
+{{#hasTitleOptions}}
+<h2>标题备选</h2>
+<ol>
+{{#titleOptions}}
+<li>{{.}}</li>
+{{/titleOptions}}
+</ol>
+{{/hasTitleOptions}}
+<h2>正文</h2>
+{{#bodyParagraphs}}
+<p>{{.}}</p>
+{{/bodyParagraphs}}
+{{^bodyParagraphs}}
+<p>{{body}}</p>
+{{/bodyParagraphs}}
+{{#hasTags}}
+<h2>标签</h2>
+<div class="forma-tags">
+{{#tagItems}}
+<span class="forma-tag">#{{.}}</span>
+{{/tagItems}}
+</div>
+{{/hasTags}}
+{{#hasImageHints}}
+<h2>配图提示</h2>
+<ol>
+{{#imageHints}}
+<li>{{.}}</li>
+{{/imageHints}}
+</ol>
+{{/hasImageHints}}
+{{#assumptions}}
+<h2>假设</h2>
+<blockquote>
+<p>{{assumptions}}</p>
+</blockquote>
+{{/assumptions}}
+</article>

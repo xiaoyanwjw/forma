@@ -71,8 +71,8 @@ ER seed shows **both** `compact_anchor_seq` on session **and** free `entry_type`
 
 | Unit | Scope | How it obeys the letter |
 | --- | --- | --- |
-| **S-Port-MessageFacade** | `lippi-pi-agent` `SessionStore` | AD-S3: port stays in pi-agent; keeps today’s `List<Message> load/append`; Entry is an **adapter-private** storage detail; InMemory/Sqlite keep Message semantics for tests |
-| **S-Port-EntryAPI** | `lippi-pi-agent` SessionStore refactor | AD-S3: “逻辑对齐上游 Entry”; exposes `appendEntry` / `loadEntries` / typed `entry_type`; adapter becomes a thin MyBatis map; “Message projection” becomes a helper — still “端口在 pi-agent、适配器在 infrastructure、不依赖 MyBatis” |
+| **S-Port-MessageFacade** | `pi-agent` `SessionStore` | AD-S3: port stays in pi-agent; keeps today’s `List<Message> load/append`; Entry is an **adapter-private** storage detail; InMemory/Sqlite keep Message semantics for tests |
+| **S-Port-EntryAPI** | `pi-agent` SessionStore refactor | AD-S3: “逻辑对齐上游 Entry”; exposes `appendEntry` / `loadEntries` / typed `entry_type`; adapter becomes a thin MyBatis map; “Message projection” becomes a helper — still “端口在 pi-agent、适配器在 infrastructure、不依赖 MyBatis” |
 
 **Clash:** AD-S3 binds **module placement** (port vs MyBatis adapter) and **logical** Entry alignment, but not whether Entry is:
 
@@ -175,7 +175,7 @@ AgentSession retry / SSE reconnect double-append behavior diverges. Close: defin
 | Delete `resume` / Checkpointer types to “slim” | AD-S2 |
 | Require HITL WRITE approve on Adam 选品/Listing | AD-S2 |
 | Store Session transcript in Redis under `pi:checkpoint:` | AD-S3 |
-| Put MyBatis Mapper inside `lippi-pi-agent` | AD-S3 |
+| Put MyBatis Mapper inside `pi-agent` | AD-S3 |
 | Add Hermes Contribution map SPI / second system assembler in nodes | AD-S4 |
 | Delete Skill platform / slash as part of this slim | AD-S5 |
 | Settle credits on `AGENT_END` inside pi-agent Tool | Inherited AD-5 + AD-S5 |

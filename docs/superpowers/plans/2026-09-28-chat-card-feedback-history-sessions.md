@@ -6,7 +6,7 @@
 
 **Architecture:** Feedback 扩展「质量好」+ `(user,artifact)` upsert；新建 SessionQuery（显式 userId ACL）读 `pi_session`/`pi_session_entry`；History 详情补 `sessionId`；前端移除 Computer 结果条，卡片下操作 + 历史抽屉 Tab + 侧栏切会话（R1 气泡，不回放 STATUS 过程卡）。
 
-**Tech Stack:** Java 8 / Spring Boot 2.7（`lippi-ai-ebus-*`）、Vue3 / Vitest（`lippi-ai-ebus-web`）、MySQL（`ebus_feedback` / `pi_session*` / `ebus_generation_run` / `ebus_artifact`）
+**Tech Stack:** Java 8 / Spring Boot 2.7（`forma-*`）、Vue3 / Vitest（`forma-web`）、MySQL（`ebus_feedback` / `pi_session*` / `ebus_generation_run` / `ebus_artifact`）
 
 ## Global Constraints
 
@@ -50,13 +50,13 @@
 
 **Files:**
 - Create: `APP-META/bootstrap/sql/014_ebus_feedback_upsert.sql`
-- Modify: `lippi-ai-ebus-starter/src/test/resources/schema-h2.sql`
-- Modify: `lippi-ai-ebus-domain/.../feedback/model/Feedback.java`（`updatedAt`；可选 `touch`）
+- Modify: `forma-starter/src/test/resources/schema-h2.sql`
+- Modify: `forma-domain/.../feedback/model/Feedback.java`（`updatedAt`；可选 `touch`）
 - Modify: `.../feedback/repository/FeedbackRepository.java`
 - Modify: `FeedbackPO` / `FeedbackMapper.java` / `FeedbackMapper.xml` / `FeedbackRepositoryImpl`
 - Modify: `FeedbackApplicationService.java` + `FeedbackApplicationServiceTest.java`
 - Modify: `FeedbackController.java` + `FeedbackHistoryIntegrationTest.java`
-- Modify: `lippi-ai-ebus-web/src/types/business/feedback.ts`（`FEEDBACK_TAG_GOOD_QUALITY = '质量好'`）
+- Modify: `forma-web/src/types/business/feedback.ts`（`FEEDBACK_TAG_GOOD_QUALITY = '质量好'`）
 
 **Interfaces:**
 - Produces: `FeedbackRepository.findByUserAndArtifact(userId, artifactId): Optional<Feedback>`
@@ -83,7 +83,7 @@ void submitGoodQualityUpsertsSameArtifact() {
 
 - [ ] **Step 2: Run test — expect FAIL**（尚无 upsert / 质量好）
 
-Run: `mvn -pl lippi-ai-ebus-starter -am -DfailIfNoTests=false -Dtest=FeedbackApplicationServiceTest#submitGoodQualityUpsertsSameArtifact test`
+Run: `mvn -pl forma-starter -am -DfailIfNoTests=false -Dtest=FeedbackApplicationServiceTest#submitGoodQualityUpsertsSameArtifact test`
 
 - [ ] **Step 3: SQL + domain/repo**
 
@@ -124,15 +124,15 @@ if (existing.isPresent()) {
 
 ```bash
 git add APP-META/bootstrap/sql/014_ebus_feedback_upsert.sql \
-  lippi-ai-ebus-starter/src/test/resources/schema-h2.sql \
-  lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/feedback \
-  lippi-ai-ebus-infrastructure/src/main/java/com/xmut/ebus/infrastructure/persistence/**/feedback* \
-  lippi-ai-ebus-infrastructure/src/main/resources/mybatis/mapper/FeedbackMapper.xml \
-  lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/feedback \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/feedback \
-  lippi-ai-ebus-interfaces/src/main/java/com/xmut/ebus/interfaces/**/feedback \
-  lippi-ai-ebus-starter/src/test/java/com/xmut/ebus/FeedbackHistoryIntegrationTest.java \
-  lippi-ai-ebus-web/src/types/business/feedback.ts
+  forma-starter/src/test/resources/schema-h2.sql \
+  forma-domain/src/main/java/com/xmut/ebus/domain/business/feedback \
+  forma-infrastructure/src/main/java/com/xmut/ebus/infrastructure/persistence/**/feedback* \
+  forma-infrastructure/src/main/resources/mybatis/mapper/FeedbackMapper.xml \
+  forma-application/src/main/java/com/xmut/ebus/application/business/feedback \
+  forma-application/src/test/java/com/xmut/ebus/application/business/feedback \
+  forma-interfaces/src/main/java/com/xmut/ebus/interfaces/**/feedback \
+  forma-starter/src/test/java/com/xmut/ebus/FeedbackHistoryIntegrationTest.java \
+  forma-web/src/types/business/feedback.ts
 git commit -m "feat(feedback): upsert good/poor quality by artifact"
 ```
 
@@ -141,9 +141,9 @@ git commit -m "feat(feedback): upsert good/poor quality by artifact"
 ### Task 2: FE — 卡下重试/赞/踩 + 踩抽屉；移除 Computer 条
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
 - Modify: `EcommerceWorkspacePlaceholder.test.ts`
-- Modify: `lippi-ai-ebus-web/src/api/business/feedback/feedback.ts`（`getFeedbackByArtifact`）
+- Modify: `forma-web/src/api/business/feedback/feedback.ts`（`getFeedbackByArtifact`）
 
 **Interfaces:**
 - Consumes: `submitFeedback`；`FEEDBACK_TAG_*`；现有 `oneClickRetry`
@@ -166,7 +166,7 @@ it('like posts 质量好 without drawer; dislike opens drawer then posts 质量�
 
 - [ ] **Step 2: Run vitest — expect FAIL**
 
-Run: `cd lippi-ai-ebus-web && npx vitest run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts -t "card-result-actions|like posts|dislike opens"`
+Run: `cd forma-web && npx vitest run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts -t "card-result-actions|like posts|dislike opens"`
 
 - [ ] **Step 3: 实现 UI**
 
@@ -179,10 +179,10 @@ Run: `cd lippi-ai-ebus-web && npx vitest run src/views/business/scene/EcommerceW
 - [ ] **Step 4: 测绿 + Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
-  lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts \
-  lippi-ai-ebus-web/src/api/business/feedback/feedback.ts \
-  lippi-ai-ebus-web/src/types/business/feedback.ts
+git add forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
+  forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts \
+  forma-web/src/api/business/feedback/feedback.ts \
+  forma-web/src/types/business/feedback.ts
 git commit -m "feat(web): move retry/like/dislike under success chat card"
 ```
 
@@ -268,7 +268,7 @@ git commit -m "feat(history): attach sessionId and latest artifact by session"
 
 **Files:**
 - Modify: `HistoryPlaceholder.vue` + `HistoryPlaceholder.test.ts`
-- Create/Modify: `lippi-ai-ebus-web/src/api/business/session/session.ts` + types
+- Create/Modify: `forma-web/src/api/business/session/session.ts` + types
 - Reuse: `ComputerRenderer` 于「成果」Tab
 
 **Interfaces:**
@@ -342,8 +342,8 @@ git commit -m "feat(web): workspace sidebar session list and switch"
 - [ ] **Step 1: 跑验证**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am test
-cd lippi-ai-ebus-web && npm run lint && npm run build
+mvn -pl forma-starter -am test
+cd forma-web && npm run lint && npm run build
 npx vitest run src/views/business/history/HistoryPlaceholder.test.ts \
   src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
 ```

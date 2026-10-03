@@ -64,12 +64,12 @@ context:
 - `…/mockups/styles.css` — `:root` token 金样 + `.app-header` 全宽贴边（禁胶囊注释）
 - `…/mockups/index.html` · `pricing.html` · `history.html` · `profile.html` — 同构顶栏 markup
 - `…/mockups/scene-ecommerce.html` + `manus-chat.css` — 面包屑顶栏变体；`.pill:focus-visible` 焦点参考
-- `lippi-ai-ebus-web/src/App.vue` — 仅 RouterView；全局底色 `#f0f2f5`（待换 token）
-- `lippi-ai-ebus-web/index.html` — 现载 Space Grotesk + Noto（改 Instrument Sans）
-- `lippi-ai-ebus-web/src/views/marketing/LandingPage.vue` — 唯一现有顶栏（旧营销）；scoped hex + 粉红焦点
-- `lippi-ai-ebus-web/src/views/business/credit/CreditPlan.vue` — 无顶栏主壳页，宜首挂
-- `lippi-ai-ebus-web/src/api/business/credit/credit.ts` · `types/business/credit.ts` — 积分只读
-- `lippi-ai-ebus-web/src/router/index.ts` — 平铺路由，无 layout
+- `forma-web/src/App.vue` — 仅 RouterView；全局底色 `#f0f2f5`（待换 token）
+- `forma-web/index.html` — 现载 Space Grotesk + Noto（改 Instrument Sans）
+- `forma-web/src/views/marketing/LandingPage.vue` — 唯一现有顶栏（旧营销）；scoped hex + 粉红焦点
+- `forma-web/src/views/business/credit/CreditPlan.vue` — 无顶栏主壳页，宜首挂
+- `forma-web/src/api/business/credit/credit.ts` · `types/business/credit.ts` — 积分只读
+- `forma-web/src/router/index.ts` — 平铺路由，无 layout
 - `sdd/context/03-fe.md` — `components/common/` 跨页组件配方
 - **Reuse：** mockup `.app-header` 结构；Credit API；Landing 登录态判断思路（`getToken`）
 - **Do not change：** SceneCatalog API、后端账本、画廊/工作台业务页、Auth 登录注册流程本身
@@ -77,9 +77,9 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lippi-ai-ebus-web/src/styles/tokens.css`（或邻名）+ 在 `main.ts`/`App.vue` 引入 — 落地 DESIGN `:root` 变量、点阵底、全局字体与基础 `:focus-visible` — UX-DR2/11
-- [x] `lippi-ai-ebus-web/index.html` — Google Fonts 改为 Instrument Sans + Noto Sans SC — 字体契约
-- [x] `lippi-ai-ebus-web/src/components/common/AppHeader.vue` — 全宽契约顶栏；支持默认导航 vs 面包屑 props；「场景」→`/`，「历史」不可点；右区积分/升级/头像 — UX-DR1
+- [x] `forma-web/src/styles/tokens.css`（或邻名）+ 在 `main.ts`/`App.vue` 引入 — 落地 DESIGN `:root` 变量、点阵底、全局字体与基础 `:focus-visible` — UX-DR2/11
+- [x] `forma-web/index.html` — Google Fonts 改为 Instrument Sans + Noto Sans SC — 字体契约
+- [x] `forma-web/src/components/common/AppHeader.vue` — 全宽契约顶栏；支持默认导航 vs 面包屑 props；「场景」→`/`，「历史」不可点；右区积分/升级/头像 — UX-DR1
 - [x] `router` + 占位页（场景/历史）+ `/credits` 挂载 `AppHeader`（layout 或页内）— 1C 验收面；登录注册/Landing 不加契约顶栏
 - [x] 已登录积分芯片接 `credit` API；失败弱降级 — 顶栏积分位
 - [x] 顶栏与占位页可见文案审一遍（无「示意/近端/空壳」等）— UX-DR12
@@ -112,7 +112,7 @@ context:
 - `low` — `sceneBreadcrumb` 纯空白仍进面包屑模式。verified：`v-if="props.sceneBreadcrumb"`。→ patch
 - `low` — 当前页无 `aria-current`。verified：仅 CSS `.on`。→ patch
 - `false` — `/scenes` 高亮却链到 `/`「不可达」。证据：冻结决策「场景」→`/`；占位页经路由直达验收，非顶栏入口。
-- `false` — unified diff 缺 `lippi-ai-ebus-web/` 前缀会导致文件错位。证据：仓内文件路径正确；前缀是 diff 拼装产物。
+- `false` — unified diff 缺 `forma-web/` 前缀会导致文件错位。证据：仓内文件路径正确；前缀是 diff 拼装产物。
 - `low` — 测例标题写 API failure 却 stub 成功。rejected：仅标题误导，改标题收益低。
 - `low` — CreditPlan `.error` 仍硬编码 `#e11d48`、无 danger token。rejected：DESIGN 未定义危险色；补 token 超出直修。
 
@@ -129,8 +129,8 @@ CSS 变量名优先对齐 mockup `styles.css`（`--ok` 对应 DESIGN `success`�
 ## Verification
 
 **Commands:**
-- `cd lippi-ai-ebus-web && npm run lint` -- expected: 绿
-- `cd lippi-ai-ebus-web && npm run build` -- expected: 绿
+- `cd forma-web && npm run lint` -- expected: 绿
+- `cd forma-web && npm run build` -- expected: 绿
 - 相关单测（若新增）`npm run test` 或项目既有 test 命令 -- expected: 绿
 
 **Manual checks (if no CLI):**

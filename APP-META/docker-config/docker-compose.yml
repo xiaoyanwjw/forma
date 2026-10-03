@@ -1,7 +1,7 @@
 services:
   mysql:
     image: mysql:8.0.36
-    container_name: lippi-ebus-mysql
+    container_name: forma-mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
       MYSQL_DATABASE: ${DB_NAME:-lippi_ebus}
@@ -19,49 +19,25 @@ services:
       - mysql-data:/var/lib/mysql
       - ../bootstrap/sql:/docker-entrypoint-initdb.d:ro
     networks:
-      - lippi-ebus-network
+      - forma-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 10
 
-  minio:
-    image: minio/minio:RELEASE.2024-09-22T00-33-43Z
-    container_name: lippi-ebus-minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-    volumes:
-      - minio-data:/data
-    networks:
-      - lippi-ebus-network
-    healthcheck:
-      # Official minio image often has no curl/wget; probe the live port without them.
-      test: ["CMD-SHELL", "timeout 5s bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000' || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-
   starter:
-    image: lippi-ebus-starter:local
+    image: forma-starter:local
     build:
       context: ../..
       dockerfile: APP-META/docker-config/Dockerfile_starter
       args:
-        # Override when Hub/mirrors fail, e.g. STARTER_BASE_IMAGE=lippi-ebus-java8:local
+        # Override when Hub/mirrors fail, e.g. STARTER_BASE_IMAGE=forma-java8:local
         BASE_IMAGE: ${STARTER_BASE_IMAGE:-eclipse-temurin:8-jre}
-    container_name: lippi-ebus-starter
+    container_name: forma-starter
     restart: on-failure
     depends_on:
       mysql:
-        condition: service_healthy
-      minio:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
@@ -77,23 +53,16 @@ services:
       CREDIT_ADMIN_USER_IDS: ${CREDIT_ADMIN_USER_IDS:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
-      EBUS_MEDIA_STORE: ${EBUS_MEDIA_STORE:-minio}
-      # 容器内固定走 compose 服务名；勿用宿主机 .env 的 localhost（IDEA 本机跑才用 localhost）
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
-      MINIO_BUCKET: ${MINIO_BUCKET:-ebus-media}
-      EBUS_SKU_SEARCH_CLIENT: ${EBUS_SKU_SEARCH_CLIENT:-mock}
+      FORMA_SKU_SEARCH_CLIENT: ${FORMA_SKU_SEARCH_CLIENT:-mock}
       APIFY_TOKEN: ${APIFY_TOKEN:-}
     ports:
       - "${STARTER_PORT:-8080}:8080"
     networks:
-      - lippi-ebus-network
+      - forma-network
 
 volumes:
   mysql-data:
-  minio-data:
 
 networks:
-  lippi-ebus-network:
+  forma-network:
     driver: bridge

@@ -15,10 +15,10 @@ Reality-check every **named** technology / storage / upstream model claim agains
 | Anchor | Path / evidence |
 | --- | --- |
 | Parent APP-META MySQL | `APP-META/docker-config/docker-compose.yml` → `mysql:8.0.36` |
-| ebus MyBatis | `lippi-ai-ebus-infrastructure` mappers + parent POM `mybatis-spring-boot.version=2.3.1` / `mybatis.version=3.5.13` |
+| ebus MyBatis | `forma-infrastructure` mappers + parent POM `mybatis-spring-boot.version=2.3.1` / `mybatis.version=3.5.13` |
 | Upstream pi Entry | `~/workspace/pi/packages/agent` (`src/harness/session/types.ts`, `docs/harness.md` Part 2/3) |
 | Parent spine Stack | `architecture-lippi-ai-ebusiness-2026-09-24/ARCHITECTURE-SPINE.md` § Stack |
-| Current Java SessionStore | `lippi-pi-agent` `SessionStore` / `schema.sql` / `SqliteSessionStore` |
+| Current Java SessionStore | `pi-agent` `SessionStore` / `schema.sql` / `SqliteSessionStore` |
 
 ---
 
@@ -42,7 +42,7 @@ Reality-check every **named** technology / storage / upstream model claim agains
 
 | Claim | Spine | Reality | Result |
 | --- | --- | --- | --- |
-| Adapter in `lippi-ai-ebus-infrastructure` (MyBatis); `pi-agent` **不**依赖 MyBatis | AD-S3, Structural Seed | Infra POM has `mybatis-spring-boot-starter`; packages `…persistence.mybatis…`; `lippi-pi-agent/pom.xml` has **no** MyBatis dep | **Confirmed** (convention + deps) |
+| Adapter in `forma-infrastructure` (MyBatis); `pi-agent` **不**依赖 MyBatis | AD-S3, Structural Seed | Infra POM has `mybatis-spring-boot-starter`; packages `…persistence.mybatis…`; `pi-agent/pom.xml` has **no** MyBatis dep | **Confirmed** (convention + deps) |
 | Version | *Not in feature Stack* | Parent POM / Stack: MyBatis **3.5.13**, starter **2.3.1** | **Confirmed via parent**; not re-pinned here |
 | `MysqlSessionStore` exists | Structural Seed target | **Not present** in tree yet — seed is target shape | **OK for draft AD** (not a false “already shipped” claim) |
 
@@ -64,9 +64,9 @@ Reality-check every **named** technology / storage / upstream model claim agains
 
 | Name | Spine role | Evidence | Result |
 | --- | --- | --- | --- |
-| Redis (optional CP) | AD-S2 default OFF | `jedis` optional in `lippi-pi-agent/pom.xml`; **no** Redis service in APP-META compose | **Confirmed** “don’t assemble by default”; Jedis version from Boot BOM only — unpinned in feature Stack |
+| Redis (optional CP) | AD-S2 default OFF | `jedis` optional in `pi-agent/pom.xml`; **no** Redis service in APP-META compose | **Confirmed** “don’t assemble by default”; Jedis version from Boot BOM only — unpinned in feature Stack |
 | SQLite / `SqliteSessionStore` | Test/local only | Module pin `sqlite-jdbc` **3.45.3.0**; schema present | **Exists**; pin not echoed in feature Stack |
-| StateGraph / GraphExecutor | AD-S1 retain | Present under `lippi-pi-agent` graph package | **Confirmed** (in-repo, no public version pin needed) |
+| StateGraph / GraphExecutor | AD-S1 retain | Present under `pi-agent` graph package | **Confirmed** (in-repo, no public version pin needed) |
 | Hermes Contribution SPI | AD-S4 forbid growth | `StableContribution` / `ContextContribution` / `VolatileContribution` in tree | **Confirmed** (in-repo) |
 | `PiEventBus` / AD-4 | Inherited | Parent AD-4 + ebus `PiEventToAd4Mapper` | **Out of version scope**; existence OK |
 
@@ -135,7 +135,7 @@ APP-META/docker-config/docker-compose.yml:
 Parent POM:
   mybatis 3.5.13, mybatis-spring-boot-starter 2.3.1, mysql-connector 8.0.33
 
-lippi-pi-agent/pom.xml:
+pi-agent/pom.xml:
   sqlite-jdbc 3.45.3.0; jedis optional (no Redis in APP-META)
 
 pi packages/agent:
@@ -143,6 +143,6 @@ pi packages/agent:
   docs/harness.md Part 2 (conversation tree) / Part 3 (operation SM)
   src/agent-loop.ts agentLoop while(true)
 
-Current Java schema (lippi-pi-agent .../pi/session/schema.sql):
+Current Java schema (pi-agent .../pi/session/schema.sql):
   pi_session + flat pi_session_message (not Entry parent_id/entry_type yet)
 ```

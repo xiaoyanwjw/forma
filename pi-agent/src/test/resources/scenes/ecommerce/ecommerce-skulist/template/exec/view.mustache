@@ -1,0 +1,57 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<div class="forma-deck">
+<span class="forma-sh"><span class="k">阶段</span><span class="v ok">执行稿</span></span>
+{{#frameCount}}<span class="forma-sh"><span class="k">分镜</span><span class="v gray">{{frameCount}}</span></span>{{/frameCount}}
+</div>
+{{#hasFrames}}
+<div class="forma-hero-strip" aria-label="主图预览">
+{{#frameEntries}}
+<figure class="forma-hero-cell">
+{{#isFirst}}
+<img data-forma-media-role="hero" alt="主图占位" src="">
+{{/isFirst}}
+<span class="forma-hero-label">{{indexLabel}} {{frame}}</span>
+</figure>
+{{/frameEntries}}
+</div>
+<p class="forma-hero-cap">主图 {{frameCount}} 镜 · 下方可核对分镜 Prompt</p>
+{{/hasFrames}}
+{{#heroPlan}}
+<p class="forma-lede">{{heroPlan}}</p>
+{{/heroPlan}}
+<h2>分镜 Prompt</h2>
+<ol>
+{{#frameEntries}}
+<li>
+<p>{{frame}}</p>
+{{#prompt}}
+<div class="forma-prompt">
+<div class="forma-prompt-h">
+<span class="forma-sh"><span class="k">frame</span><span class="v ok">ready</span></span>
+<span class="forma-sh"><span class="k">no</span><span class="v gray">{{indexLabel}}</span></span>
+</div>
+<pre>{{prompt}}</pre>
+</div>
+{{/prompt}}
+{{#negative}}
+<p><strong>negative</strong> | <code>{{negative}}</code></p>
+{{/negative}}
+</li>
+{{/frameEntries}}
+</ol>
+{{#detailTitle}}
+<h2>详情标题</h2>
+<h3>{{detailTitle}}</h3>
+{{/detailTitle}}
+{{#hasDetailParagraphs}}
+<h2>详情正文</h2>
+{{#detailParagraphs}}
+<p>{{.}}</p>
+{{/detailParagraphs}}
+{{/hasDetailParagraphs}}
+{{#displayNotes}}
+<h2>展示说明</h2>
+<p class="cv-note">{{displayNotes}}</p>
+{{/displayNotes}}
+</article>

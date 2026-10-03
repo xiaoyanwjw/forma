@@ -59,7 +59,7 @@ context:
 
 ## Code Map
 
-- `lippi-pi-agent/.../graph/checkpoint/Checkpointer.java` · `Checkpoint.java` · `CheckpointCodec.java` — 端口与编解码（复用）
+- `pi-agent/.../graph/checkpoint/Checkpointer.java` · `Checkpoint.java` · `CheckpointCodec.java` — 端口与编解码（复用）
 - `…/InMemoryCheckpointer.java` · `…/redis/RedisCheckpointer.java` · `RedisCheckpointerTest` — 行为金样（save/loadLatest/deleteByRun/TTL）
 - `…/agent/CheckpointPersistenceHitlTest.java` · `ToolConfigHitlIntegrationTest` — HITL resume / 幂等 / 终态删 CP
 - `…/agent/DefaultAgent.java`（`resume` / `prepare`）· `ResumeRequest.java` — **扩 tool-result 路径**；WRITE 路径保留
@@ -68,7 +68,7 @@ context:
 - `…/config/PiCheckpointAutoConfiguration.java` — Redis 可选 Primary 门闩（勿破坏）
 - Continuity 2.7：`…/infrastructure/session/MysqlSessionStore.java` + `PiSessionMapper*` — MyBatis 配方；下一号 DDL=`006`
 - `APP-META/bootstrap/sql/005_pi_session.sql` — 列风格范本；新建 `006_pi_graph_checkpoint.sql`
-- `lippi-ai-ebus-starter/src/test/resources/schema-h2.sql` · `MysqlSessionStoreIntegrationTest` — H2 同步 + IT/`@Primary` 范本
+- `forma-starter/src/test/resources/schema-h2.sql` · `MysqlSessionStoreIntegrationTest` — H2 同步 + IT/`@Primary` 范本
 - 父 Spine AD-11 — infrastructure→pi-agent 仅适配器例外（已含 Checkpoint）
 
 **Reuse：** CheckpointCodec；Session MyBatis 布局；HITL 金样测；ttl 配置键。
@@ -132,8 +132,8 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am -Dtest=MysqlCheckpointerIntegrationTest,CheckpointPersistenceHitlTest,ToolConfigHitlIntegrationTest,RedisCheckpointerTest test` -- expected: 相关测绿
-- `mvn -pl lippi-pi-agent -Dtest=CheckpointPersistenceHitlTest,ToolConfigHitlIntegrationTest test` -- expected: WRITE HITL 金样仍绿
+- `mvn -pl forma-starter -am -Dtest=MysqlCheckpointerIntegrationTest,CheckpointPersistenceHitlTest,ToolConfigHitlIntegrationTest,RedisCheckpointerTest test` -- expected: 相关测绿
+- `mvn -pl pi-agent -Dtest=CheckpointPersistenceHitlTest,ToolConfigHitlIntegrationTest test` -- expected: WRITE HITL 金样仍绿
 
 **Manual checks (if no CLI):**
 - 新库 compose 冷启动后存在 `pi_graph_checkpoint`；与 session 表分家

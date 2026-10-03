@@ -58,13 +58,13 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-application/.../business/credit/service/CreditApplicationService.java` — 现有 init/ensureReady/预占结算；**新增 changeTier/upgrade 写用例**
-- `lippi-ai-ebus-application/.../business/credit/service/CreditCasWriter.java` + `CreditAccountRepository` / Mapper — 现无更新 `tier`/`period_anchor_at` 的 CAS；需扩展
-- `lippi-ai-ebus-domain/.../business/credit/model/CreditAccount.java` — `setTier` 裸 setter；宜加 `applyUpgrade(...)` 领域行为
-- `lippi-ai-ebus-domain/.../business/credit/constant/CreditTier.java` — FREE/PRO/PLUS 与额度
-- `lippi-ai-ebus-interfaces/.../web/business/credit/` — 现有 `CreditController` 仅 GET；新增管理改档 Controller（如 `/api/v1/admin/credits/...`）
+- `forma-application/.../business/credit/service/CreditApplicationService.java` — 现有 init/ensureReady/预占结算；**新增 changeTier/upgrade 写用例**
+- `forma-application/.../business/credit/service/CreditCasWriter.java` + `CreditAccountRepository` / Mapper — 现无更新 `tier`/`period_anchor_at` 的 CAS；需扩展
+- `forma-domain/.../business/credit/model/CreditAccount.java` — `setTier` 裸 setter；宜加 `applyUpgrade(...)` 领域行为
+- `forma-domain/.../business/credit/constant/CreditTier.java` — FREE/PRO/PLUS 与额度
+- `forma-interfaces/.../web/business/credit/` — 现有 `CreditController` 仅 GET；新增管理改档 Controller（如 `/api/v1/admin/credits/...`）
 - `SecurityConfig` + 白名单配置（env，如 `CREDIT_ADMIN_USER_IDS`）— JWT 仍只认登录；改档前校验调用方在名单
-- `lippi-ai-ebus-common/.../exception/ErrorCode.java` — 补 FORBIDDEN / 改档非法
+- `forma-common/.../exception/ErrorCode.java` — 补 FORBIDDEN / 改档非法
 - `APP-META/bootstrap/sql/002_ebus_credit.sql` — 下一号 `003_*` 审计表；同步 `schema-h2.sql`；`.env.example` 补白名单说明
 - `CreditApplicationServiceTest` / `CreditIntegrationTest` — 扩 I/O 矩阵
 - Spine AD-5/AD-9；`02-be`；spec-1-3（锚点重算已定案为本故事）
@@ -126,8 +126,8 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test` -- expected: BUILD SUCCESS，Credit 改档相关测绿
-- `mvn -pl lippi-ai-ebus-starter -am -DskipTests compile` -- expected: BUILD SUCCESS
+- `mvn -pl forma-starter -am test` -- expected: BUILD SUCCESS，Credit 改档相关测绿
+- `mvn -pl forma-starter -am -DskipTests compile` -- expected: BUILD SUCCESS
 
 **Manual checks (if no CLI):**
 - 免费用户经管理入口升 Pro 后，店主 JWT `GET /api/v1/credits` 见 PRO 与 200

@@ -6,7 +6,7 @@
 
 **Architecture:** ebus 侧 `RunWorkspaceService` 负责路径/建删；`PromptRequest.workspaceRoot` → `TurnInput` → `StateKeys.WORKSPACE_ROOT` → `ToolContext`；三工具注册进 `EbusPiToolCatalogConfiguration`；Parser 增加带 `Path runDir` 的重载（有 `output` 指针则只信盘）。挂起策划 settle **不**删盘；仅终态 OK settle 成功后删 run 目录。
 
-**Tech Stack:** Java 8 / Spring Boot 2.7（`lippi-pi-agent` + `lippi-ai-ebus-application`）、JUnit 5、现有 Skill markdown（`lippi-ai-ebus-starter/.../scenes/ecommerce/`）
+**Tech Stack:** Java 8 / Spring Boot 2.7（`pi-agent` + `forma-application`）、JUnit 5、现有 Skill markdown（`forma-starter/.../scenes/ecommerce/`）
 
 ## Global Constraints
 
@@ -31,9 +31,9 @@
 | `.../agent/tool/workspace/ReadFileToolHandler.java` (+test) | `read_file`（默认上限 2MiB） |
 | `.../agent/tool/workspace/BashToolHandler.java` (+test) | `bash`（cwd=run 根；超时 30s；输出截断 64KiB） |
 | `.../config/EbusPiToolCatalogConfiguration.java` | 注册三工具 |
-| `lippi-pi-agent/.../StateKeys.java` | `WORKSPACE_ROOT` |
-| `lippi-pi-agent/.../ToolContext.java` (+test) | `workspaceRoot` |
-| `lippi-pi-agent/.../PromptRequest.java` / `TurnInput.java` / `DefaultAgentSession` / `DefaultAgent` | 贯通 workspaceRoot |
+| `pi-agent/.../StateKeys.java` | `WORKSPACE_ROOT` |
+| `pi-agent/.../ToolContext.java` (+test) | `workspaceRoot` |
+| `pi-agent/.../PromptRequest.java` / `TurnInput.java` / `DefaultAgentSession` / `DefaultAgent` | 贯通 workspaceRoot |
 | `.../GenerationOutputParser.java` (+test) | `parse(text, runDir)` 指针分支 |
 | `.../AgentApplicationService.java` (+test) | ensure 目录、prompt 注入、parse 带 runDir、终态删盘 |
 | `.../SkuHitlInterceptor.java` (+test) | 策划 parse 带 runDir |
@@ -55,11 +55,11 @@
 ### Task 1: `RunWorkspaceService` + 路径守卫
 
 **Files:**
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/workspace/RunWorkspaceProperties.java`
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/workspace/WorkspacePathGuard.java`
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/workspace/RunWorkspaceService.java`
-- Create: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/workspace/WorkspacePathGuardTest.java`
-- Create: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/workspace/RunWorkspaceServiceTest.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/workspace/RunWorkspaceProperties.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/workspace/WorkspacePathGuard.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/workspace/RunWorkspaceService.java`
+- Create: `forma-application/src/test/java/com/xmut/ebus/application/business/agent/workspace/WorkspacePathGuardTest.java`
+- Create: `forma-application/src/test/java/com/xmut/ebus/application/business/agent/workspace/RunWorkspaceServiceTest.java`
 - Modify: `APP-META/docker-config/environment/.env.example`（加一行注释占位）
 
 **Interfaces:**
@@ -131,7 +131,7 @@ void ensureThenDelete() throws Exception {
 - [ ] **Step 4: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=WorkspacePathGuardTest,RunWorkspaceServiceTest test
+mvn -pl forma-application -am -Dtest=WorkspacePathGuardTest,RunWorkspaceServiceTest test
 ```
 
 Expected: PASS
@@ -139,8 +139,8 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/workspace \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/workspace \
+git add forma-application/src/main/java/com/xmut/ebus/application/business/agent/workspace \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent/workspace \
   APP-META/docker-config/environment/.env.example
 git commit -m "$(cat <<'EOF'
 feat(agent): add per-run workspace path service
@@ -154,13 +154,13 @@ EOF
 ### Task 2: `ToolContext.workspaceRoot` 贯通
 
 **Files:**
-- Modify: `lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/graph/StateKeys.java`
-- Modify: `lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/tool/ToolContext.java`
-- Modify: `lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/session/PromptRequest.java`
-- Modify: `lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/TurnInput.java`
-- Modify: `lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/session/DefaultAgentSession.java`
-- Modify: `lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/agent/DefaultAgent.java`（`prepare` 写入 state）
-- Modify/Create tests under `lippi-pi-agent/src/test/.../ToolContextTest.java`（或扩展现有）
+- Modify: `pi-agent/src/main/java/com/xmut/lims/pi/agent/graph/StateKeys.java`
+- Modify: `pi-agent/src/main/java/com/xmut/lims/pi/agent/tool/ToolContext.java`
+- Modify: `pi-agent/src/main/java/com/xmut/lims/pi/agent/session/PromptRequest.java`
+- Modify: `pi-agent/src/main/java/com/xmut/lims/pi/agent/TurnInput.java`
+- Modify: `pi-agent/src/main/java/com/xmut/lims/pi/agent/session/DefaultAgentSession.java`
+- Modify: `pi-agent/src/main/java/com/xmut/lims/pi/agent/agent/DefaultAgent.java`（`prepare` 写入 state）
+- Modify/Create tests under `pi-agent/src/test/.../ToolContextTest.java`（或扩展现有）
 
 **Interfaces:**
 - Produces: `StateKeys.WORKSPACE_ROOT`（`String` 绝对路径）
@@ -194,7 +194,7 @@ void from_readsWorkspaceRootFromState() {
 - [ ] **Step 3: 跑测**
 
 ```bash
-mvn -pl lippi-pi-agent -am -Dtest=ToolContextTest,DefaultAgentSessionTest,PiAutoConfigurationTest test
+mvn -pl pi-agent -am -Dtest=ToolContextTest,DefaultAgentSessionTest,PiAutoConfigurationTest test
 ```
 
 Expected: PASS（若无独立 `ToolContextTest`，跑你新增的测试类名）
@@ -202,7 +202,7 @@ Expected: PASS（若无独立 `ToolContextTest`，跑你新增的测试类名）
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-pi-agent
+git add pi-agent
 git commit -m "$(cat <<'EOF'
 feat(pi-agent): thread workspaceRoot into ToolContext
 
@@ -283,7 +283,7 @@ void bash_echo() throws Exception {
 - [ ] **Step 5: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=WriteFileToolHandlerTest,ReadFileToolHandlerTest,BashToolHandlerTest test
+mvn -pl forma-application -am -Dtest=WriteFileToolHandlerTest,ReadFileToolHandlerTest,BashToolHandlerTest test
 ```
 
 Expected: PASS
@@ -291,9 +291,9 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/tool/workspace \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/tool/workspace \
-  lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/config/EbusPiToolCatalogConfiguration.java
+git add forma-application/src/main/java/com/xmut/ebus/application/business/agent/tool/workspace \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent/tool/workspace \
+  forma-application/src/main/java/com/xmut/ebus/application/config/EbusPiToolCatalogConfiguration.java
 git commit -m "$(cat <<'EOF'
 feat(agent): add sandboxed read_file write_file bash tools
 
@@ -373,7 +373,7 @@ if (outputNode != null && outputNode.isTextual() && StringUtils.hasText(outputNo
 - [ ] **Step 3: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=GenerationOutputParserTest test
+mvn -pl forma-application -am -Dtest=GenerationOutputParserTest test
 ```
 
 Expected: PASS
@@ -381,8 +381,8 @@ Expected: PASS
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParser.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParserTest.java
+git add forma-application/src/main/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParser.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParserTest.java
 git commit -m "$(cat <<'EOF'
 feat(agent): resolve generation output pointer from workspace file
 
@@ -450,7 +450,7 @@ agentSession.prompt(PromptRequest.builder()
 - [ ] **Step 3: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=AgentApplicationServiceTest,SkuHitlInterceptorTest,GenerationOutputParserTest test
+mvn -pl forma-application -am -Dtest=AgentApplicationServiceTest,SkuHitlInterceptorTest,GenerationOutputParserTest test
 ```
 
 Expected: PASS（若无 `SkuHitlInterceptorTest`，补最小测或在 Agent 测中间接覆盖）
@@ -458,8 +458,8 @@ Expected: PASS（若无 `SkuHitlInterceptorTest`，补最小测或在 Agent 测�
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent
+git add forma-application/src/main/java/com/xmut/ebus/application/business/agent \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent
 git commit -m "$(cat <<'EOF'
 feat(agent): wire run workspace into prompt parse and cleanup
 
@@ -472,10 +472,10 @@ EOF
 ### Task 6: `ecommerce-picklist` skill 改指针流程
 
 **Files:**
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/references/output.md`
-- Modify mirrors: `lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/ecommerce-picklist/...`  
-  以及 `lippi-pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist/...`（若存在且需同步）
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/references/output.md`
+- Modify mirrors: `forma-application/src/test/resources/scenes/ecommerce/ecommerce-picklist/...`  
+  以及 `pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist/...`（若存在且需同步）
 
 **Interfaces:**
 - `allowed-tools:` 含 `read_skill search_sku write_file read_file bash`
@@ -500,9 +500,9 @@ EOF
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist \
-  lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/ecommerce-picklist \
-  lippi-pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist
+git add forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist \
+  forma-application/src/test/resources/scenes/ecommerce/ecommerce-picklist \
+  pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist
 git commit -m "$(cat <<'EOF'
 docs(skill): picklist stepwise workspace output pointer
 
@@ -515,7 +515,7 @@ EOF
 ### Task 7: `ecommerce-skulist` skill 改 plan/exec 指针
 
 **Files:**
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md`
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md`
 - Modify: `.../ecommerce-skulist/references/output.md`
 - Modify test mirrors（application + pi-agent）
 
@@ -533,8 +533,8 @@ EOF
 - [ ] **Step 3: 编译/相关测冒烟**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -DskipTests compile
-mvn -pl lippi-ai-ebus-application -am -Dtest=GenerationOutputParserTest,AgentApplicationServiceTest,WriteFileToolHandlerTest test
+mvn -pl forma-starter -am -DskipTests compile
+mvn -pl forma-application -am -Dtest=GenerationOutputParserTest,AgentApplicationServiceTest,WriteFileToolHandlerTest test
 ```
 
 Expected: PASS
@@ -542,9 +542,9 @@ Expected: PASS
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist \
-  lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/ecommerce-skulist \
-  lippi-pi-agent/src/test/resources/scenes/ecommerce/ecommerce-skulist
+git add forma-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist \
+  forma-application/src/test/resources/scenes/ecommerce/ecommerce-skulist \
+  pi-agent/src/test/resources/scenes/ecommerce/ecommerce-skulist
 git commit -m "$(cat <<'EOF'
 docs(skill): skulist plan/exec workspace output pointers
 

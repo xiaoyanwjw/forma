@@ -55,12 +55,12 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-web/src/views/identity/AuthRegister.vue` — 静态声明 + checkbox；未确认不调 API；请求带 `agreedToAiDisclaimer: true`
-- `lippi-ai-ebus-web/src/views/marketing/LandingPage.vue` — 页脚/角落短声明（勿改 guest→login / JWT→credits）
-- `lippi-ai-ebus-web/src/constants/compliance.ts`（或同级）— 共享短文案，注册/落地共用
-- `lippi-ai-ebus-web/src/api/identity/auth.ts` + `types` — register body 增加字段
-- `lippi-ai-ebus-web/src/views/identity/auth.landing.test.ts` — 未确认不提交；确认后仍进 credits
-- `lippi-ai-ebus-web/src/views/marketing/LandingPage.test.ts` — 断言页脚声明可见
+- `forma-web/src/views/identity/AuthRegister.vue` — 静态声明 + checkbox；未确认不调 API；请求带 `agreedToAiDisclaimer: true`
+- `forma-web/src/views/marketing/LandingPage.vue` — 页脚/角落短声明（勿改 guest→login / JWT→credits）
+- `forma-web/src/constants/compliance.ts`（或同级）— 共享短文案，注册/落地共用
+- `forma-web/src/api/identity/auth.ts` + `types` — register body 增加字段
+- `forma-web/src/views/identity/auth.landing.test.ts` — 未确认不提交；确认后仍进 credits
+- `forma-web/src/views/marketing/LandingPage.test.ts` — 断言页脚声明可见
 - `interfaces/.../vo/identity/RegisterRequest.java` — 增加 boolean；缺省/false 校验
 - `application/.../command/RegisterCommand.java` + `IdentityApplicationService.register` — 未同意早退
 - `IdentityApplicationServiceTest` / `AuthIntegrationTest` — 覆盖 API 未同意拒绝
@@ -118,8 +118,8 @@ context:
 ## Verification
 
 **Commands:**
-- `cd lippi-ai-ebus-web && npm run lint && npm test && npm run build` -- expected: 全绿
-- `mvn -pl lippi-ai-ebus-starter -am test` -- expected: Identity 相关测绿
+- `cd forma-web && npm run lint && npm test && npm run build` -- expected: 全绿
+- `mvn -pl forma-starter -am test` -- expected: Identity 相关测绿
 
 **Manual checks (if no CLI):**
 - `/register`：未勾选不能注册；勾选后可走通

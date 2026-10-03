@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.forma.infrastructure.persistence.mybatis.mapper.CreditAccountMapper">
+
+    <resultMap id="CreditAccountResultMap" type="com.xmut.forma.infrastructure.persistence.mybatis.po.CreditAccountPO">
+        <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="tier" column="tier"/>
+        <result property="balance" column="balance"/>
+        <result property="reserved" column="reserved"/>
+        <result property="periodAnchorAt" column="period_anchor_at"/>
+        <result property="nextResetAt" column="next_reset_at"/>
+        <result property="version" column="version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="AccountColumns">
+        id, biz_id, user_id, tier, balance, reserved,
+        period_anchor_at, next_reset_at, version, created_at, updated_at
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO forma_credit_account (
+            biz_id, user_id, tier, balance, reserved,
+            period_anchor_at, next_reset_at, version, created_at, updated_at
+        ) VALUES (
+            #{bizId}, #{userId}, #{tier}, #{balance}, #{reserved},
+            #{periodAnchorAt}, #{nextResetAt}, #{version}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <select id="selectById" resultMap="CreditAccountResultMap">
+        SELECT <include refid="AccountColumns"/>
+        FROM forma_credit_account
+        WHERE biz_id = #{id}
+    </select>
+
+    <select id="selectByUserId" resultMap="CreditAccountResultMap">
+        SELECT <include refid="AccountColumns"/>
+        FROM forma_credit_account
+        WHERE user_id = #{userId}
+    </select>
+
+    <update id="updateAddReserved">
+        UPDATE forma_credit_account
+        SET reserved = reserved + #{amount},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE biz_id = #{id}
+          AND version = #{expectedVersion}
+          AND (balance - reserved) &gt;= #{amount}
+    </update>
+
+    <update id="updateSubtractBalanceAndReserved">
+        UPDATE forma_credit_account
+        SET balance = balance - #{amount},
+            reserved = reserved - #{amount},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE biz_id = #{id}
+          AND version = #{expectedVersion}
+          AND reserved &gt;= #{amount}
+          AND balance &gt;= #{amount}
+    </update>
+
+    <update id="updateSubtractReserved">
+        UPDATE forma_credit_account
+        SET reserved = reserved - #{amount},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE biz_id = #{id}
+          AND version = #{expectedVersion}
+          AND reserved &gt;= #{amount}
+    </update>
+
+    <update id="updateBalanceAndNextReset">
+        UPDATE forma_credit_account
+        SET balance = #{balance},
+            next_reset_at = #{nextResetAt},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE biz_id = #{id}
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="updateTierBalanceAndPeriod">
+        UPDATE forma_credit_account
+        SET tier = #{tier},
+            balance = #{balance},
+            period_anchor_at = #{periodAnchorAt},
+            next_reset_at = #{nextResetAt},
+            version = version + 1,
+            updated_at = #{updatedAt}
+        WHERE biz_id = #{id}
+          AND version = #{expectedVersion}
+    </update>
+</mapper>

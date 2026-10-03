@@ -59,18 +59,18 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-interfaces/.../web/identity/AccountController.java` — 增 `PUT /password`；复用 `SecuritySupport.requireUserId()`；无 Credit 依赖
-- `lippi-ai-ebus-interfaces/.../vo/identity/` — 新增改密 Request VO（oldPassword / newPassword + Bean Validation）
-- `lippi-ai-ebus-application/.../identity/service/IdentityApplicationService.java` — 增 `changePassword`：matches 旧哈希 → 校验新规则 → hash → 持久化
-- `lippi-ai-ebus-application/.../identity/command/` — `ChangePasswordCommand`（继承 `BaseCommand`）
-- `lippi-ai-ebus-domain/.../identity/repository/UserRepository.java` + `UserMapper` / Impl / XML — 增 `updatePasswordHash(userId, hash, updatedAt)`
-- `lippi-ai-ebus-domain/.../identity/port/PasswordHasher.java` + `BcryptPasswordHasher` — 复用 hash/matches，不改算法
-- `lippi-ai-ebus-starter/.../AccountProfileIntegrationTest.java`（或 Auth IT）— 改密成功后可用新密码登录、旧密码失败、错误不改哈希、未授权
-- `lippi-ai-ebus-application/.../IdentityApplicationServiceTest.java` — 单测旧错/不合规/相同/成功
-- `lippi-ai-ebus-web/src/api/identity/account.ts` + types — `changeAccountPassword`
-- `lippi-ai-ebus-web/src/views/identity/AccountSettings.vue` — 替换改密占位为真表单；保留 `logout()`；删除仍禁用
-- `lippi-ai-ebus-web/src/views/identity/AccountSettings.test.ts` — 改密成功/失败提示、退出既有断言保留
-- `lippi-ai-ebus-web/src/api/http.ts` — `clearToken` 复用；不新造 auth store
+- `forma-interfaces/.../web/identity/AccountController.java` — 增 `PUT /password`；复用 `SecuritySupport.requireUserId()`；无 Credit 依赖
+- `forma-interfaces/.../vo/identity/` — 新增改密 Request VO（oldPassword / newPassword + Bean Validation）
+- `forma-application/.../identity/service/IdentityApplicationService.java` — 增 `changePassword`：matches 旧哈希 → 校验新规则 → hash → 持久化
+- `forma-application/.../identity/command/` — `ChangePasswordCommand`（继承 `BaseCommand`）
+- `forma-domain/.../identity/repository/UserRepository.java` + `UserMapper` / Impl / XML — 增 `updatePasswordHash(userId, hash, updatedAt)`
+- `forma-domain/.../identity/port/PasswordHasher.java` + `BcryptPasswordHasher` — 复用 hash/matches，不改算法
+- `forma-starter/.../AccountProfileIntegrationTest.java`（或 Auth IT）— 改密成功后可用新密码登录、旧密码失败、错误不改哈希、未授权
+- `forma-application/.../IdentityApplicationServiceTest.java` — 单测旧错/不合规/相同/成功
+- `forma-web/src/api/identity/account.ts` + types — `changeAccountPassword`
+- `forma-web/src/views/identity/AccountSettings.vue` — 替换改密占位为真表单；保留 `logout()`；删除仍禁用
+- `forma-web/src/views/identity/AccountSettings.test.ts` — 改密成功/失败提示、退出既有断言保留
+- `forma-web/src/api/http.ts` — `clearToken` 复用；不新造 auth store
 - `sdd/.../mockups/profile.html` `#panel-security` — 行布局参照（本故事启用改密与退出）
 
 **Reuse：** `IdentityApplicationService` 注册密码规则与 `PasswordHasher`；`AccountController` 薄写模式；IT `registerAndLogin`；FE `logout` + security 分区壳。
@@ -136,9 +136,9 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test -Dtest='*Identity*,*Account*,*Auth*' -DfailIfNoTests=false` — 相关后端测绿
-- `cd lippi-ai-ebus-web && npm test -- --run src/views/identity src/api/identity` — 相关前端测绿
-- `cd lippi-ai-ebus-web && npm run lint` — 无新增 lint 错
+- `mvn -pl forma-starter -am test -Dtest='*Identity*,*Account*,*Auth*' -DfailIfNoTests=false` — 相关后端测绿
+- `cd forma-web && npm test -- --run src/views/identity src/api/identity` — 相关前端测绿
+- `cd forma-web && npm run lint` — 无新增 lint 错
 
 **Manual checks (if no CLI):**
 - 登录 → 账户 → 安全：改密成功后按决策处理会话；错误旧密见提示且仍可用旧密登录；退出后回登录

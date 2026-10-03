@@ -34,7 +34,7 @@ context:
 - 结算仅在可用成果持久化之后由 application 调 `CreditApplicationService.settle`；本故事空跑只 `reserveOne` + 结束时 `release`，禁止 `settle`
 - `artifact_ready` / `run_settled` 仅在真实「落库→结算」路径发出（留给 2.4）；空跑不发这两类
 - AgentRuntime 拥有 Run/SSE/`AgentSession` 编排；积分只经 CreditLedger（AD-5/AD-6）
-- 模型只经 `lippi-pi-ai`；业务入口只 `AgentSession`；Controller 薄 + `SecuritySupport.requireUserId()`
+- 模型只经 `pi-ai`；业务入口只 `AgentSession`；Controller 薄 + `SecuritySupport.requireUserId()`
 - ID 为 UUID 字符串；SQL 追加下一号 `004_*.sql`；H2 schema 同步
 
 **Never:**
@@ -58,16 +58,16 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-application/.../business/credit/service/CreditApplicationService.java` — `reserveOne` / `settle` / `release`；本故事只调 reserve+release
-- `lippi-ai-ebus-interfaces/.../security/SecuritySupport.java` + `JwtAuthenticationFilter` — SSE/REST 取 `userId`
-- `lippi-ai-ebus-interfaces/.../web/business/credit/CreditController.java` — 薄 Controller 范本 → Agent SSE Controller
-- `lippi-pi-agent/.../session/AgentSession.java` — `subscribe` / `prompt`；业务唯一入口
-- `lippi-pi-agent/.../event/PiEvent` + `PiEventType` — 映射到 AD-4 事件名（勿改 Pi 模块事件枚举本身）
-- `lippi-ai-ebus-domain/.../business/credit/` — 域分层范本 → 新建 `domain/business/agent/`（GenerationRun 模型+仓储端口）
+- `forma-application/.../business/credit/service/CreditApplicationService.java` — `reserveOne` / `settle` / `release`；本故事只调 reserve+release
+- `forma-interfaces/.../security/SecuritySupport.java` + `JwtAuthenticationFilter` — SSE/REST 取 `userId`
+- `forma-interfaces/.../web/business/credit/CreditController.java` — 薄 Controller 范本 → Agent SSE Controller
+- `pi-agent/.../session/AgentSession.java` — `subscribe` / `prompt`；业务唯一入口
+- `pi-agent/.../event/PiEvent` + `PiEventType` — 映射到 AD-4 事件名（勿改 Pi 模块事件枚举本身）
+- `forma-domain/.../business/credit/` — 域分层范本 → 新建 `domain/business/agent/`（GenerationRun 模型+仓储端口）
 - `APP-META/bootstrap/sql/003_ebus_credit_tier_change.sql` — 下一号 `004_ebus_generation_run.sql`
-- `lippi-ai-ebus-starter/src/test/resources/schema-h2.sql` — 同步测表
-- `lippi-ai-ebus-web/src/api/client.ts` + `http.ts` — JWT Bearer；`request()` 只解析 JSON，**不可**直接复用读 SSE
-- `lippi-ai-ebus-web/src/api/business/credit/` + `types/business/credit.ts` — api/types 分家范本 → agent SSE 模块
+- `forma-starter/src/test/resources/schema-h2.sql` — 同步测表
+- `forma-web/src/api/client.ts` + `http.ts` — JWT Bearer；`request()` 只解析 JSON，**不可**直接复用读 SSE
+- `forma-web/src/api/business/credit/` + `types/business/credit.ts` — api/types 分家范本 → agent SSE 模块
 - `sdd/context/03-fe.md` — `composables/agent/` + fetch/ReadableStream 约定
 - Spine AD-4/AD-5/AD-6/AD-7；`epic-2-context.md`
 
@@ -79,12 +79,12 @@ context:
 
 **Execution:**
 - [x] `APP-META/bootstrap/sql/004_ebus_generation_run.sql` + `schema-h2.sql` — GenerationRun 表（UUID、userId、holdId、sessionId、artifactRef 可空、状态、时间）— Run 持久化
-- [x] `lippi-ai-ebus-domain/.../business/agent/` — GenerationRun 模型 + 仓储端口 — AgentRuntime 真相
-- [x] `lippi-ai-ebus-application/.../business/agent/` — ApplicationService：预占→建 Run→AgentSession/桩→PiEvent→AD-4 映射；结束 release、禁止 settle — 编排
-- [x] `lippi-ai-ebus-infrastructure/...` — PO/Mapper/RepoImpl — 落地存储
-- [x] `lippi-ai-ebus-interfaces/.../web/business/agent/` — JWT SSE 启动端点（`text/event-stream`）— 闭合事件下发
-- [x] `lippi-ai-ebus-web/src/api|types|composables/.../agent/` — fetch+ReadableStream+JWT 解析 AD-4 事件（不经 `request().json()`）— 客户端契约
-- [x] `lippi-ai-ebus-web` 登录后最小试跑页/入口 — 发起空跑并展示 AD-4 事件名列表（非正式 Agent 壳）
+- [x] `forma-domain/.../business/agent/` — GenerationRun 模型 + 仓储端口 — AgentRuntime 真相
+- [x] `forma-application/.../business/agent/` — ApplicationService：预占→建 Run→AgentSession/桩→PiEvent→AD-4 映射；结束 release、禁止 settle — 编排
+- [x] `forma-infrastructure/...` — PO/Mapper/RepoImpl — 落地存储
+- [x] `forma-interfaces/.../web/business/agent/` — JWT SSE 启动端点（`text/event-stream`）— 闭合事件下发
+- [x] `forma-web/src/api|types|composables/.../agent/` — fetch+ReadableStream+JWT 解析 AD-4 事件（不经 `request().json()`）— 客户端契约
+- [x] `forma-web` 登录后最小试跑页/入口 — 发起空跑并展示 AD-4 事件名列表（非正式 Agent 壳）
 - [x] 单元/集成测 — 覆盖 I/O 矩阵（含不足、空跑 release 不 settle、事件名、无 JWT）— 防回归
 
 **Acceptance Criteria:**
@@ -98,7 +98,7 @@ context:
 - API：`POST /api/v1/agent/runs/empty`（JWT）；预占失败先返回 JSON 业务错，成功再开 SSE。
 - 空跑：`reserveOne` → Run → AgentSession → AD-4 映射 → `release` + `run_failed`；从不 `settle`；不发 `artifact_ready`/`run_settled`。
 - 前端：`/agent/dry-run` + `/me` 入口；`fetch`+ReadableStream 解析事件。
-- 验证：`AgentApplicationServiceTest` / `PiEventToAd4MapperTest` / `AgentEmptyRunIntegrationTest` 全绿；FE lint + agent/router 测绿。全量 `-am test` 仍可能被无关的 `lippi-pi-agent` WIP 拖红。
+- 验证：`AgentApplicationServiceTest` / `PiEventToAd4MapperTest` / `AgentEmptyRunIntegrationTest` 全绿；FE lint + agent/router 测绿。全量 `-am test` 仍可能被无关的 `pi-agent` WIP 拖红。
 - 评审补丁：release 失败不再谎称已释放；SSE sink 中断仍 release+`run_failed`；试跑 AbortController；H2 索引；executor `@PreDestroy`；补 session 复用 / payload / 合成 delta 测。
 
 ## Spec Change Log
@@ -137,8 +137,8 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test` -- expected: BUILD SUCCESS，含 Agent/SSE 相关测
-- `cd lippi-ai-ebus-web && npm run lint` -- expected: 无新增 lint 错误
+- `mvn -pl forma-starter -am test` -- expected: BUILD SUCCESS，含 Agent/SSE 相关测
+- `cd forma-web && npm run lint` -- expected: 无新增 lint 错误
 
 **Manual checks (if no CLI):**
 - 带 JWT 启动空跑：应看到 `run_started`/`message_delta`，结束后积分未实扣（预占已释放）

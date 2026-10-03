@@ -54,14 +54,14 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-web/src/views/identity/AuthMe.vue` — 现调试页；本故事改造成账户壳+资料区（可重命名为 `AccountSettings.vue` 并改 router import）
-- `lippi-ai-ebus-web/src/router/index.ts` — 保持 `path: '/me'` / `name: 'me'`，组件指向新账户页
-- `lippi-ai-ebus-web/src/components/common/AppHeader.vue` — 头像已链 `name: 'me'`；一般无需改，测例已覆盖
-- `lippi-ai-ebus-web/src/api/identity/account.ts` + `types/identity/account.ts` — 4.1 已交付；页面直接复用，勿改契约
-- `lippi-ai-ebus-web/src/views/business/credit/CreditPlan.vue` — shell + `getToken`/`ApiError`/401 范本
-- `lippi-ai-ebus-web/src/views/identity/AuthLogin.vue` — 表单 submit / loading / error 范本
+- `forma-web/src/views/identity/AuthMe.vue` — 现调试页；本故事改造成账户壳+资料区（可重命名为 `AccountSettings.vue` 并改 router import）
+- `forma-web/src/router/index.ts` — 保持 `path: '/me'` / `name: 'me'`，组件指向新账户页
+- `forma-web/src/components/common/AppHeader.vue` — 头像已链 `name: 'me'`；一般无需改，测例已覆盖
+- `forma-web/src/api/identity/account.ts` + `types/identity/account.ts` — 4.1 已交付；页面直接复用，勿改契约
+- `forma-web/src/views/business/credit/CreditPlan.vue` — shell + `getToken`/`ApiError`/401 范本
+- `forma-web/src/views/identity/AuthLogin.vue` — 表单 submit / loading / error 范本
 - `sdd/.../mockups/profile.html` — 布局与文案参照（左栏/顶签、显示名称、disabled 头像）
-- `lippi-ai-ebus-web/src/views/identity/` — 新增页面测（组件测或 view 测）；更新依赖 `/me` 文案的测例若有
+- `forma-web/src/views/identity/` — 新增页面测（组件测或 view 测）；更新依赖 `/me` 文案的测例若有
 
 **Reuse：** `AppHeader`、`account` api/types、`ApiError`、`getToken`/`clearToken`、套餐路由 `credits`。
 
@@ -92,7 +92,7 @@ context:
 
 ## Review Triage Log
 
-- false — Blind：diff 路径缺 `lippi-ai-ebus-web/` 前缀会把页面落到包外：工作树文件在 `lippi-ai-ebus-web/src/views/identity/AccountSettings.vue`；是 `git diff --no-index` 进临时 diff 的路径表象，非仓内错位。
+- false — Blind：diff 路径缺 `forma-web/` 前缀会把页面落到包外：工作树文件在 `forma-web/src/views/identity/AccountSettings.vue`；是 `git diff --no-index` 进临时 diff 的路径表象，非仓内错位。
 - false — Blind：规格文件未随变更：untracked 的 `spec-4-2-*.md` 在工作区；非代码缺陷。
 - low → reject — Blind：缺 `aria-controls`/panel id：键盘切换已实现；完整 APG 对日常用户影响小，补全非本轮必须。
 - low → reject — Blind：loading/needsLogin 时 tab 仍可点：主区仍显示门禁/加载，切换无实质错误态。
@@ -118,8 +118,8 @@ context:
 ## Verification
 
 **Commands:**
-- `cd lippi-ai-ebus-web && npm test -- --run src/views/identity src/components/common/AppHeader.test.ts src/api/identity` — 相关测绿
-- `cd lippi-ai-ebus-web && npm run lint` — 无新增 lint 错
+- `cd forma-web && npm test -- --run src/views/identity src/components/common/AppHeader.test.ts src/api/identity` — 相关测绿
+- `cd forma-web && npm run lint` — 无新增 lint 错
 
 **Manual checks (if no CLI):**
 - 登录后点头像 → 默认个人资料；改名保存后刷新仍在；切使用情况/安全见占位；缩窄窗口见顶签

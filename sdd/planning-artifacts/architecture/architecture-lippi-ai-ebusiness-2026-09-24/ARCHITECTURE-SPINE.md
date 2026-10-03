@@ -74,7 +74,7 @@ flowchart LR
 
 - **Binds:** AgentRuntime, model I/O
 - **Prevents:** 同时维护 TS Pi 与 Java Pi；或运行时 Maven 依赖 LIMS 发版
-- **Rule:** 将 LIMS 的 `lippi-ai-lims-pi-ai` / `lippi-ai-lims-pi-agent` **拷贝入本仓库**，目录与 artifact 命名为 **`lippi-pi-ai`** / **`lippi-pi-agent`**，并本地演进；v1 不依赖 LIMS 构件。所有模型调用经拷贝后的 `pi-ai` 端口；业务入口用 `AgentSession`，不把内部 `Agent` 类当对外 API。
+- **Rule:** 将 LIMS 的 `lippi-ai-lims-pi-ai` / `lippi-ai-lims-pi-agent` **拷贝入本仓库**，目录与 artifact 命名为 **`pi-ai`** / **`pi-agent`**，并本地演进；v1 不依赖 LIMS 构件。所有模型调用经拷贝后的 `pi-ai` 端口；业务入口用 `AgentSession`，不把内部 `Agent` 类当对外 API。
 
 ### AD-4 — 计费生成用 SSE [ADOPTED]
 
@@ -102,7 +102,7 @@ flowchart LR
 | ArtifactStore | 唯一物理写入 `ebus_artifact`（及同族存储） |
 | CatalogTemplate | 品类模板；**全部已上线模板对三档套餐均可用**（不按套餐解锁） |
 | PicklistArtifact | 定义 `artifact_type=picklist` 的可用成果形状与校验（约 8–12 条候选、必含 `templateId` 等）；**不**持有专用表 |
-| ListingArtifact | 定义 `artifact_type=sku` 的可用成果形状与校验（文案/展示说明、≥1 个 `mediaObjectId`、可选 `picklistItemId`）；**不**持有专用表 |
+| ListingArtifact | 定义 `artifact_type=sku` 的可用成果形状与校验（文案/展示说明、可选 `picklistItemId`；`mediaObjectId` 可选，有图时仍经 MediaStore）；**不**持有专用表 |
 | MediaStore | OSS `objectKey`、字节、派生可读 URL |
 | Feedback | FR-11「质量差」等简短反馈记录 |
 | HistoryQuery | 无独立写模型；只读聚合本人近期成果 |
@@ -114,7 +114,7 @@ flowchart LR
 - **Prevents:** 成果定义分叉；重试会话/预占错绑；选品→Listing 交接形状冲突
 - **Rule:**
   - 选品成功：**写入 ArtifactStore**（`ebus_artifact`，`artifact_type=picklist`）约 8–12 条带理由候选，必含 `templateId`，并挂到当前 `GenerationRun.artifactRef`。
-  - Listing 成功：**写入 ArtifactStore**（`artifact_type=sku`）文案/展示说明 + ≥1 个 `mediaObjectId`；可带 `picklistItemId`（自填商品则可空）。
+  - Listing 成功：**写入 ArtifactStore**（`artifact_type=sku`）文案/展示说明（`heroPlan` / 详情 / 展示说明等）；**不**强制 `mediaObjectId`（近端无出图；日后 skill 触发出图时再写入 MediaStore id）。可带 `picklistItemId`（自填商品则可空）。
   - 每次计费生成（含重试）= **新的 `GenerationRun` + 新预占**；可复用同一聊天 `AgentSession`，但不得复用旧 hold。
   - 达成功条件后由 application 调 CreditLedger 结算，再发 SSE `artifact_ready` / `run_settled`。
   - 历史：**每次成功成果均保留为独立记录**（重试不覆盖、不自动 superseded）；用户删除另议。
@@ -135,7 +135,7 @@ flowchart LR
 
 - **Binds:** ops envelope v1
 - **Prevents:** 每人一套无法复现的本机安装；自创 deploy/ 与 LIMS 分叉
-- **Rule:** 部署元数据放在 **`APP-META/`**（对齐 LIMS）：`docker-config/`（`docker-compose.yml`、Dockerfile*、`environment/`）、`bootstrap/`（SQL 初始化、构建/部署脚本）。Compose 至少拉起 `lippi-ai-ebus-starter` + MySQL。本地可用 OSS/模型桩，端口形状不变。云主机、完整 CI/CD、多环境后置（见 Deferred）。
+- **Rule:** 部署元数据放在 **`APP-META/`**（对齐 LIMS）：`docker-config/`（`docker-compose.yml`、Dockerfile*、`environment/`）、`bootstrap/`（SQL 初始化、构建/部署脚本）。Compose 至少拉起 `forma-starter` + MySQL。本地可用 OSS/模型桩，端口形状不变。云主机、完整 CI/CD、多环境后置（见 Deferred）。
 
 ### AD-11 — 依赖方向 [ADOPTED]
 
@@ -145,22 +145,22 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  starter[lippi-ai-ebus-starter] --> interfaces[lippi-ai-ebus-interfaces]
-  interfaces --> application[lippi-ai-ebus-application]
-  application --> domain[lippi-ai-ebus-domain]
-  application --> pi_agent[lippi-pi-agent]
-  pi_agent --> pi_ai[lippi-pi-ai]
-  infrastructure[lippi-ai-ebus-infrastructure] --> domain
+  starter[forma-starter] --> interfaces[forma-interfaces]
+  interfaces --> application[forma-application]
+  application --> domain[forma-domain]
+  application --> pi_agent[pi-agent]
+  pi_agent --> pi_ai[pi-ai]
+  infrastructure[forma-infrastructure] --> domain
   infrastructure --> pi_agent
   interfaces --> infrastructure
-  application --> common[lippi-ai-ebus-common]
+  application --> common[forma-common]
   domain --> common
   pi_ai --> common
 ```
 
 `domain` / `pi-*` 不依赖 `interfaces`。成果模块不依赖 CreditLedger 实现细节；由 `application` 编排「落库 → 结算」。
 
-**例外（Pi 适配器）：** `lippi-ai-ebus-infrastructure` → `lippi-pi-agent` 仅用于实现 Pi 端口适配器（`MysqlSessionStore` / 后续 `MysqlCheckpointer` 等）。适配器代码留在 infrastructure，**禁止**把实现塞进 `starter` / `application`；`pi-agent` **仍不**依赖 MyBatis。
+**例外（Pi 适配器）：** `forma-infrastructure` → `pi-agent` 仅用于实现 Pi 端口适配器（`MysqlSessionStore` / 后续 `MysqlCheckpointer` 等）。适配器代码留在 infrastructure，**禁止**把实现塞进 `starter` / `application`；`pi-agent` **仍不**依赖 MyBatis。
 
 ### AD-12 — 标识符 [ADOPTED]
 
@@ -172,7 +172,7 @@ flowchart TB
 
 - **Binds:** 仓库目录、Maven artifactIds、前端工程名
 - **Prevents:** `backend/` / `web/` / `deploy/` 再包一层；与 LIMS 模块/部署习惯分叉
-- **Rule:** 仓库根即 Maven parent（`packaging=pom`）。业务模块统一前缀 **`lippi-ai-ebus-*`**，与 parent 平级，**不**再套 `backend/`、`web/`。例外：从 LIMS 拷贝的 Pi 运行时模块名为 **`lippi-pi-ai`** / **`lippi-pi-agent`**（不加 `ebus`）。Java 模块进 parent `<modules>`；前端目录名为 **`lippi-ai-ebus-web`**（Vite/Vue，非 Maven 子模块）。部署用 **`APP-META/`**（AD-10），不用 `deploy/`。禁止把领域代码塞进 `starter`。
+- **Rule:** 仓库根即 Maven parent（`packaging=pom`）。业务模块统一前缀 **`forma-*`**，与 parent 平级，**不**再套 `backend/`、`web/`。例外：从 LIMS 拷贝的 Pi 运行时模块名为 **`pi-ai`** / **`pi-agent`**（不加 `ebus`）。Java 模块进 parent `<modules>`；前端目录名为 **`forma-web`**（Vite/Vue，非 Maven 子模块）。部署用 **`APP-META/`**（AD-10），不用 `deploy/`。禁止把领域代码塞进 `starter`。
 
 ### AD-14 — SceneCatalog 所有权 [ADOPTED]
 
@@ -209,7 +209,7 @@ flowchart TB
 
 | Concern | Convention |
 | --- | --- |
-| 命名 | 业务模块前缀 `lippi-ai-ebus-`；Pi 拷贝模块 `lippi-pi-ai` / `lippi-pi-agent`（AD-3/AD-13）；Java 包按所有者；前端文案中文 |
+| 命名 | 业务模块前缀 `forma-`；Pi 拷贝模块 `pi-ai` / `pi-agent`（AD-3/AD-13）；Java 包按所有者；前端文案中文 |
 | ID | AD-12（对外 UUID；库内可有 BIGINT 自增代理主键） |
 | 场景键 | 稳定 `sceneCode` 绑定代码包；列表可同时返回 `biz_id` |
 | 账户路径 | `/api/v1/account/**`（AD-17） |
@@ -241,15 +241,15 @@ flowchart TB
 ```text
 lippi-ai-ebusiness/                      # 仓库根 = Maven parent
   pom.xml
-  lippi-ai-ebus-common/
-  lippi-pi-ai/                           # vendor-copy（自 lims-pi-ai）
-  lippi-pi-agent/                        # vendor-copy（自 lims-pi-agent）
-  lippi-ai-ebus-domain/
-  lippi-ai-ebus-application/
-  lippi-ai-ebus-infrastructure/
-  lippi-ai-ebus-interfaces/              # REST + SSE + 限流
-  lippi-ai-ebus-starter/                 # 唯一 bootable
-  lippi-ai-ebus-web/                     # Vite + Vue 3 + TS（非 Maven module）
+  forma-common/
+  pi-ai/                           # vendor-copy（自 lims-pi-ai）
+  pi-agent/                        # vendor-copy（自 lims-pi-agent）
+  forma-domain/
+  forma-application/
+  forma-infrastructure/
+  forma-interfaces/              # REST + SSE + 限流
+  forma-starter/                 # 唯一 bootable
+  forma-web/                     # Vite + Vue 3 + TS（非 Maven module）
   APP-META/                              # 对齐 LIMS
     docker-config/
       docker-compose.yml
@@ -303,7 +303,7 @@ erDiagram
 - **AD-18** 未开放场景后端硬拒（近端靠前端；后置必补）。
 - 微信支付 / 支付宝；月费数字 — 条件：定价实测 + 商户号。
 - 手机号验证码、微信 OAuth、小程序；删号 API。
-- `lippi-pi-ai` / `lippi-pi-agent` 抽共享库（现 vendor-copy）。
+- `pi-ai` / `pi-agent` 抽共享库（现 vendor-copy）。
 - Spring Boot 3.x / Java 17+（2.7.18 EOL）。
 - 云部署、CI/CD、staging/prod、可观测性栈。
 - 历史保留：**近 60 天**（已定）；超过窗口的清理策略实现时细化。

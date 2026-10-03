@@ -4,7 +4,7 @@
 .agents
 _bmad
 sdd
-lippi-ai-ebus-web
+forma-web
 **/target
 node_modules
 **/.DS_Store

@@ -57,18 +57,18 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-interfaces/.../web/identity/AccountController.java` — 仅 profile；本故事**另增**薄控制器挂 `/api/v1/account/credits/usage`（避免 Identity Controller 依赖 Credit）；保持无写积分
-- `lippi-ai-ebus-interfaces/.../web/business/credit/CreditController.java` — `GET /api/v1/credits` 兼容保留
-- `lippi-ai-ebus-application/.../credit/query/CreditQueryService.java` + usage DTO — `findUsage(userId)`；摘要复用余额字段 + `CreditTier.monthlyQuota`；entries 仅 SETTLED
-- `lippi-ai-ebus-domain/.../credit/repository/CreditHoldRepository.java` + `CreditHoldMapper` / Impl — 按 `userId` + `SETTLED` 时间倒序列表（限近 50）
-- `lippi-ai-ebus-domain/.../credit/model/CreditHold.java` + `CreditHoldStatus` — 流水行源；标题固定人话「已扣分」
-- `lippi-ai-ebus-starter/.../AccountProfileIntegrationTest.java`（或新 IT）— 扩 usage 读/空态/鉴权；断言 account 无积分写口
-- `lippi-ai-ebus-web/src/views/identity/AccountSettings.vue` — 替换 usage 占位：摘要 + 流水/空态 + 套餐链
-- `lippi-ai-ebus-web/src/api/identity/account.ts` + `types/identity/account.ts` — 增 usage 客户端（或 credit 域 api + types）
-- `lippi-ai-ebus-web/src/api/business/credit/credit.ts` + `types/business/credit.ts` — 可复用格式化辅助；主契约仍走 `/account/credits/usage`
-- `lippi-ai-ebus-web/src/views/business/credit/CreditPlan.vue` — 摘要展示范本；勿改支付语义
+- `forma-interfaces/.../web/identity/AccountController.java` — 仅 profile；本故事**另增**薄控制器挂 `/api/v1/account/credits/usage`（避免 Identity Controller 依赖 Credit）；保持无写积分
+- `forma-interfaces/.../web/business/credit/CreditController.java` — `GET /api/v1/credits` 兼容保留
+- `forma-application/.../credit/query/CreditQueryService.java` + usage DTO — `findUsage(userId)`；摘要复用余额字段 + `CreditTier.monthlyQuota`；entries 仅 SETTLED
+- `forma-domain/.../credit/repository/CreditHoldRepository.java` + `CreditHoldMapper` / Impl — 按 `userId` + `SETTLED` 时间倒序列表（限近 50）
+- `forma-domain/.../credit/model/CreditHold.java` + `CreditHoldStatus` — 流水行源；标题固定人话「已扣分」
+- `forma-starter/.../AccountProfileIntegrationTest.java`（或新 IT）— 扩 usage 读/空态/鉴权；断言 account 无积分写口
+- `forma-web/src/views/identity/AccountSettings.vue` — 替换 usage 占位：摘要 + 流水/空态 + 套餐链
+- `forma-web/src/api/identity/account.ts` + `types/identity/account.ts` — 增 usage 客户端（或 credit 域 api + types）
+- `forma-web/src/api/business/credit/credit.ts` + `types/business/credit.ts` — 可复用格式化辅助；主契约仍走 `/account/credits/usage`
+- `forma-web/src/views/business/credit/CreditPlan.vue` — 摘要展示范本；勿改支付语义
 - `sdd/.../mockups/profile.html` `#panel-usage` — 布局参照（摘要三格 + 列表 + 套餐注）
-- `lippi-ai-ebus-web/src/views/identity/AccountSettings.test.ts` — 覆盖加载成功、空态、错误/401、切到 usage
+- `forma-web/src/views/identity/AccountSettings.test.ts` — 覆盖加载成功、空态、错误/401、切到 usage
 
 **Reuse：** `CreditQueryService.ensureReady` 路径、`CreditBalanceDTO`、`creditTierLabel` / `formatNextResetAtShanghai`、账户页壳与 `credits` 路由链、Auth/Account IT 形状。
 
@@ -128,9 +128,9 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test -Dtest='*Credit*,*Account*' -DfailIfNoTests=false` — 相关后端测绿
-- `cd lippi-ai-ebus-web && npm test -- --run src/views/identity src/api/identity` — 相关前端测绿
-- `cd lippi-ai-ebus-web && npm run lint` — 无新增 lint 错
+- `mvn -pl forma-starter -am test -Dtest='*Credit*,*Account*' -DfailIfNoTests=false` — 相关后端测绿
+- `cd forma-web && npm test -- --run src/views/identity src/api/identity` — 相关前端测绿
+- `cd forma-web && npm run lint` — 无新增 lint 错
 
 **Manual checks (if no CLI):**
 - 登录 → 账户 → 使用情况：有消耗见摘要+流水；新号见空态；点套餐链进套餐页

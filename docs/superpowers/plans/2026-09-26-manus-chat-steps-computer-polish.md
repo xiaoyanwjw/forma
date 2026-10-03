@@ -23,12 +23,12 @@
 
 | Path | Role |
 |------|------|
-| `lippi-ai-ebus-web/src/composables/agent/agentProgress.ts` (new) | Pure helpers: parse tool label, append delta text, fold preview |
-| `lippi-ai-ebus-web/src/composables/agent/agentProgress.test.ts` | Unit tests for helpers |
-| `lippi-ai-ebus-web/src/composables/agent/useAgentPicklistRun.ts` | Expose `progressSteps`, `streamText`; update on SSE |
-| `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` | ChatMessage + UI for steps / fold |
-| `lippi-ai-ebus-web/src/views/business/scene/ecommerceWorkspaceSession.css` or scoped | `.chat-steps`, `.chat-stream` |
-| `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.vue` | List visual polish |
+| `forma-web/src/composables/agent/agentProgress.ts` (new) | Pure helpers: parse tool label, append delta text, fold preview |
+| `forma-web/src/composables/agent/agentProgress.test.ts` | Unit tests for helpers |
+| `forma-web/src/composables/agent/useAgentPicklistRun.ts` | Expose `progressSteps`, `streamText`; update on SSE |
+| `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` | ChatMessage + UI for steps / fold |
+| `forma-web/src/views/business/scene/ecommerceWorkspaceSession.css` or scoped | `.chat-steps`, `.chat-stream` |
+| `forma-web/src/components/business/computer/ComputerRenderer.vue` | List visual polish |
 | `*.test.ts` | Workspace + ComputerRenderer |
 
 ---
@@ -36,8 +36,8 @@
 ### Task 1: Progress helpers (TDD)
 
 **Files:**
-- Create: `lippi-ai-ebus-web/src/composables/agent/agentProgress.ts`
-- Test: `lippi-ai-ebus-web/src/composables/agent/agentProgress.test.ts`
+- Create: `forma-web/src/composables/agent/agentProgress.ts`
+- Test: `forma-web/src/composables/agent/agentProgress.test.ts`
 
 **Interfaces:**
 - Produces:
@@ -99,7 +99,7 @@ describe('agentProgress', () => {
 - [ ] **Step 2: Run — expect FAIL**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/composables/agent/agentProgress.test.ts
+cd forma-web && npm test -- --run src/composables/agent/agentProgress.test.ts
 ```
 
 - [ ] **Step 3: Implement `agentProgress.ts`**
@@ -159,8 +159,8 @@ export function foldPreview(text: string, threshold = MESSAGE_FOLD_THRESHOLD): {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/composables/agent/agentProgress.ts \
-  lippi-ai-ebus-web/src/composables/agent/agentProgress.test.ts
+git add forma-web/src/composables/agent/agentProgress.ts \
+  forma-web/src/composables/agent/agentProgress.test.ts
 git commit -m "feat(web): helpers for agent tool steps and message fold"
 ```
 
@@ -277,7 +277,7 @@ Also assert short message (≤120) has no toggle.
 - [ ] **Step 5: Run**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts src/composables/agent/agentProgress.test.ts
+cd forma-web && npm test -- --run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts src/composables/agent/agentProgress.test.ts
 ```
 
 Expected: PASS
@@ -331,7 +331,7 @@ it('renders dim tags as pills and price line emphasis', async () => {
 - [ ] **Step 4: Run ComputerRenderer + workspace tests**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/components/business/computer src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts && npm run lint
+cd forma-web && npm test -- --run src/components/business/computer src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts && npm run lint
 ```
 
 - [ ] **Step 5: Commit**
@@ -352,7 +352,7 @@ git commit -m "fix(web): polish Computer list hierarchy and dim pills"
 - [ ] **Step 2: Run focused FE suite once more**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/composables/agent/agentProgress.test.ts src/components/business/computer src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
+cd forma-web && npm test -- --run src/composables/agent/agentProgress.test.ts src/components/business/computer src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
 ```
 
 - [ ] **Step 3: Commit**

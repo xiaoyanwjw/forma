@@ -58,7 +58,7 @@ context:
 
 ## Code Map
 
-- `lippi-pi-agent/.../graph/checkpoint/ResumeIdempotencyStore.java` — 端口（勿改签名）
+- `pi-agent/.../graph/checkpoint/ResumeIdempotencyStore.java` — 端口（勿改签名）
 - `…/InMemoryResumeIdempotencyStore.java` · `…/redis/RedisResumeIdempotencyStore.java` · `RedisResumeIdempotencyStoreTest` — 金样（claim NX、complete 摘要、abandon、corrupt→FAILED、TTL）
 - Redis 摘要 JSON：`{phase, runId, status, finalResponse, messages[{role,content,toolCallId}]}`（复用同形状）
 - `…/agent/DefaultAgent.java` `resume` — `claim` / `resolveResumeResult` / `complete`（store.abandon|store.complete）；**不**调 `deleteByRun`（AC3 保留幂等键；勿改状态机语义）
@@ -80,7 +80,7 @@ context:
 - [x] `…/infrastructure/checkpoint/`（PO/Mapper/XML + `MysqlResumeIdempotencyStore` `@Primary`，门闩对齐 2.8）— 实现端口 — 多 Pod 幂等
 - [x] `DefaultAgent.java` — 抽出 `claim` / `resolveResumeResult` / `complete`，替换散落的 store complete/abandon — 样板收敛、语义不变
 - [x] starter/IT — 覆盖矩阵（claim/complete/重放/in_progress/abandon/过期/Primary/Redis 让位）— 防回归
-- [x] `lippi-pi-agent` README 一句 — Adam 生产默认 MySQL resume 幂等 — 叙事一致
+- [x] `pi-agent` README 一句 — Adam 生产默认 MySQL resume 幂等 — 叙事一致
 
 **Acceptance Criteria:**
 - Given 2.8 CP 已 MySQL，when 装配 MysqlResumeIdempotencyStore，then 同 `(runId, confirmId)` 重放不双跑
@@ -131,7 +131,7 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am -DfailIfNoTests=false -Dtest=MysqlResumeIdempotencyStoreIntegrationTest,MysqlResumeIdempotencyStoreConditionTest,CheckpointPersistenceHitlTest,RedisResumeIdempotencyStoreTest test` -- expected: 相关测绿
+- `mvn -pl forma-starter -am -DfailIfNoTests=false -Dtest=MysqlResumeIdempotencyStoreIntegrationTest,MysqlResumeIdempotencyStoreConditionTest,CheckpointPersistenceHitlTest,RedisResumeIdempotencyStoreTest test` -- expected: 相关测绿
 
 **Manual checks (if no CLI):**
 - 新库存在 `pi_resume_idempotency`；旧 volume 手工跑 `007`

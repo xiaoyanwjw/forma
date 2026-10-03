@@ -1,0 +1,18 @@
+{
+  "id": "render_view",
+  "description": "用当前 skill 的 Mustache 模板把 artifact.json 渲染成 Computer view.json",
+  "handlerClass": "com.xmut.forma.extension.tool.view.RenderViewToolHandler",
+  "schema": {
+    "name": "render_view",
+    "description": "读取 artifact，渲染 skill Mustache，写出 v2 view.json",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "artifact": { "type": "string", "description": "相对 run 根，默认 artifact.json" },
+        "out": { "type": "string", "description": "相对 run 根，默认 view.json" },
+        "template": { "type": "string", "description": "相对 skill 根，默认 template/view.mustache" },
+        "format": { "type": "string", "description": "html 或 markdown，默认 html" }
+      }
+    }
+  }
+}

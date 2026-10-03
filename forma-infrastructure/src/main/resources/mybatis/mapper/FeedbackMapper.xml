@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.forma.infrastructure.persistence.mybatis.mapper.FeedbackMapper">
+
+    <resultMap id="FeedbackResultMap" type="com.xmut.forma.infrastructure.persistence.mybatis.po.FeedbackPO">
+        <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="artifactId" column="artifact_id"/>
+        <result property="tag" column="tag"/>
+        <result property="commentText" column="comment_text"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO forma_feedback
+            (biz_id, user_id, artifact_id, tag, comment_text, created_at, updated_at)
+        VALUES
+            (#{bizId}, #{userId}, #{artifactId}, #{tag}, #{commentText}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <update id="updateByBizId">
+        UPDATE forma_feedback
+        SET tag = #{tag},
+            comment_text = #{commentText},
+            updated_at = #{updatedAt}
+        WHERE biz_id = #{bizId}
+    </update>
+
+    <select id="selectByBizId" resultMap="FeedbackResultMap">
+        SELECT id, biz_id, user_id, artifact_id, tag, comment_text, created_at, updated_at
+        FROM forma_feedback
+        WHERE biz_id = #{bizId}
+    </select>
+
+    <select id="selectByUserAndArtifact" resultMap="FeedbackResultMap">
+        SELECT id, biz_id, user_id, artifact_id, tag, comment_text, created_at, updated_at
+        FROM forma_feedback
+        WHERE user_id = #{userId} AND artifact_id = #{artifactId}
+    </select>
+</mapper>

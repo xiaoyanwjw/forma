@@ -63,9 +63,9 @@ context:
 - `…/domain/business/agent/model/GenerationRun.java` + `…/repository/GenerationRunRepository.java` — UUID `id` 聚合 + 仓储端口范本
 - `…/infrastructure/persistence/mybatis/po/GenerationRunPO.java` · `GenerationRunMapper` · `…/repository/business/agent/GenerationRunRepositoryImpl.java` — PO/Mapper/Impl 配方
 - `…/application/business/credit/query/CreditQueryService.java` · `…/interfaces/web/business/credit/CreditController.java` — 只读 GET + `ApiResponse` + `SecuritySupport.requireUserId()`
-- `APP-META/bootstrap/sql/007_pi_resume_idempotency.sql` → 新建 `008_ebus_scene.sql`；`lippi-ai-ebus-starter/src/test/resources/schema-h2.sql` 同步
-- `lippi-ai-ebus-starter/src/test/java/com/xmut/ebus/CreditIntegrationTest.java` — JWT + MockMvc 集成测金样
-- `lippi-ai-ebus-web/src/api/business/credit/` · `types/business/credit.ts` — FE 只 HTTP + 类型分家范本
+- `APP-META/bootstrap/sql/007_pi_resume_idempotency.sql` → 新建 `008_ebus_scene.sql`；`forma-starter/src/test/resources/schema-h2.sql` 同步
+- `forma-starter/src/test/java/com/xmut/ebus/CreditIntegrationTest.java` — JWT + MockMvc 集成测金样
+- `forma-web/src/api/business/credit/` · `types/business/credit.ts` — FE 只 HTTP + 类型分家范本
 - UX 文案源：`sdd/planning-artifacts/ux-designs/ux-lippi-ai-ebusiness-2026-09-26/mockups/index.html`
 - **Reuse：** GenerationRun 持久化形状；Credit 只读 Controller；02-be 目录配方
 - **Do not change：** CreditLedger、AgentRuntime/SSE、pi_* 表、LandingPage 视觉（本故事不改 UI）、CatalogTemplate（尚无代码则勿新建品类域）
@@ -78,8 +78,8 @@ context:
 - [x] `…/infrastructure/persistence/`（PO/Mapper/XML + `SceneRepositoryImpl`）— 按 sort_order 列出 — 持久化
 - [x] `…/application/business/scene/query/SceneQueryService` + DTO — 只读列表 — 用例边界
 - [x] `…/interfaces/web/business/scene/SceneController` — `GET /api/v1/scenes` + JWT — API 面
-- [x] `lippi-ai-ebus-starter/.../SceneCatalogIntegrationTest`（或邻名）— 覆盖 I/O 矩阵主路径 — 防回归
-- [x] `lippi-ai-ebus-web/src/api/business/scene/` + `types/business/scene.ts` — 列表客户端契约 — 供 2.3
+- [x] `forma-starter/.../SceneCatalogIntegrationTest`（或邻名）— 覆盖 I/O 矩阵主路径 — 防回归
+- [x] `forma-web/src/api/business/scene/` + `types/business/scene.ts` — 列表客户端契约 — 供 2.3
 
 **Acceptance Criteria:**
 - Given 迁移已应用，when `GET /api/v1/scenes` 带有效 JWT，then 返回四条且排序稳定，电商 `AVAILABLE`、三灰 `COMING_SOON`，字段含 bizId/sceneCode/展示名/状态/排序/文案
@@ -90,7 +90,7 @@ context:
 ## Implementation Notes
 
 - 2026-09-26：落地 `ebus_scene` + `GET /api/v1/scenes`；种子固定 biz_id `a1000001-0001-4000-8000-000000000001`～`…0004`；文案对齐 UX mockup。
-- 验证：`mvn -pl lippi-ai-ebus-starter -am test -Dtest=SceneCatalogIntegrationTest -DfailIfNoTests=false` 绿；`cd lippi-ai-ebus-web && npm run lint` 绿。
+- 验证：`mvn -pl forma-starter -am test -Dtest=SceneCatalogIntegrationTest -DfailIfNoTests=false` 绿；`cd forma-web && npm run lint` 绿。
 - H2 `schema-h2.sql` 种子前 `DELETE` 四码，避免 `sql.init mode=always` 重跑撞 UNIQUE。
 - 已有 MySQL 卷需手动跑 `008_ebus_scene.sql`（compose initdb 仅首次生效）。
 - Review patch：008 与 H2 同序 DELETE 四码；`ORDER BY sort_order, id`；`SceneStatus.fromCode` 对齐 CreditHoldStatus；IT 全量断言四卡并 finally 删 extra 行。
@@ -130,8 +130,8 @@ local_life    COMING_SOON  sort=4  本地生活
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test -Dtest=SceneCatalogIntegrationTest` -- expected: 绿（若类名不同则对应该测）
-- `cd lippi-ai-ebus-web && npm run lint` -- expected: 绿（若改了 api/types）
+- `mvn -pl forma-starter -am test -Dtest=SceneCatalogIntegrationTest` -- expected: 绿（若类名不同则对应该测）
+- `cd forma-web && npm run lint` -- expected: 绿（若改了 api/types）
 
 **Manual checks (if no CLI):**
 - 本地 compose 起库后打 `GET /api/v1/scenes`（Bearer），目视四卡字段与状态

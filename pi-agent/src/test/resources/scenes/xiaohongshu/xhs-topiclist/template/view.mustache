@@ -1,0 +1,67 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<div class="forma-deck">
+<span class="forma-sh"><span class="k">平台</span><span class="v pink">小红书</span></span>
+{{#itemCount}}<span class="forma-sh"><span class="k">条数</span><span class="v gray">{{itemCount}}</span></span>{{/itemCount}}
+<span class="forma-sh"><span class="k">样本</span><span class="v mid">公开抽样</span></span>
+</div>
+<p class="forma-lede">{{disclaimer}}</p>
+<h2>速览矩阵</h2>
+<table class="forma-mx">
+<thead>
+<tr>
+<th>#</th>
+<th>选题</th>
+<th>优先</th>
+<th>风险</th>
+</tr>
+</thead>
+<tbody>
+{{#items}}
+<tr>
+<td class="n">{{indexLabel}}</td>
+<td class="name">{{displayTitle}}</td>
+<td><span class="forma-sh"><span class="v {{priorityClass}}">{{priorityLabel}}</span></span></td>
+<td>{{#riskLabel}}<span class="forma-sh"><span class="v {{riskClass}}">{{riskLabel}}</span></span>{{/riskLabel}}</td>
+</tr>
+{{/items}}
+</tbody>
+</table>
+<h2>条目详情</h2>
+{{#items}}
+<details class="forma-blk"{{#detailsOpen}} open{{/detailsOpen}}>
+<summary>
+{{indexLabel}} {{displayTitle}}
+{{#priorityPublish}}
+<span class="forma-sh"><span class="k">状态</span><span class="v pink">优先发</span></span>
+{{/priorityPublish}}
+</summary>
+<div class="body">
+{{#priorityPublish}}
+{{#whyFirst}}
+<div class="forma-callout hot">
+<div class="t">为何优先</div>
+{{whyFirst}}
+</div>
+{{/whyFirst}}
+{{/priorityPublish}}
+<table class="forma-kv">
+<tbody>
+{{#hook}}
+<tr><th>视角</th><td>{{hook}}</td></tr>
+{{/hook}}
+{{#angle}}
+<tr><th>切入</th><td>{{angle}}</td></tr>
+{{/angle}}
+{{#risk}}
+<tr><th>风险</th><td>{{risk}}</td></tr>
+{{/risk}}
+</tbody>
+</table>
+{{#handoffPrompt}}
+<p><button type="button" data-forma-action="handoff" data-forma-skill-id="xhs-note" data-forma-prompt="{{handoffPrompt}}">写成笔记</button></p>
+{{/handoffPrompt}}
+</div>
+</details>
+{{/items}}
+</article>

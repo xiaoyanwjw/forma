@@ -1,0 +1,24 @@
+{
+  "id": "search_sku",
+  "description": "检索 SKU，返回带 https detailUrl 的 hits",
+  "text": "[search_sku] 按配置检索 SKU 样本。使用 query，可选 pageSize；禁止编造 detailUrl。",
+  "handlerClass": "com.xmut.forma.extension.tool.sku.SearchSkuToolHandler",
+  "schema": {
+    "name": "search_sku",
+    "description": "按配置检索 SKU 样本；每条命中含 https detailUrl",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "搜索关键词，例如 香薰"
+        },
+        "pageSize": {
+          "type": "integer",
+          "description": "每页条数，默认 10，最大 20"
+        }
+      },
+      "required": ["query"]
+    }
+  }
+}

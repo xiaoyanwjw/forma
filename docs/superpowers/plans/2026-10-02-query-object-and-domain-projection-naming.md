@@ -25,7 +25,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `lippi-ai-ebus-common/.../common/query/BaseQuery.java` | 读侧基类：`userId` + `@SuperBuilder` |
+| `forma-common/.../common/query/BaseQuery.java` | 读侧基类：`userId` + `@SuperBuilder` |
 | `.../session/query/SessionListQuery.java` | 列表：`sceneCode` + `limit()` |
 | `.../session/query/SessionTurnPageQuery.java` | 回合分页：`sessionId` / `nextToken` / `turnLimit()` |
 | `.../session/query/SessionLatestArtifactQuery.java` | 侧栏最新成果：`sessionId` / `artifactType` |
@@ -41,8 +41,8 @@
 ### Task 1: `BaseQuery`
 
 **Files:**
-- Create: `lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/query/BaseQuery.java`
-- Test: `lippi-ai-ebus-common/src/test/java/com/xmut/ebus/common/query/BaseQueryTest.java`
+- Create: `forma-common/src/main/java/com/xmut/ebus/common/query/BaseQuery.java`
+- Test: `forma-common/src/test/java/com/xmut/ebus/common/query/BaseQueryTest.java`
 
 **Interfaces:**
 - Produces: `abstract class BaseQuery` with `String getUserId()`；`@Getter` `@SuperBuilder` `@EqualsAndHashCode`
@@ -87,7 +87,7 @@ class BaseQueryTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `mvn -pl lippi-ai-ebus-common -Dtest=BaseQueryTest test`
+Run: `mvn -pl forma-common -Dtest=BaseQueryTest test`
 
 Expected: FAIL — `cannot find symbol: class BaseQuery`
 
@@ -118,15 +118,15 @@ public abstract class BaseQuery {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `mvn -pl lippi-ai-ebus-common -Dtest=BaseQueryTest test`
+Run: `mvn -pl forma-common -Dtest=BaseQueryTest test`
 
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-common/src/main/java/com/xmut/ebus/common/query/BaseQuery.java \
-  lippi-ai-ebus-common/src/test/java/com/xmut/ebus/common/query/BaseQueryTest.java
+git add forma-common/src/main/java/com/xmut/ebus/common/query/BaseQuery.java \
+  forma-common/src/test/java/com/xmut/ebus/common/query/BaseQueryTest.java
 git commit -m "$(cat <<'EOF'
 feat(common): add BaseQuery for read-side query objects
 
@@ -141,15 +141,15 @@ EOF
 ### Task 2: `PiMessageDTO` → `PiMessage`
 
 **Files:**
-- Rename/Create: `lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/agent/model/PiMessage.java`（内容同旧类，类名/构造器改名）
+- Rename/Create: `forma-domain/src/main/java/com/xmut/ebus/domain/business/agent/model/PiMessage.java`（内容同旧类，类名/构造器改名）
 - Delete: `.../model/PiMessageDTO.java`
 - Modify (type swap only):
-  - `lippi-ai-ebus-domain/.../repository/PiSessionQueryRepository.java`
-  - `lippi-ai-ebus-infrastructure/.../session/PiSessionQueryRepositoryImpl.java`
-  - `lippi-ai-ebus-application/.../session/query/SessionQueryService.java`
-  - `lippi-ai-ebus-application/.../session/support/SessionTurnAssembler.java`
-  - `lippi-ai-ebus-application/src/test/.../session/query/SessionQueryServiceTest.java`
-  - `lippi-ai-ebus-application/src/test/.../session/support/SessionTurnAssemblerTest.java`
+  - `forma-domain/.../repository/PiSessionQueryRepository.java`
+  - `forma-infrastructure/.../session/PiSessionQueryRepositoryImpl.java`
+  - `forma-application/.../session/query/SessionQueryService.java`
+  - `forma-application/.../session/support/SessionTurnAssembler.java`
+  - `forma-application/src/test/.../session/query/SessionQueryServiceTest.java`
+  - `forma-application/src/test/.../session/support/SessionTurnAssemblerTest.java`
 
 **Interfaces:**
 - Produces: `PiMessage` with identical constructors/getters as old `PiMessageDTO`
@@ -183,7 +183,7 @@ private static PiMessage msg(
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `mvn -pl lippi-ai-ebus-application -am -Dtest=SessionTurnAssemblerTest test`
+Run: `mvn -pl forma-application -am -Dtest=SessionTurnAssemblerTest test`
 
 Expected: FAIL — `cannot find symbol: class PiMessage`
 
@@ -204,7 +204,7 @@ Expected after fix: 无 `PiMessageDTO` 命中（`docs/` 历史计划可留）。
 Run:
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am \
+mvn -pl forma-application -am \
   -Dtest=SessionTurnAssemblerTest,SessionQueryServiceTest test
 ```
 
@@ -213,7 +213,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add -A lippi-ai-ebus-domain lippi-ai-ebus-infrastructure lippi-ai-ebus-application
+git add -A forma-domain forma-infrastructure forma-application
 git commit -m "$(cat <<'EOF'
 refactor(domain): rename PiMessageDTO to PiMessage
 
@@ -228,8 +228,8 @@ EOF
 ### Task 3: `SessionListQuery` + `list(SessionListQuery)`
 
 **Files:**
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/session/query/SessionListQuery.java`
-- Create: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/session/query/SessionListQueryTest.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/session/query/SessionListQuery.java`
+- Create: `forma-application/src/test/java/com/xmut/ebus/application/business/session/query/SessionListQueryTest.java`
 - Modify: `.../session/query/SessionQueryService.java`（`list` 签名；删 `clampLimit` / `DEFAULT_LIMIT` / `MAX_LIMIT`）
 - Modify: `.../interfaces/.../session/SessionController.java`（`list`）
 - Modify: `.../SessionQueryServiceTest.java`（`list*` 用例改组 Query）
@@ -273,7 +273,7 @@ class SessionListQueryTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `mvn -pl lippi-ai-ebus-application -am -Dtest=SessionListQueryTest test`
+Run: `mvn -pl forma-application -am -Dtest=SessionListQueryTest test`
 
 Expected: FAIL — `cannot find symbol: class SessionListQuery`
 
@@ -361,7 +361,7 @@ verify(piSessionQueryRepository).selectByUserSince(eq(USER), any(Instant.class),
 Run:
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am \
+mvn -pl forma-application -am \
   -Dtest=SessionListQueryTest,SessionQueryServiceTest test
 ```
 
@@ -370,9 +370,9 @@ Expected: PASS（turn / latest 用例仍用旧散参签名，直到 Task 4/5）
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/session/query/ \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/session/query/ \
-  lippi-ai-ebus-interfaces/src/main/java/com/xmut/ebus/interfaces/web/business/session/SessionController.java
+git add forma-application/src/main/java/com/xmut/ebus/application/business/session/query/ \
+  forma-application/src/test/java/com/xmut/ebus/application/business/session/query/ \
+  forma-interfaces/src/main/java/com/xmut/ebus/interfaces/web/business/session/SessionController.java
 git commit -m "$(cat <<'EOF'
 feat(session): accept SessionListQuery for session list
 
@@ -431,7 +431,7 @@ class SessionTurnPageQueryTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `mvn -pl lippi-ai-ebus-application -am -Dtest=SessionTurnPageQueryTest test`
+Run: `mvn -pl forma-application -am -Dtest=SessionTurnPageQueryTest test`
 
 Expected: FAIL — `cannot find symbol: class SessionTurnPageQuery`
 
@@ -521,7 +521,7 @@ verify(piSessionQueryRepository).getLogicalRunIds(SESSION, "10", 50);
 Run:
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am \
+mvn -pl forma-application -am \
   -Dtest=SessionTurnPageQueryTest,SessionQueryServiceTest test
 ```
 
@@ -530,9 +530,9 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/session/query/ \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/session/query/ \
-  lippi-ai-ebus-interfaces/src/main/java/com/xmut/ebus/interfaces/web/business/session/SessionController.java
+git add forma-application/src/main/java/com/xmut/ebus/application/business/session/query/ \
+  forma-application/src/test/java/com/xmut/ebus/application/business/session/query/ \
+  forma-interfaces/src/main/java/com/xmut/ebus/interfaces/web/business/session/SessionController.java
 git commit -m "$(cat <<'EOF'
 feat(session): pageTurns takes SessionTurnPageQuery
 
@@ -551,7 +551,7 @@ EOF
 - Modify: `SessionQueryService.java`（合并 `latestArtifact` 重载 → `getLatestArtifact`）
 - Modify: `SessionController.java`
 - Modify: `SessionQueryServiceTest.java`（`latestArtifact*`）
-- Modify: `lippi-ai-ebus-starter/src/test/java/com/xmut/ebus/SessionQueryIntegrationTest.java`
+- Modify: `forma-starter/src/test/java/com/xmut/ebus/SessionQueryIntegrationTest.java`
 
 **Interfaces:**
 - Consumes: `BaseQuery`；现有 `GenerationRunRepository` + `HistoryQueryService.findById(String,String)`（History Query 改动在 Task 6）
@@ -572,7 +572,7 @@ Optional<HistoryArtifactDetailDTO> found = service.getLatestArtifact(
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `mvn -pl lippi-ai-ebus-application -am -Dtest=SessionQueryServiceTest#latestArtifactFetchesSessionWithOnlyXhsArtifact test`
+Run: `mvn -pl forma-application -am -Dtest=SessionQueryServiceTest#latestArtifactFetchesSessionWithOnlyXhsArtifact test`
 
 Expected: FAIL — `cannot find symbol: getLatestArtifact` / `SessionLatestArtifactQuery`
 
@@ -655,8 +655,8 @@ HistoryArtifactDetailDTO latest = sessionQueryService.getLatestArtifact(
 Run:
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=SessionQueryServiceTest test
-mvn -pl lippi-ai-ebus-starter -am -Dtest=SessionQueryIntegrationTest test
+mvn -pl forma-application -am -Dtest=SessionQueryServiceTest test
+mvn -pl forma-starter -am -Dtest=SessionQueryIntegrationTest test
 ```
 
 Expected: PASS
@@ -664,7 +664,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application lippi-ai-ebus-interfaces lippi-ai-ebus-starter/src/test/java/com/xmut/ebus/SessionQueryIntegrationTest.java
+git add forma-application forma-interfaces forma-starter/src/test/java/com/xmut/ebus/SessionQueryIntegrationTest.java
 git commit -m "$(cat <<'EOF'
 feat(session): getLatestArtifact takes SessionLatestArtifactQuery
 
@@ -703,7 +703,7 @@ List<HistoryArtifactSummaryDTO> list = service.list(
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `mvn -pl lippi-ai-ebus-application -am -Dtest=HistoryQueryServiceTest#listUsesSixtyDayWindowAndHistoryTypes test`
+Run: `mvn -pl forma-application -am -Dtest=HistoryQueryServiceTest#listUsesSixtyDayWindowAndHistoryTypes test`
 
 Expected: FAIL — `cannot find symbol: class HistoryListQuery` / 旧签名不匹配
 
@@ -814,9 +814,9 @@ verify(historyQueryService).findById(argThat(q ->
 Run:
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am \
+mvn -pl forma-application -am \
   -Dtest=HistoryQueryServiceTest,SessionQueryServiceTest test
-mvn -pl lippi-ai-ebus-starter -am -Dtest=SessionQueryIntegrationTest test
+mvn -pl forma-starter -am -Dtest=SessionQueryIntegrationTest test
 ```
 
 Expected: PASS
@@ -824,7 +824,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application lippi-ai-ebus-interfaces
+git add forma-application forma-interfaces
 git commit -m "$(cat <<'EOF'
 feat(history): list/findById take History *Query objects
 
@@ -907,7 +907,7 @@ EOF
 Run:
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am \
+mvn -pl forma-starter -am \
   -Dtest=BaseQueryTest,SessionListQueryTest,SessionTurnPageQueryTest,SessionQueryServiceTest,HistoryQueryServiceTest,SessionTurnAssemblerTest,SessionQueryIntegrationTest \
   test
 ```
@@ -917,7 +917,7 @@ Expected: PASS
 可选 FE（契约未变）：
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/utils/sessionReplay.test.ts
+cd forma-web && npm test -- --run src/utils/sessionReplay.test.ts
 ```
 
 - [ ] **Step 5: Commit**

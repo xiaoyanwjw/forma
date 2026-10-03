@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.forma.infrastructure.persistence.mybatis.mapper.PiGraphCheckpointMapper">
+
+    <resultMap id="PiGraphCheckpointResultMap"
+               type="com.xmut.forma.infrastructure.persistence.mybatis.po.PiGraphCheckpointPO">
+        <id property="id" column="id"/>
+        <result property="runId" column="run_id"/>
+        <result property="checkpointId" column="checkpoint_id"/>
+        <result property="graphState" column="graph_state"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="expiresAt" column="expires_at"/>
+    </resultMap>
+
+    <sql id="CheckpointColumns">
+        id, run_id, checkpoint_id, graph_state, updated_at, expires_at
+    </sql>
+
+    <insert id="upsert">
+        INSERT INTO pi_graph_checkpoint
+            (run_id, checkpoint_id, graph_state, updated_at, expires_at)
+        VALUES
+            (#{runId}, #{checkpointId}, #{graphState}, #{updatedAt}, #{expiresAt})
+        ON DUPLICATE KEY UPDATE
+            checkpoint_id = VALUES(checkpoint_id),
+            graph_state = VALUES(graph_state),
+            updated_at = VALUES(updated_at),
+            expires_at = VALUES(expires_at)
+    </insert>
+
+    <select id="selectByRunId" resultMap="PiGraphCheckpointResultMap">
+        SELECT <include refid="CheckpointColumns"/>
+        FROM pi_graph_checkpoint
+        WHERE run_id = #{runId}
+    </select>
+
+    <delete id="deleteByRunId">
+        DELETE FROM pi_graph_checkpoint WHERE run_id = #{runId}
+    </delete>
+</mapper>

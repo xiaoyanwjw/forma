@@ -10,7 +10,7 @@ context:
   - '{project-root}/sdd/implementation-artifacts/epic-3-context.md'
   - '{project-root}/sdd/context/02-be.md'
   - '{project-root}/sdd/context/03-fe.md'
-  - '{project-root}/lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md'
+  - '{project-root}/forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -59,7 +59,7 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-starter/.../scenes/ecommerce/ecommerce-picklist/SKILL.md`（+ application/pi-agent test 镜像） — **填肉**：输出 JSON 契约、条数、理由质量规则、禁胡编/违规；`allowed-tools` 近端仍以 `read_skill` 为主
+- `forma-starter/.../scenes/ecommerce/ecommerce-picklist/SKILL.md`（+ application/pi-agent test 镜像） — **填肉**：输出 JSON 契约、条数、理由质量规则、禁胡编/违规；`allowed-tools` 近端仍以 `read_skill` 为主
 - `AgentApplicationService` / `AgentController` — 新增计费选品流（复用 prepare 场景绑定+预占模式）；**勿**让 empty 路径 settle
 - `CreditApplicationService.reserveOne` / `settle` / `release` — 唯一积分写口
 - `GenerationRun` + `004`/`009` SQL — `artifactRef` + `markSettled`；成本可观测挂本 Run
@@ -161,9 +161,9 @@ Adam 近端**无实时平台数据**：skill 用「框架化推理 + 明确非�
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test` -- 相关后端测绿（含 settle/release 与 skill 契约）
-- `cd lippi-ai-ebus-web && npm test -- EcommerceWorkspace AppHeader agent` -- 工作台/流式相关测绿
-- `cd lippi-ai-ebus-web && npm run lint` -- 无新增 lint 错误
+- `mvn -pl forma-starter -am test` -- 相关后端测绿（含 settle/release 与 skill 契约）
+- `cd forma-web && npm test -- EcommerceWorkspace AppHeader agent` -- 工作台/流式相关测绿
+- `cd forma-web && npm run lint` -- 无新增 lint 错误
 
 **Manual checks:**
 - 登录有余额：工作台选品 → Computer 出真清单 → 积分 −1

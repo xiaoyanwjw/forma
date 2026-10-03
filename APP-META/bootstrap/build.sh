@@ -3,9 +3,9 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
-mvn -pl lippi-ai-ebus-starter -am -DskipTests package
+mvn -pl forma-starter -am -DskipTests package
 
-SRC_JAR="$(ls -1 lippi-ai-ebus-starter/target/lippi-ai-ebus-starter-*.jar 2>/dev/null | grep -v '\.original$' | head -1 || true)"
+SRC_JAR="$(ls -1 forma-starter/target/forma-starter-*.jar 2>/dev/null | grep -v '\.original$' | head -1 || true)"
 if [[ -z "${SRC_JAR}" || ! -f "${SRC_JAR}" ]]; then
   echo "error: starter jar missing after package" >&2
   exit 1

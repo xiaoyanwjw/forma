@@ -58,16 +58,16 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-domain/.../agent/model/GenerationRun.java` — 扩展 start 携带 scene；无场景字段时补齐
-- `lippi-ai-ebus-domain/.../scene/model/Scene.java` + `SceneRepository` — 今日仅 `listOrdered()`；需 `findByBizId` / `findBySceneCode`
-- `lippi-ai-ebus-application/.../agent/command/StartEmptyRunCommand.java` — 增 `sceneId`/`sceneCode`
-- `lippi-ai-ebus-application/.../agent/service/AgentApplicationService.java` — `prepareEmptyRun` 校验解析场景后再 `reserveOne`；新建/复用 session 时写 `pi_session` 场景列
-- `lippi-ai-ebus-interfaces/.../agent/AgentController.java` — `POST /api/v1/agent/runs/empty` 读场景参数
-- `lippi-ai-ebus-infrastructure/.../GenerationRunPO.java` + Mapper/XML/`GenerationRunRepositoryImpl` — 读写场景列
+- `forma-domain/.../agent/model/GenerationRun.java` — 扩展 start 携带 scene；无场景字段时补齐
+- `forma-domain/.../scene/model/Scene.java` + `SceneRepository` — 今日仅 `listOrdered()`；需 `findByBizId` / `findBySceneCode`
+- `forma-application/.../agent/command/StartEmptyRunCommand.java` — 增 `sceneId`/`sceneCode`
+- `forma-application/.../agent/service/AgentApplicationService.java` — `prepareEmptyRun` 校验解析场景后再 `reserveOne`；新建/复用 session 时写 `pi_session` 场景列
+- `forma-interfaces/.../agent/AgentController.java` — `POST /api/v1/agent/runs/empty` 读场景参数
+- `forma-infrastructure/.../GenerationRunPO.java` + Mapper/XML/`GenerationRunRepositoryImpl` — 读写场景列
 - `pi_session` PO/Mapper/SessionStore 实现（Epic 2.7 路径）— 读写场景列；创建/更新会话时写入
 - `APP-META/bootstrap/sql/004_ebus_generation_run.sql`、`005_pi_session.sql`（只读参考）→ 新 `009_*.sql` 追加列；`schema-h2.sql` 同步
 - `APP-META/bootstrap/sql/008_ebus_scene.sql` — 电商 `sceneCode=ecommerce`、固定 bizId 种子
-- `lippi-ai-ebus-web/src/api/business/agent/agent.ts` + `types/business/agent.ts` + `composables/agent/useAgentEmptyRun.ts` + `views/agent/AgentDryRun.vue` — 请求必带场景；保持 fetch 流
+- `forma-web/src/api/business/agent/agent.ts` + `types/business/agent.ts` + `composables/agent/useAgentEmptyRun.ts` + `views/agent/AgentDryRun.vue` — 请求必带场景；保持 fetch 流
 - `EcommerceWorkspacePlaceholder.vue` — **本故事不改发送行为**（仍禁用）；已有 sceneCode 供后续用
 - 既有测：`AgentApplicationServiceTest`、`agent.flow.test.ts` — 补场景必填/拒绝/不 settle
 - **勿改：** CreditLedger 写路径；AD-4 事件名；Identity/JWT；`EventSource` 禁令；2.1 空跑不 settle 契约
@@ -81,7 +81,7 @@ context:
 - [x] `pi_session` PO/Mapper/SessionStore -- 读写场景列；创建或复用会话时写入解析结果 -- 会话必绑场景
 - [x] `StartEmptyRunCommand` + `AgentApplicationService.prepareEmptyRun` + `AgentController` -- 必填并校验场景；灰卡/未知/冲突拒绝；通过后再预占并写 run+session -- 堵住无场景跑批
 - [x] `AgentApplicationServiceTest`（及必要接口测）-- 覆盖 I/O 矩阵：缺场景/未知/冲突/灰卡/成功；断言从不 settle；断言 session 带场景 -- 锁契约
-- [x] `lippi-ai-ebus-web` agent api/types/composable/DryRun -- 传 sceneId 或 sceneCode；保持 fetch+ReadableStream+JWT；不改工作台发送 -- 前端契约对齐
+- [x] `forma-web` agent api/types/composable/DryRun -- 传 sceneId 或 sceneCode；保持 fetch+ReadableStream+JWT；不改工作台发送 -- 前端契约对齐
 - [x] FE 单测 -- 无 EventSource；缺场景不发请求或断言请求体含场景 -- 防回退
 
 **Acceptance Criteria:**
@@ -136,5 +136,5 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test` -- 相关单测绿，含场景拒绝与不 settle
-- `cd lippi-ai-ebus-web && npm run lint && npm run build` -- 前端类型与构建通过
+- `mvn -pl forma-starter -am test` -- 相关单测绿，含场景拒绝与不 settle
+- `cd forma-web && npm run lint && npm run build` -- 前端类型与构建通过

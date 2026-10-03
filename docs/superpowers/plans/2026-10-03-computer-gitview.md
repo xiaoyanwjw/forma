@@ -22,8 +22,8 @@
 ### Task 1: `gitDoc.ts` rename + API
 
 **Files:**
-- Create: `lippi-ai-ebus-web/src/components/business/computer/gitDoc.ts`
-- Create: `lippi-ai-ebus-web/src/components/business/computer/gitDoc.test.ts` (move/adapt from `listingPreview.test.ts`)
+- Create: `forma-web/src/components/business/computer/gitDoc.ts`
+- Create: `forma-web/src/components/business/computer/gitDoc.test.ts` (move/adapt from `listingPreview.test.ts`)
 - Delete: `listingPreview.ts`, `listingPreview.test.ts`
 - Modify: any imports of `listingPreview` / `ListingPreviewContent` / `projectListingPreviewContent` / `isListingReadmeDocument` / `listingSectionClass`
 
@@ -46,8 +46,8 @@
 ### Task 2: `GitView.vue` shell
 
 **Files:**
-- Create: `lippi-ai-ebus-web/src/components/business/computer/GitView.vue`
-- Create: `lippi-ai-ebus-web/src/components/business/computer/GitView.test.ts`
+- Create: `forma-web/src/components/business/computer/GitView.vue`
+- Create: `forma-web/src/components/business/computer/GitView.test.ts`
 
 **Interfaces:**
 - Produces props: `fileName: string`, optional `meta?: string`

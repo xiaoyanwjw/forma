@@ -1,0 +1,53 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<div class="forma-deck">
+<span class="forma-sh"><span class="k">阶段</span><span class="v info">策划</span></span>
+{{#frameCount}}<span class="forma-sh"><span class="k">分镜</span><span class="v gray">{{frameCount}}</span></span>{{/frameCount}}
+</div>
+{{#driver}}
+<p class="forma-lede">成交方向：{{driver}}</p>
+{{/driver}}
+<h2>主图分镜</h2>
+<ol>
+{{#frameEntries}}
+<li>
+<p>{{frame}}</p>
+{{#prompt}}
+<div class="forma-prompt">
+<div class="forma-prompt-h">
+<span class="forma-sh"><span class="k">frame</span><span class="v gray">{{indexLabel}}</span></span>
+<span class="forma-sh"><span class="k">type</span><span class="v info">prompt</span></span>
+</div>
+<pre>{{prompt}}</pre>
+</div>
+{{/prompt}}
+{{^prompt}}
+<div class="forma-prompt">
+<div class="forma-prompt-h">
+<span class="forma-sh"><span class="k">frame</span><span class="v gray">{{indexLabel}}</span></span>
+</div>
+<pre>{{frame}}</pre>
+</div>
+{{/prompt}}
+</li>
+{{/frameEntries}}
+</ol>
+{{#titleDraft}}
+<h2>标题草稿</h2>
+<pre><code>{{titleDraft}}</code></pre>
+{{/titleDraft}}
+{{#hasModules}}
+<h2>详情大纲</h2>
+<ol>
+{{#modules}}
+<li>{{.}}</li>
+{{/modules}}
+</ol>
+{{/hasModules}}
+{{#assumptions}}
+<h2>假设</h2>
+<blockquote>
+<p>{{assumptions}}</p>
+</blockquote>
+{{/assumptions}}
+</article>

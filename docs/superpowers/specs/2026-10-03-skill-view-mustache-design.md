@@ -58,13 +58,13 @@ Listing 策划/执行：路径可为 `plan/artifact.json` → `plan/view.json`�
 Canonical under skill resources:
 
 ```text
-lippi-ai-ebus-pi-extension/src/main/resources/scenes/<scene>/<skill>/references/view.mustache
+forma-pi-extension/src/main/resources/scenes/<scene>/<skill>/template/view.mustache
 ```
 
 Variants when needed:
 
-- `references/plan/view.mustache`
-- `references/exec/view.mustache`
+- `template/plan/view.mustache`
+- `template/exec/view.mustache`
 
 ### Tool `render_view`
 
@@ -72,7 +72,7 @@ Variants when needed:
 |------|------|------|
 | `artifact` | `artifact.json` | 相对 run 根的 artifact 路径 |
 | `out` | `view.json` | 写出的 view 路径 |
-| `template` | skill 默认 `references/view.mustache` | 相对**当前 skill 资源**的 mustache 路径 |
+| `template` | skill 默认 `template/view.mustache` | 相对**当前 skill 资源**的 mustache 路径 |
 
 行为：
 
@@ -113,7 +113,7 @@ Variants when needed:
 渲染前在内存中增强，例如：
 
 - `items[].displayTitle` — 去掉 `【优先发】` / `【优先试】`  
-- `items[].handoffPrompt` — 按既有手递合同拼好的完整 prompt（供 `data-adam-prompt`）  
+- `items[].handoffPrompt` — 按既有手递合同拼好的完整 prompt（供 `data-forma-prompt`）  
 
 具体 helper 按 skill 注册（选题 / 选品 / 拆解各一份），禁止把展示专用字段强迫进落库 artifact。
 
@@ -125,9 +125,9 @@ Variants when needed:
 ```html
 <button
   type="button"
-  data-adam-action="handoff"
-  data-adam-skill-id="xhs-note"
-  data-adam-prompt="{{handoffPrompt}}"
+  data-forma-action="handoff"
+  data-forma-skill-id="xhs-note"
+  data-forma-prompt="{{handoffPrompt}}"
 >写成笔记</button>
 ```
 

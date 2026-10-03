@@ -6,7 +6,7 @@
 
 **Architecture:** `SearchSkuToolHandler` 只调 `SkuSearcher#search`。步骤方法名钉死（spec §3.1）。`ModelSkuReranker` 注入 `ModelProvider`，失败降级为池序。`searcher.enabled=false` 时短路为单次 `SkuSearchPort.search`（≈现网）。
 
-**Tech Stack:** Java 8 / Spring Boot 2.7、`lippi-ai-ebus-application`、`lippi-pi-ai`（`ModelProvider` / `ModelRequest`）、JUnit 5 + Mockito
+**Tech Stack:** Java 8 / Spring Boot 2.7、`forma-application`、`pi-ai`（`ModelProvider` / `ModelRequest`）、JUnit 5 + Mockito
 
 ## Global Constraints
 
@@ -194,7 +194,7 @@ List<SkuCandidate> rerank(String intent, List<SkuCandidate> pool) {
 - [ ] **Step 4: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -DfailIfNoTests=false -Dtest=SkuSearcherTest test
+mvn -pl forma-application -am -DfailIfNoTests=false -Dtest=SkuSearcherTest test
 ```
 
 Expected: PASS
@@ -202,8 +202,8 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/tool/sku \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/tool/sku/SkuSearcherTest.java
+git add forma-application/src/main/java/com/xmut/ebus/application/business/agent/tool/sku \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent/tool/sku/SkuSearcherTest.java
 git commit -m "$(cat <<'EOF'
 feat(sku-search): add SkuSearcher with demo single-leg steps
 
@@ -269,7 +269,7 @@ assertEquals("title-h3", out.get(0).getTitle());
 - [ ] **Step 4: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -DfailIfNoTests=false -Dtest=SkuSearcherTest,ModelSkuRerankerTest test
+mvn -pl forma-application -am -DfailIfNoTests=false -Dtest=SkuSearcherTest,ModelSkuRerankerTest test
 ```
 
 Expected: PASS
@@ -277,9 +277,9 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/tool/sku/ModelSkuReranker.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/tool/sku/ModelSkuRerankerTest.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/tool/sku/SkuSearcherTest.java
+git add forma-application/src/main/java/com/xmut/ebus/application/business/agent/tool/sku/ModelSkuReranker.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent/tool/sku/ModelSkuRerankerTest.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent/tool/sku/SkuSearcherTest.java
 git commit -m "$(cat <<'EOF'
 feat(sku-search): add ModelSkuReranker via pi-ai useCase
 
@@ -344,7 +344,7 @@ verify(port, never()).search(anyString(), anyString(), anyInt());
 - [ ] **Step 3: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -DfailIfNoTests=false -Dtest=SkuSearcherTest,ModelSkuRerankerTest,SearchSkuToolHandlerTest test
+mvn -pl forma-application -am -DfailIfNoTests=false -Dtest=SkuSearcherTest,ModelSkuRerankerTest,SearchSkuToolHandlerTest test
 ```
 
 Expected: PASS
@@ -352,9 +352,9 @@ Expected: PASS
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/tool/sku/SearchSkuToolHandler.java \
-  lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/config/EbusPiToolCatalogConfiguration.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/tool/sku
+git add forma-application/src/main/java/com/xmut/ebus/application/business/agent/tool/sku/SearchSkuToolHandler.java \
+  forma-application/src/main/java/com/xmut/ebus/application/config/EbusPiToolCatalogConfiguration.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent/tool/sku
 git commit -m "$(cat <<'EOF'
 feat(sku-search): wire SearchSkuToolHandler through SkuSearcher
 
@@ -367,7 +367,7 @@ EOF
 ### Task 4: Picklist skill 薄改
 
 **Files:**
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
 - Sync mirrors under application / pi-agent test resources（若存在）
 
 - [ ] **Step 1: 改文案**
@@ -380,9 +380,9 @@ Quality：「在工具返回的候选中」挑选与写字段。
 - [ ] **Step 2: 同步 mirrors + Commit**
 
 ```bash
-git add lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist \
-  lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/ecommerce-picklist \
-  lippi-pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist
+git add forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist \
+  forma-application/src/test/resources/scenes/ecommerce/ecommerce-picklist \
+  pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist
 git commit -m "$(cat <<'EOF'
 docs(skill): note server-side sku searcher rerank
 

@@ -74,13 +74,13 @@
 ```html
 <button
   type="button"
-  data-adam-action="handoff"
-  data-adam-skill-id="xhs-note"
-  data-adam-prompt="请把「…」写成小红书种草笔记。…"
+  data-forma-action="handoff"
+  data-forma-skill-id="xhs-note"
+  data-forma-prompt="请把「…」写成小红书种草笔记。…"
 >写成笔记</button>
 ```
 
-前端事件委托：命中 `data-adam-action="handoff"` →
+前端事件委托：命中 `data-forma-action="handoff"` →
 
 ```ts
 startSkillRun({
@@ -113,7 +113,7 @@ SceneWorkspaceSpec 的 **`itemHandoffs` / 行内 `buildText` 退役**。
 ### Sanitizer allowlist (要点)
 
 - 文档标签：`p` / `h1–h3` / `ul` / `ol` / `li` / `table` / `thead` / `tbody` / `tr` / `th` / `td` / `a` / `img` / `code` / `pre` / `blockquote` / `hr` / `strong` / `em` / `span` / `div` / `button` / `article` 等常见结构  
-- 手递属性：`data-adam-action` / `data-adam-skill-id` / `data-adam-prompt`  
+- 手递属性：`data-forma-action` / `data-forma-skill-id` / `data-forma-prompt`  
 - `a[href]` / `img[src]`：仅安全 `http(s)`（及既有产品允许的媒体 URL 策略）  
 - **禁止** `script`、内联事件、`javascript:` URL  
 
@@ -128,10 +128,10 @@ SceneWorkspaceSpec 的 **`itemHandoffs` / 行内 `buildText` 退役**。
 
 ## §3 Skill migration & acceptance
 
-### Skill（`lippi-ai-ebus-pi-extension`）
+### Skill（`forma-pi-extension`）
 
 - 各 skill `references/output.md`：`view.json` 改为 v2  
-- 清单类（选题 / 选品 / 拆解等）：在 HTML（或 md 内嵌按钮）写出完整 `data-adam-*`  
+- 清单类（选题 / 选品 / 拆解等）：在 HTML（或 md 内嵌按钮）写出完整 `data-forma-*`  
 - Listing 策划 / 执行：分镜与文案也改为 skill 输出的文档 HTML，不再依赖前端 storyboard 组件  
 - `artifact` 契约尽量不动  
 

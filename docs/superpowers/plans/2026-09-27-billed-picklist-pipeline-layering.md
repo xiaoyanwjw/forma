@@ -6,7 +6,7 @@
 
 **Architecture:** Extract `CreditHoldSupport` (release/settle logging boundary) and `ComputerViewResolver` (chain + fail-closed). Reorder `streamPicklistRun` so projection cannot run after settle. FE accepts view-first `artifact_ready` (items optional).
 
-**Tech Stack:** Java 8 / Spring (`lippi-ai-ebus-application`), Vue3 (`lippi-ai-ebus-web`)
+**Tech Stack:** Java 8 / Spring (`forma-application`), Vue3 (`forma-web`)
 
 ## Global Constraints
 

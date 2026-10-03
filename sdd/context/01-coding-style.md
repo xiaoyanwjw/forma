@@ -55,4 +55,4 @@ FE views → api/<区>/*.ts（仅 HTTP）→ types/<区> → HTTP
 
 少用 `assert*`（易与单测混淆）。
 
-跨服务复用的空值守卫用 `com.xmut.ebus.common.util.StringUtils` / `ObjectUtils`（见 [`02-be.md`](./02-be.md) §5）；域内规则仍用本类私有 `require*`。
+跨服务复用的空值守卫用 `com.xmut.forma.common.util.StringUtils` / `ObjectUtils`（见 [`02-be.md`](./02-be.md) §5）；域内规则仍用本类私有 `require*`。

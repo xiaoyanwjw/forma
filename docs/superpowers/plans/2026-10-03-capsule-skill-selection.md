@@ -21,8 +21,8 @@
 ### Task 1: workspaceKinds skill→kind maps; delete text intent
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/ecommerce/workspaceKinds.ts`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/xiaohongshu/workspaceKinds.ts`
+- Modify: `forma-web/src/views/business/scene/ecommerce/workspaceKinds.ts`
+- Modify: `forma-web/src/views/business/scene/xiaohongshu/workspaceKinds.ts`
 - Create/update colocated tests if present; else cover via workspace tests
 
 **Interfaces:**
@@ -39,7 +39,7 @@
 ### Task 2: `useAgentSkillRun` optional skillId
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/composables/agent/useAgentSkillRun.ts`
+- Modify: `forma-web/src/composables/agent/useAgentSkillRun.ts`
 - Modify: tests if any require skillId
 
 - [x] **Step 1:** Make `skillId` optional; omit from stream when empty; remove「缺少技能」guard

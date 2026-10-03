@@ -9,10 +9,10 @@
 
 | File | Change |
 |------|--------|
-| `lippi-ai-ebus-starter/.../ecommerce-skulist/SKILL.md` | 策划 view → 单 markdown |
-| `lippi-ai-ebus-starter/.../references/output.md` | mapping + 示例 |
-| `lippi-ai-ebus-application/src/test/resources/scenes/.../SKILL.md` + `output.md` | 同步 |
-| `lippi-pi-agent/src/test/resources/scenes/.../SKILL.md` + `output.md` | 同步 |
+| `forma-starter/.../ecommerce-skulist/SKILL.md` | 策划 view → 单 markdown |
+| `forma-starter/.../references/output.md` | mapping + 示例 |
+| `forma-application/src/test/resources/scenes/.../SKILL.md` + `output.md` | 同步 |
+| `pi-agent/src/test/resources/scenes/.../SKILL.md` + `output.md` | 同步 |
 | `docs/superpowers/specs/2026-09-27-listing-storyboard-hitl-design.md` §4.2 | 指向新规约 |
 | `docs/superpowers/specs/2026-09-28-listing-plan-markdown-view-design.md` | status → accepted |
 | `ComputerRenderer.test.ts` 策划用例（若有） | 改为单 markdown |
@@ -33,4 +33,4 @@
 
 ### Task 4: Verify
 - `npm run test -- ComputerRenderer`（或项目既有 vitest 命令）
-- `mvn -pl lippi-ai-ebus-application -Dtest=AgentApplicationServiceTest#listing_* test`（抽样）
+- `mvn -pl forma-application -Dtest=AgentApplicationServiceTest#listing_* test`（抽样）

@@ -1,0 +1,83 @@
+package com.xmut.forma.infrastructure.persistence.repository.business.agent;
+
+import com.xmut.forma.domain.business.agent.constant.GenerationRunStatus;
+import com.xmut.forma.domain.business.agent.model.GenerationRun;
+import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
+import com.xmut.forma.infrastructure.persistence.mybatis.mapper.GenerationRunMapper;
+import com.xmut.forma.infrastructure.persistence.mybatis.po.GenerationRunPO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
+import java.util.Optional;
+
+@Repository
+@RequiredArgsConstructor
+public class GenerationRunRepositoryImpl implements GenerationRunRepository {
+
+    private final GenerationRunMapper generationRunMapper;
+
+    @Override
+    public void save(GenerationRun run) {
+        generationRunMapper.insert(toPo(run));
+    }
+
+    @Override
+    public void update(GenerationRun run) {
+        generationRunMapper.update(toPo(run));
+    }
+
+    @Override
+    public Optional<GenerationRun> findById(String id) {
+        return Optional.ofNullable(generationRunMapper.selectById(id)).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<String> findLatestSettledArtifactRefBySession(String userId, String sessionId, Instant since) {
+        return findLatestSettledArtifactRefBySession(userId, sessionId, since, null);
+    }
+
+    @Override
+    public Optional<String> findLatestSettledArtifactRefBySession(String userId,
+                                                                   String sessionId,
+                                                                   Instant since,
+                                                                   String artifactType) {
+        return Optional.ofNullable(
+                generationRunMapper.selectLatestUsableArtifactRefBySession(
+                        userId, sessionId, since, artifactType));
+    }
+
+    private GenerationRunPO toPo(GenerationRun run) {
+        GenerationRunPO po = new GenerationRunPO();
+        po.setBizId(run.getId());
+        po.setUserId(run.getUserId());
+        po.setHoldId(run.getHoldId());
+        po.setExecHoldId(run.getExecHoldId());
+        po.setSessionId(run.getSessionId());
+        po.setSceneId(run.getSceneId());
+        po.setSceneCode(run.getSceneCode());
+        po.setSkillId(run.getSkillId());
+        po.setArtifactRef(run.getArtifactRef());
+        po.setStatus(run.getStatus().name());
+        po.setCreatedAt(run.getCreatedAt());
+        po.setUpdatedAt(run.getUpdatedAt());
+        return po;
+    }
+
+    private GenerationRun toDomain(GenerationRunPO po) {
+        GenerationRun run = new GenerationRun();
+        run.setId(po.getBizId());
+        run.setUserId(po.getUserId());
+        run.setHoldId(po.getHoldId());
+        run.setExecHoldId(po.getExecHoldId());
+        run.setSessionId(po.getSessionId());
+        run.setSceneId(po.getSceneId());
+        run.setSceneCode(po.getSceneCode());
+        run.setSkillId(po.getSkillId());
+        run.setArtifactRef(po.getArtifactRef());
+        run.setStatus(GenerationRunStatus.fromCode(po.getStatus()));
+        run.setCreatedAt(po.getCreatedAt());
+        run.setUpdatedAt(po.getUpdatedAt());
+        return run;
+    }
+}

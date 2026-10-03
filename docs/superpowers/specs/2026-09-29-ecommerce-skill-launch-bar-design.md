@@ -10,7 +10,7 @@
 
 **Related:**  
 - Spine AD-16 SceneCapabilityPack（`sceneCode` → prompts/skills/tools）  
-- 现网 Pack：`lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/`  
+- 现网 Pack：`forma-starter/src/main/resources/scenes/ecommerce/`  
   - `ecommerce-picklist` / `ecommerce-skulist`  
 - 反馈与历史：`2026-09-28-chat-card-feedback-actions-design.md`、Story 3.8  
 - 业界参考（作者实践，非照搬 API）：[Anthropic Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)、[Agent Skills 规范](https://agentskills.io/specification)、progressive disclosure / description 触发精度（社区与官方一致强调）  

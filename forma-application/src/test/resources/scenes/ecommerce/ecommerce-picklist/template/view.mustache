@@ -1,0 +1,81 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<div class="forma-deck">
+<span class="forma-sh"><span class="k">条数</span><span class="v gray">{{itemCount}}</span></span>
+<span class="forma-sh"><span class="k">行情</span><span class="v mid">非实时</span></span>
+</div>
+<p class="forma-lede">{{disclaimer}}</p>
+<h2>速览矩阵</h2>
+<table class="forma-mx">
+<thead>
+<tr>
+<th>#</th>
+<th>品名</th>
+<th>价带</th>
+<th>需求</th>
+<th>竞争</th>
+<th>利润</th>
+<th>风险</th>
+</tr>
+</thead>
+<tbody>
+{{#items}}
+<tr>
+<td class="n">{{indexLabel}}</td>
+<td class="name">{{displayTitle}}{{#priorityTry}} <span class="forma-sh"><span class="k">状态</span><span class="v ok">优先试</span></span>{{/priorityTry}}</td>
+<td><code>{{priceBand}}</code></td>
+<td>{{#demandLabel}}<span class="forma-sh"><span class="v {{demandClass}}">{{demandLabel}}</span></span>{{/demandLabel}}</td>
+<td>{{#competitionLabel}}<span class="forma-sh"><span class="v {{competitionClass}}">{{competitionLabel}}</span></span>{{/competitionLabel}}</td>
+<td>{{#marginLabel}}<span class="forma-sh"><span class="v {{marginClass}}">{{marginLabel}}</span></span>{{/marginLabel}}</td>
+<td>{{#riskLabel}}<span class="forma-sh"><span class="v {{riskClass}}">{{riskLabel}}</span></span>{{/riskLabel}}</td>
+</tr>
+{{/items}}
+</tbody>
+</table>
+<h2>条目详情</h2>
+{{#items}}
+<details class="forma-blk"{{#detailsOpen}} open{{/detailsOpen}}>
+<summary>
+<span class="n">{{indexLabel}}</span>
+{{displayTitle}}
+{{#priorityTry}}
+<span class="forma-sh"><span class="k">状态</span><span class="v ok">优先试</span></span>
+{{/priorityTry}}
+</summary>
+<div class="body">
+{{#priorityTry}}
+{{#painPoint}}
+<div class="forma-callout">
+<div class="t">为何先测</div>
+{{painPoint}}
+</div>
+{{/painPoint}}
+{{/priorityTry}}
+<table class="forma-kv">
+<tbody>
+{{#painPoint}}
+<tr><th>痛点</th><td>{{painPoint}}</td></tr>
+{{/painPoint}}
+{{#angle}}
+<tr><th>切入</th><td>{{angle}}</td></tr>
+{{/angle}}
+{{#niche}}
+<tr><th>细分</th><td>{{niche}}</td></tr>
+{{/niche}}
+<tr><th>评分</th><td>
+<span class="forma-sh-row">
+{{#demandLabel}}<span class="forma-sh"><span class="k">需求</span><span class="v {{demandClass}}">{{demandLabel}}</span></span>{{/demandLabel}}
+{{#competitionLabel}}<span class="forma-sh"><span class="k">竞争</span><span class="v {{competitionClass}}">{{competitionLabel}}</span></span>{{/competitionLabel}}
+{{#marginLabel}}<span class="forma-sh"><span class="k">利润</span><span class="v {{marginClass}}">{{marginLabel}}</span></span>{{/marginLabel}}
+{{#riskLabel}}<span class="forma-sh"><span class="k">风险</span><span class="v {{riskClass}}">{{riskLabel}}</span></span>{{/riskLabel}}
+</span>
+</td></tr>
+</tbody>
+</table>
+{{#handoffPrompt}}
+<p><button type="button" data-forma-action="handoff" data-forma-skill-id="ecommerce-skulist" data-forma-prompt="{{handoffPrompt}}">做上架素材</button></p>
+{{/handoffPrompt}}
+</div>
+</details>
+{{/items}}
+</article>

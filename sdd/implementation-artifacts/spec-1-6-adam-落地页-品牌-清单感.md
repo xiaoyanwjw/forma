@@ -55,10 +55,10 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-web/src/router/index.ts` — `/` → `landing`（LandingPage）
-- `lippi-ai-ebus-web/src/views/marketing/LandingPage.vue` — **Rework**：Manus 式居中提问壳
-- `lippi-ai-ebus-web/src/views/marketing/LandingPage.test.ts` — 重写断言（标题、胶囊、click→login/credits）
-- `lippi-ai-ebus-web/src/router/index.test.ts` — 根路径仍 landing；JWT 不 redirect
+- `forma-web/src/router/index.ts` — `/` → `landing`（LandingPage）
+- `forma-web/src/views/marketing/LandingPage.vue` — **Rework**：Manus 式居中提问壳
+- `forma-web/src/views/marketing/LandingPage.test.ts` — 重写断言（标题、胶囊、click→login/credits）
+- `forma-web/src/router/index.test.ts` — 根路径仍 landing；JWT 不 redirect
 - UX 参考：`mockups/app.html` home + `styles.css`（仅结构）；色板仍 `DESIGN.md` Adam
 - Continuity：勿动 Credit / Identity API；`afterLogin`→credits
 
@@ -71,7 +71,7 @@ context:
 **Execution:**
 - [x] `LandingPage.vue` — 居中标题「我能为你做什么？」+ 胶囊 + 只读输入外观；guest→login / JWT→credits
 - [x] `LandingPage.test.ts` — 标题、胶囊、点击导航、无 eyebrow/「→」；去掉清单纸片断言
-- [x] 根 `README.md` / `lippi-ai-ebus-web/README.md` — 一句改为 Manus 式居中提问门面
+- [x] 根 `README.md` / `forma-web/README.md` — 一句改为 Manus 式居中提问门面
 - [x] `sprint-status`：1-6 → `review`
 
 **Acceptance Criteria:**
@@ -117,7 +117,7 @@ context:
 ## Verification
 
 **Commands:**
-- `cd lippi-ai-ebus-web && npm run lint && npm test && npm run build` -- expected: 全绿
+- `cd forma-web && npm run lint && npm test && npm run build` -- expected: 全绿
 
 **Manual checks (if no CLI):**
 - 打开 `/`：居中「我能为你做什么？」+ 输入壳；点一下进登录

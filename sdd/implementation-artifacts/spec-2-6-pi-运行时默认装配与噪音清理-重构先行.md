@@ -16,7 +16,7 @@ context:
 
 ## Intent
 
-**Problem:** `lippi-pi-agent` 仍把 Sqlite Session 与「有 JedisPool 就 Redis Checkpointer」当生产默认，WRITE 工具审批默认挂起，Prompt 侧残留 contribution SPI / 文档漂移；后续 2.7–2.9 容易继续踩坑。
+**Problem:** `pi-agent` 仍把 Sqlite Session 与「有 JedisPool 就 Redis Checkpointer」当生产默认，WRITE 工具审批默认挂起，Prompt 侧残留 contribution SPI / 文档漂移；后续 2.7–2.9 容易继续踩坑。
 
 **Approach:** 按 pi-agent-slim 收紧默认装配与 Prompt 注入面：禁静默 Sqlite、WRITE 审批默认关、Redis CP 仅显式开关、冻结三槽 allowlist 并清噪音文档/死代码；**不**落地 MySQL Session/CP，**不**拆 Graph / 删 Skill。
 
@@ -31,7 +31,7 @@ context:
 - WRITE 审批默认关：无显式开启时 WRITE 工具不因审批挂起；仍拦截 FORBIDDEN；保留 `resume` / Checkpointer / HITL 端口供 2.8–2.9（AD-S2）
 - Redis Checkpointer 仅当显式属性（如 `lims.pi.checkpoint.redis.enabled=true`）才可 `@Primary`；有 `JedisPool` alone 不得抢默认（AD-S2/S9）
 - Prompt 保持 stable/context/variable；注入键仅 AD-S10 allowlist；`SystemPromptInput`/`PromptBuilder` 为唯一 system 组装器；`ContextOverwrite` 仅追加 `before_agent_start`（AD-S4/S10）
-- 以 `lippi-pi-agent` 相关测试绿为验收底线；过时 javadoc/README 与「生产默认 Sqlite / 不做 MySQL」表述一并改掉
+- 以 `pi-agent` 相关测试绿为验收底线；过时 javadoc/README 与「生产默认 Sqlite / 不做 MySQL」表述一并改掉
 
 **Never:**
 - 本故事实现 `MysqlSessionStore` / `MysqlCheckpointer` / `pi_session*` / `pi_graph_checkpoint` DDL（→ 2.7–2.8）
@@ -51,22 +51,22 @@ context:
 | WRITE 显式开 | `write-approval.enabled=true`（最终属性名实现定） | WRITE 无 APPROVE 时挂起，现有 resume 路径可用 | 与今日行为一致 |
 | Redis CP | 有 `JedisPool` 但未开 redis.enabled | 默认非 Redis `@Primary`（内存或其它显式 Bean） | 仅 enabled=true 时 Redis Primary |
 | Prompt 非法键 | `SystemPromptInput` put allowlist 外键 | 拒绝或忽略（实现选一种并测住）；无 contribution 合并路径 | 不扩 SPI |
-| 回归底线 | `mvn -pl lippi-pi-agent test` | BUILD SUCCESS | 改测对齐新默认 |
+| 回归底线 | `mvn -pl pi-agent test` | BUILD SUCCESS | 改测对齐新默认 |
 
 </frozen-after-approval>
 
 ## Code Map
 
-- `lippi-pi-agent/.../config/AgentConfiguration.java` — `sessionStore()` 今日 `@ConditionalOnMissingBean` → `SqliteSessionStore`；改为 MissingBean → `InMemorySessionStore`
-- `lippi-pi-agent/.../session/SqliteSessionStore.java` · `InMemorySessionStore.java` · `SessionStore.java` — 保留类；改「生产默认 Sqlite / 不做 MySQL」javadoc
-- `lippi-pi-agent/.../config/PiAutoConfiguration.java` + `META-INF/spring.factories` — 入口；通常只跟测
-- `lippi-pi-agent/.../extension/ToolPolicyExtension.java` + `AgentConfiguration.toolPolicyExtension` — WRITE 默认关（属性门控）
-- `lippi-pi-agent/.../config/PiCheckpointAutoConfiguration.java`（或 Redis 变体）+ `PiRedisCheckpointAutoConfigurationTest` — JedisPool 不再自动 `@Primary`
-- `lippi-pi-agent/.../agent/SystemPromptInput.java` · `DefaultPromptBuilder.java` — allowlist 强制；去掉 `CONTRIBUTION` / Contribution 合并
-- `lippi-pi-agent/.../agent/StableContribution.java` · `ContextContribution.java` · `VolatileContribution.java`（及仅测用的 `SystemPromptCache` 若确认无主路径引用）— 删除或冻结为不可扩展死面
-- `lippi-pi-agent/.../extension/ContextOverwrite.java` · `DefaultAgent.java` · `graph/node/AgentTurnNode.java` — 确认唯一 format 出口；不改 Graph 拓扑
-- `lippi-pi-agent/src/test/.../PiAutoConfigurationTest.java` 等 — 断言默认 InMemory（非 Sqlite）
-- `lippi-pi-agent/README.md` — 默认装配与命名漂移（ConversationLoop / BeforeAgentStartResult → 现名）
+- `pi-agent/.../config/AgentConfiguration.java` — `sessionStore()` 今日 `@ConditionalOnMissingBean` → `SqliteSessionStore`；改为 MissingBean → `InMemorySessionStore`
+- `pi-agent/.../session/SqliteSessionStore.java` · `InMemorySessionStore.java` · `SessionStore.java` — 保留类；改「生产默认 Sqlite / 不做 MySQL」javadoc
+- `pi-agent/.../config/PiAutoConfiguration.java` + `META-INF/spring.factories` — 入口；通常只跟测
+- `pi-agent/.../extension/ToolPolicyExtension.java` + `AgentConfiguration.toolPolicyExtension` — WRITE 默认关（属性门控）
+- `pi-agent/.../config/PiCheckpointAutoConfiguration.java`（或 Redis 变体）+ `PiRedisCheckpointAutoConfigurationTest` — JedisPool 不再自动 `@Primary`
+- `pi-agent/.../agent/SystemPromptInput.java` · `DefaultPromptBuilder.java` — allowlist 强制；去掉 `CONTRIBUTION` / Contribution 合并
+- `pi-agent/.../agent/StableContribution.java` · `ContextContribution.java` · `VolatileContribution.java`（及仅测用的 `SystemPromptCache` 若确认无主路径引用）— 删除或冻结为不可扩展死面
+- `pi-agent/.../extension/ContextOverwrite.java` · `DefaultAgent.java` · `graph/node/AgentTurnNode.java` — 确认唯一 format 出口；不改 Graph 拓扑
+- `pi-agent/src/test/.../PiAutoConfigurationTest.java` 等 — 断言默认 InMemory（非 Sqlite）
+- `pi-agent/README.md` — 默认装配与命名漂移（ConversationLoop / BeforeAgentStartResult → 现名）
 - Continuity from 2.1：业务仍只注入 `AgentSession`；勿改 GenerationRun/SSE 映射；starter 无需为本故事加 Session Bean（Pi 默认已是 InMemory）
 
 **Reuse：** 现有 `InMemorySessionStore`、`ToolPolicyExtension` FORBIDDEN 路径、`ContextOverwrite` 三段追加、AD-S10 键名常量。
@@ -76,12 +76,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lippi-pi-agent/.../config/AgentConfiguration.java` — MissingBean → `InMemorySessionStore`；可选仅 sqlite-path 显式才注册 Sqlite — 对齐 AD-S8
-- [x] `lippi-pi-agent/.../session/*.java` + README/javadoc — 改生产叙事：默认 InMemory（过渡）、生产目标 MySQL（2.7）；Sqlite≠默认 — 去误导
-- [x] `lippi-pi-agent/.../extension/ToolPolicyExtension.java` (+ 配置绑定) — WRITE 审批默认关、属性可开 — AD-S2
-- [x] `lippi-pi-agent/.../config/*Checkpoint*AutoConfiguration*.java` + 对应测 — Redis CP 需显式 enabled — AD-S2/S9
+- [x] `pi-agent/.../config/AgentConfiguration.java` — MissingBean → `InMemorySessionStore`；可选仅 sqlite-path 显式才注册 Sqlite — 对齐 AD-S8
+- [x] `pi-agent/.../session/*.java` + README/javadoc — 改生产叙事：默认 InMemory（过渡）、生产目标 MySQL（2.7）；Sqlite≠默认 — 去误导
+- [x] `pi-agent/.../extension/ToolPolicyExtension.java` (+ 配置绑定) — WRITE 审批默认关、属性可开 — AD-S2
+- [x] `pi-agent/.../config/*Checkpoint*AutoConfiguration*.java` + 对应测 — Redis CP 需显式 enabled — AD-S2/S9
 - [x] `SystemPromptInput` / `DefaultPromptBuilder` / Contribution 接口 — allowlist + 删/冻 SPI — AD-S4/S10
-- [x] `lippi-pi-agent` 测试（含 `PiAutoConfigurationTest`、Prompt/Policy/Checkpoint）— 覆盖 I/O 矩阵 — 防回归
+- [x] `pi-agent` 测试（含 `PiAutoConfigurationTest`、Prompt/Policy/Checkpoint）— 覆盖 I/O 矩阵 — 防回归
 
 **Acceptance Criteria:**
 - Given 仅 Pi 自动配置且无显式 SessionStore/sqlite-path，when 应用装配，then 得到 `InMemorySessionStore`，且不在 cwd 创建 `.lippi-pi/state.db`
@@ -95,7 +95,7 @@ context:
 - 属性名落地：`lims.pi.tool.write-approval.enabled`（默认 false）；`lims.pi.checkpoint.redis.enabled`（默认未开，需 `true` 才注册 Redis `@Primary`）。
 - Prompt 非法键策略：**忽略**（`SystemPromptInput.put` / Builder）；已删 `CONTRIBUTION` 与三 Contribution 接口、仅测用的 `SystemPromptCache`。
 - HITL 单测助手 `PiTestBus` 显式 `writeApprovalEnabled=true`，保留现有 WRITE 审批 / resume 测路径。
-- 验收命令：故事相关测（`PiAutoConfigurationTest` / `PiRedisCheckpointAutoConfigurationTest` / `ToolPolicyExtensionTest` / `DefaultPromptBuilderTest` / `PageContextPromptTest`）已绿。全模块 `mvn -pl lippi-pi-agent test` 仍有 **基线既有** 失败（与本改无关，stash 前后一致）：`ClasspathToolBootstrapTest`、`AgentTurnNodeStreamTest`×2、`ToolConfigHitlIntegrationTest.write_resume_paddedRunId…`、`DefaultAgentSessionTest`/`DefaultConversationLoopTest` 空参 NPE。
+- 验收命令：故事相关测（`PiAutoConfigurationTest` / `PiRedisCheckpointAutoConfigurationTest` / `ToolPolicyExtensionTest` / `DefaultPromptBuilderTest` / `PageContextPromptTest`）已绿。全模块 `mvn -pl pi-agent test` 仍有 **基线既有** 失败（与本改无关，stash 前后一致）：`ClasspathToolBootstrapTest`、`AgentTurnNodeStreamTest`×2、`ToolConfigHitlIntegrationTest.write_resume_paddedRunId…`、`DefaultAgentSessionTest`/`DefaultConversationLoopTest` 空参 NPE。
 - Review patch：删空 `PageContextPromptTest`；补 write-approval=true / Redis-off ResumeIdem 断言；README Loop→Agent + 幂等冲突短句；epic-2 Decision B 仅 InMemory。
 
 ## Spec Change Log
@@ -129,8 +129,8 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-pi-agent test` -- expected: BUILD SUCCESS
-- `mvn -pl lippi-ai-ebus-starter -am test` -- expected: 至少与 Agent/空跑相关测仍绿（InMemory 默认下 starter 应可起）
+- `mvn -pl pi-agent test` -- expected: BUILD SUCCESS
+- `mvn -pl forma-starter -am test` -- expected: 至少与 Agent/空跑相关测仍绿（InMemory 默认下 starter 应可起）
 
 **Manual checks (if no CLI):**
 - 无 sqlite-path 冷启动后，工作目录无新建 `.lippi-pi/state.db`；默认 Session 为进程内 InMemory

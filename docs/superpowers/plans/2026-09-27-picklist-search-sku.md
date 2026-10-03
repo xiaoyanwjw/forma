@@ -6,7 +6,7 @@
 
 **Architecture:** ebus 注册 `search_sku` Tool（Mock 默认 + 淘宝客真客户端开关）并入 `ToolCatalog`；Skill `allowed-tools` 启用；artifact 校验每条 `sourceUrl`；Normalize/FE 透传并渲染 `ListItem.href`。近端仍用 `SkillRunProfile.billedPicklist()`，不解析 YAML `output:`。
 
-**Tech Stack:** Java 8 / Spring Boot 2.7（`lippi-ai-ebus-application` + `lippi-pi-agent` Tool API）、Vue3 / Vitest（`lippi-ai-ebus-web`）
+**Tech Stack:** Java 8 / Spring Boot 2.7（`forma-application` + `pi-agent` Tool API）、Vue3 / Vitest（`forma-web`）
 
 ## Global Constraints
 
@@ -22,8 +22,8 @@
 
 | Path | Responsibility |
 |------|----------------|
-| `lippi-ai-ebus-web/src/types/business/computerView.ts` | `ComputerListItem.href?`；parse 仅保留 `https:` |
-| `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.vue` (+test) | 标题或「查看原商品」外链 |
+| `forma-web/src/types/business/computerView.ts` | `ComputerListItem.href?`；parse 仅保留 `https:` |
+| `forma-web/src/components/business/computer/ComputerRenderer.vue` (+test) | 标题或「查看原商品」外链 |
 | `.../computer/NormalizeViewProjector.java` (+test) | list item 透传清洗 `href` |
 | `.../sku/SkuSearchPort.java` | 端口：`search(query, platform, pageSize)` |
 | `.../sku/MockSkuSearchClient.java` | 默认返回带 `detailUrl` 的摘要 |
@@ -43,10 +43,10 @@
 ### Task 1: FE + Normalize — `ListItem.href`
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/types/business/computerView.ts`
-- Modify: `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.vue`
-- Modify: `lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.test.ts`
-- Modify: `lippi-ai-ebus-application/.../computer/NormalizeViewProjector.java`
+- Modify: `forma-web/src/types/business/computerView.ts`
+- Modify: `forma-web/src/components/business/computer/ComputerRenderer.vue`
+- Modify: `forma-web/src/components/business/computer/ComputerRenderer.test.ts`
+- Modify: `forma-application/.../computer/NormalizeViewProjector.java`
 - Modify: `.../NormalizeViewProjectorTest.java`
 
 **Interfaces:**
@@ -95,8 +95,8 @@ if (href != null) {
 - [x] **Step 4: 跑测**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/components/business/computer/ComputerRenderer.test.ts
-mvn -pl lippi-ai-ebus-application -am -Dtest=NormalizeViewProjectorTest test
+cd forma-web && npm test -- --run src/components/business/computer/ComputerRenderer.test.ts
+mvn -pl forma-application -am -Dtest=NormalizeViewProjectorTest test
 ```
 
 Expected: PASS
@@ -104,11 +104,11 @@ Expected: PASS
 - [x] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/types/business/computerView.ts \
-  lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.vue \
-  lippi-ai-ebus-web/src/components/business/computer/ComputerRenderer.test.ts \
-  lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/computer/NormalizeViewProjector.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/computer/NormalizeViewProjectorTest.java
+git add forma-web/src/types/business/computerView.ts \
+  forma-web/src/components/business/computer/ComputerRenderer.vue \
+  forma-web/src/components/business/computer/ComputerRenderer.test.ts \
+  forma-application/src/main/java/com/xmut/ebus/application/business/computer/NormalizeViewProjector.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/computer/NormalizeViewProjectorTest.java
 git commit -m "$(cat <<'EOF'
 feat(computer): support https ListItem.href for product deep links
 
@@ -121,7 +121,7 @@ EOF
 ### Task 2: `search_sku` Tool（Mock + Catalog 注册）
 
 **Files:**
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/sku/SkuSearchPort.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/sku/SkuSearchPort.java`
 - Create: `.../sku/SkuSearchHit.java`（immutable：platform, title, price, category, detailUrl, rawRef）
 - Create: `.../sku/MockSkuSearchClient.java`
 - Create: `.../sku/SearchSkuToolHandler.java`
@@ -168,7 +168,7 @@ return InMemoryToolCatalog.of(Arrays.asList(
 - [x] **Step 5: 跑测 + Commit**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=SearchSkuToolHandlerTest test
+mvn -pl forma-application -am -Dtest=SearchSkuToolHandlerTest test
 ```
 
 ```bash
@@ -209,7 +209,7 @@ Parser `requiredHttps(itemNode, "sourceUrl")`。
 - [x] **Step 4: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=PicklistArtifactParserTest,PicklistViewProjectorTest test
+mvn -pl forma-application -am -Dtest=PicklistArtifactParserTest,PicklistViewProjectorTest test
 ```
 
 - [x] **Step 5: Commit**
@@ -227,9 +227,9 @@ EOF
 ### Task 4: 重写三份 `ecommerce-picklist` SKILL（§4 模板）
 
 **Files:**
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
-- Modify: `lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
-- Modify: `lippi-pi-agent/src/test/resources/...`（若存在同路径镜像；以 Glob 为准同步）
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
+- Modify: `forma-application/src/test/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`
+- Modify: `pi-agent/src/test/resources/...`（若存在同路径镜像；以 Glob 为准同步）
 
 **Interfaces:**
 - Produces: frontmatter `allowed-tools: read_skill search_sku`；Workflow 含先搜再排；Output 含 `sourceUrl`/`href` 示例
@@ -244,7 +244,7 @@ disclaimer 点名推广池抽样 + 可点原链核对。
 - [x] **Step 2: 确认 Skill 装载**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=SceneCapabilityPackLoaderTest test
+mvn -pl forma-application -am -Dtest=SceneCapabilityPackLoaderTest test
 ```
 
 断言（若测试读 allowedTools）：含 `search_sku`。必要时改断言。
@@ -292,7 +292,7 @@ if (profile.isBilledPicklist() && searchSkuOk.get() < 1) {
 - [x] **Step 3: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=AgentApplicationServiceTest test
+mvn -pl forma-application -am -Dtest=AgentApplicationServiceTest test
 ```
 
 - [x] **Step 4: Commit**

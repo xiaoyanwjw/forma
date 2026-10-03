@@ -3,7 +3,7 @@
 **Date:** 2026-10-02  
 **Status:** accepted  
 **Decision:**  
-- **先**做动态注入与分类（Phase 1），**再**把业务 Skill/Tool **物理拆**到 `lippi-ai-ebus-pi-extension`（Phase 2）  
+- **先**做动态注入与分类（Phase 1），**再**把业务 Skill/Tool **物理拆**到 `forma-pi-extension`（Phase 2）  
 - 分类：Pi 内核内置（含 Base 四工具）vs 业务领域  
 - 平台工具（`ask_human`、`write_file`、`read_file`、`bash`）算 **Pi 内置**，不进业务 extension  
 - 配置类命名：`BaseToolsConfiguration`、`SkuToolsConfiguration`、`XhsToolsConfiguration`  
@@ -21,7 +21,7 @@
 ## 1. Problem
 
 - **Skill** 已靠 `classpath*:scenes/*/*/SKILL.md` 扫描，业务 jar 放资源即可；分类语义未写清。  
-- **Tool** 在 `lippi-ai-ebus-application` 的 `PiToolCatalogConfiguration` 里硬编码全集；每加工具必改该类，与 pi 默认 `ToolCatalog` 用 `@Primary` 对抗。  
+- **Tool** 在 `forma-application` 的 `PiToolCatalogConfiguration` 里硬编码全集；每加工具必改该类，与 pi 默认 `ToolCatalog` 用 `@Primary` 对抗。  
 - 电商 / 小红书工具与 workspace、ask_human 混在同一配置，边界不清，不利于后续拆模块。
 
 ---
@@ -35,14 +35,14 @@
    - **schema**：`classpath*:tools/**/*.tool.json`（只声明 id / description / parameters / text / handlerClass）  
    - **执行**：Java `ToolHandler` Bean（或由 `handlerClass` 解析）；catalog 用 `merge(scanned, coded)`  
    - 加新工具 = 加 json + 保证 handler 在 Spring 里，**无需**改巨型聚合列表  
-3. Phase 2：业务 Skill 资源 + 业务 Tool（json + handler 配置）迁入 `lippi-ai-ebus-pi-extension`。  
+3. Phase 2：业务 Skill 资源 + 业务 Tool（json + handler 配置）迁入 `forma-pi-extension`。  
 4. 计费、落库、`SceneCapabilityPackLoader` 仍留在 ebus application。
 
 ### Non-goals
 
 - 本设计不抽 `pi-*` 为跨仓共享库（Ask first；本仓内 extension 即可）。  
 - 不改积分账本 / SSE 协议 / skill 正文业务语义。  
-- 不把 Apify / Credit 依赖引入 `lippi-pi-agent`。  
+- 不把 Apify / Credit 依赖引入 `pi-agent`。  
 - Phase 1 不强制新建 Maven 模块（可先在现有模块拆 Configuration）。  
 - **不**支持「仅 md、无 Java Handler」的可执行工具；**不**要求运行时热加载任意代码。  
 - 不恢复「双份真相」：同一 tool id 禁止 json 与代码各写一套互相打架的 schema（以 json 为 schema 真源，代码侧只贡献 Handler）。
@@ -53,8 +53,8 @@
 
 | 档 | 内容 | 模块归属 |
 |----|------|----------|
-| **Pi 内核内置** | Tool：`read_skill`、`ask_human`、`write_file`、`read_file`、`bash` | `lippi-pi-agent`（`BaseToolsConfiguration` + 现有 `read_skill`） |
-| **业务领域** | Tool：`search_sku`、`search_xhs_note`、`fetch_xhs_note`（及 Port/Searcher/Properties） | Phase1：`application` 内 `SkuToolsConfiguration` / `XhsToolsConfiguration`；Phase2：`lippi-ai-ebus-pi-extension` |
+| **Pi 内核内置** | Tool：`read_skill`、`ask_human`、`write_file`、`read_file`、`bash` | `pi-agent`（`BaseToolsConfiguration` + 现有 `read_skill`） |
+| **业务领域** | Tool：`search_sku`、`search_xhs_note`、`fetch_xhs_note`（及 Port/Searcher/Properties） | Phase1：`application` 内 `SkuToolsConfiguration` / `XhsToolsConfiguration`；Phase2：`forma-pi-extension` |
 | **业务 Skill** | `scenes/ecommerce/**`、`scenes/xiaohongshu/**` 的 `SKILL.md` + `references/` | Phase1：仍在 starter（及 test mirrors）；Phase2：资源迁 extension（或 starter 依赖 extension 携带的资源） |
 
 **产品规则（非 Tool SPI）：** `SceneCapabilityPackLoader`、`SkillRunProfile`、`ArtifactPersistPlugin` → 始终 **application**。
@@ -107,14 +107,14 @@ ToolCatalog = InMemoryToolCatalog.merge(scanned, coded)
 - `id` / `handlerClass` / `schema`（或等价 parameters）必填。  
 - 扫描器产出 `ToolDefinition`（仓内已有形状；若曾删除 JsonLoader，Phase 1 **恢复/重写**薄加载器即可）。  
 - 资源布局建议：  
-  - Pi 内置：`lippi-pi-agent/.../resources/tools/base/*.tool.json`  
+  - Pi 内置：`pi-agent/.../resources/tools/base/*.tool.json`  
   - 业务：`…/resources/tools/sku/search_sku.tool.json`、`tools/xhs/*.tool.json`（Phase2 随 extension）
 
 ### 4.4 配置类职责（Handler 侧，不再内联 schema）
 
 | 类名 | 职责 | Phase 1 模块 |
 |------|------|----------------|
-| `BaseToolsConfiguration` | 注册 `ask_human` / `write_file` / `read_file` / `bash` 的 **Handler Bean**（+ workspace 依赖）；schema 来自 json | `lippi-pi-agent` |
+| `BaseToolsConfiguration` | 注册 `ask_human` / `write_file` / `read_file` / `bash` 的 **Handler Bean**（+ workspace 依赖）；schema 来自 json | `pi-agent` |
 | `SkuToolsConfiguration` | `SearchSkuToolHandler` + `SkuSearcher` / Port / Reranker / Properties | `application` |
 | `XhsToolsConfiguration` | `SearchXhsNoteToolHandler` / `FetchXhsNoteToolHandler` + Port 管线 | `application` |
 
@@ -137,11 +137,11 @@ ToolCatalog = InMemoryToolCatalog.merge(scanned, coded)
 
 ---
 
-## 5. Phase 2 — 物理拆 `lippi-ai-ebus-pi-extension`
+## 5. Phase 2 — 物理拆 `forma-pi-extension`
 
 ### 5.1 模块
 
-- Artifact：`lippi-ai-ebus-pi-extension`（业务前缀，符合 AD-13）。  
+- Artifact：`forma-pi-extension`（业务前缀，符合 AD-13）。  
 - `META-INF/spring.factories` → `EnableAutoConfiguration=…SkuToolsAutoConfiguration, …XhsToolsAutoConfiguration`（类名可与 Phase1 对齐或加 `Auto` 后缀）。  
 - `starter` 依赖 `extension`。
 
@@ -176,7 +176,7 @@ pi-agent ↛ Apify / ebus 计费
 2. Phase 1b：为 Base 五工具（含 `read_skill`）落地 json；`BaseToolsConfiguration` 只注册 Handler；迁入 pi-agent。  
 3. Phase 1c：`SkuToolsConfiguration` / `XhsToolsConfiguration` + 对应 json；删掉 `PiToolCatalogConfiguration` 内联 schema。  
 4. 回归。  
-5. Phase 2：建 `lippi-ai-ebus-pi-extension`，迁 Sku/Xhs（java + json + 可选 scenes）；starter AutoConfiguration。  
+5. Phase 2：建 `forma-pi-extension`，迁 Sku/Xhs（java + json + 可选 scenes）；starter AutoConfiguration。  
 6. 清理 application 残留。
 
 ---
@@ -200,6 +200,6 @@ pi-agent ↛ Apify / ebus 计费
 | 顺序 | 先动态注入，再物理拆 extension |
 | 平台四工具 + read_skill | **Pi 内置** |
 | 配置类名 | `BaseToolsConfiguration`、`SkuToolsConfiguration`、`XhsToolsConfiguration` |
-| Extension 名 | `lippi-ai-ebus-pi-extension`（Phase 2） |
+| Extension 名 | `forma-pi-extension`（Phase 2） |
 | Tool schema | **Phase 1 即用 `*.tool.json`**；Handler 仍为 Java |
 | Catalog 组装 | `InMemoryToolCatalog.merge` + `ToolHandlerAutoBinder` |

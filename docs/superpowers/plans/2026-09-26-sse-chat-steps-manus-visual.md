@@ -22,9 +22,9 @@
 
 | Path | Role |
 |------|------|
-| `lippi-ai-ebus-web/src/styles/tokens.css` | Add `--chip: #f5f5f5` |
-| `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` | Steps + disclosure markup |
-| `lippi-ai-ebus-web/src/views/business/scene/ecommerceWorkspaceSession.css` | Manus-like process styles |
+| `forma-web/src/styles/tokens.css` | Add `--chip: #f5f5f5` |
+| `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` | Steps + disclosure markup |
+| `forma-web/src/views/business/scene/ecommerceWorkspaceSession.css` | Manus-like process styles |
 | `EcommerceWorkspacePlaceholder.test.ts` | Assert no「进行中」label; chevron / process class hooks |
 
 ---
@@ -32,7 +32,7 @@
 ### Task 1: Token + markup + CSS (TDD via DOM assertions)
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/styles/tokens.css`
+- Modify: `forma-web/src/styles/tokens.css`
 - Modify: `EcommerceWorkspacePlaceholder.vue` (process block template)
 - Modify: `ecommerceWorkspaceSession.css`
 - Modify: `EcommerceWorkspacePlaceholder.test.ts`
@@ -64,7 +64,7 @@ Also assert vue source / rendered HTML has no `.step-status`.
 - [ ] **Step 2: Run — expect FAIL**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
+cd forma-web && npm test -- --run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
 ```
 
 - [ ] **Step 3: Add `--chip` token**
@@ -182,16 +182,16 @@ Steps — remove `.step-status`; keep ok / pending + label:
 - [ ] **Step 6: Run tests — PASS**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/composables/agent/agentProgress.test.ts src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts && npm run lint
+cd forma-web && npm test -- --run src/composables/agent/agentProgress.test.ts src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts && npm run lint
 ```
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/styles/tokens.css \
-  lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
-  lippi-ai-ebus-web/src/views/business/scene/ecommerceWorkspaceSession.css \
-  lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
+git add forma-web/src/styles/tokens.css \
+  forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
+  forma-web/src/views/business/scene/ecommerceWorkspaceSession.css \
+  forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
 git commit -m "fix(web): align SSE chat steps with Manus checklist visuals"
 ```
 

@@ -1,0 +1,110 @@
+---
+name: xhs-topiclist
+description: >-
+  经配置的小红书笔记检索（如 Mock / Apify）用 search_xhs_note 产出 8–12 条带 tp-n item id 的种草选题清单（artifact + render_view → view.json）。
+  在用户提到选题、发什么、种草方向、内容日历时使用。
+allowed-tools: read_skill search_xhs_note write_file read_file render_view
+metadata:
+  output:
+    billing: true
+    persistAs: xhs_topiclist
+    requiresView: true
+---
+
+# 选题清单
+
+帮卖家做**小红书种草选题**：从一次检索返回的候选里写出可发清单，不是复读工具标题。检索成功时尽量挂用户能点开的笔记原链；检索失败时允许模型补选题，但禁止假链。
+
+## When to use
+
+- **用：** 选题、发什么、种草方向、内容角度、可发清单
+- **不用：** 写完整笔记正文 / 标题备选 / 配图提示 → `xhs-note`
+- **不用：** 拆解爆文结构、按骨架改写 → `xhs-break`
+
+## Workflow
+
+1. **提炼搜索词。** 信息不够时把假设写入 `artifact.assumptions`，仍先搜，勿先追问。收成**一个**最稳 `query`。
+2. **只调用 `search_xhs_note` 一次。** 扩词、合法校验与模型重排在服务端完成；你只发这一遍。禁止并行、禁止换词连搜。禁止在 skill 内再做检索式筛选或二次重排。
+3. **从返回候选写清单，或走 fallback。**
+   - **工具成功且有 hits：** `artifact.source` = `apify`。在候选中选出 **8–12** 条写入 view/artifact，并写质量字段（见 Quality）。有 hits 时勿臆造工具未返回的笔记。`sourceNoteUrl` 仅允许来自该次工具 hits 的 `noteUrl`（绝对 `https:`）。
+   - **工具失败 / 空 hits：** 仍须产出 **8–12** 条合格选题；`artifact.source` = `model_fallback`；**禁止**编造笔记链接（不要写 `sourceNoteUrl`，HTML 正文不要写假链）。
+4. **分配 id。** 按最终清单顺序为每条赋 `tp-1`…`tp-n`；后续领域实体与视图实体的 `id` **同序同值**。
+5. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**，再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
+6. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `template/view.mustache`）。勿手写 HTML `view.content`。
+7. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"view.json"}`。禁止在对话里粘贴整包 JSON 或 `artifact.json` / `view.json` 全文。
+8. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重跑 `render_view`。
+
+## Tool: search_xhs_note
+
+笔记链接来自本工具返回的 `noteUrl`；实际检索实现由服务端配置决定（如 `mock` 或 `apify`）。主 agent 只见 `query` + `pageSize`。
+
+| 参数 | 说明 |
+|------|------|
+| `query` | 必填；本轮只发这一次调用 |
+| `pageSize` | 返回候选条数上限（服务端重排后）；建议 `12`～`20` |
+
+空结果或工具错误 → **不要再调** `search_xhs_note`；改走 `source=model_fallback`（与选品 Fail 不同）。
+
+## Quality
+
+在**工具返回的候选**中选出条目并撰写下列字段（fallback 时按用户品类/人群自拟选题，仍须满足质量门槛）。不必再做一次「检索式筛选/排名」——排序与合法链路由服务端处理；你负责钩子 / 角度 / 优先发。
+
+原则（好坏对照见 [output.md §质量对照](references/output.md#质量对照条目)）：
+
+- **优先发：** 答清「为何先发它 vs 清单下一条」；禁「流量大」「好种草」
+- **angle：** 具体到场景/人群/表达切口；全清单 **≥3 个不同** 角度或人群；禁「日常」「种草」空泛三连
+- **hook：** 开场钩子一句可感知；禁与 title 同义反复
+- **whyFirst / risk：** 各一句可行动理由与风险；禁套话
+- **反凑数：** 同质微差最多 1 条代表
+- **链接：** `source=apify` 时有 hits 勿臆造未返回的笔记；`source=model_fallback` 无假链
+
+## Output
+
+成功终态：**盘上** `artifact.json` + **`view.json`**（`render_view` 产出）+ **对话**指针 `{"output":"view.json"}`。完整字段、模板与好坏例 → [output.md](references/output.md)。
+
+速记：
+
+- 每条 `id` = `tp-{n}`；HTML 列表与 artifact **同 id 同序**（手递 prompt 含 `（条目 tp-n）`）
+- `artifact.source` = `apify` 或 `model_fallback`
+- `sourceNoteUrl` 仅检索成功且 URL 来自工具 hits；有链时手递 prompt 含「原笔记」；fallback **不写链接、不写原笔记行**
+- 免责声明（HTML 正文）必须包含字面量：`非实时平台全站行情`
+- 推荐整句：`选题基于配置的笔记检索抽样与服务端排序，非实时平台全站行情。有链接时可打开笔记页核对。`
+- 两边均为 8–12 条；`view.json` 由模板生成，`view.version` = **`2`**；`view.format` = **`html`**
+- 模板 [view.mustache](template/view.mustache) 为每条详情输出手递按钮（`data-forma-skill-id="xhs-note"`）；prompt 由工具注入 `handoffPrompt`，合同见 [output.md §手递](references/output.md#手递按钮与-prompt-合同)
+- `view.title` 与 `artifact.title`：本轮生成的中文清单标题（同一文案）
+
+## Verification
+
+输出前逐项自检（全部通过才允许发指针）：
+
+- [ ] 本轮恰好 **1** 次 `search_xhs_note`（成功或失败都只这一次）
+- [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
+- [ ] 终稿对话**仅** `{"output":"view.json"}`；**未**在对话里贴整包大 JSON
+- [ ] `artifact.items` 与 `view.json` 内 HTML `<ol>` 条目均为 **8–12** 条，条数一致、顺序对应
+- [ ] 每条 `id` 非空，格式 `tp-n`（从 1 顺序）；手递 prompt 与 artifact **同 id 同序**
+- [ ] 至少 **3** 个不同 `angle`（或人群切口），且无空泛「日常」「种草」三连凑数
+- [ ] 恰好 **1–2** 条 `artifact.items[].title` 以 `【优先发】` 开头；HTML 展示标题不加该前缀（模板用 `displayTitle`）
+- [ ] 优先发条目含可行动「为何先发」理由（hook/angle/whyFirst 至少一处说清相对下一条的优势）
+- [ ] `source=apify` 时每条 `sourceNoteUrl` 来自工具 `noteUrl`，绝对 `https:`，无编造；有链时手递 prompt 含同一「原笔记」URL
+- [ ] `source=model_fallback` 时无 `sourceNoteUrl`、手递 prompt 无「原笔记」行、无假链
+- [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.content` 非空
+- [ ] 每条详情含手递按钮：`data-forma-skill-id="xhs-note"`，标签「写成笔记」，`data-forma-prompt` 符合 output 合同
+- [ ] `view.title` / `artifact.title` 为同一中文标题；正文免责声明含字面量 `非实时平台全站行情`
+- [ ] **未** 输出 v1 `blocks` / `list` JSON 视图
+- [ ] 未编造官方热榜 / 全站实时推广池 / 实时互动榜
+- [ ] 成功路径除指针外无闲聊；失败路径无人话以外的假 JSON
+
+## Failures
+
+下列情况**只回一句人话原因**，不要输出 JSON 或指针：
+
+- 无法理解用户要做选题（完全离题闲聊）
+- 写出的 8–12 条仍无法满足 Quality（同质凑数、无 3 个角度）且改盘后仍不合格
+
+工具失败 / 空 hits **不是** Fail：走 `model_fallback`。
+
+## Boundaries
+
+- 不宣称官方全站实时热榜或官方推广池；不编造链接，不编造全站实时指标
+- 不二次 / 并行调用 `search_xhs_note`；不在 skill 内扩词或二次重排
+- 不把本技能写成完整笔记或爆文拆解

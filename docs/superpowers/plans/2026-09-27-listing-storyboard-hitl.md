@@ -6,7 +6,7 @@
 
 **Architecture:** 扩展 `ecommerce-skulist` 两阶段输出；新增 `ArtifactType.LISTING_PLAN` 与门闩 A settle；实现 `ask_human` + SSE `human_input_required` + resume API/UI（原 2.9 切片）；确认后再 `reserveOne` 执行 hold（顺序预占，避免双 hold 改账本）。执行仍走 SKU 门禁 + 占位主图挂载。
 
-**Tech Stack:** Java 8 / Spring Boot 2.7（`lippi-ai-ebus-application` + `lippi-pi-agent`）、Vue3 / Vitest（`lippi-ai-ebus-web`）、MySQL checkpoint resume（已有 2.8）
+**Tech Stack:** Java 8 / Spring Boot 2.7（`forma-application` + `pi-agent`）、Vue3 / Vitest（`forma-web`）、MySQL checkpoint resume（已有 2.8）
 
 ## Global Constraints
 
@@ -28,11 +28,11 @@
 | `.../agent/support/SkillRunProfile.java` | `PERSIST_LISTING_PLAN`；listing 两阶段 profile 标记 |
 | `.../agent/support/ArtifactPersistPlugin.java` | plan 门禁（短字段）vs sku 门禁（四字段+media） |
 | `.../scenes/ecommerce/ecommerce-skulist/SKILL.md` + `references/output.md`（+test mirrors） | 两阶段 workflow + ask_human |
-| `lippi-pi-agent/.../tool/AskHumanToolHandler.java`（或 ebus 注册） | 工具 `ask_human`；挂起 |
+| `pi-agent/.../tool/AskHumanToolHandler.java`（或 ebus 注册） | 工具 `ask_human`；挂起 |
 | `.../sse/PiEventToAd4Mapper.java` | 映射 `human_input_required` |
 | `.../agent/service/AgentApplicationService.java` | 门闩 A/B、resume、二次 reserve |
 | `.../web/.../AgentController.java` | `POST .../runs/{runId}/resume` |
-| `lippi-ai-ebus-web/.../agent.ts` + types | resume API；解析 `human_input_required` |
+| `forma-web/.../agent.ts` + types | resume API；解析 `human_input_required` |
 | `.../useAgentListingRun.ts` + workspace UI | 选项按钮 + 补充文本；二次 artifact_ready |
 | `ComputerRenderer.vue` | 策划标题不套 Listing 手机壳（无三 section 时走通用块） |
 
@@ -50,9 +50,9 @@
 ### Task 1: Domain — `ArtifactType.LISTING_PLAN` + persist 门禁
 
 **Files:**
-- Modify: `lippi-ai-ebus-domain/.../artifact/model/ArtifactType.java`
-- Modify: `lippi-ai-ebus-application/.../agent/support/SkillRunProfile.java`
-- Modify: `lippi-ai-ebus-application/.../agent/support/ArtifactPersistPlugin.java`
+- Modify: `forma-domain/.../artifact/model/ArtifactType.java`
+- Modify: `forma-application/.../agent/support/SkillRunProfile.java`
+- Modify: `forma-application/.../agent/support/ArtifactPersistPlugin.java`
 - Modify: `.../ArtifactPersistPluginTest.java`
 - Modify: 任意 `ArtifactType.fromCode` / DB 写入测试
 
@@ -86,7 +86,7 @@ void persist_listingPlan_acceptsMinimalPlan() {
 
 - [ ] **Step 2: 跑测确认失败**
 
-Run: `mvn -pl lippi-ai-ebus-application -Dtest=ArtifactPersistPluginTest -DfailIfNoTests=false test`  
+Run: `mvn -pl forma-application -Dtest=ArtifactPersistPluginTest -DfailIfNoTests=false test`  
 Expected: 新测 FAIL（无 `listing_plan` / 无方法）
 
 - [ ] **Step 3: 实现 enum + resolveType + requireUsableListingPlanPayload**
@@ -121,7 +121,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-domain lippi-ai-ebus-application
+git add forma-domain forma-application
 git commit -m "$(cat <<'EOF'
 feat(artifact): add listing_plan type and plan persist gate
 
@@ -134,9 +134,9 @@ EOF
 ### Task 2: Skill — 两阶段 skulist 合同
 
 **Files:**
-- Modify: `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md`
+- Modify: `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md`
 - Modify: `.../references/output.md`
-- Sync mirrors: `lippi-ai-ebus-application/src/test/resources/...`、`lippi-pi-agent/src/test/resources/...`
+- Sync mirrors: `forma-application/src/test/resources/...`、`pi-agent/src/test/resources/...`
 - Modify: `allowed-tools` 含 `ask_human`（及现有 `read_skill`）
 
 **Interfaces:**
@@ -169,17 +169,17 @@ metadata:
 - [ ] **Step 3: 同步三份镜像**
 
 ```bash
-SRC=lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist
-cp "$SRC/SKILL.md" lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/ecommerce-skulist/
-cp "$SRC/SKILL.md" lippi-pi-agent/src/test/resources/scenes/ecommerce/ecommerce-skulist/
-cp "$SRC/references/output.md" lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/ecommerce-skulist/references/
-cp "$SRC/references/output.md" lippi-pi-agent/src/test/resources/scenes/ecommerce/ecommerce-skulist/references/
+SRC=forma-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist
+cp "$SRC/SKILL.md" forma-application/src/test/resources/scenes/ecommerce/ecommerce-skulist/
+cp "$SRC/SKILL.md" pi-agent/src/test/resources/scenes/ecommerce/ecommerce-skulist/
+cp "$SRC/references/output.md" forma-application/src/test/resources/scenes/ecommerce/ecommerce-skulist/references/
+cp "$SRC/references/output.md" pi-agent/src/test/resources/scenes/ecommerce/ecommerce-skulist/references/
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-ai-ebus-starter lippi-ai-ebus-application/src/test/resources lippi-pi-agent/src/test/resources
+git add forma-starter forma-application/src/test/resources pi-agent/src/test/resources
 git commit -m "$(cat <<'EOF'
 docs(skill): skulist two-phase storyboard + ask_human
 
@@ -192,7 +192,7 @@ EOF
 ### Task 3: Runtime — `ask_human` 工具 + `human_input_required` SSE
 
 **Files:**
-- Create: `lippi-ai-ebus-application/.../agent/tool/AskHumanToolHandler.java`（或 pi-agent tools 包，按现有 `search_sku` / `read_skill` 注册方式）
+- Create: `forma-application/.../agent/tool/AskHumanToolHandler.java`（或 pi-agent tools 包，按现有 `search_sku` / `read_skill` 注册方式）
 - Modify: ToolCatalog 装配（`EbusToolCatalogConfiguration` 或等价）
 - Modify: `PiEventToAd4Mapper.java` + test
 - Modify: `Ad4EventName`（若尚未含 `human_input_required` 则补齐；已有则只映射）
@@ -221,7 +221,7 @@ void mapsAskHumanSuspendToHumanInputRequired() {
 
 - [ ] **Step 3: 单测绿**
 
-Run: `mvn -pl lippi-ai-ebus-application -Dtest=PiEventToAd4MapperTest,AskHumanToolHandlerTest -DfailIfNoTests=false test`
+Run: `mvn -pl forma-application -Dtest=PiEventToAd4MapperTest,AskHumanToolHandlerTest -DfailIfNoTests=false test`
 
 - [ ] **Step 4: Commit**
 
@@ -296,8 +296,8 @@ EOF
 ### Task 5: FE — `human_input_required` UI + resume + 双次 artifact
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/types/business/agent.ts` — 事件名与 payload 类型
-- Modify: `lippi-ai-ebus-web/src/api/business/agent/agent.ts` — `resumeGenerationRun(...)`
+- Modify: `forma-web/src/types/business/agent.ts` — 事件名与 payload 类型
+- Modify: `forma-web/src/api/business/agent/agent.ts` — `resumeGenerationRun(...)`
 - Modify: `useAgentListingRun.ts`
 - Modify: `EcommerceWorkspacePlaceholder.vue` — 选项条 + 补充输入
 - Test: `agent.flow.test.ts` / workspace 测（择一）
@@ -333,7 +333,7 @@ EOF
 - [ ] **Step 1: 后端**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -Dtest=ArtifactPersistPluginTest,AgentApplicationServiceTest,PiEventToAd4MapperTest -DfailIfNoTests=false test
+mvn -pl forma-starter -am -Dtest=ArtifactPersistPluginTest,AgentApplicationServiceTest,PiEventToAd4MapperTest -DfailIfNoTests=false test
 ```
 
 Expected: BUILD SUCCESS
@@ -341,7 +341,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 2: 前端**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/components/business/computer/ComputerRenderer.test.ts src/api/business/agent/agent.flow.test.ts
+cd forma-web && npm test -- --run src/components/business/computer/ComputerRenderer.test.ts src/api/business/agent/agent.flow.test.ts
 ```
 
 - [ ] **Step 3: 手工**

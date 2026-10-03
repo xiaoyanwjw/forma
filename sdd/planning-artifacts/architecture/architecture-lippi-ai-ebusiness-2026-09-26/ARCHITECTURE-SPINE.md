@@ -117,9 +117,9 @@ flowchart LR
 ## Structural Seed
 
 ```text
-lippi-ai-ebus-domain/     # + Scene 聚合/实体（SceneCatalog 所有）
-lippi-ai-ebus-application/# 场景列表查询；建会话校验 scene；加载 pack；account 用例
-lippi-ai-ebus-interfaces/ # /api/v1/scenes*；/api/v1/account/**
+forma-domain/     # + Scene 聚合/实体（SceneCatalog 所有）
+forma-application/# 场景列表查询；建会话校验 scene；加载 pack；account 用例
+forma-interfaces/ # /api/v1/scenes*；/api/v1/account/**
 …/resources/scenes/{sceneCode}/  # 提示词与 skill/tool 清单（代码包）
 APP-META/bootstrap/sql/   # ebus_scene 表种子：四场景行
 ```

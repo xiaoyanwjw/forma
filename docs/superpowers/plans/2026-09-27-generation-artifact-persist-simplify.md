@@ -6,7 +6,7 @@
 
 **Architecture:** `GenerationOutputParser` 只拆 `{view, artifact}`（或纯文本）；`ComputerViewResolver`（Normalize + NoSkillMarkdown，无 Legacy）门禁 view；具体类 `ArtifactPersistPlugin` 写入 `{view, data}`；`persistAs=none` 映射 `artifact_type=chat` 仍落库。Agent 顺序固定为 project → persist → settle。
 
-**Tech Stack:** Java 8 / Spring Boot 2.7（`lippi-ai-ebus-application` + domain ArtifactStore）、Vue3 / Vitest（`lippi-ai-ebus-web`）、JUnit 5 + Mockito
+**Tech Stack:** Java 8 / Spring Boot 2.7（`forma-application` + domain ArtifactStore）、Vue3 / Vitest（`forma-web`）、JUnit 5 + Mockito
 
 ## Global Constraints
 
@@ -32,7 +32,7 @@
 | `.../agent/service/AgentApplicationService.java` (+test) | project → persist → settle；删插件列表 / none 跳过 |
 | `.../computer/ComputerViewConfiguration.java` | 链：Normalize → NoSkillMarkdown |
 | 删除 §6.1 所列 Picklist* / Legacy* 类型与专用测 | 见 Task 4 |
-| `lippi-ai-ebus-web/.../types/business/agent.ts` | `GenerationArtifactPayload`（view + artifactRef） |
+| `forma-web/.../types/business/agent.ts` | `GenerationArtifactPayload`（view + artifactRef） |
 | `.../composables/agent/useAgentPicklistRun.ts` | 只解析 view |
 | `.../views/.../EcommerceWorkspacePlaceholder.vue` (+test) | 删 items 旧布局 |
 | 双轨 / search_sku / simplify 规约修订记录 | Task 6 |
@@ -42,12 +42,12 @@
 ### Task 1: `ArtifactType.CHAT` + `GenerationOutputParser`
 
 **Files:**
-- Modify: `lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/artifact/model/ArtifactType.java`
-- Modify: `lippi-ai-ebus-domain/src/test/java/com/xmut/ebus/domain/business/artifact/model/ArtifactTypeTest.java`
+- Modify: `forma-domain/src/main/java/com/xmut/ebus/domain/business/artifact/model/ArtifactType.java`
+- Modify: `forma-domain/src/test/java/com/xmut/ebus/domain/business/artifact/model/ArtifactTypeTest.java`
 - Modify: `APP-META/bootstrap/sql/010_ebus_artifact.sql`（注释一行）
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/support/ParsedGenerationOutput.java`
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParser.java`
-- Create: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParserTest.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/support/ParsedGenerationOutput.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParser.java`
+- Create: `forma-application/src/test/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParserTest.java`
 
 **Interfaces:**
 - Produces: `ArtifactType.CHAT` / `fromCode("chat")`
@@ -112,7 +112,7 @@ void fencedJson_supported() {
 - [ ] **Step 5: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-domain,lippi-ai-ebus-application -am -Dtest=ArtifactTypeTest,GenerationOutputParserTest test
+mvn -pl forma-domain,forma-application -am -Dtest=ArtifactTypeTest,GenerationOutputParserTest test
 ```
 
 Expected: PASS
@@ -120,12 +120,12 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lippi-ai-ebus-domain/.../ArtifactType.java \
-  lippi-ai-ebus-domain/.../ArtifactTypeTest.java \
+git add forma-domain/.../ArtifactType.java \
+  forma-domain/.../ArtifactTypeTest.java \
   APP-META/bootstrap/sql/010_ebus_artifact.sql \
-  lippi-ai-ebus-application/.../ParsedGenerationOutput.java \
-  lippi-ai-ebus-application/.../GenerationOutputParser.java \
-  lippi-ai-ebus-application/.../GenerationOutputParserTest.java
+  forma-application/.../ParsedGenerationOutput.java \
+  forma-application/.../GenerationOutputParser.java \
+  forma-application/.../GenerationOutputParserTest.java
 git commit -m "$(cat <<'EOF'
 feat(agent): add GenerationOutputParser and ArtifactType.CHAT
 
@@ -139,7 +139,7 @@ EOF
 ### Task 2: 具体类 `ArtifactPersistPlugin`
 
 **Files:**
-- Delete content of interface then replace file: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/support/ArtifactPersistPlugin.java`（改为 `@Component` 具体类）
+- Delete content of interface then replace file: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/support/ArtifactPersistPlugin.java`（改为 `@Component` 具体类）
 - Modify: `.../PersistedGenerationArtifact.java`（仅 `artifactRef` + `readyExtras`；去掉业务 DTO / rawView 依赖亦可，见 Interfaces）
 - Create: `.../test/.../agent/support/ArtifactPersistPluginTest.java`
 
@@ -222,7 +222,7 @@ public class ArtifactPersistPlugin {
 - [ ] **Step 3: 跑测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=ArtifactPersistPluginTest test
+mvn -pl forma-application -am -Dtest=ArtifactPersistPluginTest test
 ```
 
 Expected: PASS（若 Agent 未改导致 compile 失败，先最小 stub Agent 构造注入具体类，完整行为 Task 3）
@@ -243,8 +243,8 @@ EOF
 ### Task 3: Agent 管道 — project → persist → settle
 
 **Files:**
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/service/AgentApplicationService.java`
-- Modify: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/service/AgentApplicationServiceTest.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/service/AgentApplicationService.java`
+- Modify: `forma-application/src/test/java/com/xmut/ebus/application/business/agent/service/AgentApplicationServiceTest.java`
 - Modify: `.../computer/ComputerViewConfiguration.java`（可在本 Task 去掉 Legacy 注入，若删类在 Task 4 则先留编译依赖）
 
 **Interfaces:**
@@ -295,7 +295,7 @@ verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-ns-ok"), eq(ECOM_SCEN
 - [ ] **Step 2: 跑测确认旧断言失败**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=AgentApplicationServiceTest#streamGenerationRunNoSkillSettlesOnUsableMarkdownView test
+mvn -pl forma-application -am -Dtest=AgentApplicationServiceTest#streamGenerationRunNoSkillSettlesOnUsableMarkdownView test
 ```
 
 Expected: FAIL（仍无 artifactRef 或仍 skip persist）
@@ -309,7 +309,7 @@ Expected: FAIL（仍无 artifactRef 或仍 skip persist）
 - [ ] **Step 4: 全量 Agent 测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am -Dtest=AgentApplicationServiceTest test
+mvn -pl forma-application -am -Dtest=AgentApplicationServiceTest test
 ```
 
 Expected: PASS
@@ -357,7 +357,7 @@ return new ComputerViewResolver(Arrays.asList(
 - [ ] **Step 3: 跑相关测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am test
+mvn -pl forma-application -am test
 ```
 
 Expected: PASS；无缺失符号
@@ -378,11 +378,11 @@ EOF
 ### Task 5: FE view-only
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/types/business/agent.ts`
-- Modify: `lippi-ai-ebus-web/src/composables/agent/useAgentPicklistRun.ts`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/ecommerceWorkspaceSession.css`（删 Legacy pick-list 样式若已无引用）
+- Modify: `forma-web/src/types/business/agent.ts`
+- Modify: `forma-web/src/composables/agent/useAgentPicklistRun.ts`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts`
+- Modify: `forma-web/src/views/business/scene/ecommerceWorkspaceSession.css`（删 Legacy pick-list 样式若已无引用）
 
 **Interfaces:**
 - Produces:
@@ -420,8 +420,8 @@ function toGenerationArtifact(data: Record<string, unknown>): GenerationArtifact
 - [ ] **Step 3: 跑 FE**
 
 ```bash
-cd lippi-ai-ebus-web && npm run test -- --run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts src/components/business/computer/ComputerRenderer.test.ts
-cd lippi-ai-ebus-web && npm run lint
+cd forma-web && npm run test -- --run src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts src/components/business/computer/ComputerRenderer.test.ts
+cd forma-web && npm run lint
 ```
 
 Expected: PASS
@@ -454,8 +454,8 @@ EOF
 - [x] **Step 2: 后端全量相关测 + 前端 lint**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am test
-cd lippi-ai-ebus-web && npm run lint && npm run build
+mvn -pl forma-starter -am test
+cd forma-web && npm run lint && npm run build
 ```
 
 Expected: PASS

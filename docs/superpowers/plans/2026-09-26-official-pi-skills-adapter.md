@@ -19,7 +19,7 @@
 - skill id 官方连字符：`ecommerce-picklist` / `ecommerce-skulist`；空跑默认前者
 - 电商 `allowed-tools` 默认仅 `read_skill`
 - 提交仅在用户明确要求时执行（下列 Commit 步骤可跳过）
-- 验证：`mvn -pl lippi-ai-ebus-starter -am test`
+- 验证：`mvn -pl forma-starter -am test`
 
 ---
 
@@ -27,16 +27,16 @@
 
 | 文件 | 职责 |
 |------|------|
-| `lippi-pi-agent/.../skill/SkillManifest.java` | 瘦身：id、description、promptRef、allowedTools、sceneCode（可选，由路径推导） |
-| `lippi-pi-agent/.../skill/SkillMdLoader.java` | 解析目录/`SKILL.md` → Manifest；替换 json bootstrap |
-| `lippi-pi-agent/.../skill/InMemorySkillConfig.java` | 按 id 注册（去掉 version 双键）；校验只要求 id+description+正文定位+allowedTools 可空 |
-| `lippi-pi-agent/.../resource/DefaultPiResourceLoader.java` | 启动扫 scenes/**/SKILL.md + prompts；填充 SkillConfig；工具由 ToolConfig 注入 |
-| `lippi-pi-agent/.../config/AgentConfiguration.java` | Bean：loader 驱动 skill 装载；代码注册 `read_skill`；去掉 json skill/tool 扫描 |
-| `lippi-pi-agent/.../tool/*` | 去掉 ToolLevel；薄注册；`ToolPolicyExtension` 按「未注册/未激活」拒绝 |
-| `lippi-pi-agent/src/main/resources/skills/**` | **删除** LIMS 遗留 skill |
-| `lippi-ai-ebus-starter/.../scenes/ecommerce/**/SKILL.md` | 官方双 skill 目录 |
-| `lippi-ai-ebus-application/.../SceneCapabilityPackLoader.java` | 只查 SkillConfig/Loader 快照；不解析 md/json |
-| `lippi-ai-ebus-application/.../EbusSkillConfiguration.java` | 仅扩展 loader 扫描 pattern（若仍需要），禁止第二套解析 |
+| `pi-agent/.../skill/SkillManifest.java` | 瘦身：id、description、promptRef、allowedTools、sceneCode（可选，由路径推导） |
+| `pi-agent/.../skill/SkillMdLoader.java` | 解析目录/`SKILL.md` → Manifest；替换 json bootstrap |
+| `pi-agent/.../skill/InMemorySkillConfig.java` | 按 id 注册（去掉 version 双键）；校验只要求 id+description+正文定位+allowedTools 可空 |
+| `pi-agent/.../resource/DefaultPiResourceLoader.java` | 启动扫 scenes/**/SKILL.md + prompts；填充 SkillConfig；工具由 ToolConfig 注入 |
+| `pi-agent/.../config/AgentConfiguration.java` | Bean：loader 驱动 skill 装载；代码注册 `read_skill`；去掉 json skill/tool 扫描 |
+| `pi-agent/.../tool/*` | 去掉 ToolLevel；薄注册；`ToolPolicyExtension` 按「未注册/未激活」拒绝 |
+| `pi-agent/src/main/resources/skills/**` | **删除** LIMS 遗留 skill |
+| `forma-starter/.../scenes/ecommerce/**/SKILL.md` | 官方双 skill 目录 |
+| `forma-application/.../SceneCapabilityPackLoader.java` | 只查 SkillConfig/Loader 快照；不解析 md/json |
+| `forma-application/.../EbusSkillConfiguration.java` | 仅扩展 loader 扫描 pattern（若仍需要），禁止第二套解析 |
 | `sdd/implementation-artifacts/sprint-status.yaml` | 3-2 → done；新增 3-2b in-progress/ready |
 | 相关单测 | 随各 Task 改写/删除 CertificateOcr 专测 |
 
@@ -46,10 +46,10 @@
 
 **Files:**
 - Modify: `sdd/implementation-artifacts/sprint-status.yaml`
-- Modify: `lippi-pi-agent/.../skill/SkillManifest.java`
-- Create: `lippi-pi-agent/.../skill/SkillMdLoader.java`
+- Modify: `pi-agent/.../skill/SkillManifest.java`
+- Create: `pi-agent/.../skill/SkillMdLoader.java`
 - Delete or gut: `SkillGraphTopology.java`（无引用后删）、`SkillManifestJsonLoader` 待 Task 2 删
-- Test: `lippi-pi-agent/src/test/java/com/xmut/lims/pi/agent/skill/SkillMdLoaderTest.java`
+- Test: `pi-agent/src/test/java/com/xmut/lims/pi/agent/skill/SkillMdLoaderTest.java`
 - Modify: `InMemorySkillConfig.java` + `InMemorySkillConfigTest.java`（去 version / maxToolLevel / graphTopology）
 
 **Interfaces:**
@@ -104,7 +104,7 @@ void loadsOfficialFrontmatterAndBodyRef() throws Exception {
 - [ ] **Step 3: 运行确认失败**
 
 ```bash
-mvn -pl lippi-pi-agent -Dtest=SkillMdLoaderTest test
+mvn -pl pi-agent -Dtest=SkillMdLoaderTest test
 ```
 
 Expected: FAIL（类不存在或 API 不匹配）
@@ -120,7 +120,7 @@ Expected: FAIL（类不存在或 API 不匹配）
 - [ ] **Step 5: 跑通 SkillMdLoaderTest + 修正 InMemorySkillConfigTest**
 
 ```bash
-mvn -pl lippi-pi-agent -Dtest=SkillMdLoaderTest,InMemorySkillConfigTest test
+mvn -pl pi-agent -Dtest=SkillMdLoaderTest,InMemorySkillConfigTest test
 ```
 
 Expected: PASS（旧测改为新字段构造；删掉 version/topology 断言）
@@ -128,7 +128,7 @@ Expected: PASS（旧测改为新字段构造；删掉 version/topology 断言）
 - [ ] **Step 6: Commit（可选）**
 
 ```bash
-git add sdd/implementation-artifacts/sprint-status.yaml lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/skill/ lippi-pi-agent/src/test/java/com/xmut/lims/pi/agent/skill/
+git add sdd/implementation-artifacts/sprint-status.yaml pi-agent/src/main/java/com/xmut/lims/pi/agent/skill/ pi-agent/src/test/java/com/xmut/lims/pi/agent/skill/
 git commit -m "$(cat <<'EOF'
 feat(pi-agent): add SKILL.md loader and slim SkillManifest
 
@@ -158,8 +158,8 @@ EOF
 - [ ] **Step 1: 测试资源放一份最小 SKILL.md（pi-agent test）**
 
 ```text
-lippi-pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md
-lippi-pi-agent/src/test/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md
+pi-agent/src/test/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md
+pi-agent/src/test/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md
 ```
 
 内容含 name/description/`allowed-tools: read_skill` + 短正文。
@@ -197,7 +197,7 @@ return config;
 - [ ] **Step 4: 删除 LIMS 资源与 CertificateOcr 专测；修编译**
 
 ```bash
-mvn -pl lippi-pi-agent test
+mvn -pl pi-agent test
 ```
 
 Expected: 删除/改写后绿；无 certificate.ocr 引用。
@@ -236,7 +236,7 @@ void deniesToolNotInActiveSet() {
 - [ ] **Step 2: 实现去 level + 按名策略；全模块修编译**
 
 ```bash
-mvn -pl lippi-pi-agent test
+mvn -pl pi-agent test
 ```
 
 Expected: PASS
@@ -249,9 +249,9 @@ Expected: PASS
 
 **Files:**
 - Create:  
-  `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`  
-  `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md`
-- Create same under `lippi-ai-ebus-application/src/test/resources/scenes/ecommerce/...`
+  `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-picklist/SKILL.md`  
+  `forma-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md`
+- Create same under `forma-application/src/test/resources/scenes/ecommerce/...`
 - Delete: 旧 `ecommerce.*.skill.json`、旧扁平 `ecommerce.*.md`
 - Modify: `SceneCapabilityPack.java`、`SceneCapabilityPackLoader.java`
 - Modify: `EbusSkillConfiguration.java` — 若默认 AgentConfiguration 已扫 `scenes/*/*/SKILL.md`，可删除二次扫描或改为 no-op / 文档说明
@@ -304,7 +304,7 @@ allowed-tools: read_skill
 - [ ] **Step 3: 跑 application / starter 相关测**
 
 ```bash
-mvn -pl lippi-ai-ebus-application,lippi-ai-ebus-starter -am -Dtest=SceneCapabilityPackLoaderTest,SceneCapabilityPackBootstrapTest test
+mvn -pl forma-application,forma-starter -am -Dtest=SceneCapabilityPackLoaderTest,SceneCapabilityPackBootstrapTest test
 ```
 
 Expected: PASS（Bootstrap 测改为断言 ResourceLoader/SkillConfig 能 resolve 新 id）
@@ -331,7 +331,7 @@ verify(agentSession).prompt(argThat(req ->
 - [ ] **Step 2: 全 reactor 测试**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am test
+mvn -pl forma-starter -am test
 ```
 
 Expected: BUILD SUCCESS
@@ -344,7 +344,7 @@ Expected: BUILD SUCCESS
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-09-26-official-pi-skills-adapter-design.md` status → implemented（完成后）
-- 可选：`lippi-pi-agent/README.md` 技能小节改为 SKILL.md + ResourceLoader（勿大段粘贴）
+- 可选：`pi-agent/README.md` 技能小节改为 SKILL.md + ResourceLoader（勿大段粘贴）
 - 可选：`deferred-work.md` 记下「通用 read / 内置 coding tools / WRITE 点名审批」
 
 - [ ] **Step 1: 更新 README 短段落 + deferred**

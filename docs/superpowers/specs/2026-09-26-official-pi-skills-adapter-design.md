@@ -3,12 +3,12 @@
 **Date:** 2026-09-26  
 **Status:** implemented（见 `docs/superpowers/plans/2026-09-26-official-pi-skills-adapter.md`）  
 **Baseline:** `abf52e1`（3.2 电商能力包接线已合入）  
-**Modules:** `lippi-pi-agent`, `lippi-ai-ebus-application`, `lippi-ai-ebus-starter`
+**Modules:** `pi-agent`, `forma-application`, `forma-starter`
 
 ## Problem
 
 1. 3.2 落地的电商能力包使用 `*.skill.json` + `promptRef` → md，对齐的是仓内 LIMS/Hermes 遗留的 `SkillManifest`，**不是**官方 [Pi Agent Skills](https://pi.dev/docs/latest/skills)（目录 + `SKILL.md`）。
-2. `lippi-pi-agent` 的 skill/tool 类型偏多（version 双键、`graphTopology`、`maxToolLevel`、`modelUseCase`、JSON Manifest 双轨等），与官方「扫文件 → 摘要进提示词 → 按需读全文 / 按名启用 tool」的薄模型不一致。
+2. `pi-agent` 的 skill/tool 类型偏多（version 双键、`graphTopology`、`maxToolLevel`、`modelUseCase`、JSON Manifest 双轨等），与官方「扫文件 → 摘要进提示词 → 按需读全文 / 按名启用 tool」的薄模型不一致。
 3. 内置 certificate-ocr 等 LIMS 技能对本产品无用，应移除而非迁移。
 
 ## Goal
@@ -197,12 +197,12 @@ Registry 改为 **按 id** 索引（不再 `id@version`）。
 5. pi-agent 无 certificate-ocr 等 LIMS skill 资源；相关专测删除或改写。  
 6. Skill 模型无 version/topology/maxToolLevel/modelUseCase/contentHash；`allowed-tools` 驱动本轮 tool 名字白名单。  
 7. Tool 路径无 `ToolLevel` 依赖；无 json Manifest 双轨；电商回合仅暴露 `allowed-tools` 中的工具（默认 `read_skill`）。  
-8. 未知或未激活 tool 调用被拒绝；相关单测与 `mvn -pl lippi-ai-ebus-starter -am test` 中受影响测例绿。
+8. 未知或未激活 tool 调用被拒绝；相关单测与 `mvn -pl forma-starter -am test` 中受影响测例绿。
 
 ## Verification
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am test
+mvn -pl forma-starter -am test
 ```
 
 （若仅改后端 skill/tool，可不强制前端 lint。）

@@ -57,23 +57,23 @@ context:
 ## Code Map
 
 - `sdd/.../ARCHITECTURE-SPINE.md`（09-26）AD-16 / Structural Seed — 约定 `…/resources/scenes/{sceneCode}/`；格式细节原 Deferred，本故事钉死最小约定
-- `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/`（新建）— pack 资源根：提示词 md + skill 清单（及必要 tool 白名单引用）；勿放 DB
-- `lippi-pi-agent/.../skill/ClasspathSkillBootstrap.java` + `SkillManifest` + `skills/*.skill.json` — 复用 JSON+`promptRef` 形态；场景包可仿此或薄封装，勿改全局 bootstrap 语义
-- `lippi-pi-agent/.../agent/SystemPromptInput.java` — 仅允许既有键；注入经 skill 绑定 / `ContextModifier` append，禁止新键
-- `lippi-pi-agent/.../extension/ContextModifier.java` + `PiExtension` / `ExtensionRunner` — 可选：`BEFORE_AGENT_START` 追加场景 stable/context；优先少改 pi-agent 核心
-- `lippi-pi-agent/.../session/PromptRequest.java` + `AgentSession.prompt` — 用既有 `skillId`/`context`；**勿改** Session 接口
-- `lippi-ai-ebus-application/.../AgentApplicationService.java` — `prepareEmptyRun` 已有 scene；`streamEmptyRun` 当前 `PromptRequest` 无 skill/pack（约 217–221 行）— **本故事接线**：prompt 前加载并设默认 `skillId`
-- `lippi-ai-ebus-domain/.../scene/` + `PiSessionSceneRepository` — 只读 sceneCode；不写 prompt
-- `lippi-ai-ebus-interfaces/.../AgentController.java` — 确认无 systemPrompt/tools 入参；保持薄
-- `lippi-ai-ebus-web` agent API/types — 确认不传/不解析提示词正文；本故事原则上不改工作台发送
+- `forma-starter/src/main/resources/scenes/ecommerce/`（新建）— pack 资源根：提示词 md + skill 清单（及必要 tool 白名单引用）；勿放 DB
+- `pi-agent/.../skill/ClasspathSkillBootstrap.java` + `SkillManifest` + `skills/*.skill.json` — 复用 JSON+`promptRef` 形态；场景包可仿此或薄封装，勿改全局 bootstrap 语义
+- `pi-agent/.../agent/SystemPromptInput.java` — 仅允许既有键；注入经 skill 绑定 / `ContextModifier` append，禁止新键
+- `pi-agent/.../extension/ContextModifier.java` + `PiExtension` / `ExtensionRunner` — 可选：`BEFORE_AGENT_START` 追加场景 stable/context；优先少改 pi-agent 核心
+- `pi-agent/.../session/PromptRequest.java` + `AgentSession.prompt` — 用既有 `skillId`/`context`；**勿改** Session 接口
+- `forma-application/.../AgentApplicationService.java` — `prepareEmptyRun` 已有 scene；`streamEmptyRun` 当前 `PromptRequest` 无 skill/pack（约 217–221 行）— **本故事接线**：prompt 前加载并设默认 `skillId`
+- `forma-domain/.../scene/` + `PiSessionSceneRepository` — 只读 sceneCode；不写 prompt
+- `forma-interfaces/.../AgentController.java` — 确认无 systemPrompt/tools 入参；保持薄
+- `forma-web` agent API/types — 确认不传/不解析提示词正文；本故事原则上不改工作台发送
 - 测：`AgentApplicationServiceTest` + 新建 `SceneCapabilityPack*` 单测 — 覆盖矩阵；勿改 CreditLedger 结算语义
 - **勿改：** CreditLedger；AD-4 事件名；3.1 场景校验/灰卡拒绝；`EventSource` 禁令；Identity/JWT
 
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/**` -- 骨架双 skill：`ecommerce.picklist` + `ecommerce.skulist`（各 JSON + 短 md）-- AD-16 代码包
-- [x] `lippi-ai-ebus-application`（或 infra）`SceneCapabilityPack` + Loader -- 按 `sceneCode` 从 classpath 加载双 skill；缺包失败可测 -- 单一加载入口
+- [x] `forma-starter/src/main/resources/scenes/ecommerce/**` -- 骨架双 skill：`ecommerce.picklist` + `ecommerce.skulist`（各 JSON + 短 md）-- AD-16 代码包
+- [x] `forma-application`（或 infra）`SceneCapabilityPack` + Loader -- 按 `sceneCode` 从 classpath 加载双 skill；缺包失败可测 -- 单一加载入口
 - [x] 注册/投影到 pi skill -- 两 skill 均可被 `PromptRequest.skillId` 选中 -- 遵守槽位 allowlist
 - [x] `AgentApplicationService.streamEmptyRun` -- prompt 前按 sceneCode 加载；默认 `skillId=ecommerce.picklist`；失败人话+release -- 堵住无包跑模型
 - [x] 单测 -- 覆盖 I/O 矩阵：双 skill 可加载、缺包人话、空跑注入 skillId、不 settle -- 锁契约
@@ -87,7 +87,7 @@ context:
 
 ## Implementation Notes
 
-- 2026-09-26：骨架包落在 `lippi-ai-ebus-starter/.../scenes/ecommerce/`（`ecommerce.picklist` + `ecommerce.skulist`）；application test/resources 镜像同结构供 Loader 单测。
+- 2026-09-26：骨架包落在 `forma-starter/.../scenes/ecommerce/`（`ecommerce.picklist` + `ecommerce.skulist`）；application test/resources 镜像同结构供 Loader 单测。
 - `SceneCapabilityPack` + `SceneCapabilityPackLoader`：按 `classpath*:scenes/{code}/*.skill.json` 加载；电商缺任一 skill → 人话「场景能力暂不可用」。
 - `EbusSkillConfiguration` 在密封前二次扫描场景 skill，覆盖 pi-agent 默认 `SkillConfig` bean。
 - `EmptyRunContext` 携带 `sceneCode`；`streamEmptyRun` prompt 前装包，默认 `skillId=ecommerce.picklist`；缺包不 prompt，release + `run_failed`。
@@ -130,5 +130,5 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test` -- 含 pack 加载与 Agent 相关单测绿
-- `cd lippi-ai-ebus-web && npm run lint` -- 若动前端则需绿；未改可跳过 build
+- `mvn -pl forma-starter -am test` -- 含 pack 加载与 Agent 相关单测绿
+- `cd forma-web && npm run lint` -- 若动前端则需绿；未改可跳过 build

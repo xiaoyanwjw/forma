@@ -6,7 +6,7 @@
 
 **Architecture:** Platform `ComputerViewProjector` strategies on a fixed chain: NormalizeView → LegacyPicklistFallback (transition) → NoSkillMarkdown. Skill-emitted `view` is normalized; no-skill turns wrap final text as markdown; current picklist (artifact only) still projects via legacy until Skill dual-track lands.
 
-**Tech Stack:** Java 8 / Spring Boot 2.7 (`lippi-ai-ebus-application`), Vue3 / Vitest (`lippi-ai-ebus-web`)
+**Tech Stack:** Java 8 / Spring Boot 2.7 (`forma-application`), Vue3 / Vitest (`forma-web`)
 
 ## Global Constraints
 
@@ -35,11 +35,11 @@
 
 ### Task 1: BE strategy API + Normalize + NoSkillMarkdown (TDD)
 
-**Files:** new under `lippi-ai-ebus-application/.../computer/` + tests
+**Files:** new under `forma-application/.../computer/` + tests
 
 - [x] Write failing tests: Normalize drops unknown block types; NoSkillMarkdown wraps text when `!skillBound`; chain picks first `supports`.
 - [x] Implement `ComputerViewProjector`, `ViewProjectContext`, `ComputerViewResolver`, `NormalizeViewProjector`, `NoSkillMarkdownProjector`.
-- [x] Run `mvn -pl lippi-ai-ebus-application -am -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest,ComputerViewResolverTest test`.
+- [x] Run `mvn -pl forma-application -am -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest,ComputerViewResolverTest test`.
 
 ### Task 2: Legacy picklist fallback + wire AgentApplicationService
 

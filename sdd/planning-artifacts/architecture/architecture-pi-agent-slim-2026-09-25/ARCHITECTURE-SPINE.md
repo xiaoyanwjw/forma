@@ -4,16 +4,16 @@ type: architecture-spine
 purpose: build-substrate
 altitude: feature
 paradigm: thin AgentSession facade over retained StateGraph tool-loop (upstream-aligned behavior, not while-loop port)
-scope: lippi-pi-agent 精简约束（Adam 运行时）；不改写业务 ebus 结算
+scope: pi-agent 精简约束（Adam 运行时）；不改写业务 ebus 结算
 status: final
 created: 2026-09-25
 updated: 2026-09-25
-binds: [AD-1, AD-3, AD-4, AD-5, AD-6, AD-7, AD-10, AD-11, AD-12, AD-S1, AD-S2, AD-S3, AD-S4, AD-S5, AD-S6, AD-S7, AD-S8, AD-S9, AD-S10, AD-S11, AD-S12, AD-S13, lippi-pi-agent]
+binds: [AD-1, AD-3, AD-4, AD-5, AD-6, AD-7, AD-10, AD-11, AD-12, AD-S1, AD-S2, AD-S3, AD-S4, AD-S5, AD-S6, AD-S7, AD-S8, AD-S9, AD-S10, AD-S11, AD-S12, AD-S13, pi-agent]
 sources:
   - sdd/planning-artifacts/architecture/architecture-lippi-ai-ebusiness-2026-09-24/ARCHITECTURE-SPINE.md
-  - lippi-pi-agent/README.md
-  - lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/session/SessionStore.java
-  - lippi-pi-agent/src/main/java/com/xmut/lims/pi/agent/graph/node/ToolNode.java
+  - pi-agent/README.md
+  - pi-agent/src/main/java/com/xmut/lims/pi/agent/session/SessionStore.java
+  - pi-agent/src/main/java/com/xmut/lims/pi/agent/graph/node/ToolNode.java
   # Upstream reference (sibling checkout of pi-mono packages/agent — not vendored)
 companions: []
 ---
@@ -36,7 +36,7 @@ flowchart TB
   App[ebus application] -->|subscribe prompt cancel| AS[AgentSession]
   AS --> Bus[PiEventBus]
   AS --> Loop[DefaultAgent + StateGraph]
-  Loop --> PiAI[lippi-pi-ai]
+  Loop --> PiAI[pi-ai]
   App -->|SSE map AD-4| Bus
   App -->|settle after artifact| CL[CreditLedger]
 ```
@@ -58,7 +58,7 @@ flowchart TB
 
 ### AD-S1 — 本阶段不拆 StateGraph [ADOPTED]
 
-- **Binds:** `lippi-pi-agent` graph / DefaultAgent
+- **Binds:** `pi-agent` graph / DefaultAgent
 - **Prevents:** 与「删外围噪音」并行再做 while 重写导致双倍回归
 - **Rule:** 保留 `START → agent ⇄ tools → END`。允许删未使用的图配置枝节与死代码；**禁止**本阶段将执行核替换为 `agentLoop` 风格 while。若日后要 1A，单独立项，不混进本精简 PR。
 
@@ -78,7 +78,7 @@ flowchart TB
 - **Binds:** `SessionStore`、Adam 会话 transcript、AgentRuntime
 - **Prevents:** cwd SQLite 当生产真相；扁平「整表 messages blob」与上游 pi 会话模型分叉；Session 与 Graph Checkpoint 混存
 - **Rule:**
-  - **生产默认**：`SessionStore` 的 MySQL 实现（共享 APP-META / 业务 MySQL）。端口仍在 `lippi-pi-agent`；**适配器**在 `lippi-ai-ebus-infrastructure`（MyBatis），`@Primary`；`pi-agent` **不**依赖 MyBatis。
+  - **生产默认**：`SessionStore` 的 MySQL 实现（共享 APP-META / 业务 MySQL）。端口仍在 `pi-agent`；**适配器**在 `forma-infrastructure`（MyBatis），`@Primary`；`pi-agent` **不**依赖 MyBatis。
   - **逻辑形状**：上游 pi SessionTree/Entry **灵感** + 本仓现有 `SessionStore` 语义；**可执行细则以 AD-S6..S8、AD-S11 为准**（勿自行发明「Part 2 全量」实现）。
   - **≠ Checkpointer**：禁止与 `pi:checkpoint:` / Graph 状态共用表或键空间。
   - **本阶段单 lane**；多 lane / Operation SM → Deferred。
@@ -188,12 +188,12 @@ flowchart TB
 | Java / Spring Boot | 继承父 Spine（Java 8 + Boot 2.7.18） |
 | MySQL | APP-META compose **`mysql:8.0.36`**（继承父 AD-10） |
 | MyBatis | ebus infra 既有（parent POM mybatis-spring-boot 2.3.x / mybatis 3.5.x） |
-| lippi-pi-ai Message JSON | 本仓 `Message` 序列化；不另引第二套 |
+| pi-ai Message JSON | 本仓 `Message` 序列化；不另引第二套 |
 
 ## Structural Seed
 
 ```text
-lippi-pi-agent/
+pi-agent/
   session/     # AgentSession + SessionStore（Message 端口）；InMemory 测；Sqlite 仅 test
   agent/       # DefaultAgent + PromptBuilder（三槽 allowlist）
   graph/       # StateGraph 保留；默认 InMemory/No-Op CP
@@ -201,7 +201,7 @@ lippi-pi-agent/
   extension/   # 保留；Adam 默认不依赖 WRITE HITL
   tool/ skill/ # 本阶段不删平台
 
-lippi-ai-ebus-infrastructure/
+forma-infrastructure/
   …/session/       # MysqlSessionStore → @Primary
   …/checkpoint/    # MysqlCheckpointer → @Primary（Adam 默认）
 
@@ -266,4 +266,4 @@ sequenceDiagram
 - **pi Session 全量**：多 lane、`parent_id` 树边、Operation SM。
 - **三不透明字符串 Prompt**：若弃 maps，单独立项替换 AD-S10。
 - **父 Spine AD-4 payload 细表**：事件名已含 `human_input_required`；字段 JSON 可后钉。
-- **抽 `lippi-pi-*` 跨仓共享库**：仍遵父 Spine Deferred。
+- **抽 `pi-*` 跨仓共享库**：仍遵父 Spine Deferred。

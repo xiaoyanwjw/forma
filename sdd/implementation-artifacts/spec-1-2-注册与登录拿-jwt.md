@@ -57,12 +57,12 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-*` — 各模块仅 `package-info`；Identity 全绿场新建
-- `lippi-ai-ebus-starter/.../application.yml` — 无 JWT/security；需加 `jwt.*` 与安全相关配置
+- `forma-*` — 各模块仅 `package-info`；Identity 全绿场新建
+- `forma-starter/.../application.yml` — 无 JWT/security；需加 `jwt.*` 与安全相关配置
 - `pom.xml` — DM 已钉 jjwt 0.11.5；子模块尚未声明 jjwt / spring-security
 - `APP-META/bootstrap/sql/000_placeholder.sql` — 无表；需新增用户表 SQL（替换或追加编号脚本）
-- `lippi-ai-ebus-common/` — 尚无 `ApiResponse` / `BusinessException` / `ErrorCode`；本故事需最小公共响应与错误
-- `lippi-ai-ebus-web/src/` — 空路由、无 `api/`/`types/`、无 Vite proxy
+- `forma-common/` — 尚无 `ApiResponse` / `BusinessException` / `ErrorCode`；本故事需最小公共响应与错误
+- `forma-web/src/` — 空路由、无 `api/`/`types/`、无 Vite proxy
 - Spine AD-8 / Epic Story 1.2 — 鉴权与限流权威
 - LIMS 参考（只借形状，不拷租户）：`AuthController`、`JwtTokenProvider`、`AuthenticationFilter`、`SecurityConfig`、`BCryptPasswordEncoder`；**勿**拷 `TenantContext`、微信、验证码、Redis 会话强制
 
@@ -73,14 +73,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lippi-ai-ebus-common/` — 最小 `ApiResponse`、`BusinessException`、`ErrorCode`（含未授权/冲突/限流）— REST 统一出口
+- [x] `forma-common/` — 最小 `ApiResponse`、`BusinessException`、`ErrorCode`（含未授权/冲突/限流）— REST 统一出口
 - [x] `APP-META/bootstrap/sql/` — 用户表（UUID PK、username/email 唯一、password_hash、时间戳 UTC）— Identity 持久化
-- [x] `lippi-ai-ebus-domain/.../identity/` — `User` 聚合 + repository 端口 — 唯一写用户模型
-- [x] `lippi-ai-ebus-application/.../identity/` — 注册/登录 ApplicationService + JWT 端口 — 用例编排
-- [x] `lippi-ai-ebus-infrastructure/` — MyBatis PO/Mapper、JWT 实现、SecurityConfig、Bearer Filter、内存限流协作 — 落地 AD-8
-- [x] `lippi-ai-ebus-interfaces/.../identity/` — `AuthController`（注册/登录）+ `MeController`（`GET /api/v1/me`）；interfaces 频率限制 — 公开与鉴权边界
-- [x] `lippi-ai-ebus-starter` + 子模块 `pom` + `application.yml` + `.env.example` — 声明 jjwt/security、`JWT_SECRET` — 可启动可配置
-- [x] `lippi-ai-ebus-web/` — 注册/登录页、`api`/`types`、JWT 存储、Vite 代理、登录后调 `/me` — 店主可点着走通
+- [x] `forma-domain/.../identity/` — `User` 聚合 + repository 端口 — 唯一写用户模型
+- [x] `forma-application/.../identity/` — 注册/登录 ApplicationService + JWT 端口 — 用例编排
+- [x] `forma-infrastructure/` — MyBatis PO/Mapper、JWT 实现、SecurityConfig、Bearer Filter、内存限流协作 — 落地 AD-8
+- [x] `forma-interfaces/.../identity/` — `AuthController`（注册/登录）+ `MeController`（`GET /api/v1/me`）；interfaces 频率限制 — 公开与鉴权边界
+- [x] `forma-starter` + 子模块 `pom` + `application.yml` + `.env.example` — 声明 jjwt/security、`JWT_SECRET` — 可启动可配置
+- [x] `forma-web/` — 注册/登录页、`api`/`types`、JWT 存储、Vite 代理、登录后调 `/me` — 店主可点着走通
 - [x] 单元/集成测试 — 覆盖 I/O 矩阵：注册冲突、错误登录、无 JWT/坏 JWT、限流 — 防回归
 
 **Acceptance Criteria:**
@@ -92,8 +92,8 @@ context:
 
 ## Implementation Notes
 
-- 鉴权相关模块测试：`mvn -pl lippi-ai-ebus-common,lippi-ai-ebus-domain,lippi-ai-ebus-application,lippi-ai-ebus-infrastructure,lippi-ai-ebus-interfaces,lippi-ai-ebus-starter test` → BUILD SUCCESS（IdentityApplicationServiceTest 4 + JwtTokenProviderTest 2 + SlidingWindowRateLimiterTest 2 + AuthIntegrationTest 6）。
-- 全仓 `mvn -pl lippi-ai-ebus-starter -am test` 仍会被预存的 `lippi-pi-agent` 失败挡住（与 Identity 无关）；未在本故事修 Pi。
+- 鉴权相关模块测试：`mvn -pl forma-common,forma-domain,forma-application,forma-infrastructure,forma-interfaces,forma-starter test` → BUILD SUCCESS（IdentityApplicationServiceTest 4 + JwtTokenProviderTest 2 + SlidingWindowRateLimiterTest 2 + AuthIntegrationTest 6）。
+- 全仓 `mvn -pl forma-starter -am test` 仍会被预存的 `pi-agent` 失败挡住（与 Identity 无关）；未在本故事修 Pi。
 - FE：补 `vitest` + `auth.flow.test.ts`（注册/登录存 JWT 再调 `/me`、失败人话）；`npm test` + `npm run lint` 绿。
 - 已有 MySQL volume 不会自动跑 `001_ebus_user.sql`；需重建 volume 或手工执行。
 - 默认 `JWT_SECRET` 仅本地；生产须换强密钥。
@@ -141,9 +141,9 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-common,lippi-ai-ebus-domain,lippi-ai-ebus-application,lippi-ai-ebus-infrastructure,lippi-ai-ebus-interfaces,lippi-ai-ebus-starter test` -- expected: BUILD SUCCESS，鉴权相关测绿
-- `mvn -pl lippi-ai-ebus-starter -am -DskipTests compile` -- expected: BUILD SUCCESS
-- `cd lippi-ai-ebus-web && npm test && npm run lint` -- expected: 通过
+- `mvn -pl forma-common,forma-domain,forma-application,forma-infrastructure,forma-interfaces,forma-starter test` -- expected: BUILD SUCCESS，鉴权相关测绿
+- `mvn -pl forma-starter -am -DskipTests compile` -- expected: BUILD SUCCESS
+- `cd forma-web && npm test && npm run lint` -- expected: 通过
 
 **Manual checks (if no CLI):**
 - 浏览器：注册→登录→可见 `/me` 成功；无 Token 访问受保护接口失败；库中 `password_hash` 非明文

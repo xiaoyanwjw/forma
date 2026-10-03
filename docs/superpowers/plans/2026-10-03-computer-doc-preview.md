@@ -4,7 +4,7 @@
 
 **Goal:** Replace Computer block-component preview with skill-authored `view` documents (`format: markdown | html`), GitHub README styling, sanitizer, and in-document handoff buttons.
 
-**Architecture:** Backend `NormalizeViewProjector` accepts view **v2** (`title` + `format` + `content`) so settle/persist no longer rewrites unknown versions to empty drafts. FE parses v2 only, renders via `DocPreview` (marked → DOMPurify → `markdown-body` + `github-markdown-css`), and delegates clicks on `data-adam-action="handoff"`. Spec `itemHandoffs` / toolbar handoffs retire; Listing media mount/resign write/read `data-adam-media-object-id` inside HTML `content`.
+**Architecture:** Backend `NormalizeViewProjector` accepts view **v2** (`title` + `format` + `content`) so settle/persist no longer rewrites unknown versions to empty drafts. FE parses v2 only, renders via `DocPreview` (marked → DOMPurify → `markdown-body` + `github-markdown-css`), and delegates clicks on `data-forma-action="handoff"`. Spec `itemHandoffs` / toolbar handoffs retire; Listing media mount/resign write/read `data-forma-media-object-id` inside HTML `content`.
 
 **Tech Stack:** Vue 3 / Vitest / `marked` / `dompurify` / `github-markdown-css` / Java 8 Spring (`NormalizeViewProjector`, `ListingMediaMountSupport`, `HistoryViewResignSupport`) / pi-extension skill `references/output.md`
 
@@ -13,14 +13,14 @@
 ## Global Constraints
 
 - View protocol **v2 only** on FE: `{ version: 2, title, format: 'markdown'|'html', content: string }` — **no v1 blocks compatibility**
-- Handoff buttons authored by skill: `data-adam-action="handoff"`, `data-adam-skill-id`, `data-adam-prompt`
+- Handoff buttons authored by skill: `data-forma-action="handoff"`, `data-forma-skill-id`, `data-forma-prompt`
 - Click → `startSkillRun({ skillId, text: prompt, sceneCode, sessionId })` with attributes as-is
 - Styles: GitHub README (`github-markdown-css` + `markdown-body`)
 - Sanitize before `v-html`; allow handoff data attrs; strip `script` / event handlers / `javascript:`
 - `final.json` envelope `{ view, artifact }` unchanged; keep `artifact` business fields stable
 - Delete Spec `itemHandoffs` / `toolbarHandoffs` and FE handoff builders once skills embed prompts
-- FE tests: `cd lippi-ai-ebus-web && npm test -- --run <paths>`
-- BE tests: `mvn -pl lippi-ai-ebus-application -am test -Dtest=<Class>`
+- FE tests: `cd forma-web && npm test -- --run <paths>`
+- BE tests: `mvn -pl forma-application -am test -Dtest=<Class>`
 
 ---
 
@@ -28,19 +28,19 @@
 
 | Path | Responsibility |
 |------|----------------|
-| `lippi-ai-ebus-application/.../computer/NormalizeViewProjector.java` | Accept/sanitize v2; stop mapping non-v1 → empty draft |
-| `lippi-ai-ebus-application/.../computer/ComputerDocument.java` | Support v2 map shape (`format`/`content`) |
-| `lippi-ai-ebus-application/.../media/support/ListingMediaMountSupport.java` | Inject hero `<img data-adam-media-*>` into v2 `content` |
-| `lippi-ai-ebus-application/.../history/support/HistoryViewResignSupport.java` | Re-sign `src` on imgs with `data-adam-media-object-id` |
-| `lippi-ai-ebus-application/.../computer/NoSkillMarkdownProjector.java` | Emit v2 markdown (not v1 blocks) |
-| `lippi-ai-ebus-web/src/types/business/computerView.ts` | Replace v1 types with `ComputerDocView` + `parseComputerDocView` |
-| `lippi-ai-ebus-web/src/utils/computerDocHtml.ts` | `sanitizeComputerHtml` + `toPreviewHtml` |
-| `lippi-ai-ebus-web/src/components/business/computer/DocPreview.vue` | GitView shell + sanitized body + handoff emit |
-| `lippi-ai-ebus-web/src/views/business/scene/Workspace.vue` | Use DocPreview; remove item/toolbar handoff wiring |
-| `lippi-ai-ebus-web/src/views/business/history/HistoryView.vue` | Use DocPreview |
-| `lippi-ai-ebus-web/src/composables/agent/useAgentSkillRun.ts` | Parse v2 view |
-| `lippi-ai-ebus-web/src/views/business/scene/{ecommerce,xiaohongshu}/spec.ts` | Drop handoffs |
-| `lippi-ai-ebus-pi-extension/.../scenes/**/references/output.md` | Canonical v2 view examples (+ handoff buttons) |
+| `forma-application/.../computer/NormalizeViewProjector.java` | Accept/sanitize v2; stop mapping non-v1 → empty draft |
+| `forma-application/.../computer/ComputerDocument.java` | Support v2 map shape (`format`/`content`) |
+| `forma-application/.../media/support/ListingMediaMountSupport.java` | Inject hero `<img data-forma-media-*>` into v2 `content` |
+| `forma-application/.../history/support/HistoryViewResignSupport.java` | Re-sign `src` on imgs with `data-forma-media-object-id` |
+| `forma-application/.../computer/NoSkillMarkdownProjector.java` | Emit v2 markdown (not v1 blocks) |
+| `forma-web/src/types/business/computerView.ts` | Replace v1 types with `ComputerDocView` + `parseComputerDocView` |
+| `forma-web/src/utils/computerDocHtml.ts` | `sanitizeComputerHtml` + `toPreviewHtml` |
+| `forma-web/src/components/business/computer/DocPreview.vue` | GitView shell + sanitized body + handoff emit |
+| `forma-web/src/views/business/scene/Workspace.vue` | Use DocPreview; remove item/toolbar handoff wiring |
+| `forma-web/src/views/business/history/HistoryView.vue` | Use DocPreview |
+| `forma-web/src/composables/agent/useAgentSkillRun.ts` | Parse v2 view |
+| `forma-web/src/views/business/scene/{ecommerce,xiaohongshu}/spec.ts` | Drop handoffs |
+| `forma-pi-extension/.../scenes/**/references/output.md` | Canonical v2 view examples (+ handoff buttons) |
 | Delete / freeze | `ComputerRenderer.vue` block path, `gitDoc.ts` storyboard, `listingHandoff.ts` / `xhsNoteHandoff.ts` (if unused) |
 
 ---
@@ -48,11 +48,11 @@
 ### Task 1: Backend — NormalizeViewProjector accepts v2
 
 **Files:**
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/computer/ComputerDocument.java`
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/computer/NormalizeViewProjector.java`
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/computer/NoSkillMarkdownProjector.java`
-- Test: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/computer/NormalizeViewProjectorTest.java`
-- Test: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/computer/NoSkillMarkdownProjectorTest.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/computer/ComputerDocument.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/computer/NormalizeViewProjector.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/computer/NoSkillMarkdownProjector.java`
+- Test: `forma-application/src/test/java/com/xmut/ebus/application/business/computer/NormalizeViewProjectorTest.java`
+- Test: `forma-application/src/test/java/com/xmut/ebus/application/business/computer/NoSkillMarkdownProjectorTest.java`
 
 **Interfaces:**
 - Consumes: raw view `Map` from skill `final.json`
@@ -69,12 +69,12 @@ public void project_keepsV2HtmlDocument() {
     raw.put("version", Integer.valueOf(2));
     raw.put("title", "选题清单");
     raw.put("format", "html");
-    raw.put("content", "<h1>Hi</h1><button data-adam-action=\"handoff\" data-adam-skill-id=\"xhs-note\" data-adam-prompt=\"写笔记\">写成笔记</button>");
+    raw.put("content", "<h1>Hi</h1><button data-forma-action=\"handoff\" data-forma-skill-id=\"xhs-note\" data-forma-prompt=\"写笔记\">写成笔记</button>");
     Map<String, Object> out = projector.project(ViewProjectContext.builder().rawView(raw).build());
     assertEquals(Integer.valueOf(2), out.get("version"));
     assertEquals("html", out.get("format"));
     assertEquals("选题清单", out.get("title"));
-    assertTrue(String.valueOf(out.get("content")).contains("data-adam-action"));
+    assertTrue(String.valueOf(out.get("content")).contains("data-forma-action"));
     assertFalse(out.containsKey("blocks"));
 }
 
@@ -101,7 +101,7 @@ Update `NoSkillMarkdownProjectorTest` to expect:
 - [ ] **Step 2: Run tests — expect FAIL**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am test -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest
+mvn -pl forma-application -am test -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest
 ```
 
 Expected: FAIL (v2 still rewritten to draft v1 / no-skill still emits blocks)
@@ -154,14 +154,14 @@ Fix `AgentApplicationServiceTest` (or any test) that expected unknown versions t
 - [ ] **Step 4: Re-run tests — expect PASS**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am test -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest,ComputerViewResolverTest
+mvn -pl forma-application -am test -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest,ComputerViewResolverTest
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/computer \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/computer
+git add forma-application/src/main/java/com/xmut/ebus/application/business/computer \
+  forma-application/src/test/java/com/xmut/ebus/application/business/computer
 git commit -m "$(cat <<'EOF'
 feat(computer): accept view protocol v2 (format+content)
 
@@ -176,15 +176,15 @@ EOF
 ### Task 2: Backend — Listing media mount + history resign for v2 HTML
 
 **Files:**
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/media/support/ListingMediaMountSupport.java`
-- Modify: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/media/support/ListingMediaMountSupportTest.java`
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/history/support/HistoryViewResignSupport.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/media/support/ListingMediaMountSupport.java`
+- Modify: `forma-application/src/test/java/com/xmut/ebus/application/business/media/support/ListingMediaMountSupportTest.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/history/support/HistoryViewResignSupport.java`
 - Test: add/extend history resign tests if present; else create `HistoryViewResignSupportTest.java`
 
 **Interfaces:**
 - Consumes: projected v2 view map
 - Produces: view whose `content` contains  
-  `<img data-adam-media-object-id="..." data-adam-media-role="hero" src="https://...">`  
+  `<img data-forma-media-object-id="..." data-forma-media-role="hero" src="https://...">`  
   (replace existing hero img if present; else append before `</article>` or at end of `content`)
 
 - [ ] **Step 1: Failing tests**
@@ -199,8 +199,8 @@ public void injectHeroMedia_patchesV2HtmlContent() {
     view.put("content", "<article class=\"markdown-body\"><h1>T</h1></article>");
     ListingMediaMountSupport.injectHeroMedia(view, "m-1", "https://cdn.example/a.png", new LinkedHashMap<String, Object>());
     String content = String.valueOf(view.get("content"));
-    assertTrue(content.contains("data-adam-media-object-id=\"m-1\""));
-    assertTrue(content.contains("data-adam-media-role=\"hero\""));
+    assertTrue(content.contains("data-forma-media-object-id=\"m-1\""));
+    assertTrue(content.contains("data-forma-media-role=\"hero\""));
     assertTrue(content.contains("https://cdn.example/a.png"));
     assertFalse(view.containsKey("blocks"));
 }
@@ -211,7 +211,7 @@ public void resignView_refreshesImgSrcByMediaObjectId() {
     view.put("version", 2);
     view.put("format", "html");
     view.put("title", "t");
-    view.put("content", "<img data-adam-media-object-id=\"m-1\" src=\"https://old.example/x\">");
+    view.put("content", "<img data-forma-media-object-id=\"m-1\" src=\"https://old.example/x\">");
     // mock MediaStore to return fresh URL
     Map<String, Object> out = support.resignView(view, "user-1");
     assertTrue(String.valueOf(out.get("content")).contains("https://fresh.example/y"));
@@ -221,7 +221,7 @@ public void resignView_refreshesImgSrcByMediaObjectId() {
 - [ ] **Step 2: Run — expect FAIL**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am test -Dtest=ListingMediaMountSupportTest,HistoryViewResignSupportTest
+mvn -pl forma-application -am test -Dtest=ListingMediaMountSupportTest,HistoryViewResignSupportTest
 ```
 
 - [ ] **Step 3: Implement**
@@ -232,9 +232,9 @@ In `injectHeroMedia`:
 Object version = view.get("version");
 if (version instanceof Number && ((Number) version).intValue() == 2) {
     String content = view.get("content") instanceof String ? (String) view.get("content") : "";
-    String img = "<img data-adam-media-object-id=\"" + mediaObjectId
-        + "\" data-adam-media-role=\"hero\" alt=\"\" src=\"" + readUrl + "\">";
-    // If content already has data-adam-media-role="hero", replace that <img ...> via simple regex
+    String img = "<img data-forma-media-object-id=\"" + mediaObjectId
+        + "\" data-forma-media-role=\"hero\" alt=\"\" src=\"" + readUrl + "\">";
+    // If content already has data-forma-media-role="hero", replace that <img ...> via simple regex
     // else insert before </article> if present, else append
     view.put("content", patched);
     view.remove("blocks");
@@ -243,20 +243,20 @@ if (version instanceof Number && ((Number) version).intValue() == 2) {
 // keep existing blocks path temporarily unused by new skills
 ```
 
-In `HistoryViewResignSupport.resignView`: if `version==2` and `content` is String, find `data-adam-media-object-id="..."`, issue read URL, replace that img’s `src`. Keep v1 blocks loop for now or delete if no callers remain after skill cutover (prefer: support both until Task 8).
+In `HistoryViewResignSupport.resignView`: if `version==2` and `content` is String, find `data-forma-media-object-id="..."`, issue read URL, replace that img’s `src`. Keep v1 blocks loop for now or delete if no callers remain after skill cutover (prefer: support both until Task 8).
 
 - [ ] **Step 4: Tests PASS + commit**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am test -Dtest=ListingMediaMountSupportTest,HistoryViewResignSupportTest
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/media \
-  lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/history \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business
+mvn -pl forma-application -am test -Dtest=ListingMediaMountSupportTest,HistoryViewResignSupportTest
+git add forma-application/src/main/java/com/xmut/ebus/application/business/media \
+  forma-application/src/main/java/com/xmut/ebus/application/business/history \
+  forma-application/src/test/java/com/xmut/ebus/application/business
 git commit -m "$(cat <<'EOF'
 feat(computer): mount and resign media inside v2 HTML content
 
 Listing placeholder images and history URL refresh target
-data-adam-media-object-id imgs instead of media blocks.
+data-forma-media-object-id imgs instead of media blocks.
 EOF
 )"
 ```
@@ -266,9 +266,9 @@ EOF
 ### Task 3: FE — `ComputerDocView` types + parser (v2 only)
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/types/business/computerView.ts` (replace or add parallel exports; prefer **replace** public API with v2)
-- Modify: `lippi-ai-ebus-web/src/types/business/agent.ts` — `GenerationArtifactPayload.view: ComputerDocView`
-- Create: `lippi-ai-ebus-web/src/types/business/computerView.test.ts` (or extend existing parse tests; delete old parseComputerDocument tests)
+- Modify: `forma-web/src/types/business/computerView.ts` (replace or add parallel exports; prefer **replace** public API with v2)
+- Modify: `forma-web/src/types/business/agent.ts` — `GenerationArtifactPayload.view: ComputerDocView`
+- Create: `forma-web/src/types/business/computerView.test.ts` (or extend existing parse tests; delete old parseComputerDocument tests)
 
 **Interfaces:**
 - Produces:
@@ -326,7 +326,7 @@ describe('parseComputerDocView', () => {
 - [ ] **Step 2: Run — FAIL**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/types/business/computerView.test.ts
+cd forma-web && npm test -- --run src/types/business/computerView.test.ts
 ```
 
 - [ ] **Step 3: Implement parser; remove/stop exporting `parseComputerDocument` + block types used only by old renderer** (if other files still import them, leave stubs until Task 6–8 — prefer updating imports in same commit only where needed for typecheck of this module’s tests)
@@ -350,10 +350,10 @@ export function parseComputerDocView(raw: unknown): ComputerDocView | null {
 - [ ] **Step 4: PASS + commit**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/types/business/computerView.test.ts
-git add lippi-ai-ebus-web/src/types/business/computerView.ts \
-  lippi-ai-ebus-web/src/types/business/computerView.test.ts \
-  lippi-ai-ebus-web/src/types/business/agent.ts
+cd forma-web && npm test -- --run src/types/business/computerView.test.ts
+git add forma-web/src/types/business/computerView.ts \
+  forma-web/src/types/business/computerView.test.ts \
+  forma-web/src/types/business/agent.ts
 git commit -m "$(cat <<'EOF'
 feat(web): parse Computer view protocol v2 only
 
@@ -367,9 +367,9 @@ EOF
 ### Task 4: FE — sanitize + `toPreviewHtml`
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/package.json` — add `dompurify`, `github-markdown-css`, `@types/dompurify` (dev)
-- Create: `lippi-ai-ebus-web/src/utils/computerDocHtml.ts`
-- Create: `lippi-ai-ebus-web/src/utils/computerDocHtml.test.ts`
+- Modify: `forma-web/package.json` — add `dompurify`, `github-markdown-css`, `@types/dompurify` (dev)
+- Create: `forma-web/src/utils/computerDocHtml.ts`
+- Create: `forma-web/src/utils/computerDocHtml.test.ts`
 
 **Interfaces:**
 - Produces:
@@ -382,7 +382,7 @@ export function toPreviewHtml(format: ComputerDocFormat, content: string): strin
 - [ ] **Step 1: Install deps**
 
 ```bash
-cd lippi-ai-ebus-web && npm install dompurify github-markdown-css && npm install -D @types/dompurify
+cd forma-web && npm install dompurify github-markdown-css && npm install -D @types/dompurify
 ```
 
 - [ ] **Step 2: Failing tests**
@@ -393,11 +393,11 @@ import { sanitizeComputerHtml, toPreviewHtml } from './computerDocHtml'
 
 it('keeps handoff data attributes', () => {
   const html = sanitizeComputerHtml(
-    '<button type="button" data-adam-action="handoff" data-adam-skill-id="xhs-note" data-adam-prompt="请写笔记">写成笔记</button>',
+    '<button type="button" data-forma-action="handoff" data-forma-skill-id="xhs-note" data-forma-prompt="请写笔记">写成笔记</button>',
   )
-  expect(html).toContain('data-adam-action="handoff"')
-  expect(html).toContain('data-adam-skill-id="xhs-note"')
-  expect(html).toContain('data-adam-prompt="请写笔记"')
+  expect(html).toContain('data-forma-action="handoff"')
+  expect(html).toContain('data-forma-skill-id="xhs-note"')
+  expect(html).toContain('data-forma-prompt="请写笔记"')
 })
 
 it('strips script and onclick', () => {
@@ -415,7 +415,7 @@ it('renders markdown then sanitizes', () => {
 - [ ] **Step 3: Run — FAIL**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/utils/computerDocHtml.test.ts
+cd forma-web && npm test -- --run src/utils/computerDocHtml.test.ts
 ```
 
 - [ ] **Step 4: Implement**
@@ -429,11 +429,11 @@ const PURIFY = {
   USE_PROFILES: { html: true },
   ADD_TAGS: ['button'],
   ADD_ATTR: [
-    'data-adam-action',
-    'data-adam-skill-id',
-    'data-adam-prompt',
-    'data-adam-media-object-id',
-    'data-adam-media-role',
+    'data-forma-action',
+    'data-forma-skill-id',
+    'data-forma-prompt',
+    'data-forma-media-object-id',
+    'data-forma-media-role',
     'type',
   ],
   ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
@@ -457,10 +457,10 @@ Tune allowlists if tests show over-stripping of tables/headings (prefer starting
 - [ ] **Step 5: PASS + commit**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/utils/computerDocHtml.test.ts
-git add lippi-ai-ebus-web/package.json lippi-ai-ebus-web/package-lock.json \
-  lippi-ai-ebus-web/src/utils/computerDocHtml.ts \
-  lippi-ai-ebus-web/src/utils/computerDocHtml.test.ts
+cd forma-web && npm test -- --run src/utils/computerDocHtml.test.ts
+git add forma-web/package.json forma-web/package-lock.json \
+  forma-web/src/utils/computerDocHtml.ts \
+  forma-web/src/utils/computerDocHtml.test.ts
 git commit -m "$(cat <<'EOF'
 feat(web): sanitize Computer md/html for DocPreview
 
@@ -474,8 +474,8 @@ EOF
 ### Task 5: FE — `DocPreview.vue`
 
 **Files:**
-- Create: `lippi-ai-ebus-web/src/components/business/computer/DocPreview.vue`
-- Create: `lippi-ai-ebus-web/src/components/business/computer/DocPreview.test.ts`
+- Create: `forma-web/src/components/business/computer/DocPreview.vue`
+- Create: `forma-web/src/components/business/computer/DocPreview.test.ts`
 - Reuse: `GitView.vue` as chrome
 
 **Interfaces:**
@@ -496,14 +496,14 @@ it('emits handoff from data-adam button click', async () => {
 })
 
 it('does not emit when required attrs missing', async () => {
-  // button without data-adam-prompt → no emit
+  // button without data-forma-prompt → no emit
 })
 ```
 
 - [ ] **Step 2: Run — FAIL**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/components/business/computer/DocPreview.test.ts
+cd forma-web && npm test -- --run src/components/business/computer/DocPreview.test.ts
 ```
 
 - [ ] **Step 3: Implement**
@@ -525,11 +525,11 @@ const name = computed(() => (props.fileName || '').trim() || `${props.document.t
 function onClick(e: MouseEvent) {
   const t = e.target
   if (!(t instanceof Element)) return
-  const btn = t.closest('[data-adam-action="handoff"]') as HTMLElement | null
+  const btn = t.closest('[data-forma-action="handoff"]') as HTMLElement | null
   if (!btn) return
   e.preventDefault()
-  const skillId = btn.getAttribute('data-adam-skill-id')?.trim() || ''
-  const prompt = btn.getAttribute('data-adam-prompt') || ''
+  const skillId = btn.getAttribute('data-forma-skill-id')?.trim() || ''
+  const prompt = btn.getAttribute('data-forma-prompt') || ''
   if (!skillId || !prompt.trim()) return
   emit('handoff', { skillId, prompt })
 }
@@ -550,9 +550,9 @@ function onClick(e: MouseEvent) {
 - [ ] **Step 4: PASS + commit**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/components/business/computer/DocPreview.test.ts
-git add lippi-ai-ebus-web/src/components/business/computer/DocPreview.vue \
-  lippi-ai-ebus-web/src/components/business/computer/DocPreview.test.ts
+cd forma-web && npm test -- --run src/components/business/computer/DocPreview.test.ts
+git add forma-web/src/components/business/computer/DocPreview.vue \
+  forma-web/src/components/business/computer/DocPreview.test.ts
 git commit -m "$(cat <<'EOF'
 feat(web): add DocPreview for Computer md/html documents
 
@@ -566,13 +566,13 @@ EOF
 ### Task 6: Wire Workspace + skill run + History; remove Spec handoffs
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/composables/agent/useAgentSkillRun.ts` — `parseComputerDocView`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/Workspace.vue`
-- Modify: `lippi-ai-ebus-web/src/views/business/history/HistoryView.vue`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/workspace/types.ts` — delete handoff types
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/ecommerce/spec.ts`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/xiaohongshu/spec.ts`
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/workspace/registry.test.ts`
+- Modify: `forma-web/src/composables/agent/useAgentSkillRun.ts` — `parseComputerDocView`
+- Modify: `forma-web/src/views/business/scene/Workspace.vue`
+- Modify: `forma-web/src/views/business/history/HistoryView.vue`
+- Modify: `forma-web/src/views/business/scene/workspace/types.ts` — delete handoff types
+- Modify: `forma-web/src/views/business/scene/ecommerce/spec.ts`
+- Modify: `forma-web/src/views/business/scene/xiaohongshu/spec.ts`
+- Modify: `forma-web/src/views/business/scene/workspace/registry.test.ts`
 - Modify tests: `EcommerceWorkspace.test.ts`, `XiaohongshuWorkspace.test.ts`, `HistoryView.test.ts` — replace `item-action-btn` / `break-note-handoff` expectations with DocPreview handoff clicks; SSE fixtures use v2 views
 
 **Interfaces:**
@@ -615,7 +615,7 @@ In `XiaohongshuWorkspace.test.ts`, change topiclist artifact fixture to v2 HTML 
 - [ ] **Step 2: Run targeted test — FAIL**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/views/business/scene/XiaohongshuWorkspace.test.ts
+cd forma-web && npm test -- --run src/views/business/scene/XiaohongshuWorkspace.test.ts
 ```
 
 - [ ] **Step 3: Implement Workspace/History/spec/run wiring**
@@ -634,7 +634,7 @@ Template swap:
 - [ ] **Step 4: Fix remaining FE tests to v2 fixtures; run suites**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run \
+cd forma-web && npm test -- --run \
   src/views/business/scene/EcommerceWorkspace.test.ts \
   src/views/business/scene/XiaohongshuWorkspace.test.ts \
   src/views/business/scene/Workspace.test.ts \
@@ -658,8 +658,8 @@ function docView(partial: { title: string; format?: 'html' | 'markdown'; content
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-web/src/views/business/scene lippi-ai-ebus-web/src/views/business/history \
-  lippi-ai-ebus-web/src/composables/agent/useAgentSkillRun.ts
+git add forma-web/src/views/business/scene forma-web/src/views/business/history \
+  forma-web/src/composables/agent/useAgentSkillRun.ts
 git commit -m "$(cat <<'EOF'
 feat(web): render Computer via DocPreview and in-doc handoffs
 
@@ -673,10 +673,10 @@ EOF
 ### Task 7: Skill templates — list skills with handoff buttons (html)
 
 **Files (canonical):**
-- Modify: `lippi-ai-ebus-pi-extension/src/main/resources/scenes/ecommerce/ecommerce-picklist/references/output.md`
-- Modify: `lippi-ai-ebus-pi-extension/src/main/resources/scenes/xiaohongshu/xhs-topiclist/references/output.md`
+- Modify: `forma-pi-extension/src/main/resources/scenes/ecommerce/ecommerce-picklist/references/output.md`
+- Modify: `forma-pi-extension/src/main/resources/scenes/xiaohongshu/xhs-topiclist/references/output.md`
 - Modify matching `SKILL.md` checklists that say `view.version = 1`
-- Mirror copies under `lippi-ai-ebus-application/src/test/resources/scenes/**` and `lippi-pi-agent/src/test/resources/scenes/**` if present (keep in sync)
+- Mirror copies under `forma-application/src/test/resources/scenes/**` and `pi-agent/src/test/resources/scenes/**` if present (keep in sync)
 
 **Interfaces:**
 - `view.json` example becomes v2 HTML. Each list item includes a button. Prompt text must match former FE builders:
@@ -708,20 +708,20 @@ Example `view` snippet for topiclist:
   "version": 2,
   "title": "Mac Mini 桌搭 · 居家办公种草选题清单",
   "format": "html",
-  "content": "<article class=\"markdown-body\"><h1>…</h1><ol><li><p><strong>标题</strong></p><p>视角：…</p><p><button type=\"button\" data-adam-action=\"handoff\" data-adam-skill-id=\"xhs-note\" data-adam-prompt=\"请根据选题「…」（条目 tp-1）写一篇小红书种草笔记，语气像真人分享。\">写成笔记</button></p></li></ol></article>"
+  "content": "<article class=\"markdown-body\"><h1>…</h1><ol><li><p><strong>标题</strong></p><p>视角：…</p><p><button type=\"button\" data-forma-action=\"handoff\" data-forma-skill-id=\"xhs-note\" data-forma-prompt=\"请根据选题「…」（条目 tp-1）写一篇小红书种草笔记，语气像真人分享。\">写成笔记</button></p></li></ol></article>"
 }
 ```
 
-**Escaping:** In JSON examples, escape quotes inside `data-adam-prompt`. Instruct the model to HTML-escape attribute values (`&quot;` etc.) when writing real `view.json`.
+**Escaping:** In JSON examples, escape quotes inside `data-forma-prompt`. Instruct the model to HTML-escape attribute values (`&quot;` etc.) when writing real `view.json`.
 
 - [ ] **Step 1: Rewrite picklist + topiclist `output.md` / SKILL checklists to v2**
 - [ ] **Step 2: Sync test resource copies**
 - [ ] **Step 3: Commit**
 
 ```bash
-git add lippi-ai-ebus-pi-extension/src/main/resources/scenes \
-  lippi-ai-ebus-application/src/test/resources/scenes \
-  lippi-pi-agent/src/test/resources/scenes
+git add forma-pi-extension/src/main/resources/scenes \
+  forma-application/src/test/resources/scenes \
+  pi-agent/src/test/resources/scenes
 git commit -m "$(cat <<'EOF'
 docs(skills): emit Computer view v2 HTML for picklist and topiclist
 
@@ -740,7 +740,7 @@ EOF
 - `.../ecommerce/ecommerce-skulist/references/output.md` — plan + exec views as HTML documents (storyboard sections as headings); include placeholder hero img hook:
 
 ```html
-<img data-adam-media-role="hero" alt="主图占位" src="">
+<img data-forma-media-role="hero" alt="主图占位" src="">
 ```
 
 (so Task 2 mount can patch it)
@@ -752,7 +752,7 @@ EOF
 - [ ] **Step 2: Grep leftover `view.version = 1` / `"blocks"` in those skill folders — must be zero for active contracts**
 
 ```bash
-rg 'view\.version` = `1`|"blocks"' lippi-ai-ebus-pi-extension/src/main/resources/scenes -g '*.md'
+rg 'view\.version` = `1`|"blocks"' forma-pi-extension/src/main/resources/scenes -g '*.md'
 ```
 
 - [ ] **Step 3: Commit**
@@ -781,14 +781,14 @@ EOF
 - [ ] **Step 2: Full FE related tests + typecheck**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- --run src/components/business/computer src/views/business/scene src/views/business/history src/utils/computerDocHtml.test.ts src/types/business/computerView.test.ts
-cd lippi-ai-ebus-web && npm run type-check
+cd forma-web && npm test -- --run src/components/business/computer src/views/business/scene src/views/business/history src/utils/computerDocHtml.test.ts src/types/business/computerView.test.ts
+cd forma-web && npm run type-check
 ```
 
 - [ ] **Step 3: Backend suite for computer/media/history**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am test -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest,ComputerViewResolverTest,ListingMediaMountSupportTest,HistoryViewResignSupportTest
+mvn -pl forma-application -am test -Dtest=NormalizeViewProjectorTest,NoSkillMarkdownProjectorTest,ComputerViewResolverTest,ListingMediaMountSupportTest,HistoryViewResignSupportTest
 ```
 
 - [ ] **Step 4: Commit**
@@ -822,7 +822,7 @@ EOF
 
 ## Placeholder / consistency notes
 
-- Attribute names locked: `data-adam-action`, `data-adam-skill-id`, `data-adam-prompt`, `data-adam-media-object-id`, `data-adam-media-role`
+- Attribute names locked: `data-forma-action`, `data-forma-skill-id`, `data-forma-prompt`, `data-forma-media-object-id`, `data-forma-media-role`
 - Parser name locked: `parseComputerDocView` / type `ComputerDocView`
 - Component name locked: `DocPreview.vue`
 - Backend must land **before** skills emit v2 in environments that settle through `NormalizeViewProjector` (Task 1–2 before relying on Task 7–8 in shared envs)

@@ -1,0 +1,101 @@
+package com.xmut.forma.infrastructure.persistence.repository.business.credit;
+
+import com.xmut.forma.domain.business.credit.constant.CreditTier;
+import com.xmut.forma.domain.business.credit.model.CreditAccount;
+import com.xmut.forma.domain.business.credit.repository.CreditAccountRepository;
+import com.xmut.forma.infrastructure.persistence.mybatis.mapper.CreditAccountMapper;
+import com.xmut.forma.infrastructure.persistence.mybatis.po.CreditAccountPO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
+import java.util.Optional;
+
+@Repository
+@RequiredArgsConstructor
+public class CreditAccountRepositoryImpl implements CreditAccountRepository {
+
+    private final CreditAccountMapper creditAccountMapper;
+
+    @Override
+    public void save(CreditAccount account) {
+        creditAccountMapper.insert(toPo(account));
+    }
+
+    @Override
+    public Optional<CreditAccount> findByUserId(String userId) {
+        return Optional.ofNullable(creditAccountMapper.selectByUserId(userId)).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<CreditAccount> findById(String id) {
+        return Optional.ofNullable(creditAccountMapper.selectById(id)).map(this::toDomain);
+    }
+
+    @Override
+    public int updateAddReserved(String accountId, int amount, int expectedVersion, Instant updatedAt) {
+        return creditAccountMapper.updateAddReserved(accountId, amount, expectedVersion, updatedAt);
+    }
+
+    @Override
+    public int updateSubtractBalanceAndReserved(String accountId, int amount, int expectedVersion, Instant updatedAt) {
+        return creditAccountMapper.updateSubtractBalanceAndReserved(accountId, amount, expectedVersion, updatedAt);
+    }
+
+    @Override
+    public int updateSubtractReserved(String accountId, int amount, int expectedVersion, Instant updatedAt) {
+        return creditAccountMapper.updateSubtractReserved(accountId, amount, expectedVersion, updatedAt);
+    }
+
+    @Override
+    public int updateBalanceAndNextReset(CreditAccount account, int expectedVersion) {
+        return creditAccountMapper.updateBalanceAndNextReset(
+                account.getId(),
+                account.getBalance(),
+                account.getNextResetAt(),
+                expectedVersion,
+                account.getUpdatedAt());
+    }
+
+    @Override
+    public int updateTierBalanceAndPeriod(CreditAccount account, int expectedVersion) {
+        return creditAccountMapper.updateTierBalanceAndPeriod(
+                account.getId(),
+                account.getTier().name(),
+                account.getBalance(),
+                account.getPeriodAnchorAt(),
+                account.getNextResetAt(),
+                expectedVersion,
+                account.getUpdatedAt());
+    }
+
+    private CreditAccountPO toPo(CreditAccount account) {
+        CreditAccountPO po = new CreditAccountPO();
+        po.setBizId(account.getId());
+        po.setUserId(account.getUserId());
+        po.setTier(account.getTier().name());
+        po.setBalance(account.getBalance());
+        po.setReserved(account.getReserved());
+        po.setPeriodAnchorAt(account.getPeriodAnchorAt());
+        po.setNextResetAt(account.getNextResetAt());
+        po.setVersion(account.getVersion());
+        po.setCreatedAt(account.getCreatedAt());
+        po.setUpdatedAt(account.getUpdatedAt());
+        return po;
+    }
+
+    private CreditAccount toDomain(CreditAccountPO po) {
+        CreditAccount account = new CreditAccount();
+        account.setId(po.getBizId());
+        account.setUserId(po.getUserId());
+        account.setTier(CreditTier.fromCode(po.getTier()));
+        account.setBalance(po.getBalance());
+        account.setReserved(po.getReserved());
+        account.setPeriodAnchorAt(po.getPeriodAnchorAt());
+        account.setNextResetAt(po.getNextResetAt());
+        account.setVersion(po.getVersion());
+        account.setCreatedAt(po.getCreatedAt());
+        account.setUpdatedAt(po.getUpdatedAt());
+        return account;
+    }
+}

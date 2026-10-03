@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.xmut.forma.infrastructure.checkpoint.MysqlCheckpointerConfiguration,\
+com.xmut.forma.infrastructure.checkpoint.MysqlResumeIdempotencyStoreConfiguration

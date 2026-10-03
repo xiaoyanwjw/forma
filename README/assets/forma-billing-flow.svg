@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" role="img" aria-labelledby="title desc">
+  <title id="title">Forma billing generation flow</title>
+  <desc id="desc">Hold credit, stream agent, persist Computer view, then settle. HITL does not settle.</desc>
+
+  <defs>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e7e5e4" stroke-width="0.8"/>
+    </pattern>
+    <filter id="soft" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#1c1917" flood-opacity="0.06"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#78716c"/>
+    </marker>
+    <marker id="arrowBrand" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1c1917"/>
+    </marker>
+    <marker id="arrowOk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#166534"/>
+    </marker>
+    <marker id="arrowArch" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c2410c"/>
+    </marker>
+  </defs>
+
+  <rect width="1400" height="700" fill="#fafaf9"/>
+  <rect width="1400" height="700" fill="url(#grid)"/>
+
+  <text x="40" y="40" fill="#1c1917" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="22" font-weight="600">Billing generation flow</text>
+  <text x="40" y="62" fill="#78716c" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12">hold → stream → project view → persist → settle  |  SSE end is not settle  |  HITL does not settle</text>
+
+  <!-- 7 columns: Op Web API Ledger Agent Store Computer  centers 100 300 500 700 900 1100 1300 -->
+  <g filter="url(#soft)">
+    <rect x="34" y="88" width="132" height="44" rx="4" fill="#ffffff" stroke="#e7e5e4"/>
+    <text x="100" y="115" fill="#1c1917" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" text-anchor="middle">Operator</text>
+  </g>
+  <g filter="url(#soft)">
+    <rect x="234" y="88" width="132" height="44" rx="4" fill="#ffffff" stroke="#e7e5e4"/>
+    <text x="300" y="115" fill="#1c1917" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" text-anchor="middle">forma-web</text>
+  </g>
+  <g filter="url(#soft)">
+    <rect x="434" y="88" width="132" height="44" rx="4" fill="#ebeae8" stroke="#d6d3d1"/>
+    <text x="500" y="115" fill="#1c1917" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" text-anchor="middle">Application</text>
+  </g>
+  <g filter="url(#soft)">
+    <rect x="634" y="88" width="132" height="44" rx="4" fill="#f0fdf4" stroke="#bbf7d0"/>
+    <text x="700" y="108" fill="#166534" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" text-anchor="middle">CreditLedger</text>
+    <text x="700" y="124" fill="#a8a29e" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9" text-anchor="middle">sole writer</text>
+  </g>
+  <g filter="url(#soft)">
+    <rect x="834" y="88" width="132" height="44" rx="4" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+    <text x="900" y="108" fill="#c2410c" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" text-anchor="middle">AgentSession</text>
+    <text x="900" y="124" fill="#a8a29e" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9" text-anchor="middle">pi-agent</text>
+  </g>
+  <g filter="url(#soft)">
+    <rect x="1034" y="88" width="132" height="44" rx="4" fill="#ffffff" stroke="#bbf7d0" stroke-width="1.5"/>
+    <text x="1100" y="108" fill="#166534" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" text-anchor="middle">ArtifactStore</text>
+    <text x="1100" y="124" fill="#a8a29e" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9" text-anchor="middle">forma_artifact</text>
+  </g>
+  <g filter="url(#soft)">
+    <rect x="1234" y="88" width="132" height="44" rx="4" fill="#ffffff" stroke="#e7e5e4"/>
+    <text x="1300" y="115" fill="#1c1917" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" text-anchor="middle">Computer</text>
+  </g>
+
+  <rect x="40" y="148" width="1320" height="150" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <rect x="40" y="318" width="1320" height="180" rx="4" fill="#fff7ed" stroke="#fed7aa"/>
+  <rect x="40" y="518" width="1320" height="150" rx="4" fill="#f0fdf4" stroke="#bbf7d0"/>
+
+  <line x1="100" y1="132" x2="100" y2="668" stroke="#a8a29e" stroke-width="1.5"/>
+  <line x1="300" y1="132" x2="300" y2="668" stroke="#a8a29e" stroke-width="1.5"/>
+  <line x1="500" y1="132" x2="500" y2="668" stroke="#a8a29e" stroke-width="1.5"/>
+  <line x1="700" y1="132" x2="700" y2="668" stroke="#a8a29e" stroke-width="1.5"/>
+  <line x1="900" y1="132" x2="900" y2="668" stroke="#a8a29e" stroke-width="1.5"/>
+  <line x1="1100" y1="132" x2="1100" y2="668" stroke="#a8a29e" stroke-width="1.5"/>
+  <line x1="1300" y1="132" x2="1300" y2="668" stroke="#a8a29e" stroke-width="1.5"/>
+
+  <text x="52" y="170" fill="#57534e" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" letter-spacing="1">START · HOLD</text>
+  <path d="M 100 196 L 300 196" stroke="#1c1917" stroke-width="1.5" marker-end="url(#arrowBrand)" fill="none"/>
+  <text x="200" y="188" fill="#1c1917" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" text-anchor="middle">scene / skill</text>
+  <path d="M 300 228 L 500 228" stroke="#1c1917" stroke-width="1.5" marker-end="url(#arrowBrand)" fill="none"/>
+  <text x="400" y="220" fill="#1c1917" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" text-anchor="middle">SSE fetch + JWT</text>
+  <path d="M 500 260 L 700 260" stroke="#166534" stroke-width="1.5" marker-end="url(#arrowOk)" fill="none"/>
+  <text x="600" y="252" fill="#166534" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" text-anchor="middle">reserve 1</text>
+
+  <text x="52" y="340" fill="#c2410c" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" letter-spacing="1">STREAM · HITL</text>
+  <path d="M 500 372 L 900 372" stroke="#c2410c" stroke-width="1.5" marker-end="url(#arrowArch)" fill="none"/>
+  <text x="700" y="364" fill="#c2410c" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" text-anchor="middle">AgentSession + scene pack</text>
+  <path d="M 900 412 L 300 412" stroke="#78716c" stroke-width="1.4" marker-end="url(#arrow)" fill="none"/>
+  <text x="600" y="404" fill="#78716c" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" text-anchor="middle">deltas / tools / human_input_required</text>
+  <text x="700" y="456" fill="#a8a29e" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" text-anchor="middle">ask_human: hold stays open · no settle</text>
+
+  <text x="52" y="540" fill="#166534" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="11" font-weight="600" letter-spacing="1">PERSIST · SETTLE</text>
+  <path d="M 500 576 L 1100 576" stroke="#166534" stroke-width="1.5" marker-end="url(#arrowOk)" fill="none"/>
+  <text x="800" y="568" fill="#166534" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" text-anchor="middle">usable view → persist</text>
+  <path d="M 500 612 L 700 612" stroke="#166534" stroke-width="1.5" marker-end="url(#arrowOk)" fill="none"/>
+  <text x="600" y="604" fill="#166534" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" text-anchor="middle">settle</text>
+  <path d="M 1100 648 L 1300 648" stroke="#1c1917" stroke-width="1.5" marker-end="url(#arrowBrand)" fill="none"/>
+  <text x="1200" y="640" fill="#1c1917" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" text-anchor="middle">DocPreview</text>
+</svg>

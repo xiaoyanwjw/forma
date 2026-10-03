@@ -13,11 +13,11 @@
     </parent>
 
     <groupId>com.lippi</groupId>
-    <artifactId>lippi-ai-ebusiness</artifactId>
+    <artifactId>forma</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>Adam / lippi-ai-ebusiness</name>
-    <description>Adam — 选品清单 + Listing 积分工具（模块化单体）</description>
+    <name>Forma</name>
+    <description>Forma — 场景化 Skill 工作台（模块化单体）</description>
 
     <properties>
         <java.version>1.8</java.version>
@@ -34,20 +34,19 @@
         <junit-jupiter.version>5.9.3</junit-jupiter.version>
         <mockito.version>4.11.0</mockito.version>
         <aliyun-oss.version>3.18.1</aliyun-oss.version>
-        <minio.version>8.5.17</minio.version>
         <okhttp.version>4.12.0</okhttp.version>
     </properties>
 
     <modules>
-        <module>lippi-ai-ebus-common</module>
-        <module>lippi-pi-ai</module>
-        <module>lippi-pi-agent</module>
-        <module>lippi-ai-ebus-pi-extension</module>
-        <module>lippi-ai-ebus-domain</module>
-        <module>lippi-ai-ebus-application</module>
-        <module>lippi-ai-ebus-infrastructure</module>
-        <module>lippi-ai-ebus-interfaces</module>
-        <module>lippi-ai-ebus-starter</module>
+        <module>forma-common</module>
+        <module>pi-ai</module>
+        <module>pi-agent</module>
+        <module>forma-pi-extension</module>
+        <module>forma-domain</module>
+        <module>forma-application</module>
+        <module>forma-infrastructure</module>
+        <module>forma-interfaces</module>
+        <module>forma-starter</module>
     </modules>
 
     <dependencyManagement>
@@ -106,11 +105,6 @@
                 <version>${aliyun-oss.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.minio</groupId>
-                <artifactId>minio</artifactId>
-                <version>${minio.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>okhttp</artifactId>
                 <version>${okhttp.version}</version>
@@ -143,42 +137,42 @@
             <!-- Internal modules -->
             <dependency>
                 <groupId>com.lippi</groupId>
-                <artifactId>lippi-ai-ebus-common</artifactId>
+                <artifactId>forma-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.lippi</groupId>
-                <artifactId>lippi-pi-ai</artifactId>
+                <artifactId>pi-ai</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.lippi</groupId>
-                <artifactId>lippi-pi-agent</artifactId>
+                <artifactId>pi-agent</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.lippi</groupId>
-                <artifactId>lippi-ai-ebus-pi-extension</artifactId>
+                <artifactId>forma-pi-extension</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.lippi</groupId>
-                <artifactId>lippi-ai-ebus-domain</artifactId>
+                <artifactId>forma-domain</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.lippi</groupId>
-                <artifactId>lippi-ai-ebus-application</artifactId>
+                <artifactId>forma-application</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.lippi</groupId>
-                <artifactId>lippi-ai-ebus-infrastructure</artifactId>
+                <artifactId>forma-infrastructure</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.lippi</groupId>
-                <artifactId>lippi-ai-ebus-interfaces</artifactId>
+                <artifactId>forma-interfaces</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

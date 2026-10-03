@@ -11,7 +11,7 @@ context:
   - '{project-root}/sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md'
   - '{project-root}/sdd/context/02-be.md'
   - '{project-root}/sdd/context/03-fe.md'
-  - '{project-root}/lippi-ai-ebus-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md'
+  - '{project-root}/forma-starter/src/main/resources/scenes/ecommerce/ecommerce-skulist/SKILL.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -72,7 +72,7 @@ context:
 - `AgentApplicationService` / `AgentController` — 复用 `prepareGenerationRun`+`streamBilledRun`；可选 `/runs/listing` 别名（对标 picklist）；**勿**让 empty settle
 - `ArtifactPersistPlugin` — 已支持 `persistAs=sku`→`ArtifactType.SKU`；补 sku payload 校验（文案/展示/≥1 mediaObjectId）
 - `GenerationOutputParser` / `ComputerViewResolver` / `NormalizeViewProjector` — 复用双轨；Listing 靠 skill 输出合格 `view`（`media`+`section`）
-- `lippi-ai-ebus-starter/.../ecommerce-skulist/SKILL.md` + `references/output.md`（及 application/pi-agent test 镜像）— **填肉**：双轨契约、国内通用默认、禁胡编违规；`allowed-tools` 近端以 `read_skill` 为主
+- `forma-starter/.../ecommerce-skulist/SKILL.md` + `references/output.md`（及 application/pi-agent test 镜像）— **填肉**：双轨契约、国内通用默认、禁胡编违规；`allowed-tools` 近端以 `read_skill` 为主
 - `SceneCapabilityPackLoader.SKILL_SKULIST` — 已注册；确认电商包仍要求双 skill
 - **新建** `MediaStore` 端口 + MinIO 实现（S3 API）；媒体元数据表（仅 id/objectKey/contentType 等，无大字段）；可读 URL 签发；**Listing 成功路径由应用层挂系统占位图**（非用户上传、非生图）；测试可用内存桩
 - `APP-META/docker-config` — Compose 增加 MinIO 服务与 `.env.example` 占位（无实密）
@@ -175,9 +175,9 @@ prepareGenerationRun(reserveOne)
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test` -- 相关后端测绿
-- `cd lippi-ai-ebus-web && npm test -- EcommerceWorkspace ComputerRenderer agent` -- 工作台/Computer 相关测绿
-- `cd lippi-ai-ebus-web && npm run lint` -- 无新增 lint 错误
+- `mvn -pl forma-starter -am test` -- 相关后端测绿
+- `cd forma-web && npm test -- EcommerceWorkspace ComputerRenderer agent` -- 工作台/Computer 相关测绿
+- `cd forma-web && npm run lint` -- 无新增 lint 错误
 
 **Manual checks:**
 - 登录有余额：工作台上架 → Computer 出真套装 → 积分 −1

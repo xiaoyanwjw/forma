@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmut.forma.infrastructure.persistence.mybatis.mapper.SceneMapper">
+
+    <resultMap id="SceneResultMap" type="com.xmut.forma.infrastructure.persistence.mybatis.po.ScenePO">
+        <id property="id" column="id"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="sceneCode" column="scene_code"/>
+        <result property="displayName" column="display_name"/>
+        <result property="status" column="status"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="summary" column="summary"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectAllOrdered" resultMap="SceneResultMap">
+        SELECT id, biz_id, scene_code, display_name, status, sort_order, summary, created_at, updated_at
+        FROM forma_scene
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="selectByBizId" resultMap="SceneResultMap">
+        SELECT id, biz_id, scene_code, display_name, status, sort_order, summary, created_at, updated_at
+        FROM forma_scene
+        WHERE biz_id = #{bizId}
+    </select>
+
+    <select id="selectBySceneCode" resultMap="SceneResultMap">
+        SELECT id, biz_id, scene_code, display_name, status, sort_order, summary, created_at, updated_at
+        FROM forma_scene
+        WHERE scene_code = #{sceneCode}
+    </select>
+</mapper>

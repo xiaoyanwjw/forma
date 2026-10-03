@@ -58,16 +58,16 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-interfaces/.../web/identity/MeController.java` — 现有 `GET /api/v1/me`；旁路新建 `AccountController`（`/api/v1/account`）
-- `lippi-ai-ebus-interfaces/.../web/business/credit/CreditController.java` — `GET /api/v1/credits` 兼容保留；勿迁入 account 写
-- `lippi-ai-ebus-application/.../identity/query/IdentityQueryService.java` + `dto/MeDTO.java` — 读我保持原样；另增 profile DTO/读方法
-- `lippi-ai-ebus-application/.../identity/service/IdentityApplicationService.java` + `command/RegisterCommand` — 注册校验可复用到改用户名；新增 `UpdateUsernameCommand`（名可微调）；**勿**复制 `initFreeAccount`
-- `lippi-ai-ebus-domain/.../identity/model/User.java` + `repository/UserRepository.java` — 已有 `username`；端口现仅 insert/select，需 update
-- `lippi-ai-ebus-infrastructure/.../persistence/repository/identity/UserRepositoryImpl.java` + `UserMapper.xml` / `UserPO` — 增加 username update
+- `forma-interfaces/.../web/identity/MeController.java` — 现有 `GET /api/v1/me`；旁路新建 `AccountController`（`/api/v1/account`）
+- `forma-interfaces/.../web/business/credit/CreditController.java` — `GET /api/v1/credits` 兼容保留；勿迁入 account 写
+- `forma-application/.../identity/query/IdentityQueryService.java` + `dto/MeDTO.java` — 读我保持原样；另增 profile DTO/读方法
+- `forma-application/.../identity/service/IdentityApplicationService.java` + `command/RegisterCommand` — 注册校验可复用到改用户名；新增 `UpdateUsernameCommand`（名可微调）；**勿**复制 `initFreeAccount`
+- `forma-domain/.../identity/model/User.java` + `repository/UserRepository.java` — 已有 `username`；端口现仅 insert/select，需 update
+- `forma-infrastructure/.../persistence/repository/identity/UserRepositoryImpl.java` + `UserMapper.xml` / `UserPO` — 增加 username update
 - `APP-META/bootstrap/sql/001_ebus_user.sql` — **不改表结构**；勿碰场景 `display_name`
-- `lippi-ai-ebus-starter/src/test/java/.../AuthIntegrationTest.java` — MockMvc + H2 范本；本故事加 Account IT
-- `lippi-ai-ebus-application/src/test/.../IdentityApplicationServiceTest.java` — 写用例 Mockito 范本
-- `lippi-ai-ebus-web/src/api/identity/auth.ts` + `types` — 现有 `/me`；新增 profile `api`/`types`（无页面）
+- `forma-starter/src/test/java/.../AuthIntegrationTest.java` — MockMvc + H2 范本；本故事加 Account IT
+- `forma-application/src/test/.../IdentityApplicationServiceTest.java` — 写用例 Mockito 范本
+- `forma-web/src/api/identity/auth.ts` + `types` — 现有 `/me`；新增 profile `api`/`types`（无页面）
 - `sdd/implementation-artifacts/epic-4-context.md` — Epic 约束；Spine 路径 `/account/profile`（字段用 `username` 而非独立显示名）
 
 **Reuse：** `SecuritySupport`、`BaseCommand`、注册时 username 校验与唯一性检查、`BusinessException`/`ErrorCode`、`ApiResponse`、Auth IT 形状。
@@ -83,7 +83,7 @@ context:
 - [x] `interfaces/.../AccountController` — `GET|PATCH /api/v1/account/profile`；注入 `userId` — HTTP 面
 - [x] **不**改 `MeDTO`/`GET /me` 形状；**保持** `/credits` 兼容且 account 无积分写口；**不**加 `display_name` 列
 - [x] `AccountProfileIntegrationTest`（或扩 Auth IT）— 覆盖 I/O 矩阵鉴权/改名/非法名/冲突
-- [x] `lippi-ai-ebus-web` `api` + `types`（无账户页 UI）— FE 契约对齐，供 4.2
+- [x] `forma-web` `api` + `types`（无账户页 UI）— FE 契约对齐，供 4.2
 
 **Acceptance Criteria:**
 - Given 已登录，when `GET /api/v1/account/profile`，then 返回只读邮箱与当前 `username`
@@ -95,7 +95,7 @@ context:
 
 - 落地：`AccountController` GET|PATCH `/api/v1/account/profile`；`UpdateUsernameCommand` + `IdentityApplicationService.updateUsername`；`UserMapper.updateUsername`；FE `api/identity/account.ts` + types。
 - 校验：username trim、2–64、禁 `@`、唯一；同名幂等不写库。
-- 验证：`mvn -pl lippi-ai-ebus-starter -am clean test -Dtest=IdentityApplicationServiceTest,AccountProfileIntegrationTest,AuthIntegrationTest -DfailIfNoTests=false` 绿；`npm test -- --run src/api/identity` + `npm run lint` 绿。
+- 验证：`mvn -pl forma-starter -am clean test -Dtest=IdentityApplicationServiceTest,AccountProfileIntegrationTest,AuthIntegrationTest -DfailIfNoTests=false` 绿；`npm test -- --run src/api/identity` + `npm run lint` 绿。
 - 矩阵覆盖：读资料 / 未授权 / 改名+新名登录 / 非法名 / 冲突 / me+credits 兼容 / AccountController 无积分写口（反射断言）。
 - 风险：脏 `target/` 残留 Mapper 可能导致 IT 起不来，需 `mvn clean`。
 - 评审补丁：`updateUsername` 返回是否更新到行（0 行→UNAUTHORIZED）；补并发唯一键/超长/0 行单测与 IT 超长；FE PATCH 断言 Authorization；纠正误改的 3-6/3-8 sprint 状态。
@@ -104,7 +104,7 @@ context:
 ## Review Triage Log
 
 - false — Blind：diff 缺 AccountController/IT：评审用 diff 在错误 cwd 生成漏收 untracked；仓内文件存在且 IT 已跑绿。
-- false — Blind：FE 落在仓库根 `src/`：实为 `lippi-ai-ebus-web/src/...`；错误 cwd 的 diff 路径前缀丢失。
+- false — Blind：FE 落在仓库根 `src/`：实为 `forma-web/src/...`；错误 cwd 的 diff 路径前缀丢失。
 - medium — Blind：`sprint-status.yaml` 把 `3-6`/`3-8` 从 main 的 review/backlog 改成 done，与本故事无关 — 污染进度表。
 - medium — Blind+Edge：`UserRepositoryImpl.updateUsername` 丢弃影响行数，服务在 0 行更新时仍返回成功 DTO — 并发删用户/错 id 会假成功。
 - medium — Verification-gap：`updateUsername` 的 `DataIntegrityViolationException`→CONFLICT 无单测（仅 register/save 有）。
@@ -124,9 +124,9 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test -Dtest=IdentityApplicationServiceTest,AccountProfileIntegrationTest,AuthIntegrationTest` — 相关测绿（IT 类名以落地为准）
-- `cd lippi-ai-ebus-web && npm test -- --run src/api/identity` — 账户/auth 相关测绿（若新增）
-- `cd lippi-ai-ebus-web && npm run lint` — 无新增 lint 错
+- `mvn -pl forma-starter -am test -Dtest=IdentityApplicationServiceTest,AccountProfileIntegrationTest,AuthIntegrationTest` — 相关测绿（IT 类名以落地为准）
+- `cd forma-web && npm test -- --run src/api/identity` — 账户/auth 相关测绿（若新增）
+- `cd forma-web && npm run lint` — 无新增 lint 错
 
 **Manual checks (if no CLI):**
 - 无需执行用户表 DDL 迁移（无新列）

@@ -17,7 +17,7 @@
 - 不删右侧积分 chip /「升级」/ 账户；不实现真历史（3.8）
 - 不新增子路由
 - 提交仅在用户明确要求时执行（下列 Commit 步骤可跳过）
-- 验证：`cd lippi-ai-ebus-web && npm test -- AppHeader EcommerceWorkspace` 与 `npm run lint`
+- 验证：`cd forma-web && npm test -- AppHeader EcommerceWorkspace` 与 `npm run lint`
 
 ---
 
@@ -25,10 +25,10 @@
 
 | 文件 | 职责 |
 |------|------|
-| `lippi-ai-ebus-web/src/components/common/AppHeader.vue` | 新增 `hideSecondaryNav`；为 true 时不渲染「历史」「套餐」 |
-| `lippi-ai-ebus-web/src/components/common/AppHeader.test.ts` | 覆盖 hide / 默认仍显示 |
-| `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` | 删空态；默认会话壳；`newTask` 只清空；传 `hideSecondaryNav` |
-| `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts` | 改写为空线程进页 + 新任务留会话 + 顶栏无历史套餐 |
+| `forma-web/src/components/common/AppHeader.vue` | 新增 `hideSecondaryNav`；为 true 时不渲染「历史」「套餐」 |
+| `forma-web/src/components/common/AppHeader.test.ts` | 覆盖 hide / 默认仍显示 |
+| `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue` | 删空态；默认会话壳；`newTask` 只清空；传 `hideSecondaryNav` |
+| `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts` | 改写为空线程进页 + 新任务留会话 + 顶栏无历史套餐 |
 | `docs/superpowers/specs/2026-09-26-ecommerce-session-default-entry-design.md` | 已存在的设计依据（本计划不改） |
 
 ---
@@ -36,8 +36,8 @@
 ### Task 1: AppHeader `hideSecondaryNav`
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/components/common/AppHeader.vue`
-- Test: `lippi-ai-ebus-web/src/components/common/AppHeader.test.ts`
+- Modify: `forma-web/src/components/common/AppHeader.vue`
+- Test: `forma-web/src/components/common/AppHeader.test.ts`
 
 **Interfaces:**
 - Consumes: 现有 `sceneBreadcrumb` / `activeNav`
@@ -88,7 +88,7 @@
 Run:
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- AppHeader.test.ts -t "hideSecondaryNav"
+cd forma-web && npm test -- AppHeader.test.ts -t "hideSecondaryNav"
 ```
 
 Expected: FAIL（prop 无效或「历史」「套餐」仍在）
@@ -111,7 +111,7 @@ defaults: `hideSecondaryNav: false`
 Run:
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- AppHeader.test.ts
+cd forma-web && npm test -- AppHeader.test.ts
 ```
 
 Expected: PASS（含原有用例 + 新用例）
@@ -119,8 +119,8 @@ Expected: PASS（含原有用例 + 新用例）
 - [ ] **Step 5: Commit（仅当用户要求）**
 
 ```bash
-git add lippi-ai-ebus-web/src/components/common/AppHeader.vue \
-  lippi-ai-ebus-web/src/components/common/AppHeader.test.ts
+git add forma-web/src/components/common/AppHeader.vue \
+  forma-web/src/components/common/AppHeader.test.ts
 git commit -m "$(cat <<'EOF'
 feat(web): hide secondary nav on workbench header
 
@@ -133,7 +133,7 @@ EOF
 ### Task 2: 工作台单测改写（先红）
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts`
 
 **Interfaces:**
 - Consumes: Task 1 的 `hideSecondaryNav`（断言工作台挂载后顶栏无历史/套餐）
@@ -351,7 +351,7 @@ describe('EcommerceWorkspacePlaceholder default session shell', () => {
 Run:
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- EcommerceWorkspacePlaceholder.test.ts
+cd forma-web && npm test -- EcommerceWorkspacePlaceholder.test.ts
 ```
 
 Expected: FAIL — 仍渲染 `.home` / 新任务回空态 / 顶栏仍有历史套餐等（与尚未改的实现一致）
@@ -359,7 +359,7 @@ Expected: FAIL — 仍渲染 `.home` / 新任务回空态 / 顶栏仍有历史�
 - [ ] **Step 4: Commit（仅当用户要求）**
 
 ```bash
-git add lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
+git add forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts
 git commit -m "$(cat <<'EOF'
 test(web): expect default ecommerce session shell
 
@@ -372,7 +372,7 @@ EOF
 ### Task 3: 工作台实现（去空态 + 接线顶栏）
 
 **Files:**
-- Modify: `lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
+- Modify: `forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue`
 
 **Interfaces:**
 - Consumes: `AppHeader` 的 `hideSecondaryNav: boolean`
@@ -418,7 +418,7 @@ function newTask() {
 Run:
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- EcommerceWorkspacePlaceholder.test.ts AppHeader.test.ts
+cd forma-web && npm test -- EcommerceWorkspacePlaceholder.test.ts AppHeader.test.ts
 ```
 
 Expected: PASS
@@ -428,7 +428,7 @@ Expected: PASS
 Run:
 
 ```bash
-cd lippi-ai-ebus-web && npm run lint
+cd forma-web && npm run lint
 ```
 
 Expected: 无新增错误
@@ -436,10 +436,10 @@ Expected: 无新增错误
 - [ ] **Step 6: Commit（仅当用户要求）**
 
 ```bash
-git add lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
-  lippi-ai-ebus-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts \
-  lippi-ai-ebus-web/src/components/common/AppHeader.vue \
-  lippi-ai-ebus-web/src/components/common/AppHeader.test.ts \
+git add forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.vue \
+  forma-web/src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts \
+  forma-web/src/components/common/AppHeader.vue \
+  forma-web/src/components/common/AppHeader.test.ts \
   docs/superpowers/specs/2026-09-26-ecommerce-session-default-entry-design.md \
   docs/superpowers/plans/2026-09-26-ecommerce-session-default-entry.md
 git commit -m "$(cat <<'EOF'

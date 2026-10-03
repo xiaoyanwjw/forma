@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-25  
 **Status:** implemented (2026-09-25)  
-**Module:** `lippi-pi-agent`
+**Module:** `pi-agent`
 
 ## Problem
 

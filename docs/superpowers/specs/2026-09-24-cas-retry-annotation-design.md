@@ -2,7 +2,7 @@
 
 日期：2026-09-24  
 状态：已批准并实现（见 plans/2026-09-24-cas-retry-annotation.md）  
-范围：`lippi-ai-ebus-common` 基础设施 + CreditLedger 首个接入方
+范围：`forma-common` 基础设施 + CreditLedger 首个接入方
 
 ## 1. 背景与目标
 
@@ -113,7 +113,7 @@ public @interface CasRetry {
 ## 6. 文件清单（预期）
 
 ```
-lippi-ai-ebus-common/
+forma-common/
   pom.xml                                          (+ spring-boot-starter-aop)
   …/common/cas/CasRetry.java
   …/common/cas/CasConflictException.java
@@ -122,7 +122,7 @@ lippi-ai-ebus-common/
   src/main/resources/META-INF/spring.factories
   src/test/…/cas/CasRetryAspectTest.java
 
-lippi-ai-ebus-application/
+forma-application/
   …/credit/service/CreditCasWriter.java         (新建)
   …/credit/service/CreditApplicationService.java   (改编排)
   …/credit/service/CreditApplicationServiceTest.java

@@ -41,7 +41,7 @@ Feature spine fixes the right divergence points (graph keep, HITL-off, MySQL Ent
 ### AD-6 — Domain ownership
 
 - Parent: AgentRuntime uniquely writes Agent 会话 / GenerationRun / SSE orchestration; artifacts & credits elsewhere; tools must not write ledger.
-- Child: Inherited “AgentRuntime 编排；成果与积分不在 Tool 内写”; AD-S5 keeps settlement/AD-4 finals in ebus application; AD-S3 puts port in `lippi-pi-agent`, MyBatis adapter in infrastructure — consistent with ownership + AD-11 (also listed in Inherited).
+- Child: Inherited “AgentRuntime 编排；成果与积分不在 Tool 内写”; AD-S5 keeps settlement/AD-4 finals in ebus application; AD-S3 puts port in `pi-agent`, MyBatis adapter in infrastructure — consistent with ownership + AD-11 (also listed in Inherited).
 - userId bind stays application-side — does not invent tenant multi-write.
 - **No conflict / no weakening.**
 
@@ -80,7 +80,7 @@ _None._
    - **Suggested disposition:** **autofix** — replace absolute source with repo-relative or “upstream pi packages/agent (reference)”; add “本阶段 entry_type 仅 `message`（+ 可选 compaction）” or list allowed types; keep Part 3 in Deferred (already present).
 
 4. **Frontmatter `binds` under-lists inherited ADs**  
-   - **Where:** `binds: [AD-3, AD-4, AD-5, lippi-pi-agent]` vs Inherited table (AD-1, AD-6, AD-7, AD-10, AD-11, AD-12).  
+   - **Where:** `binds: [AD-3, AD-4, AD-5, pi-agent]` vs Inherited table (AD-1, AD-6, AD-7, AD-10, AD-11, AD-12).  
    - **Why:** Not a Rule conflict, but weakens machine/human discovery of binding constraints at finalize handoff.  
    - **Suggested disposition:** **autofix** — expand `binds` to match Inherited (or document that Inherited is authoritative and `binds` is scope-only).
 
@@ -97,7 +97,7 @@ _None._
 - Paradigm is short and decision-shaped; mermaid binds AgentSession / SSE / CreditLedger correctly to parent AD-4/AD-5.
 - AD-S1 cleanly prevents dual rewrite; Deferred 1A has a revisit condition.
 - AD-S2 default-off HITL with ports retained is enforceable and avoids LIMS-capability deletion vs Adam thickness.
-- AD-S3 (current) is the right altitude for session: MySQL + Entry subset, ≠ Checkpointer, idempotency/`UNIQUE(session_id,seq)` spelled out, Message JSON pinned to `lippi-pi-ai`, AD-11-compatible adapter placement.
+- AD-S3 (current) is the right altitude for session: MySQL + Entry subset, ≠ Checkpointer, idempotency/`UNIQUE(session_id,seq)` spelled out, Message JSON pinned to `pi-ai`, AD-11-compatible adapter placement.
 - Deferred list does **not** leave “pick anything” gaps for this phase; ADOPTED ADs lock the choices.
 - Inherited AD-6 / AD-10 / AD-11 / AD-12 rows show conscious parent binding after MySQL override.
 

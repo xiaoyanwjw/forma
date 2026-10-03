@@ -22,7 +22,7 @@ context:
 **不是** Hermes 线性 `messages` 表，也**不是**上游 Pi SessionTree 全量（CompactionEntry / parent 边 walk / Part 3）；本仓是 AD-S6..S8 **混合子集**。
 
 **Decisions:**
-- AD-11：infrastructure 增加 `lippi-pi-agent` 依赖；适配器仍在 infrastructure；在父 Spine AD-11 / 文档注明「Pi Session（及后续 Checkpoint）适配器」例外，不把实现塞进 starter/application
+- AD-11：infrastructure 增加 `pi-agent` 依赖；适配器仍在 infrastructure；在父 Spine AD-11 / 文档注明「Pi Session（及后续 Checkpoint）适配器」例外，不把实现塞进 starter/application
 - Session 模型：对外只暴露 Message 端口；`pi_session_entry` 仅为适配器私有编码（灵感来自上游 Entry，本阶段仅 `message`）
 
 ## Boundaries & Constraints
@@ -78,16 +78,16 @@ context:
 
 ## Code Map
 
-- `lippi-pi-agent/.../session/SessionStore.java` — 冻结 Message 投影端口（对齐目标）
-- `lippi-pi-agent/.../session/InMemorySessionStore.java` · `SqliteSessionStore.java` · `SqliteSessionStoreTest.java` — 行为金样（幂等/compact/load/list）
-- `lippi-pi-agent/.../config/AgentConfiguration.java` — MissingBean → InMemory；有 `@Primary` Mysql 后不再抢默认
-- `lippi-pi-agent/src/main/resources/pi/session/schema.sql` — Sqlite 旧表名 `pi_session_message`；**勿**照搬到 MySQL（用 `pi_session_entry`）
-- `lippi-ai-ebus-infrastructure/pom.xml` — 增加 `lippi-pi-agent` 依赖（Decision A）
+- `pi-agent/.../session/SessionStore.java` — 冻结 Message 投影端口（对齐目标）
+- `pi-agent/.../session/InMemorySessionStore.java` · `SqliteSessionStore.java` · `SqliteSessionStoreTest.java` — 行为金样（幂等/compact/load/list）
+- `pi-agent/.../config/AgentConfiguration.java` — MissingBean → InMemory；有 `@Primary` Mysql 后不再抢默认
+- `pi-agent/src/main/resources/pi/session/schema.sql` — Sqlite 旧表名 `pi_session_message`；**勿**照搬到 MySQL（用 `pi_session_entry`）
+- `forma-infrastructure/pom.xml` — 增加 `pi-agent` 依赖（Decision A）
 - `sdd/planning-artifacts/architecture/.../ARCHITECTURE-SPINE.md`（父 AD-11）— 注明 infrastructure→pi-agent 适配器例外
-- `lippi-ai-ebus-infrastructure/.../persistence/repository/business/agent/GenerationRunRepositoryImpl.java` + Mapper/PO/XML — MyBatis 适配器范本
-- `lippi-ai-ebus-infrastructure/.../session/MysqlSessionStore.java`（新建）— `@Primary` 实现 `SessionStore`
+- `forma-infrastructure/.../persistence/repository/business/agent/GenerationRunRepositoryImpl.java` + Mapper/PO/XML — MyBatis 适配器范本
+- `forma-infrastructure/.../session/MysqlSessionStore.java`（新建）— `@Primary` 实现 `SessionStore`
 - `APP-META/bootstrap/sql/004_ebus_generation_run.sql` — 下一号 `005_pi_session.sql`
-- `lippi-ai-ebus-starter/src/test/resources/schema-h2.sql` — 同步测表
+- `forma-starter/src/test/resources/schema-h2.sql` — 同步测表
 - Continuity from 2.6：InMemory 过渡仍合法；本故事换生产 `@Primary` MySQL；勿改 WRITE/Redis/Prompt 默认
 
 **Reuse：** InMemory/Sqlite 语义；GenerationRun MyBatis 配方；APP-META initdb 挂载。
@@ -98,10 +98,10 @@ context:
 
 **Execution:**
 - [x] `APP-META/bootstrap/sql/005_pi_session.sql` + `schema-h2.sql` — `pi_session` / `pi_session_entry`（含 entry.`id` UUID、`entry_type`/`run_id`/`payload` JSON、`parent_id` 可空不用；**非** Sqlite `pi_session_message`）— 表真相
-- [x] `lippi-ai-ebus-infrastructure/pom.xml` + 父 Spine AD-11 注记 — 接通 `lippi-pi-agent` 依赖（Decision A）— 可编译适配器
+- [x] `forma-infrastructure/pom.xml` + 父 Spine AD-11 注记 — 接通 `pi-agent` 依赖（Decision A）— 可编译适配器
 - [x] `…/infrastructure/.../session/`（PO/Mapper/XML + `MysqlSessionStore` `@Primary`）— 实现端口 — 生产 Session
 - [x] starter/IT 或基础设施测 — 覆盖 I/O 矩阵（含 compact 隐藏/越界/幂等/无 summary、幂等 append、listRecent、装配 Primary）— 防回归
-- [x] `lippi-pi-agent` README/javadoc（若仍写「过渡 InMemory」）— 标明 Adam 生产默认 MySQL Session — 叙事一致
+- [x] `pi-agent` README/javadoc（若仍写「过渡 InMemory」）— 标明 Adam 生产默认 MySQL Session — 叙事一致
 
 **Acceptance Criteria:**
 - Given APP-META/H2 已建表，when `getOrCreate`→`append`→`load`，then 行为符合 Message 投影端口，且 1 行 = 1 Message
@@ -117,7 +117,7 @@ context:
 - 落地：`MysqlSessionStore`（`@Primary`）+ MyBatis `PiSession*` PO/Mapper；DDL `005_pi_session.sql`；H2 用 CLOB 存 payload。
 - IT：`MysqlSessionStoreIntegrationTest`（19 例）覆盖矩阵 + parent/title/listChildren/updateTitle/冒号拒绝/无 state.db；装配断言唯一 Primary 为 Mysql。
 - Review patch：`append`/`setCompactAnchor` 对会话行 `SELECT … FOR UPDATE`；写路径拒 `sessionId` 含 `:`；README 区分 Sqlite vs Adam `user_id`。
-- 验证：IT 19 绿；金样 SessionStore 测此前已绿。`mvn -pl lippi-ai-ebus-starter -am test` 全量仍可能撞 pi-agent 既有失败（与本故事无关）。
+- 验证：IT 19 绿；金样 SessionStore 测此前已绿。`mvn -pl forma-starter -am test` 全量仍可能撞 pi-agent 既有失败（与本故事无关）。
 - 既有库 volume 需手工跑 `005`；initdb 只对新数据目录生效。
 
 ## Spec Change Log
@@ -153,8 +153,8 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-starter -am test` -- expected: 与 Session/Agent 相关测绿；新 IT 覆盖矩阵
-- `mvn -pl lippi-pi-agent -Dtest=SqliteSessionStoreTest,InMemorySessionStoreTest test` -- expected: 金样仍绿（未改端口）
+- `mvn -pl forma-starter -am test` -- expected: 与 Session/Agent 相关测绿；新 IT 覆盖矩阵
+- `mvn -pl pi-agent -Dtest=SqliteSessionStoreTest,InMemorySessionStoreTest test` -- expected: 金样仍绿（未改端口）
 
 **Manual checks (if no CLI):**
 - 新库 compose 冷启动后存在 `pi_session` / `pi_session_entry`；无 cwd `.lippi-pi/state.db`

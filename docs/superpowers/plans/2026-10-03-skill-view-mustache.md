@@ -4,7 +4,7 @@
 
 **Goal:** Add `render_view` so skills fill Mustache templates from `artifact.json` into v2 `view.json`, and settle accepts `{"output":"view.json"}` with a sibling `artifact.json`.
 
-**Architecture:** New Pi tool in `lippi-ai-ebus-pi-extension` loads `references/view.mustache` (or override path) for the active skill, optionally injects display helpers (handoff prompts / stripped titles), renders with jmustache, writes `{version:2,title,format,content}`. `GenerationOutputParser` treats a pointed-to v2 view file as the view and loads `artifact.json` beside it; keep reading legacy `final.json` envelopes.
+**Architecture:** New Pi tool in `forma-pi-extension` loads `template/view.mustache` (or override path) for the active skill, optionally injects display helpers (handoff prompts / stripped titles), renders with jmustache, writes `{version:2,title,format,content}`. `GenerationOutputParser` treats a pointed-to v2 view file as the view and loads `artifact.json` beside it; keep reading legacy `final.json` envelopes.
 
 **Tech Stack:** Java 8 / Spring Boot 2.7 / jmustache / existing `ToolHandler` + `ToolContext` (workspaceRoot, activeSkillId) / `SkillCatalog` + skill `promptRef` / `GenerationOutputParser` / classpath skill resources
 
@@ -13,15 +13,15 @@
 ## Global Constraints
 
 - Model writes **only** `artifact.json`; HTML/MD comes from Mustache  
-- Tool name: **`render_view`**; defaults `artifact=artifact.json`, `out=view.json`, template=`references/view.mustache`  
+- Tool name: **`render_view`**; defaults `artifact=artifact.json`, `out=view.json`, template=`template/view.mustache`  
 - View output shape: `{ version: 2, title, format: html|markdown, content }`  
 - Dialogue pointer: **`{"output":"view.json"}`** (also `plan/view.json` etc.)  
 - Artifact path: **same directory** as the view file, named `artifact.json`  
 - Short-term keep **`final.json`** envelope pointer working  
 - Mustache **default HTML escape**; no `{{{…}}}` for handoff attrs  
 - Helpers (displayTitle / handoffPrompt) are **in-memory only**, not written back to artifact  
-- Business tools stay in `lippi-ai-ebus-pi-extension` (not pi-agent)  
-- Tests: `mvn -pl lippi-ai-ebus-pi-extension -am test -Dtest=…` and `mvn -pl lippi-ai-ebus-application -am test -Dtest=…`
+- Business tools stay in `forma-pi-extension` (not pi-agent)  
+- Tests: `mvn -pl forma-pi-extension -am test -Dtest=…` and `mvn -pl forma-application -am test -Dtest=…`
 
 ---
 
@@ -29,15 +29,15 @@
 
 | Path | Responsibility |
 |------|----------------|
-| `lippi-ai-ebus-pi-extension/pom.xml` | Add `com.samskivert:jmustache` |
+| `forma-pi-extension/pom.xml` | Add `com.samskivert:jmustache` |
 | `…/tool/view/MustacheViewRenderer.java` | Pure: Map/JsonNode + template string → content |
 | `…/tool/view/ViewRenderHelpers.java` | Skill-specific in-memory enrichers |
 | `…/tool/view/RenderViewToolHandler.java` | `render_view` ToolHandler |
 | `…/resources/tools/view/render_view.tool.json` | Tool schema + handlerClass |
 | `…/config/ViewToolsConfiguration.java` | Spring `@Bean` for handler |
-| `…/scenes/**/references/view.mustache` (+ plan/exec) | Templates |
+| `…/scenes/**/template/view.mustache` (+ plan/exec) | Templates |
 | `…/scenes/**/SKILL.md` + `output.md` | Agent flow without final.json / hand-written HTML |
-| `lippi-ai-ebus-application/.../GenerationOutputParser.java` | Pointer → view file + sibling artifact |
+| `forma-application/.../GenerationOutputParser.java` | Pointer → view file + sibling artifact |
 | Test resource mirrors under `application` / `pi-agent` `src/test/resources/scenes` | Keep in sync |
 
 ---
@@ -45,9 +45,9 @@
 ### Task 1: Mustache renderer (unit)
 
 **Files:**
-- Modify: `lippi-ai-ebus-pi-extension/pom.xml` — add dependency  
-- Create: `lippi-ai-ebus-pi-extension/src/main/java/com/xmut/ebus/extension/tool/view/MustacheViewRenderer.java`  
-- Create: `lippi-ai-ebus-pi-extension/src/test/java/com/xmut/ebus/extension/tool/view/MustacheViewRendererTest.java`
+- Modify: `forma-pi-extension/pom.xml` — add dependency  
+- Create: `forma-pi-extension/src/main/java/com/xmut/ebus/extension/tool/view/MustacheViewRenderer.java`  
+- Create: `forma-pi-extension/src/test/java/com/xmut/ebus/extension/tool/view/MustacheViewRendererTest.java`
 
 **Interfaces:**
 - Produces:
@@ -76,9 +76,9 @@ public final class MustacheViewRenderer {
 void escapesHtmlInAttributes() {
     MustacheViewRenderer r = new MustacheViewRenderer();
     String html = r.render(
-        "<button data-adam-prompt=\"{{handoffPrompt}}\">x</button>",
+        "<button data-forma-prompt=\"{{handoffPrompt}}\">x</button>",
         Collections.singletonMap("handoffPrompt", "说\"你好\""));
-    assertFalse(html.contains("data-adam-prompt=\"说\"你好\"\""));
+    assertFalse(html.contains("data-forma-prompt=\"说\"你好\"\""));
     assertTrue(html.contains("&quot;") || html.contains("&#34;"));
 }
 
@@ -97,7 +97,7 @@ void loopsItems() {
 - [ ] **Step 3: Run — expect FAIL**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension -am test -Dtest=MustacheViewRendererTest -DfailIfNoTests=false
+mvn -pl forma-pi-extension -am test -Dtest=MustacheViewRendererTest -DfailIfNoTests=false
 ```
 
 - [ ] **Step 4: Implement with jmustache `Mustache.compiler().escapeHTML(true).compile(template).execute(data)`**
@@ -118,8 +118,8 @@ EOF
 ### Task 2: Settle parser — `view.json` pointer + sibling artifact
 
 **Files:**
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParser.java`  
-- Modify: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParserTest.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParser.java`  
+- Modify: `forma-application/src/test/java/com/xmut/ebus/application/business/agent/support/GenerationOutputParserTest.java`
 
 **Interfaces:**
 - When pointer file content is a **v2 view document** (`version==2` and has `format`+`content`), set `rawView` = that object; load sibling `artifact.json` as business payload (empty map if missing → keep current fail policy if persist requires artifact — prefer: missing sibling throws `IllegalArgumentException("artifact file missing: …")` for skill settles).  
@@ -164,7 +164,7 @@ void outputPointer_finalJson_stillWorks() throws Exception {
 - [ ] **Step 2: Run — FAIL**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -am test -Dtest=GenerationOutputParserTest -DfailIfNoTests=false
+mvn -pl forma-application -am test -Dtest=GenerationOutputParserTest -DfailIfNoTests=false
 ```
 
 - [ ] **Step 3: Implement in `tryResolveOutputPointer`**
@@ -222,7 +222,7 @@ EOF
 
 **Interfaces:**
 - Consumes: `ToolContext.getWorkspaceRoot()`, `getActiveSkillId()`, `SkillCatalog.resolve(id)` → `Skill.getPromptRef()`  
-- Template resolve: from `promptRef` like `classpath:scenes/xiaohongshu/xhs-topiclist/SKILL.md` → base dir `scenes/xiaohongshu/xhs-topiclist/` + relative `template` param (default `references/view.mustache`) via `ClassPathResource` / Spring `ResourceLoader`  
+- Template resolve: from `promptRef` like `classpath:scenes/xiaohongshu/xhs-topiclist/SKILL.md` → base dir `scenes/xiaohongshu/xhs-topiclist/` + relative `template` param (default `template/view.mustache`) via `ClassPathResource` / Spring `ResourceLoader`  
 - Produces tool OK text e.g. `{"ok":true,"out":"view.json","bytes":123}`
 
 Tool JSON:
@@ -240,7 +240,7 @@ Tool JSON:
       "properties": {
         "artifact": { "type": "string", "description": "相对 run 根，默认 artifact.json" },
         "out": { "type": "string", "description": "相对 run 根，默认 view.json" },
-        "template": { "type": "string", "description": "相对 skill 根，默认 references/view.mustache" },
+        "template": { "type": "string", "description": "相对 skill 根，默认 template/view.mustache" },
         "format": { "type": "string", "description": "html 或 markdown，默认 html" }
       }
     }
@@ -248,7 +248,7 @@ Tool JSON:
 }
 ```
 
-- [ ] **Step 1: Failing handler test** with temp workspace + classpath template fixture (put a tiny `view.mustache` under `src/test/resources/scenes/test/demo-skill/references/` and register a Skill with that promptRef, **or** inject a `TemplateLoader` seam for tests)
+- [ ] **Step 1: Failing handler test** with temp workspace + classpath template fixture (put a tiny `view.mustache` under `src/test/resources/scenes/test/demo-skill/template/` and register a Skill with that promptRef, **or** inject a `TemplateLoader` seam for tests)
 
 Minimal seam if SkillCatalog hard:
 
@@ -263,7 +263,7 @@ Production impl uses SkillCatalog + ResourceLoader; test impl returns fixed temp
 - [ ] **Step 2: Run — FAIL**
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension -am test -Dtest=RenderViewToolHandlerTest -DfailIfNoTests=false
+mvn -pl forma-pi-extension -am test -Dtest=RenderViewToolHandlerTest -DfailIfNoTests=false
 ```
 
 - [ ] **Step 3: Implement handler**
@@ -347,10 +347,10 @@ EOF
 ### Task 5: Templates + skill docs — topiclist & picklist
 
 **Files:**
-- Create: `…/xiaohongshu/xhs-topiclist/references/view.mustache`  
-- Create: `…/ecommerce/ecommerce-picklist/references/view.mustache`  
+- Create: `…/xiaohongshu/xhs-topiclist/template/view.mustache`  
+- Create: `…/ecommerce/ecommerce-picklist/template/view.mustache`  
 - Modify: both `SKILL.md` + `references/output.md`  
-- Sync test mirrors under `lippi-ai-ebus-application/src/test/resources/scenes/…` and `lippi-pi-agent/src/test/resources/scenes/…`
+- Sync test mirrors under `forma-application/src/test/resources/scenes/…` and `pi-agent/src/test/resources/scenes/…`
 
 **SKILL flow rewrite:**
 1. build artifact → `artifact.json`  
@@ -371,7 +371,7 @@ EOF
 <p>视角：{{hook}} · 切入：{{angle}}</p>
 <p>优先：{{whyFirst}} · 风险：{{risk}}</p>
 {{#handoffPrompt}}
-<p><button type="button" data-adam-action="handoff" data-adam-skill-id="xhs-note" data-adam-prompt="{{handoffPrompt}}">写成笔记</button></p>
+<p><button type="button" data-forma-action="handoff" data-forma-skill-id="xhs-note" data-forma-prompt="{{handoffPrompt}}">写成笔记</button></p>
 {{/handoffPrompt}}
 </li>
 {{/items}}
@@ -381,7 +381,7 @@ EOF
 
 - [ ] **Step 1: Add templates + update docs**  
 - [ ] **Step 2: Sync mirrors**  
-- [ ] **Step 3: Optional integration test** — enrich fixture artifact + real mustache file → assert `data-adam-skill-id` present  
+- [ ] **Step 3: Optional integration test** — enrich fixture artifact + real mustache file → assert `data-forma-skill-id` present  
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -398,18 +398,18 @@ EOF
 
 **Files:**
 - `ViewRenderHelpers` — `xhs-break` handoff prompt (former `buildXhsBreakNoteHandoffText`); note may need no handoff  
-- `xhs-break/references/view.mustache`  
-- `xhs-note/references/view.mustache` + `format: markdown` via tool arg or skill default map in handler (`xhs-note` → markdown)  
-- `ecommerce-skulist/references/plan/view.mustache` + `exec/view.mustache` (exec includes `<img data-adam-media-role="hero" alt="主图占位" src="">`)  
+- `xhs-break/template/view.mustache`  
+- `xhs-note/template/view.mustache` + `format: markdown` via tool arg or skill default map in handler (`xhs-note` → markdown)  
+- `ecommerce-skulist/template/plan/view.mustache` + `exec/view.mustache` (exec includes `<img data-forma-media-role="hero" alt="主图占位" src="">`)  
 - Update SKILL/output + mirrors  
 
 **Listing agent calls:**
 
 ```text
-render_view({ artifact: "plan/artifact.json", out: "plan/view.json", template: "references/plan/view.mustache" })
+render_view({ artifact: "plan/artifact.json", out: "plan/view.json", template: "template/plan/view.mustache" })
 → {"output":"plan/view.json"}
 
-render_view({ artifact: "exec/artifact.json", out: "exec/view.json", template: "references/exec/view.mustache" })
+render_view({ artifact: "exec/artifact.json", out: "exec/view.json", template: "template/exec/view.mustache" })
 → {"output":"exec/view.json"}
 ```
 
@@ -435,8 +435,8 @@ EOF
 - Run:
 
 ```bash
-mvn -pl lippi-ai-ebus-pi-extension,lippi-ai-ebus-application -am test -Dtest=MustacheViewRendererTest,RenderViewToolHandlerTest,ViewRenderHelpersTest,GenerationOutputParserTest,EbusPiToolCatalogConfigurationTest -DfailIfNoTests=false
-rg 'final\.json' lippi-ai-ebus-pi-extension/src/main/resources/scenes --glob 'SKILL.md' || true
+mvn -pl forma-pi-extension,forma-application -am test -Dtest=MustacheViewRendererTest,RenderViewToolHandlerTest,ViewRenderHelpersTest,GenerationOutputParserTest,EbusPiToolCatalogConfigurationTest -DfailIfNoTests=false
+rg 'final\.json' forma-pi-extension/src/main/resources/scenes --glob 'SKILL.md' || true
 ```
 
 - [ ] **Step 1: Fix any leftover final.json requirements in migrated SKILL.md**  
@@ -473,7 +473,7 @@ EOF
 ## Placeholder / consistency
 
 - Tool id locked: `render_view`  
-- Default paths locked: `artifact.json` / `view.json` / `references/view.mustache`  
+- Default paths locked: `artifact.json` / `view.json` / `template/view.mustache`  
 - Parser sibling name locked: `artifact.json`  
 - jmustache version locked in Task 1: `1.15`  
 

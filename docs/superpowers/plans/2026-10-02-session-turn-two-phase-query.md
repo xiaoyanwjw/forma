@@ -24,8 +24,8 @@
 
 | 文件 | 职责 |
 |------|------|
-| `lippi-ai-ebus-domain/.../model/PiLogicalRunRef.java` | ① 的 `{logicalRunId, tipSeq}` |
-| `lippi-ai-ebus-domain/.../repository/PiSessionQueryRepository.java` | 端口：换掉 `getMessageList` |
+| `forma-domain/.../model/PiLogicalRunRef.java` | ① 的 `{logicalRunId, tipSeq}` |
+| `forma-domain/.../repository/PiSessionQueryRepository.java` | 端口：换掉 `getMessageList` |
 | `.../mybatis/mapper/PiSessionEntryMapper.java` + `.xml` | 两段 SQL |
 | `.../session/PiSessionQuerySupport.java` → `PiSessionQueryRepositoryImpl.java` | 仓储实现 |
 | `.../session/query/SessionQueryService.java` | ①→②→Assembler；删 expand |
@@ -37,8 +37,8 @@
 ### Task 1: Domain — `PiLogicalRunRef` + repository 端口
 
 **Files:**
-- Create: `lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/agent/model/PiLogicalRunRef.java`
-- Modify: `lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/agent/repository/PiSessionQueryRepository.java`
+- Create: `forma-domain/src/main/java/com/xmut/ebus/domain/business/agent/model/PiLogicalRunRef.java`
+- Modify: `forma-domain/src/main/java/com/xmut/ebus/domain/business/agent/repository/PiSessionQueryRepository.java`
 - Test: compile-only this task（行为测在 Task 3/4）
 
 **Interfaces:**
@@ -95,14 +95,14 @@ List<PiMessageDTO> getMessagesByLogicalRunIds(String sessionId, List<String> log
 
 - [ ] **Step 3: Compile domain**
 
-Run: `mvn -pl lippi-ai-ebus-domain -am -DskipTests compile -q`  
+Run: `mvn -pl forma-domain -am -DskipTests compile -q`  
 Expected: SUCCESS（下游模块本步可不编；Impl 尚未改会在 Task 3 红）
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/agent/model/PiLogicalRunRef.java \
-  lippi-ai-ebus-domain/src/main/java/com/xmut/ebus/domain/business/agent/repository/PiSessionQueryRepository.java
+git add forma-domain/src/main/java/com/xmut/ebus/domain/business/agent/model/PiLogicalRunRef.java \
+  forma-domain/src/main/java/com/xmut/ebus/domain/business/agent/repository/PiSessionQueryRepository.java
 git commit -m "$(cat <<'EOF'
 feat(session): add logical-run query port for two-phase replay
 
@@ -115,8 +115,8 @@ EOF
 ### Task 2: Mapper SQL — `selectLogicalRunPage` + `selectByLogicalRunIds`
 
 **Files:**
-- Modify: `lippi-ai-ebus-infrastructure/src/main/java/com/xmut/ebus/infrastructure/persistence/mybatis/mapper/PiSessionEntryMapper.java`
-- Modify: `lippi-ai-ebus-infrastructure/src/main/resources/mybatis/mapper/PiSessionEntryMapper.xml`
+- Modify: `forma-infrastructure/src/main/java/com/xmut/ebus/infrastructure/persistence/mybatis/mapper/PiSessionEntryMapper.java`
+- Modify: `forma-infrastructure/src/main/resources/mybatis/mapper/PiSessionEntryMapper.xml`
 - Create (optional PO): map via `@MapKey` 或简单 resultType — 推荐专用小 PO / 或 `PiLogicalRunRef` 若 MyBatis 能直接映射（优先 `Map`/`resultType` 到简单 PO 再转 domain）
 
 **Interfaces:**
@@ -195,9 +195,9 @@ public class PiLogicalRunRow {
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lippi-ai-ebus-infrastructure/src/main/java/com/xmut/ebus/infrastructure/persistence/mybatis/mapper/PiSessionEntryMapper.java \
-  lippi-ai-ebus-infrastructure/src/main/resources/mybatis/mapper/PiSessionEntryMapper.xml \
-  lippi-ai-ebus-infrastructure/src/main/java/com/xmut/ebus/infrastructure/persistence/mybatis/po/PiLogicalRunRow.java
+git add forma-infrastructure/src/main/java/com/xmut/ebus/infrastructure/persistence/mybatis/mapper/PiSessionEntryMapper.java \
+  forma-infrastructure/src/main/resources/mybatis/mapper/PiSessionEntryMapper.xml \
+  forma-infrastructure/src/main/java/com/xmut/ebus/infrastructure/persistence/mybatis/po/PiLogicalRunRow.java
 git commit -m "$(cat <<'EOF'
 feat(session): add two-phase logical-run SQL mappers
 
@@ -314,14 +314,14 @@ public List<PiMessageDTO> getMessagesByLogicalRunIds(String sessionId, List<Stri
 
 - [ ] **Step 4: Compile infrastructure + application dependents**
 
-Run: `mvn -pl lippi-ai-ebus-infrastructure,lippi-ai-ebus-application -am -DskipTests compile -q`  
+Run: `mvn -pl forma-infrastructure,forma-application -am -DskipTests compile -q`  
 Expected: application 可能仍因 Service 调旧方法失败 → 进入 Task 4；至少 Impl 自身编译过。
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add -u lippi-ai-ebus-infrastructure/src/main/java/com/xmut/ebus/infrastructure/session/
-git add lippi-ai-ebus-infrastructure/src/main/java/com/xmut/ebus/infrastructure/session/PiSessionQueryRepositoryImpl.java
+git add -u forma-infrastructure/src/main/java/com/xmut/ebus/infrastructure/session/
+git add forma-infrastructure/src/main/java/com/xmut/ebus/infrastructure/session/PiSessionQueryRepositoryImpl.java
 # 确保旧 Support 已删除
 git commit -m "$(cat <<'EOF'
 refactor(session): PiSessionQueryRepositoryImpl two-phase run queries
@@ -335,8 +335,8 @@ EOF
 ### Task 4: `SessionQueryService` 改为 ①→②→Assembler
 
 **Files:**
-- Modify: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/session/query/SessionQueryService.java`
-- Modify: `lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/session/query/SessionQueryServiceTest.java`
+- Modify: `forma-application/src/main/java/com/xmut/ebus/application/business/session/query/SessionQueryService.java`
+- Modify: `forma-application/src/test/java/com/xmut/ebus/application/business/session/query/SessionQueryServiceTest.java`
 
 **Interfaces:**
 - Consumes: `getLogicalRunIds` / `getMessagesByLogicalRunIds` / `SessionTurnAssembler`
@@ -409,7 +409,7 @@ void getMessageListPassesNextTokenAndClampsLimit() {
 
 - [ ] **Step 2: Run tests — expect fail / compile error**
 
-Run: `mvn -pl lippi-ai-ebus-application -am -DfailIfNoTests=false -Dtest=SessionQueryServiceTest test -q`  
+Run: `mvn -pl forma-application -am -DfailIfNoTests=false -Dtest=SessionQueryServiceTest test -q`  
 Expected: FAIL（Service 仍调旧 API 或未实现）
 
 - [ ] **Step 3: Rewrite `getMessageList`**
@@ -467,14 +467,14 @@ private static List<SessionTurnDTO> orderTurnsByRunTipOrder(
 
 - [ ] **Step 4: Run unit tests**
 
-Run: `mvn -pl lippi-ai-ebus-application -am -DfailIfNoTests=false -Dtest=SessionQueryServiceTest,SessionTurnAssemblerTest test -q`  
+Run: `mvn -pl forma-application -am -DfailIfNoTests=false -Dtest=SessionQueryServiceTest,SessionTurnAssemblerTest test -q`  
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/session/query/SessionQueryService.java \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/session/query/SessionQueryServiceTest.java
+git add forma-application/src/main/java/com/xmut/ebus/application/business/session/query/SessionQueryService.java \
+  forma-application/src/test/java/com/xmut/ebus/application/business/session/query/SessionQueryServiceTest.java
 git commit -m "$(cat <<'EOF'
 feat(session): wire SessionQueryService to two-phase run paging
 
@@ -487,7 +487,7 @@ EOF
 ### Task 5: Integration + FE 回归
 
 **Files:**
-- Modify if needed: `lippi-ai-ebus-starter/src/test/java/com/xmut/ebus/SessionQueryIntegrationTest.java`（messages 断言 / nextToken）
+- Modify if needed: `forma-starter/src/test/java/com/xmut/ebus/SessionQueryIntegrationTest.java`（messages 断言 / nextToken）
 - No FE code change expected
 
 - [x] **Step 1: Grep 残留**
@@ -497,12 +497,12 @@ Expected: Service 方法名 `getMessageList`（对外用例名）可保留；端
 
 - [x] **Step 2: 后端集成 / starter 测试**
 
-Run: `mvn -pl lippi-ai-ebus-starter -am -DfailIfNoTests=false -Dtest=SessionQueryIntegrationTest,SessionQueryServiceTest,SessionTurnAssemblerTest test -q`  
+Run: `mvn -pl forma-starter -am -DfailIfNoTests=false -Dtest=SessionQueryIntegrationTest,SessionQueryServiceTest,SessionTurnAssemblerTest test -q`  
 Expected: PASS（按需改集成夹具：消息必须带 `run_id`，否则回放为空）
 
 - [x] **Step 3: FE 回归**
 
-Run: `cd lippi-ai-ebus-web && npx vitest run src/utils/sessionReplay.test.ts src/views/business/history/HistoryPlaceholder.test.ts src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts src/views/business/scene/XiaohongshuWorkspace.test.ts`  
+Run: `cd forma-web && npx vitest run src/utils/sessionReplay.test.ts src/views/business/history/HistoryPlaceholder.test.ts src/views/business/scene/EcommerceWorkspacePlaceholder.test.ts src/views/business/scene/XiaohongshuWorkspace.test.ts`  
 Expected: PASS
 
 - [x] **Step 4: Mark design accepted + supersede old plan**

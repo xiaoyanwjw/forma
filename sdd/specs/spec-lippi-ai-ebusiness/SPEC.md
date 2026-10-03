@@ -56,7 +56,7 @@ sources:
 
 - 网页自助为主；小程序后置。实现须遵守 Architecture Spine（AD-1…AD-13）与 `AGENTS.md` / `sdd/context` 编码规约。
 - 前端不直连模型、不改积分；仅 CreditLedger 可变余额；结算仅在可用成果持久化之后。
-- Pi 运行时为本仓 `lippi-pi-ai` / `lippi-pi-agent`（自 LIMS 拷贝）；业务模块 `lippi-ai-ebus-*`；包根 `com.xmut.ebus`。
+- Pi 运行时为本仓 `pi-ai` / `pi-agent`（自 LIMS 拷贝）；业务模块 `forma-*`；包根 `com.xmut.ebus`。
 - 主图进阿里云 OSS；库存 `mediaObjectId`；JWT 用户名/邮箱+密码；本机 Docker 经 `APP-META`。
 - 须能统计单次生成模型成本；失败给人话原因；协议声明 AI 生成须人工复核后再上架；轻量防刷（登录+频率限制）。
 

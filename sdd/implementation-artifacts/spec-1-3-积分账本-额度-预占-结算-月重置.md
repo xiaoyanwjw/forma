@@ -63,14 +63,14 @@ context:
 
 ## Code Map
 
-- `lippi-ai-ebus-domain/.../identity/` — 镜像形状；Credit 建在 `domain/business/credit/{model,constant,repository}`
-- `lippi-ai-ebus-application/.../identity/service/IdentityApplicationService.java` — 注册成功后同事务调 Credit 建免费账本；写服务范本
-- `lippi-ai-ebus-application/.../identity/query/IdentityQueryService.java` — 读服务范本 → `CreditQueryService`
-- `lippi-ai-ebus-infrastructure/.../persistence/mybatis/{po,mapper}/` + `UserRepositoryImpl` — MyBatis + InstantTypeHandler；Credit PO/Mapper/RepoImpl
-- `lippi-ai-ebus-interfaces/.../web/identity/MeController.java` — 薄 Controller + JWT userId 范本 → `CreditController`（仅 GET）
-- `lippi-ai-ebus-common/.../exception/ErrorCode.java` — 扩展积分不足/hold 无效等码
+- `forma-domain/.../identity/` — 镜像形状；Credit 建在 `domain/business/credit/{model,constant,repository}`
+- `forma-application/.../identity/service/IdentityApplicationService.java` — 注册成功后同事务调 Credit 建免费账本；写服务范本
+- `forma-application/.../identity/query/IdentityQueryService.java` — 读服务范本 → `CreditQueryService`
+- `forma-infrastructure/.../persistence/mybatis/{po,mapper}/` + `UserRepositoryImpl` — MyBatis + InstantTypeHandler；Credit PO/Mapper/RepoImpl
+- `forma-interfaces/.../web/identity/MeController.java` — 薄 Controller + JWT userId 范本 → `CreditController`（仅 GET）
+- `forma-common/.../exception/ErrorCode.java` — 扩展积分不足/hold 无效等码
 - `APP-META/bootstrap/sql/001_ebus_user.sql` — 下一号 `002_ebus_credit*.sql`（账户 + hold）
-- `lippi-ai-ebus-starter/src/test/resources/schema-h2.sql` — 同步测表
+- `forma-starter/src/test/resources/schema-h2.sql` — 同步测表
 - `AuthIntegrationTest` / `IdentityApplicationServiceTest` — 集成/单测形状
 - Spine AD-5/AD-6/AD-12；`02-be` business 目录配方
 
@@ -82,10 +82,10 @@ context:
 
 **Execution:**
 - [x] `APP-META/bootstrap/sql/002_*.sql` + `schema-h2.sql` — CreditAccount / CreditHold 表（UUID、档位、余额、锚点、hold 状态）— 持久化
-- [x] `lippi-ai-ebus-domain/.../business/credit/` — 模型、档位常量 20/200/600、仓储端口 — 唯一账本真相
-- [x] `lippi-ai-ebus-application/.../business/credit/` — `CreditApplicationService`（init/预占/结算/释放/懒月重置）+ `CreditQueryService` — AD-5 编排
-- [x] `lippi-ai-ebus-infrastructure/...` — MyBatis PO/Mapper/RepoImpl；条件更新防双花 — 落地并发安全
-- [x] `lippi-ai-ebus-interfaces/.../web/business/credit/` — 鉴权 `GET` 额度（懒 init/月检）— 供 1.4/联调
+- [x] `forma-domain/.../business/credit/` — 模型、档位常量 20/200/600、仓储端口 — 唯一账本真相
+- [x] `forma-application/.../business/credit/` — `CreditApplicationService`（init/预占/结算/释放/懒月重置）+ `CreditQueryService` — AD-5 编排
+- [x] `forma-infrastructure/...` — MyBatis PO/Mapper/RepoImpl；条件更新防双花 — 落地并发安全
+- [x] `forma-interfaces/.../web/business/credit/` — 鉴权 `GET` 额度（懒 init/月检）— 供 1.4/联调
 - [x] `ErrorCode` + 全局异常映射 — 积分不足/hold 无效人话
 - [x] `IdentityApplicationService` 注册成功钩子 — 同事务建免费账本，与用户同生
 - [x] 单元/集成测 — 覆盖 I/O 矩阵（含注册建账、不足、释放、滚动月重置、并发预占）— 防回归
@@ -138,8 +138,8 @@ context:
 ## Verification
 
 **Commands:**
-- `mvn -pl lippi-ai-ebus-common,lippi-ai-ebus-domain,lippi-ai-ebus-application,lippi-ai-ebus-infrastructure,lippi-ai-ebus-interfaces,lippi-ai-ebus-starter test` -- expected: BUILD SUCCESS，Credit 相关测绿
-- `mvn -pl lippi-ai-ebus-starter -am -DskipTests compile` -- expected: BUILD SUCCESS
+- `mvn -pl forma-common,forma-domain,forma-application,forma-infrastructure,forma-interfaces,forma-starter test` -- expected: BUILD SUCCESS，Credit 相关测绿
+- `mvn -pl forma-starter -am -DskipTests compile` -- expected: BUILD SUCCESS
 
 **Manual checks (if no CLI):**
 - 注册/登录后 `GET` 额度见免费 20；服务层预占→释放后可用恢复；预占→结算后实扣；拨钟过重置点后再查额度按档重发

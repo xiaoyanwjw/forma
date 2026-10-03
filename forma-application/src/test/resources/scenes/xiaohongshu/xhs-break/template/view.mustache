@@ -1,0 +1,23 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<div class="forma-deck">
+<span class="forma-sh"><span class="k">类型</span><span class="v pink">结构抽取</span></span>
+<span class="forma-sh"><span class="k">输出</span><span class="v gray">可复用骨架</span></span>
+</div>
+<p class="forma-lede">不复读金句；输出可迁移的叙事骨架。</p>
+<h2>拆解要点</h2>
+<p>{{structure}}</p>
+<h2>骨架</h2>
+<div class="forma-quote">{{skeleton}}</div>
+<h2>改写稿</h2>
+{{#rewriteParagraphs}}
+<p>{{.}}</p>
+{{/rewriteParagraphs}}
+{{^rewriteParagraphs}}
+<p>{{rewrite}}</p>
+{{/rewriteParagraphs}}
+{{#handoffPrompt}}
+<hr>
+<p><button type="button" data-forma-action="handoff" data-forma-skill-id="xhs-note" data-forma-prompt="{{handoffPrompt}}">按骨架写笔记</button></p>
+{{/handoffPrompt}}
+</article>

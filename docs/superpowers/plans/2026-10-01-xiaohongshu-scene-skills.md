@@ -6,7 +6,7 @@
 
 **Architecture:** 对标电商选品。`search_xhs_note` → `XhsNoteSearcher`（expand→search→check→pool→rerank→topHits），Apify 只做 `XhsNoteSearchPort`。`fetch_xhs_note` 为单篇详情 Port，不套召回管线。三个 `SKILL.md` 只调工具一次（或笔记零检索）后写 `final.json` 指针。`SkillRunProfile` / `ArtifactType` 扩展三种 `persistAs`；场景装包校验三 skill；Catalog 将 `xiaohongshu` 置 `AVAILABLE`；前端新工作台三胶囊。
 
-**Tech Stack:** Java 8 / Spring Boot 2.7、`lippi-ai-ebus-application`、`lippi-pi-agent` skills classpath、`lippi-pi-ai` rerank、Vue3 工作台、JUnit 5 + Mockito
+**Tech Stack:** Java 8 / Spring Boot 2.7、`forma-application`、`pi-agent` skills classpath、`pi-ai` rerank、Vue3 工作台、JUnit 5 + Mockito
 
 ## Global Constraints
 
@@ -59,7 +59,7 @@
 | `SceneCapabilityPackLoader.java` | xiaohongshu 必含三 skill |
 | `SkillRunProfile.java` + `ArtifactType.java` + `ArtifactPersistPlugin.java` | 三种 persist |
 | `APP-META/...` SQL 或 seed | `xiaohongshu` → `AVAILABLE` |
-| `lippi-ai-ebus-web/.../XiaohongshuWorkspace*.vue` | 三胶囊工作台 |
+| `forma-web/.../XiaohongshuWorkspace*.vue` | 三胶囊工作台 |
 
 ## Spec → Task
 
@@ -78,7 +78,7 @@
 ### Task 1: `XhsNoteSearchHit` + Port + Mock + Properties
 
 **Files:**
-- Create: `lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/tool/xhs/XhsNoteSearchHit.java`
+- Create: `forma-application/src/main/java/com/xmut/ebus/application/business/agent/tool/xhs/XhsNoteSearchHit.java`
 - Create: `.../tool/xhs/XhsNoteSearchPort.java`
 - Create: `.../tool/xhs/MockXhsNoteSearchClient.java`
 - Create: `.../tool/xhs/XhsNoteSearchProperties.java`
@@ -106,7 +106,7 @@ void defaults_mock_and_default_actor() {
 - [ ] **Step 2: Run test — expect FAIL（类不存在）**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -Dtest=XhsNoteSearchPropertiesTest test
+mvn -pl forma-application -Dtest=XhsNoteSearchPropertiesTest test
 ```
 
 - [ ] **Step 3: 最小实现 Hit / Port / Mock / Properties**
@@ -118,8 +118,8 @@ mvn -pl lippi-ai-ebus-application -Dtest=XhsNoteSearchPropertiesTest test
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lippi-ai-ebus-application/src/main/java/com/xmut/ebus/application/business/agent/tool/xhs \
-  lippi-ai-ebus-application/src/test/java/com/xmut/ebus/application/business/agent/tool/xhs
+git add forma-application/src/main/java/com/xmut/ebus/application/business/agent/tool/xhs \
+  forma-application/src/test/java/com/xmut/ebus/application/business/agent/tool/xhs
 git commit -m "feat(xhs): add note search port, mock client, and properties"
 ```
 
@@ -168,7 +168,7 @@ void search_disabled_short_circuits_to_port() {
 - [ ] **Step 2: Run — expect FAIL**
 
 ```bash
-mvn -pl lippi-ai-ebus-application -Dtest=XhsNoteSearcherTest test
+mvn -pl forma-application -Dtest=XhsNoteSearcherTest test
 ```
 
 - [ ] **Step 3: 实现 Searcher（可直接对照 `SkuSearcher.java` 改写字段：`detailUrl`→`noteUrl`，title 违禁同逻辑）**
@@ -263,12 +263,12 @@ git commit -m "feat(xhs): add fetch_xhs_note detail tool"
 ### Task 5: 三个 SKILL.md + output.md（镜像三处）
 
 **Files:**（每处同样结构）
-- Create: `lippi-ai-ebus-starter/src/main/resources/scenes/xiaohongshu/xhs-topiclist/SKILL.md`
+- Create: `forma-starter/src/main/resources/scenes/xiaohongshu/xhs-topiclist/SKILL.md`
 - Create: `.../xhs-topiclist/references/output.md`
 - Create: `.../xhs-note/SKILL.md` + `references/output.md`
 - Create: `.../xhs-break/SKILL.md` + `references/output.md`
-- Mirror: `lippi-ai-ebus-application/src/test/resources/scenes/xiaohongshu/...`
-- Mirror: `lippi-pi-agent/src/test/resources/scenes/xiaohongshu/...`
+- Mirror: `forma-application/src/test/resources/scenes/xiaohongshu/...`
+- Mirror: `pi-agent/src/test/resources/scenes/xiaohongshu/...`
 
 **Interfaces:**
 - Frontmatter：`name` / `description` / `allowed-tools` / `metadata.output.billing=true` / `persistAs` / `requiresView=true`
@@ -291,7 +291,7 @@ git commit -m "feat(xhs): add fetch_xhs_note detail tool"
 - [ ] **Step 4: 同步三处 resources；跑装包/扫描测**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -Dtest=SceneCapabilityPackBootstrapTest,SkillsTest,SkillCatalogAndBodyTest test
+mvn -pl forma-starter -am -Dtest=SceneCapabilityPackBootstrapTest,SkillsTest,SkillCatalogAndBodyTest test
 ```
 
 （若现测只认 ecommerce：先改 Task 6 装包再跑；本步至少保证 classpath 能 parse 三个 SKILL。）
@@ -329,7 +329,7 @@ git commit -m "feat(xhs): add topiclist, note, and break skills"
 - [ ] **Step 4: Run**
 
 ```bash
-mvn -pl lippi-ai-ebus-starter -am -Dtest=ArtifactTypeTest,SceneCapabilityPackLoaderTest,SceneCatalogIntegrationTest,SceneCapabilityPackBootstrapTest test
+mvn -pl forma-starter -am -Dtest=ArtifactTypeTest,SceneCapabilityPackLoaderTest,SceneCatalogIntegrationTest,SceneCapabilityPackBootstrapTest test
 ```
 
 - [ ] **Step 5: Commit**
@@ -343,7 +343,7 @@ git commit -m "feat(xhs): wire skill billing profiles, artifact types, and avail
 ### Task 7: 前端小红书工作台（三胶囊）
 
 **Files:**
-- Create: `lippi-ai-ebus-web/src/views/business/scene/XiaohongshuWorkspace.vue`（可先 clone `EcommerceWorkspacePlaceholder.vue` 再删 listing/picklist 专用逻辑）
+- Create: `forma-web/src/views/business/scene/XiaohongshuWorkspace.vue`（可先 clone `EcommerceWorkspacePlaceholder.vue` 再删 listing/picklist 专用逻辑）
 - Create: `.../XiaohongshuWorkspace.test.ts`
 - Modify: 路由 — `xiaohongshu` AVAILABLE 进入本工作台（对标 ecommerce 路由）
 - Modify: `SceneGallery` 点击逻辑（若仍写死 only ecommerce）
@@ -359,7 +359,7 @@ git commit -m "feat(xhs): wire skill billing profiles, artifact types, and avail
 - [ ] **Step 2: Run FE test — FAIL**
 
 ```bash
-cd lippi-ai-ebus-web && npm test -- XiaohongshuWorkspace
+cd forma-web && npm test -- XiaohongshuWorkspace
 ```
 
 - [ ] **Step 3: 实现页面与路由；复用现有 SSE/agent composable 若可泛化，否则薄包一层**
@@ -367,7 +367,7 @@ cd lippi-ai-ebus-web && npm test -- XiaohongshuWorkspace
 - [ ] **Step 4: lint + test PASS**
 
 ```bash
-cd lippi-ai-ebus-web && npm run lint && npm test -- XiaohongshuWorkspace
+cd forma-web && npm run lint && npm test -- XiaohongshuWorkspace
 ```
 
 - [ ] **Step 5: Commit**
