@@ -38,8 +38,9 @@ APP-META/docker-config/build/
 # Pi local session / state
 .lippi-pi/
 
-# BMAD skill render cache (ephemeral snapshots)
-_bmad/render/
+# Local agent / planning notes (not shipped)
+_bmad/
+docs/
 
 # Local editor history
 .history/
