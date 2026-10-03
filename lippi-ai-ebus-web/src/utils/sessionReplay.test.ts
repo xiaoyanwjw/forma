@@ -10,6 +10,15 @@ import {
 } from '@/utils/sessionReplay'
 
 describe('sessionReplay', () => {
+  it('treats v2 format/content dumps as artifact payloads', () => {
+    expect(
+      isArtifactDumpContent('{"view":{"format":"html","content":"<p>选题</p>"}}'),
+    ).toBe(true)
+    expect(
+      isArtifactDumpContent('```json\n{"view":{"format":"markdown","content":"# 笔记"}}\n```'),
+    ).toBe(true)
+  })
+
   it('keepReplayRow keeps user/assistant including artifact dump', () => {
     expect(keepReplayRow({ role: 'user', content: '找杯子' })).toBe(true)
     expect(keepReplayRow({ role: 'assistant', content: '这是建议' })).toBe(true)

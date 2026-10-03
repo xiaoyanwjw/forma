@@ -1,4 +1,4 @@
-import type { ComputerDocument } from '@/types/business/computerView'
+import type { ComputerDocView } from '@/types/business/computerView'
 
 /** 历史列表条目 */
 export interface HistoryArtifactSummary {
@@ -11,6 +11,6 @@ export interface HistoryArtifactSummary {
 
 /** 历史详情（含 Computer view；sessionId 可空） */
 export interface HistoryArtifactDetail extends HistoryArtifactSummary {
-  view: ComputerDocument | Record<string, unknown> | null
+  view: ComputerDocView | Record<string, unknown> | null
   sessionId?: string | null
 }

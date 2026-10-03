@@ -19,7 +19,13 @@ export function isArtifactDumpContent(content: string): boolean {
   if (/^```(?:json)?/i.test(t) && /"view"\s*:/.test(t)) return true
   if (t.startsWith('{')) {
     const head = t.slice(0, 500)
-    return /"view"\s*:/.test(head) && (/"blocks"\s*:/.test(head) || /"version"\s*:/.test(head))
+    return (
+      /"view"\s*:/.test(head) &&
+      (/"blocks"\s*:/.test(head) ||
+        /"version"\s*:/.test(head) ||
+        /"format"\s*:/.test(head) ||
+        /"content"\s*:/.test(head))
+    )
   }
   return false
 }
