@@ -141,7 +141,7 @@ HTML 结构（模板与 `artifact` 同一事实）：
 
 ## 策划示例
 
-黄金路径：用户消息含原链与 `来源选品条目：pl-1`。先写领域实体，再写视图实体，再合并 `plan/final.json`，发指针后**立即** `ask_human`。
+黄金路径：用户消息含原链与 `来源选品条目：pl-1`。先写 `plan/artifact.json`，再 **`render_view`** 写出 `plan/view.json`，发指针后**立即** `ask_human`。
 
 ### `plan/artifact.json`
 
@@ -174,7 +174,7 @@ HTML 结构（模板与 `artifact` 同一事实）：
 
 ## 执行示例
 
-仅在用户选择 `confirm_execute` 后。先 `exec/artifact.json`，再 `exec/view.json`，再合并 `exec/final.json`。
+仅在用户选择 `confirm_execute` 后。先 `exec/artifact.json`，再 **`render_view`** 写出 `exec/view.json`。
 
 ### `exec/artifact.json`
 
