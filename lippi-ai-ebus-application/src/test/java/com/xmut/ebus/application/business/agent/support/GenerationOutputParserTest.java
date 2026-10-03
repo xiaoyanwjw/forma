@@ -108,6 +108,17 @@ class GenerationOutputParserTest {
     }
 
     @Test
+    void outputPointer_viewJsonV2_missingSiblingArtifact_throws() throws Exception {
+        Path run = Files.createTempDirectory("parse-ws-");
+        Files.write(run.resolve("view.json"),
+                ("{\"version\":2,\"title\":\"选题\",\"format\":\"html\",\"content\":\"<p>x</p>\"}")
+                        .getBytes(StandardCharsets.UTF_8));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> parser.parse("{\"output\":\"view.json\"}", run));
+        assertTrue(ex.getMessage().contains("artifact file missing"));
+    }
+
+    @Test
     void outputPointer_planView_loadsPlanArtifact() throws Exception {
         Path plan = Files.createTempDirectory("parse-ws-").resolve("plan");
         Files.createDirectories(plan);
