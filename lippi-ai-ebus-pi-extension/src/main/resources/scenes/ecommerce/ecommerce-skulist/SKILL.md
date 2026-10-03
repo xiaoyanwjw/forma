@@ -15,8 +15,8 @@ metadata:
 
 国内电商**成交素材**编辑：同一次 Run 内先后产出**策划**与**执行**两段可用成果。界面换淘/闲/抖只换预览壳，**不拆多套文案**。
 
-- **策划：** 成交方向、主图分镜（3～5）、详情大纲、标题草稿；`view` **仅一篇** `markdown`；**不要**上架四字段与生图 Prompt。
-- **执行：** 仅用户 `confirm_execute` 后补齐上架四字段 + 对齐的 `framePrompts`；`view` 对齐 Listing 预览。
+- **策划：** 成交方向、主图分镜（3～5）、详情大纲、标题草稿；`view` v2 **`format: html`** + `content`（小节标题 + 列表）；**不要**上架四字段与生图 Prompt。
+- **执行：** 仅用户 `confirm_execute` 后补齐上架四字段 + 对齐的 `framePrompts`；`view` v2 HTML 文档（含 `data-adam-media-role="hero"` 占位图 + 分镜/详情/Prompt 标题段）。
 
 **不**要求用户上传图片；**不**调用生图模型。执行阶段主图位由系统在结算前挂载占位图（`mediaObjectId`）。
 
@@ -46,7 +46,7 @@ metadata:
 
 4. **构造领域实体（策划）。** 按 [output.md](references/output.md) §策划拼出策划 **artifact**（`driver` / `frames` 3～5 条≤40 字 / `modules` 3～5 条 / `titleDraft` / `assumptions` / 交接字段等），再 `write_file` → `plan/artifact.json`（相对 run 根，**仅**策划 artifact）。可用 `read_file` 自检。
 
-5. **构造视图实体（策划）。** 按同一事实拼出策划 **view**：`blocks` **只含 1 个** `markdown`（小标题 `## 成交方向` / `## 主图分镜`（有序列表= `frames`）/ `## 标题草稿` / `## 详情大纲`（= `modules`）/ 可选 `## 假设`）。**不要**多块 `note`/`list`/`media`/`section`，**不要**「详情标题/正文/展示说明」三 section。再 `write_file` → `plan/view.json`（**仅**策划 view）。可用 `read_file` 自检。
+5. **构造视图实体（策划）。** 按同一事实拼出策划 **view**（v2 HTML：`content` 含 `<h2>成交方向` / `主图分镜` / `标题草稿` / `详情大纲` / 可选 `假设`）。**不要** hero 占位图、详情三件套、生图 Prompt。再 `write_file` → `plan/view.json`（**仅**策划 view）。可用 `read_file` 自检。
 
 6. **拼出策划终态并指针。** `write_file` 合并为 `plan/final.json`（`view`←`plan/view.json`，`artifact`←`plan/artifact.json`）。支持的合并是 `write_file`；勿依赖 `python3`。对话**仅**输出 `{"output":"plan/final.json"}`（无围栏、无整包 JSON）。过下方「策划」Verification 再发。
 
@@ -73,7 +73,7 @@ metadata:
    - `heroPlan`：首图画面任务 + 短卖点。  
    再 `write_file` → `exec/artifact.json`（**仅**执行 artifact）。见 [output.md](references/output.md) §执行。
 
-9. **构造视图实体（执行）。** 拼出执行 **view**：hero `media`（对齐 `heroPlan`）+ 分镜 `list` + 三 `section`（详情标题/正文/展示说明）+ **一条** `section`「生图 Prompt」（有序列表写出与 `framePrompts` 逐条对应的完整 `prompt`，可附 `negative:`；勿只写「共 N 条、详见 artifact」）。再 `write_file` → `exec/view.json`（**仅**执行 view）。
+9. **构造视图实体（执行）。** 拼出执行 **view**（v2 HTML：`content` 含 hero 占位 `<img data-adam-media-role="hero" …>`、`heroPlan` 摘要、`<h2>主图分镜` 等与 `frames` / `framePrompts` 对齐的段落，以及详情三件套 + 「生图 Prompt」有序列表）。再 `write_file` → `exec/view.json`（**仅**执行 view）。
 
 10. **拼出执行终态并指针。** `write_file` 合并为 `exec/final.json`。过下方「执行」Verification 后，对话**仅**输出 `{"output":"exec/final.json"}`。**禁止**输出 `platformCopies` / `preferredPlatform`。
 
@@ -100,13 +100,14 @@ metadata:
 
 ### 策划指针前（`plan/final.json`）
 
-- [ ] `view.version` = `1`；`view.title` / `artifact.title` 为同一中文标题
+- [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.title` / `artifact.title` 为同一中文标题
 - [ ] `artifact.templateId` = `domestic-generic-default`
 - [ ] `driver`、`titleDraft` 非空；`driver` 含场景/受众，非空泛品质套话
 - [ ] `frames`、`modules` 各 3～5 条非空短句；`frames` 无同义重复机位
 - [ ] 若输入含「来源选品条目」或「原链」→ `picklistItemId` 非空且与输入一致；`assumptions` 含原链或交接摘要
-- [ ] 策划 `view.blocks` **恰好 1 个** `markdown`；**无**三详情 section；**无** `framePrompts` / 上架四字段
-- [ ] Markdown 与 `artifact` 短字段同一事实
+- [ ] 策划 `view.content` HTML 含成交方向 / 主图分镜 / 标题草稿 / 详情大纲；**无** hero 占位；**无** `framePrompts` / 上架四字段
+- [ ] HTML 与 `artifact` 短字段同一事实
+- [ ] **未** 输出 v1 `blocks` JSON 视图
 - [ ] 已写 `plan/artifact.json`、`plan/view.json`，且已写出 **`plan/final.json`**
 - [ ] 对话**仅** `{"output":"plan/final.json"}`；发指针后**必须** `ask_human`（未确认前禁止执行稿）
 - [ ] 未编造 BSR / 销量 / 资质；未宣称违禁功效
@@ -117,7 +118,8 @@ metadata:
 - [ ] `framePrompts.length` = `frames.length`；每条 `prompt` 非空；非空壳「8k/杰作/最佳质量」
 - [ ] `detailTitle` 含品类 + 卖点词；`detailBody` 像真实详情短段，无连续 ≥2 问句开场
 - [ ] `heroPlan` 写清首图画面任务 + 短卖点
-- [ ] 执行 `view` 含 hero `media` + 三详情 `section` + Prompt 摘要 `section`
+- [ ] 执行 `view.version` = **`2`**；`view.format` = **`html`**；`content` 含 `data-adam-media-role="hero"` 占位图 + 主图分镜 / 详情三件套 / 生图 Prompt 标题段
+- [ ] **未** 输出 v1 `blocks` JSON 视图
 - [ ] `mediaObjectIds` 可 `[]`（系统挂载后 settle 前须有真实 id）
 - [ ] **不要** `platformCopies`
 - [ ] 已写 `exec/artifact.json`、`exec/view.json`，且已写出 **`exec/final.json`**

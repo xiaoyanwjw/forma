@@ -43,8 +43,8 @@ metadata:
 
 | 规则 | 说明 |
 |------|------|
-| 同一事实 | 各阶段 `view` 与 `artifact` 同一商品事实 |
-| 主图 | 策划：写进 Markdown「主图分镜」列表（与 `frames` 一致）；执行：业务真相为系统挂载后的 `mediaObjectId`，须写清 `heroPlan` |
+| 同一事实 | 各阶段 `view.content` HTML 与 `artifact` 短字段一致 |
+| 主图 | 策划：HTML「主图分镜」有序列表（与 `frames` 一致）；执行：`heroPlan` 写入正文 + **占位 hero 图**（见执行 view） |
 | 风格底 | `templateId` 固定 `domestic-generic-default`（补充需求**不可**改） |
 | 口吻 | 国内电商成交文案；策划偏分镜与大纲，执行偏可搜索标题与商详卖点 |
 | 假设 | 信息不足时写 `assumptions`；有交接时写入原链与条目 id 摘要 |
@@ -75,22 +75,24 @@ metadata:
 
 | 字段 | 要求 |
 |------|------|
-| `version` | `1` |
+| `version` | **`2`** |
 | `title` | 给人看的中文标题 |
-| `status` | 可选；可写 `draft` 或 `ready` |
-| `blocks` | **恰好 1 个** `{ "type": "markdown", "text": "…" }` |
+| `format` | **`html`** |
+| `content` | 完整 HTML；根节点建议 `<article class="markdown-body">` |
 
-Markdown `text` 固定小标题（与 `artifact` 同一事实）：
+HTML 固定小节（与 `artifact` 同一事实）：
 
 | 小节 | 内容 |
 |------|------|
-| `## 成交方向` | = `driver` |
-| `## 主图分镜` | 有序列表 = `frames` |
-| `## 标题草稿` | = `titleDraft` |
-| `## 详情大纲` | 有序列表 = `modules` |
-| `## 假设` | 可选 = `assumptions` |
+| `<h2>成交方向</h2>` | = `driver` |
+| `<h2>主图分镜</h2>` | `<ol>` = `frames` |
+| `<h2>标题草稿</h2>` | = `titleDraft` |
+| `<h2>详情大纲</h2>` | `<ol>` = `modules` |
+| `<h2>假设</h2>` | 可选 = `assumptions` |
 
-策划阶段**不要**再用多块 `note` / `list` / `media` / `section` 拼盘。
+策划阶段**不要** hero 占位图、详情三件套、生图 Prompt 段。
+
+**禁止** v1 `blocks` / storyboard JSON 视图。
 
 ## 执行 artifact（领域）
 
@@ -106,21 +108,36 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 | `assumptions` | 可选 |
 | `picklistItemId` | 有交接时必填且与策划一致 |
 
-不要把 `blocks` 写进 `artifact`。
+不要把 `blocks` / `format` / `content` 写进 `artifact`。
 
 ## 执行 view（视图）
 
 写入 **`exec/view.json` 根对象**。
 
-| 字段 | block |
-|------|--------|
-| `heroPlan` | `media` hero（+ 可选 `mediaObjectId`） |
-| `frames` | `list` 分镜 |
-| `detailTitle` | `section`「详情标题」 |
-| `detailBody` | `section`「详情正文」 |
-| `displayNotes` | `section`「展示说明」，`tone: mute` |
-| `framePrompts` | **一条** `section`「生图 Prompt」：`body` 有序列表与 `frames` / `artifact.framePrompts` 等长（可附 negative）。界面把 Prompt **并入「主图分镜」**：第 i 条分镜标题下跟第 i 条 prompt |
-| `driver` | 可选 `note` |
+| 字段 | 要求 |
+|------|------|
+| `version` | **`2`** |
+| `title` | 给人看的中文标题 |
+| `format` | **`html`** |
+| `content` | 完整 HTML 文档（分镜与文案均以 **标题 + 段落/列表** 表达，不再用 blocks 拼装） |
+
+HTML 结构建议（与 `artifact` 同一事实）：
+
+1. `<h1>` = 标题  
+2. **主图占位**（结算前由系统 patch `src`）：  
+   `<img data-adam-media-role="hero" alt="主图占位" src="">`  
+   可选紧跟一句 `heroPlan` 摘要  
+3. `<h2>主图分镜</h2>` — `<ol>` 与 `frames` 等长；第 i 条分镜下可跟第 i 条 prompt 摘要（与 `framePrompts[i]` 对齐）  
+4. `<h2>详情标题</h2>` — `detailTitle`  
+5. `<h2>详情正文</h2>` — `detailBody`（可 `<p>` 分段）  
+6. `<h2>展示说明</h2>` — `displayNotes`（可用 `class="cv-note"` 弱化）  
+7. `<h2>生图 Prompt</h2>` — 有序列表，与 `framePrompts` 逐条对应（含 `negative` 时写在同条下方）
+
+**禁止** v1 `blocks` / `media` block / `list` block JSON 视图。
+
+### HTML 与转义
+
+- 写入真实 `view.json` 时，`content` 是 JSON 字符串；属性内双引号用 `&quot;` 等实体转义。
 
 ## 策划示例
 
@@ -153,15 +170,10 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "title": "Mac Mini 拓展坞 · 策划分镜",
-  "status": "draft",
-  "blocks": [
-    {
-      "type": "markdown",
-      "text": "## 成交方向\n居家办公把 Mini 接到显示器：接口不够 + 线要藏。\n\n## 主图分镜\n1. 首图：桌面前后对比 + 「线藏住了」角标\n2. 图2：HDMI / USB / 网口特写\n3. 图3：机身下走线隐藏\n\n## 标题草稿\nMac Mini 拓展坞 多口扩展 走线隐藏\n\n## 详情大纲\n1. Mini 接显示器总缺口？一块坞把口补齐\n2. 多口扩展 + 底部走线，桌面只留一套线\n3. 机身同宽，不额外占桌面\n\n## 假设\n交接 pl-1；原链 https://item.taobao.com/example-sku-1；参考 Mac Mini 扩展 / 接口不够 / 居家办公。"
-    }
-  ]
+  "format": "html",
+  "content": "<article class=\"markdown-body\"><h1>Mac Mini 拓展坞 · 策划分镜</h1><h2>成交方向</h2><p>居家办公把 Mini 接到显示器：接口不够 + 线要藏。</p><h2>主图分镜</h2><ol><li>首图：桌面前后对比 + 「线藏住了」角标</li><li>图2：HDMI / USB / 网口特写</li><li>图3：机身下走线隐藏</li></ol><h2>标题草稿</h2><p>Mac Mini 拓展坞 多口扩展 走线隐藏</p><h2>详情大纲</h2><ol><li>Mini 接显示器总缺口？一块坞把口补齐</li><li>多口扩展 + 底部走线，桌面只留一套线</li><li>机身同宽，不额外占桌面</li></ol><h2>假设</h2><p>交接 pl-1；原链 https://item.taobao.com/example-sku-1；参考 Mac Mini 扩展 / 接口不够 / 居家办公。</p></article>"
 }
 ```
 
@@ -226,47 +238,10 @@ Markdown `text` 固定小标题（与 `artifact` 同一事实）：
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "title": "Mac Mini 拓展坞 · 上架素材",
-  "status": "ready",
-  "blocks": [
-    {
-      "type": "media",
-      "role": "hero",
-      "placeholder": "首图：线乱桌面 vs 坞藏线后；角标「线藏住了」。",
-      "alt": "主图方案"
-    },
-    {
-      "type": "list",
-      "ordered": true,
-      "items": [
-        { "title": "首图：桌面前后对比 + 「线藏住了」角标" },
-        { "title": "图2：HDMI / USB / 网口特写" },
-        { "title": "图3：机身下走线隐藏" }
-      ]
-    },
-    {
-      "type": "section",
-      "heading": "详情标题",
-      "body": "Mac Mini 拓展坞 多口扩展 走线隐藏 桌面不乱"
-    },
-    {
-      "type": "section",
-      "heading": "详情正文",
-      "body": "Mini 接显示器后接口不够、线乱，换成一块和机身差不多宽的拓展坞。\nHDMI、USB、网线从底座走，桌上只留电源和一根视频线。\n买前对一下自己的口，说明书里没有的认证不要写。"
-    },
-    {
-      "type": "section",
-      "heading": "展示说明",
-      "body": "主图顺序：①桌面前后对比 ②接口特写 ③底部走线。图内文案宜短。勿写官方原装或未提供的认证，勿编造带宽实测。",
-      "tone": "mute"
-    },
-    {
-      "type": "section",
-      "heading": "生图 Prompt",
-      "body": "1. Product photo, Mac Mini with matching-width USB-C hub dock under the chassis, clean desk, HDMI USB ethernet cables exiting the base, short Chinese text overlay 线藏住了, commercial e-commerce style, soft daylight\n   negative: cluttered props, watermark, Apple official logo claims\n2. Close-up of Mac Mini dock ports HDMI USB ethernet, hand inserting a USB drive, desk background blur, e-commerce detail shot\n   negative: blurry, distorted text\n3. Cable routing through Mac Mini dock underside, hidden wiring, clean home office desk, e-commerce lifestyle photo\n   negative: messy cables covering the product, unrelated products"
-    }
-  ]
+  "format": "html",
+  "content": "<article class=\"markdown-body\"><h1>Mac Mini 拓展坞 · 上架素材</h1><p><img data-adam-media-role=\"hero\" alt=\"主图占位\" src=\"\"></p><p>首图：线乱桌面 vs 坞藏线后；角标「线藏住了」。续图：接口特写 / 底部走线。</p><h2>主图分镜</h2><ol><li><p>首图：桌面前后对比 + 「线藏住了」角标</p><p><code>Product photo, Mac Mini with matching-width USB-C hub dock…</code></p></li><li><p>图2：HDMI / USB / 网口特写</p></li><li><p>图3：机身下走线隐藏</p></li></ol><h2>详情标题</h2><p>Mac Mini 拓展坞 多口扩展 走线隐藏 桌面不乱</p><h2>详情正文</h2><p>Mini 接显示器后接口不够、线乱，换成一块和机身差不多宽的拓展坞。</p><p>HDMI、USB、网线从底座走，桌上只留电源和一根视频线。</p><p>买前对一下自己的口，说明书里没有的认证不要写。</p><h2>展示说明</h2><p class=\"cv-note\">主图顺序：①桌面前后对比 ②接口特写 ③底部走线。图内文案宜短。勿写官方原装或未提供的认证，勿编造带宽实测。</p><h2>生图 Prompt</h2><ol><li><p>Product photo, Mac Mini with matching-width USB-C hub dock under the chassis, clean desk, HDMI USB ethernet cables exiting the base, short Chinese text overlay 线藏住了, commercial e-commerce style, soft daylight</p><p>negative: cluttered props, watermark, Apple official logo claims</p></li><li><p>Close-up of Mac Mini dock ports HDMI USB ethernet, hand inserting a USB drive, desk background blur, e-commerce detail shot</p><p>negative: blurry, distorted text</p></li><li><p>Cable routing through Mac Mini dock underside, hidden wiring, clean home office desk, e-commerce lifestyle photo</p><p>negative: messy cables covering the product, unrelated products</p></li></ol></article>"
 }
 ```
 

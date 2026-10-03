@@ -34,7 +34,7 @@ metadata:
 
 4. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**，再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
 
-5. **构造视图实体。** 上拆解要点、下骨架+改写。再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
+5. **构造视图实体。** 上拆解要点、下骨架+改写；文末含「按骨架写笔记」手递按钮（`data-adam-skill-id="xhs-note"`，prompt 合同见 output）。再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
 
 6. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`。支持的合并是 `write_file`；勿依赖 `python3`。
 
@@ -70,7 +70,7 @@ metadata:
 
 - `source` = `apify` 或 `paste`（不要用别的枚举）
 - 无原文不发指针
-- `view.version` = `1`；上拆解、下骨架+改写
+- `view.version` = **`2`**；`view.format` = **`html`**；上拆解、下骨架+改写 + 手递按钮
 - 成功路径除指针外无闲聊（失败路径只人话）
 
 ## Verification
@@ -84,8 +84,10 @@ metadata:
 - [ ] 已写 `artifact.json`、`view.json`，且已用 `write_file` 写出 **`final.json`**
 - [ ] 终稿对话**仅** `{"output":"final.json"}`
 - [ ] `structure` / `skeleton` / `rewrite` 均非空，且拆解可对照原文
-- [ ] `view` 上为拆解要点、下为骨架+改写
-- [ ] `view.version` = `1`；`view.title` / `artifact.title` 为同一中文标题
+- [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.content` 上为拆解要点、下为骨架+改写
+- [ ] 文末含手递按钮：标签「按骨架写笔记」，`data-adam-skill-id="xhs-note"`，`data-adam-prompt` 符合 output 合同
+- [ ] `view.title` / `artifact.title` 为同一中文标题
+- [ ] **未** 输出 v1 `blocks` JSON 视图
 - [ ] 成功路径除指针外无闲聊
 
 ## Failures

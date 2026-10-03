@@ -47,7 +47,7 @@ metadata:
 
 4. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**（`titleOptions` 3–5、`body`、`tags` 5–10、`imageHints` 3–5、交接字段等），再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
 
-5. **构造视图实体。** 按同一事实拼出完整 **view**：标题备选 + 正文 + 标签 + 配图提示（`markdown` 或 `section`）。再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
+5. **构造视图实体。** 按同一事实拼出完整 **view**（v2：`format: markdown` + `content` 含固定小标题段）。再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
 
 6. **拼出终态文件。** 用 `write_file` 把 view 与 artifact 合并写入 `final.json`。支持的合并是 `write_file`；勿依赖 `python3`。
 
@@ -73,7 +73,7 @@ metadata:
 
 - 有选题交接时 `artifact.topicItemId` 必填且与输入 `tp-n` 一致
 - `titleOptions` **3–5**；`tags` **5–10**；`imageHints` **3–5**
-- `view.version` = `1`；`view.title` 与 `artifact.title` 同一中文标题
+- `view.version` = **`2`**；`view.format` = **`markdown`**；`view.title` 与 `artifact.title` 同一中文标题
 - 成功路径除指针外无闲聊
 
 ## Verification
@@ -87,8 +87,9 @@ metadata:
 - [ ] `titleOptions` 为 3–5 条互不重复的可发标题
 - [ ] `body` 非空，真人分享感，未编造未提供功效/数据
 - [ ] `tags` 5–10；`imageHints` 3–5 且可执行
-- [ ] `view` 可见标题备选 + 正文 + 标签 + 配图提示
-- [ ] `view.version` = `1`；`view.title` / `artifact.title` 为同一中文标题
+- [ ] `view.version` = **`2`**；`view.format` = **`markdown`**；`view.content` 可见标题备选 + 正文 + 标签 + 配图提示
+- [ ] `view.title` / `artifact.title` 为同一中文标题
+- [ ] **未** 输出 v1 `blocks` JSON 视图
 - [ ] 成功路径除指针外无闲聊；失败路径无人话以外的假 JSON
 
 ## Failures

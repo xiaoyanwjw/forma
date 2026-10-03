@@ -27,7 +27,7 @@ metadata:
 2. **只调用 `search_xhs_note` 一次。** 扩词、合法校验与模型重排在服务端完成；你只发这一遍。禁止并行、禁止换词连搜。禁止在 skill 内再做检索式筛选或二次重排。
 3. **从返回候选写清单，或走 fallback。**
    - **工具成功且有 hits：** `artifact.source` = `apify`。在候选中选出 **8–12** 条写入 view/artifact，并写质量字段（见 Quality）。有 hits 时勿臆造工具未返回的笔记。`sourceNoteUrl` 仅允许来自该次工具 hits 的 `noteUrl`（绝对 `https:`）。
-   - **工具失败 / 空 hits：** 仍须产出 **8–12** 条合格选题；`artifact.source` = `model_fallback`；**禁止**编造笔记链接（不要写 `sourceNoteUrl`，list 不要写 `href`）。
+   - **工具失败 / 空 hits：** 仍须产出 **8–12** 条合格选题；`artifact.source` = `model_fallback`；**禁止**编造笔记链接（不要写 `sourceNoteUrl`，HTML 正文不要写假链）。
 4. **分配 id。** 按最终清单顺序为每条赋 `tp-1`…`tp-n`；后续领域实体与视图实体的 `id` **同序同值**。
 5. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**，再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
 6. **构造视图实体。** 按同一批 `tp-n` 与顺序拼出完整 **view**（v2：`format: html` + `content` 含免责声明、有序列表与「写成笔记」手递按钮），再 `write_file` → `view.json`（相对 run 根，**仅** view 对象）。可用 `read_file` 自检。
