@@ -2,13 +2,13 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
+https://github.com/user-attachments/assets/cc93e364-aab7-44cf-a837-154b0f841f07
+
 **Forma** is a personal assistant: it turns skills from daily work into jobs an agent can finish. A kind of job is a **scene**; how that job is done is a **Skill**. Pick a scene, run the agent, review the shaped result in Computer.
 
 ```text
 Daily skills → Scene / Skill → Agent → usable result in Computer
 ```
-
-The browser never talks to the model directly. Model calls go through backend **Pi** (`pi-ai` / `pi-agent`); business tools and scene resources live in `forma-pi-extension`. First scenes: e-commerce listing and Xiaohongshu seeding.
 
 ## Why
 
