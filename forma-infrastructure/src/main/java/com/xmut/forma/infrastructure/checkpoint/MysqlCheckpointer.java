@@ -2,9 +2,9 @@ package com.xmut.forma.infrastructure.checkpoint;
 
 import com.xmut.forma.infrastructure.persistence.mybatis.mapper.PiGraphCheckpointMapper;
 import com.xmut.forma.infrastructure.persistence.mybatis.po.PiGraphCheckpointPO;
-import com.xmut.lims.pi.agent.graph.checkpoint.Checkpoint;
-import com.xmut.lims.pi.agent.graph.checkpoint.CheckpointCodec;
-import com.xmut.lims.pi.agent.graph.checkpoint.Checkpointer;
+import com.xmut.forma.pi.agent.graph.checkpoint.Checkpoint;
+import com.xmut.forma.pi.agent.graph.checkpoint.CheckpointCodec;
+import com.xmut.forma.pi.agent.graph.checkpoint.Checkpointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;

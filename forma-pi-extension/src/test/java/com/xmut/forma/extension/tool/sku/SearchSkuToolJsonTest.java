@@ -1,7 +1,7 @@
 package com.xmut.forma.extension.tool.sku;
 
-import com.xmut.lims.pi.agent.tool.ToolDefinition;
-import com.xmut.lims.pi.agent.tool.ToolDefinitionJsonLoader;
+import com.xmut.forma.pi.agent.tool.ToolDefinition;
+import com.xmut.forma.pi.agent.tool.ToolDefinitionJsonLoader;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;

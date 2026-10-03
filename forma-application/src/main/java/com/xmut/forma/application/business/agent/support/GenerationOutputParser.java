@@ -3,7 +3,7 @@ package com.xmut.forma.application.business.agent.support;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xmut.lims.pi.agent.tool.base.LocalFileSupport;
+import com.xmut.forma.pi.agent.tool.base.LocalFileSupport;
 import com.xmut.forma.common.util.StringUtils;
 import org.springframework.stereotype.Component;
 

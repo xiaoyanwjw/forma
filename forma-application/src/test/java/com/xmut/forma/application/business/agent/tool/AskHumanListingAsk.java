@@ -3,8 +3,8 @@ package com.xmut.forma.application.business.agent.tool;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.xmut.lims.pi.agent.tool.base.AskHumanToolHandler;
-import com.xmut.lims.pi.ai.tool.ToolCallEntry;
+import com.xmut.forma.pi.agent.tool.base.AskHumanToolHandler;
+import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 
 /** Shared ask_human fixture for ebus tests after the handler moved to pi-agent. */
 public final class AskHumanListingAsk {

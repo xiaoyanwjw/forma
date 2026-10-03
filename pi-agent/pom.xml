@@ -6,25 +6,25 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.lippi</groupId>
+        <groupId>com.xmut.forma</groupId>
         <artifactId>forma</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pi-agent</artifactId>
     <packaging>jar</packaging>
-    <name>Adam Pi Agent</name>
+    <name>Forma Pi Agent</name>
     <description>
-        Pi Runtime vendor-copy：对外唯一 AgentSession 门面。自 LIMS pi-agent 全量拷贝。
+        对外唯一 AgentSession 门面。
     </description>
 
     <dependencies>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>forma-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>pi-ai</artifactId>
         </dependency>
         <dependency>

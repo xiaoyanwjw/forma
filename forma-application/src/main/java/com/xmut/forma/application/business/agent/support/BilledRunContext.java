@@ -1,8 +1,8 @@
 package com.xmut.forma.application.business.agent.support;
 
 import com.xmut.forma.application.business.agent.dto.GenerationRunContext;
-import com.xmut.lims.pi.ai.message.Message;
-import com.xmut.lims.pi.agent.session.TurnResult;
+import com.xmut.forma.pi.ai.message.Message;
+import com.xmut.forma.pi.agent.session.TurnResult;
 
 import java.util.Collections;
 import java.util.List;

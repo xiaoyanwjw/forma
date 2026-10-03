@@ -6,18 +6,18 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.lippi</groupId>
+        <groupId>com.xmut.forma</groupId>
         <artifactId>forma</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>forma-domain</artifactId>
     <packaging>jar</packaging>
-    <name>Adam Domain</name>
+    <name>Forma Domain</name>
 
     <dependencies>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>forma-common</artifactId>
         </dependency>
         <dependency>

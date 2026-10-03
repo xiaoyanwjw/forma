@@ -1,6 +1,6 @@
 package com.xmut.forma.application.business.scene.pack;
 
-import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.forma.pi.agent.skill.Skill;
 
 import java.util.ArrayList;
 import java.util.Collections;

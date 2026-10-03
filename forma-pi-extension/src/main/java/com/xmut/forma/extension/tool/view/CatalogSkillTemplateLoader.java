@@ -1,8 +1,8 @@
 package com.xmut.forma.extension.tool.view;
 
-import com.xmut.lims.pi.agent.skill.Skill;
-import com.xmut.lims.pi.agent.skill.SkillCatalog;
-import com.xmut.lims.pi.agent.skill.SkillPromptBodyLoader;
+import com.xmut.forma.pi.agent.skill.Skill;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
+import com.xmut.forma.pi.agent.skill.SkillPromptBodyLoader;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;

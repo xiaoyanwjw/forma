@@ -1,6 +1,6 @@
 package com.xmut.forma.extension.config;
 
-import com.xmut.lims.pi.ai.model.ModelCatalog;
+import com.xmut.forma.pi.ai.model.ModelCatalog;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

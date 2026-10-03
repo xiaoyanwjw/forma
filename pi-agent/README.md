@@ -1,16 +1,16 @@
-# lippi-ai-lims-pi-agent
+# pi-agent
 
-LIMS **Pi Agent** Maven 模块：应用层新 AI 助手用例的**唯一**编排入口（对齐 pi-mono 的 agent 层）。
+Forma **Pi Agent**：业务侧唯一编排入口（对齐 pi-mono 的 agent 层）。
 
 ## 模块分层（对齐 pi-mono）
 
 | Maven artifact | 包根 | 职责 |
 | --- | --- | --- |
-| `lippi-ai-lims-pi-ai` | `com.xmut.lims.pi.ai.*` | Message / ModelProvider / ToolCall 协议类型 |
-| **`lippi-ai-lims-pi-agent`**（本模块） | `com.xmut.lims.pi.agent.*` | AgentSession、Agent、StateGraph、Tool/Skill/Event |
-| `lippi-ai-lims-pi-cli` | `com.xmut.lims.pi.cli.*` | 开发者 REPL；只依赖 agent |
+| `pi-ai` | `com.xmut.forma.pi.ai.*` | Message / ModelProvider / ToolCall 协议类型 |
+| **`pi-agent`**（本模块） | `com.xmut.forma.pi.agent.*` | AgentSession、Agent、StateGraph、Tool/Skill/Event |
+| `pi-cli` | `com.xmut.forma.pi.cli.*` | 开发者 REPL；只依赖 agent |
 
-依赖方向：`cli → agent → ai`（`ai` 禁止依赖 `agent`）。业务方依赖 **`lippi-ai-lims-pi-agent`** 即可（传递引入 `pi-ai`）。
+依赖方向：`cli → agent → ai`（`ai` 禁止依赖 `agent`）。业务方依赖 **`pi-agent`** 即可（传递引入 `pi-ai`）。
 
 ## 对齐目标（Story 51-12）
 
@@ -35,7 +35,7 @@ RUNTIME   DefaultAgent → StateGraph（agent ⇄ tools）；Node 只 Emitter.em
 | --- | --- | --- |
 | AgentSession | subscribe / prompt / resume / cancel；订 Session；持有 PiEventBus | 拼 Prompt、选模型、直连 HTTP |
 | Agent + PromptBuilder | 三段 system、模型/工具编排 | 对外门面 |
-| SessionStore | 会话投影 / append transcript（**Adam 生产默认** ebus-infrastructure `MysqlSessionStore` `@Primary`；本模块 MissingBean 过渡仍为 **InMemorySessionStore**；Sqlite 仅显式 `sqlite-path`） | 静默落 `{cwd}/.lippi-pi/state.db`；与 `pi:checkpoint:` 混存 |
+| SessionStore | 会话投影 / append transcript（生产默认 forma-infrastructure `MysqlSessionStore` `@Primary`；本模块 MissingBean 过渡仍为 **InMemorySessionStore**；Sqlite 仅显式 `sqlite-path`） | 静默落 `{cwd}/.lippi-pi/state.db`；与 `pi:checkpoint:` 混存 |
 | StateGraph [Lippi] | 可取消超步 / HITL interrupt | 认知决策 |
 
 ### 命名速查
@@ -43,7 +43,7 @@ RUNTIME   DefaultAgent → StateGraph（agent ⇄ tools）；Node 只 Emitter.em
 | 概念 | 本仓库 |
 | --- | --- |
 | 产品门面 | **`AgentSession`**（唯一对外） |
-| Runtime Agent | `com.xmut.lims.pi.agent.Agent`（内部；**不**注册业务 Bean） |
+| Runtime Agent | `com.xmut.forma.pi.agent.Agent`（内部；**不**注册业务 Bean） |
 | `prompt` | `AgentSession.prompt` → 驱动一轮 → `TurnResult`（过程只 `emit`） |
 | `subscribe` | `AgentSession.subscribe(Consumer<PiEvent>)` → bus `observe`；长驻；CLI 打印 `MESSAGE_UPDATE` |
 | `PiEventBus` | Session 持有；`observe` 只读 / `on` 同步归约 / `emit` 唯一出口 |
@@ -55,7 +55,7 @@ RUNTIME   DefaultAgent → StateGraph（agent ⇄ tools）；Node 只 Emitter.em
 ## 唯一门面
 
 ```text
-com.xmut.lims.pi.agent.session.AgentSession
+com.xmut.forma.pi.agent.session.AgentSession
 ```
 
 | 方法 | 用途 | 标签 |
@@ -253,7 +253,7 @@ ModelResponse response = modelProvider.complete(ModelRequest.builder()
 
 ## L3 SkillCatalog（Story 51-9 / 3-2b）✅
 
-官方 [Pi Agent Skills](https://pi.dev/docs/latest/skills) 形态：目录 + `SKILL.md` frontmatter。包：`com.xmut.lims.pi.agent.skill`。
+官方 [Pi Agent Skills](https://pi.dev/docs/latest/skills) 形态：目录 + `SKILL.md` frontmatter。包：`com.xmut.forma.pi.agent.skill`。
 
 | 类型 | 说明 |
 | ---- | ---- |
@@ -309,12 +309,12 @@ Adam 电商示例：`ecommerce-picklist` / `ecommerce-skulist`（连字符 id）
 
 | 模块                       | 职责                                        |
 | -------------------------- | ------------------------------------------- |
-| **`lippi-ai-lims-pi-agent`** | **Pi Runtime**（AgentSession + StateGraph） |
-| `lippi-ai-lims-pi-ai`      | 模型端口 + DashScope / DeepSeek HTTP |
+| **`pi-agent`** | **Pi Runtime**（AgentSession + StateGraph） |
+| `pi-ai`      | 模型端口 + DashScope / DeepSeek HTTP |
 
 ## 包根
 
-`com.xmut.lims.pi`
+`com.xmut.forma.pi`
 
 - `session.AgentSession` / `DefaultAgentSession` / `PromptRequest` / `TurnResult` / `Session` / `SessionStore`
 - `event.PiEventBus` / `PiEvent` / `PiEventType` / `Emitter`（Session 持有 bus；Agent/Node 只 `emit`）
@@ -352,7 +352,7 @@ Adam 电商示例：`ecommerce-picklist` / `ecommerce-skulist`（连字符 id）
 
 ## 模块边界
 
-- **依赖**：仅 `lippi-ai-lims-common`（+ Spring / Jackson 等）
+- **依赖**：仅 `forma-common`（+ Spring / Jackson 等）
 - **禁止**：domain 禁 pi 编排 import
 - **禁止**：Session 与 Checkpoint 共用 `pi:checkpoint:`
 - **禁止**：新类型名 `PromptAssembler`；拆掉 Stable/Context/Volatile
@@ -367,7 +367,7 @@ Adam 电商示例：`ecommerce-picklist` / `ecommerce-skulist`（连字符 id）
 | **51-12** | M0/M1 | Pi 更名 + `AgentSession` 骨架 ✅ |
 | **51-13** | M2 | 去 load_memory；Policy→`tool_call` Extension hook ✅ |
 | **51-14** | M3 | ResourceLoader + prompts/ + ExtensionRunner ✅ |
-| **51-15** | CLI | 独立模块 `lippi-ai-lims-pi-cli` 开发者 REPL（无 `-p`；真模型 fail-fast）✅ |
+| **51-15** | CLI | 独立模块 `pi-cli` 开发者 REPL（无 `-p`；真模型 fail-fast）✅ |
 | **51-16** | M4 | SessionStore hydrate：`getOrCreate`/`load`/`appendMessages`；prompt 前强制 load；InMemory 同语义 ✅ |
 | **51-17** | M4 | SqliteSessionStore（显式 path opt-in；**非**生产默认；Adam 生产 MySQL → Story 2.7 ✅）✅ |
 | 51-10 | L2 | lims.nav + SkillRouter（仍后续） |

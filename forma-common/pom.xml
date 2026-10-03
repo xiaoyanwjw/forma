@@ -6,14 +6,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.lippi</groupId>
+        <groupId>com.xmut.forma</groupId>
         <artifactId>forma</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>forma-common</artifactId>
     <packaging>jar</packaging>
-    <name>Adam Common</name>
+    <name>Forma Common</name>
 
     <dependencies>
         <dependency>

@@ -1,9 +1,9 @@
 package com.example;
 
-import com.xmut.lims.pi.agent.graph.node.ToolHandler;
-import com.xmut.lims.pi.agent.tool.ToolContext;
-import com.xmut.lims.pi.ai.tool.ToolCallEntry;
-import com.xmut.lims.pi.ai.tool.ToolResult;
+import com.xmut.forma.pi.agent.graph.node.ToolHandler;
+import com.xmut.forma.pi.agent.tool.ToolContext;
+import com.xmut.forma.pi.ai.tool.ToolCallEntry;
+import com.xmut.forma.pi.ai.tool.ToolResult;
 
 /**
  * 测试夹具：对应 {@code tools/fixture/demo_echo.tool.json} 的 handlerClass。

@@ -2,7 +2,7 @@
   "id": "ask_human",
   "description": "请用户确认或补充信息",
   "text": "[ask_human] 向用户提问并给出选项。禁止编造用户答复。",
-  "handlerClass": "com.xmut.lims.pi.agent.tool.base.AskHumanToolHandler",
+  "handlerClass": "com.xmut.forma.pi.agent.tool.base.AskHumanToolHandler",
   "schema": {
     "name": "ask_human",
     "description": "向用户发起带选项的结构化提问；调用后挂起直至 resume",

@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.xmut.lims.pi.ai.config.PiAiAutoConfiguration
+com.xmut.forma.pi.ai.config.PiAiAutoConfiguration

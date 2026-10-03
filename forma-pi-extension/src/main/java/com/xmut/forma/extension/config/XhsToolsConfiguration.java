@@ -14,7 +14,7 @@ import com.xmut.forma.extension.tool.xhs.port.XhsNoteSearchProperties;
 import com.xmut.forma.extension.tool.xhs.search.ModelXhsNoteReranker;
 import com.xmut.forma.extension.tool.xhs.search.XhsNoteReranker;
 import com.xmut.forma.extension.tool.xhs.search.XhsNoteSearcher;
-import com.xmut.lims.pi.ai.model.ModelProvider;
+import com.xmut.forma.pi.ai.model.ModelProvider;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;

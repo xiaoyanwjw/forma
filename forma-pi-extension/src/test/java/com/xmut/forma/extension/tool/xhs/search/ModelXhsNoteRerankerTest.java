@@ -1,9 +1,9 @@
 package com.xmut.forma.extension.tool.xhs.search;
 
 import com.xmut.forma.extension.tool.xhs.port.XhsNoteSearchProperties;
-import com.xmut.lims.pi.ai.model.ModelProvider;
-import com.xmut.lims.pi.ai.model.ModelRequest;
-import com.xmut.lims.pi.ai.model.ModelResponse;
+import com.xmut.forma.pi.ai.model.ModelProvider;
+import com.xmut.forma.pi.ai.model.ModelRequest;
+import com.xmut.forma.pi.ai.model.ModelResponse;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

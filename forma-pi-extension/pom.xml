@@ -6,23 +6,23 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.lippi</groupId>
+        <groupId>com.xmut.forma</groupId>
         <artifactId>forma</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>forma-pi-extension</artifactId>
     <packaging>jar</packaging>
-    <name>Adam Pi Extension</name>
+    <name>Forma Pi Extension</name>
     <description>Pi 业务扩展：SKU / XHS 等工具与技能（不依赖 application）</description>
 
     <dependencies>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>pi-agent</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>forma-common</artifactId>
         </dependency>
         <dependency>

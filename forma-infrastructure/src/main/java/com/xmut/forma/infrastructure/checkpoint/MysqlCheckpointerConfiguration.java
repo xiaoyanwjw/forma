@@ -1,8 +1,8 @@
 package com.xmut.forma.infrastructure.checkpoint;
 
 import com.xmut.forma.infrastructure.persistence.mybatis.mapper.PiGraphCheckpointMapper;
-import com.xmut.lims.pi.agent.config.PiCheckpointAutoConfiguration;
-import com.xmut.lims.pi.agent.graph.checkpoint.redis.RedisCheckpointer;
+import com.xmut.forma.pi.agent.config.PiCheckpointAutoConfiguration;
+import com.xmut.forma.pi.agent.graph.checkpoint.redis.RedisCheckpointer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;

@@ -6,26 +6,26 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.lippi</groupId>
+        <groupId>com.xmut.forma</groupId>
         <artifactId>forma</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>forma-interfaces</artifactId>
     <packaging>jar</packaging>
-    <name>Adam Interfaces</name>
+    <name>Forma Interfaces</name>
 
     <dependencies>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>forma-application</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>forma-infrastructure</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>forma-common</artifactId>
         </dependency>
         <dependency>

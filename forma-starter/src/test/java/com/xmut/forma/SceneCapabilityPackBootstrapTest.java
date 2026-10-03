@@ -1,10 +1,10 @@
 package com.xmut.forma;
 
 import com.xmut.forma.application.business.scene.pack.SceneCapabilityPackLoader;
-import com.xmut.lims.pi.agent.skill.InMemorySkillCatalog;
-import com.xmut.lims.pi.agent.skill.SkillCatalog;
-import com.xmut.lims.pi.agent.skill.SkillCatalogProperties;
-import com.xmut.lims.pi.agent.skill.Skills;
+import com.xmut.forma.pi.agent.skill.InMemorySkillCatalog;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
+import com.xmut.forma.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.forma.pi.agent.skill.Skills;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;

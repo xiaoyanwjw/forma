@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.xmut.lims.pi.ai.message.ContentPart;
-import com.xmut.lims.pi.ai.message.Message;
-import com.xmut.lims.pi.ai.tool.ToolCallEntry;
+import com.xmut.forma.pi.ai.message.ContentPart;
+import com.xmut.forma.pi.ai.message.Message;
+import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;

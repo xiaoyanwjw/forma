@@ -2,7 +2,7 @@ package com.xmut.forma.application.business.scene.pack;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xmut.forma.application.business.scene.dto.SceneSkillCapsuleItemDTO;
-import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.forma.pi.agent.skill.Skill;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.DefaultResourceLoader;
 

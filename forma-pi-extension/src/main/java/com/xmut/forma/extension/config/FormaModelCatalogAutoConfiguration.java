@@ -2,10 +2,10 @@ package com.xmut.forma.extension.config;
 
 import com.xmut.forma.extension.tool.sku.port.SkuSearchProperties;
 import com.xmut.forma.extension.tool.xhs.port.XhsNoteSearchProperties;
-import com.xmut.lims.pi.ai.model.InMemoryModelCatalog;
-import com.xmut.lims.pi.ai.model.ModelCatalog;
-import com.xmut.lims.pi.ai.model.ModelDescriptor;
-import com.xmut.lims.pi.ai.model.OverlayModelCatalog;
+import com.xmut.forma.pi.ai.model.InMemoryModelCatalog;
+import com.xmut.forma.pi.ai.model.ModelCatalog;
+import com.xmut.forma.pi.ai.model.ModelDescriptor;
+import com.xmut.forma.pi.ai.model.OverlayModelCatalog;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +15,7 @@ import org.springframework.util.StringUtils;
 /**
  * Adam {@link ModelCatalog} overlay for SKU / XHS rerank use cases.
  *
- * <p>Does not declare {@link com.xmut.lims.pi.agent.tool.ToolCatalog}; the unique catalog
+ * <p>Does not declare {@link com.xmut.forma.pi.agent.tool.ToolCatalog}; the unique catalog
  * comes from pi-agent {@code AgentConfiguration}.
  */
 @Configuration

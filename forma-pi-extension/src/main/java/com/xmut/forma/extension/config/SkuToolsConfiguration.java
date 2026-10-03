@@ -12,7 +12,7 @@ import com.xmut.forma.extension.tool.sku.search.ModelSkuReranker;
 import com.xmut.forma.extension.tool.sku.search.SkuReranker;
 import com.xmut.forma.extension.tool.sku.search.SkuSearcher;
 import com.xmut.forma.extension.common.ApifyOkHttpTransport;
-import com.xmut.lims.pi.ai.model.ModelProvider;
+import com.xmut.forma.pi.ai.model.ModelProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;

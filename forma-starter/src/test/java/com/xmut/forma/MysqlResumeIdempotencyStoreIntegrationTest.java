@@ -1,10 +1,10 @@
 package com.xmut.forma;
 
 import com.xmut.forma.infrastructure.checkpoint.MysqlResumeIdempotencyStore;
-import com.xmut.lims.pi.agent.ConversationResult;
-import com.xmut.lims.pi.agent.graph.checkpoint.InMemoryResumeIdempotencyStore;
-import com.xmut.lims.pi.agent.graph.checkpoint.ResumeIdempotencyStore;
-import com.xmut.lims.pi.agent.graph.checkpoint.redis.RedisResumeIdempotencyStore;
+import com.xmut.forma.pi.agent.ConversationResult;
+import com.xmut.forma.pi.agent.graph.checkpoint.InMemoryResumeIdempotencyStore;
+import com.xmut.forma.pi.agent.graph.checkpoint.ResumeIdempotencyStore;
+import com.xmut.forma.pi.agent.graph.checkpoint.redis.RedisResumeIdempotencyStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

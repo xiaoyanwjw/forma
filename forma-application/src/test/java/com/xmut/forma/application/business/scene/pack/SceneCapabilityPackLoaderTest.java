@@ -1,8 +1,8 @@
 package com.xmut.forma.application.business.scene.pack;
 
 import com.xmut.forma.common.exception.BusinessException;
-import com.xmut.lims.pi.agent.skill.SkillCatalog;
-import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
+import com.xmut.forma.pi.agent.skill.Skill;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;

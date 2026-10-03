@@ -4,7 +4,7 @@ import com.xmut.forma.extension.tool.view.CatalogSkillTemplateLoader;
 import com.xmut.forma.extension.tool.view.MustacheViewRenderer;
 import com.xmut.forma.extension.tool.view.RenderViewToolHandler;
 import com.xmut.forma.extension.tool.view.SkillTemplateLoader;
-import com.xmut.lims.pi.agent.skill.SkillCatalog;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ResourceLoader;

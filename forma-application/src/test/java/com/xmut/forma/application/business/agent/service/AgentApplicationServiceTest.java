@@ -27,17 +27,17 @@ import com.xmut.forma.domain.business.agent.repository.PiSessionSceneRepository;
 import com.xmut.forma.domain.business.scene.constant.SceneStatus;
 import com.xmut.forma.domain.business.scene.model.Scene;
 import com.xmut.forma.domain.business.scene.repository.SceneRepository;
-import com.xmut.lims.pi.agent.ResumeRequest;
-import com.xmut.lims.pi.agent.event.PiEvent;
-import com.xmut.lims.pi.agent.event.PiEventType;
-import com.xmut.lims.pi.agent.event.ToolSuspendPayload;
-import com.xmut.lims.pi.agent.graph.checkpoint.Checkpoint;
-import com.xmut.lims.pi.agent.graph.checkpoint.Checkpointer;
-import com.xmut.lims.pi.agent.session.AgentSession;
-import com.xmut.lims.pi.agent.session.PromptRequest;
-import com.xmut.lims.pi.agent.session.TurnResult;
-import com.xmut.lims.pi.agent.skill.Skill;
-import com.xmut.lims.pi.ai.tool.ToolResult;
+import com.xmut.forma.pi.agent.ResumeRequest;
+import com.xmut.forma.pi.agent.event.PiEvent;
+import com.xmut.forma.pi.agent.event.PiEventType;
+import com.xmut.forma.pi.agent.event.ToolSuspendPayload;
+import com.xmut.forma.pi.agent.graph.checkpoint.Checkpoint;
+import com.xmut.forma.pi.agent.graph.checkpoint.Checkpointer;
+import com.xmut.forma.pi.agent.session.AgentSession;
+import com.xmut.forma.pi.agent.session.PromptRequest;
+import com.xmut.forma.pi.agent.session.TurnResult;
+import com.xmut.forma.pi.agent.skill.Skill;
+import com.xmut.forma.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -440,7 +440,7 @@ class AgentApplicationServiceTest {
             Consumer<PiEvent> handler = subscriber.get();
             handler.accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, "hi"));
             return TurnResult.ok("run-1", "session-1", "hi",
-                    Collections.<com.xmut.lims.pi.ai.message.Message>emptyList());
+                    Collections.<com.xmut.forma.pi.ai.message.Message>emptyList());
         });
         when(generationRunRepository.findById("run-1")).thenReturn(Optional.of(
                 GenerationRun.start("run-1", USER_ID, HOLD_ID, "session-1",
@@ -479,7 +479,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-3", "session-3", "stub-final",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-3")).thenReturn(Optional.of(
                 GenerationRun.start("run-3", USER_ID, HOLD_ID, "session-3",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -523,7 +523,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-4", "session-4", "ok",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-4")).thenReturn(Optional.of(
                 GenerationRun.start("run-4", USER_ID, HOLD_ID, "session-4",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -554,7 +554,7 @@ class AgentApplicationServiceTest {
         when(agentSession.prompt(any(PromptRequest.class))).thenAnswer(invocation -> {
             subscriber.get().accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, "chunk"));
             return TurnResult.ok("run-5", "session-5", "ok",
-                    Collections.<com.xmut.lims.pi.ai.message.Message>emptyList());
+                    Collections.<com.xmut.forma.pi.ai.message.Message>emptyList());
         });
         when(generationRunRepository.findById("run-5")).thenReturn(Optional.of(
                 GenerationRun.start("run-5", USER_ID, HOLD_ID, "session-5",
@@ -690,7 +690,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-ns-ok", "session-ns-ok", "  这是一段草稿回复  ",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-ns-ok")).thenReturn(Optional.of(
                 GenerationRun.start("run-ns-ok", USER_ID, HOLD_ID, "session-ns-ok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -741,7 +741,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-ns-noview", "session-ns-noview", "草稿",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-ns-noview")).thenReturn(Optional.of(
                 GenerationRun.start("run-ns-noview", USER_ID, HOLD_ID, "session-ns-noview",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -768,7 +768,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-ns-settle", "session-ns-settle", "草稿",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
                 .when(creditApplicationService).settle(USER_ID, HOLD_ID);
         when(generationRunRepository.findById("run-ns-settle")).thenReturn(Optional.of(
@@ -822,7 +822,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-pl-nosearch", "session-pl-nosearch", VALID_PICKLIST_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-pl-nosearch")).thenReturn(Optional.of(
                 GenerationRun.start("run-pl-nosearch", USER_ID, HOLD_ID, "session-pl-nosearch",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -846,7 +846,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-ws", "session-ws", VALID_PICKLIST_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-ws")).thenReturn(Optional.of(
                 GenerationRun.start("run-ws", USER_ID, HOLD_ID, "session-ws",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -867,7 +867,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-ws-dry", "session-ws-dry", "stub",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-ws-dry")).thenReturn(Optional.of(
                 GenerationRun.start("run-ws-dry", USER_ID, HOLD_ID, "session-ws-dry",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -898,7 +898,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.resume(any(ResumeRequest.class))).thenReturn(
                 TurnResult.ok("run-ws-resume", "session-ws-resume", VALID_LISTING_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(EXEC_HOLD_ID);
 
         service.resumeBilledRun(ResumeGenerationRunCommand.builder()
@@ -922,7 +922,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-ptr-miss", "session-ptr-miss", "{\"output\":\"missing.json\"}",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-ptr-miss")).thenReturn(Optional.of(
                 GenerationRun.start("run-ptr-miss", USER_ID, HOLD_ID, "session-ptr-miss",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -950,7 +950,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-ptr-ok", "session-ptr-ok", "{\"output\":\"final.json\"}",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-ptr-ok")).thenReturn(Optional.of(
                 GenerationRun.start("run-ptr-ok", USER_ID, HOLD_ID, "session-ptr-ok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -1205,7 +1205,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-empty-no-settle", "session-empty-no-settle", "stub",
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-empty-no-settle")).thenReturn(Optional.of(
                 GenerationRun.start("run-empty-no-settle", USER_ID, HOLD_ID, "session-empty-no-settle",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -1228,7 +1228,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-listing-ok", "session-listing-ok", VALID_LISTING_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-listing-ok")).thenReturn(Optional.of(
                 GenerationRun.start("run-listing-ok", USER_ID, HOLD_ID, "session-listing-ok",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -1254,7 +1254,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-listing-bad", "session-listing-bad", VALID_LISTING_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-listing-bad")).thenReturn(Optional.of(
                 GenerationRun.start("run-listing-bad", USER_ID, HOLD_ID, "session-listing-bad",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
@@ -1275,7 +1275,7 @@ class AgentApplicationServiceTest {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
                 TurnResult.ok("run-listing-settle", "session-listing-settle", VALID_LISTING_JSON,
-                        Collections.<com.xmut.lims.pi.ai.message.Message>emptyList()));
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
                 .when(creditApplicationService).settle(USER_ID, HOLD_ID);
         when(generationRunRepository.findById("run-listing-settle")).thenReturn(Optional.of(
@@ -1361,7 +1361,7 @@ class AgentApplicationServiceTest {
                     .sessionId("session-listing-chunks")
                     .status(TurnResult.Status.SUSPENDED)
                     .finalResponse(VALID_PLAN_JSON)
-                    .messages(Collections.<com.xmut.lims.pi.ai.message.Message>emptyList())
+                    .messages(Collections.<com.xmut.forma.pi.ai.message.Message>emptyList())
                     .build();
         });
 
@@ -1395,7 +1395,7 @@ class AgentApplicationServiceTest {
                     .sessionId("session-listing-final")
                     .status(TurnResult.Status.SUSPENDED)
                     .finalResponse(VALID_PLAN_JSON)
-                    .messages(Collections.<com.xmut.lims.pi.ai.message.Message>emptyList())
+                    .messages(Collections.<com.xmut.forma.pi.ai.message.Message>emptyList())
                     .build();
         });
 
@@ -1454,7 +1454,7 @@ class AgentApplicationServiceTest {
             assertEquals(ASK_CALL_ID, req.getToolCallId());
             assertTrue(req.getHumanInput().contains(ListingHitlOptions.CONFIRM_EXECUTE));
             return TurnResult.ok("run-listing-confirm", "session-listing-confirm", VALID_LISTING_JSON,
-                    Collections.<com.xmut.lims.pi.ai.message.Message>emptyList());
+                    Collections.<com.xmut.forma.pi.ai.message.Message>emptyList());
         });
 
         List<SseEvent> second = new ArrayList<SseEvent>();
@@ -1509,7 +1509,7 @@ class AgentApplicationServiceTest {
                     .sessionId("session-listing-supp")
                     .status(TurnResult.Status.SUSPENDED)
                     .finalResponse("suspended at node: tools")
-                    .messages(Collections.<com.xmut.lims.pi.ai.message.Message>emptyList())
+                    .messages(Collections.<com.xmut.forma.pi.ai.message.Message>emptyList())
                     .build();
         });
 
@@ -1552,7 +1552,7 @@ class AgentApplicationServiceTest {
                     .sessionId(sessionId)
                     .status(TurnResult.Status.SUSPENDED)
                     .finalResponse("suspended at node: tools")
-                    .messages(Collections.<com.xmut.lims.pi.ai.message.Message>emptyList())
+                    .messages(Collections.<com.xmut.forma.pi.ai.message.Message>emptyList())
                     .build();
         });
     }
@@ -1636,7 +1636,7 @@ class AgentApplicationServiceTest {
         when(agentSession.prompt(any(PromptRequest.class))).thenAnswer(invocation -> {
             subscriber.get().accept(PiEvent.of(PiEventType.TOOL_EXECUTION_END, toolEnd));
             return TurnResult.ok(runId, sessionId, finalText,
-                    Collections.<com.xmut.lims.pi.ai.message.Message>emptyList());
+                    Collections.<com.xmut.forma.pi.ai.message.Message>emptyList());
         });
     }
 

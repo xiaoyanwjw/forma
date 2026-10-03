@@ -16,7 +16,7 @@ import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import com.xmut.lims.pi.ai.message.Message;
+import com.xmut.forma.pi.ai.message.Message;
 
 import java.nio.file.Path;
 import java.time.Clock;

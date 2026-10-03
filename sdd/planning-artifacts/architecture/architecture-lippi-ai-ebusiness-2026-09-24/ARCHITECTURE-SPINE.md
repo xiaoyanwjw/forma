@@ -74,7 +74,7 @@ flowchart LR
 
 - **Binds:** AgentRuntime, model I/O
 - **Prevents:** 同时维护 TS Pi 与 Java Pi；或运行时 Maven 依赖 LIMS 发版
-- **Rule:** 将 LIMS 的 `lippi-ai-lims-pi-ai` / `lippi-ai-lims-pi-agent` **拷贝入本仓库**，目录与 artifact 命名为 **`pi-ai`** / **`pi-agent`**，并本地演进；v1 不依赖 LIMS 构件。所有模型调用经拷贝后的 `pi-ai` 端口；业务入口用 `AgentSession`，不把内部 `Agent` 类当对外 API。
+- **Rule:** 将 LIMS 的 `pi-ai` / `pi-agent` **拷贝入本仓库**，目录与 artifact 命名为 **`pi-ai`** / **`pi-agent`**，并本地演进；v1 不依赖 LIMS 构件。所有模型调用经拷贝后的 `pi-ai` 端口；业务入口用 `AgentSession`，不把内部 `Agent` 类当对外 API。
 
 ### AD-4 — 计费生成用 SSE [ADOPTED]
 

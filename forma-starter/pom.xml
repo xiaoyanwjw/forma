@@ -6,22 +6,22 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.lippi</groupId>
+        <groupId>com.xmut.forma</groupId>
         <artifactId>forma</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>forma-starter</artifactId>
     <packaging>jar</packaging>
-    <name>Adam Starter</name>
+    <name>Forma Starter</name>
 
     <dependencies>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>forma-interfaces</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.lippi</groupId>
+            <groupId>com.xmut.forma</groupId>
             <artifactId>forma-pi-extension</artifactId>
         </dependency>
         <dependency>

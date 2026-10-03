@@ -5,10 +5,10 @@ import com.xmut.forma.infrastructure.persistence.mybatis.mapper.PiSessionEntryMa
 import com.xmut.forma.infrastructure.persistence.mybatis.mapper.PiSessionMapper;
 import com.xmut.forma.infrastructure.persistence.mybatis.po.PiSessionEntryPO;
 import com.xmut.forma.infrastructure.persistence.mybatis.po.PiSessionPO;
-import com.xmut.lims.pi.ai.message.Message;
-import com.xmut.lims.pi.agent.session.Session;
-import com.xmut.lims.pi.agent.session.SessionStore;
-import com.xmut.lims.pi.agent.session.SessionSummary;
+import com.xmut.forma.pi.ai.message.Message;
+import com.xmut.forma.pi.agent.session.Session;
+import com.xmut.forma.pi.agent.session.SessionStore;
+import com.xmut.forma.pi.agent.session.SessionSummary;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DuplicateKeyException;

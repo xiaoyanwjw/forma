@@ -8,7 +8,7 @@ import com.xmut.forma.application.business.scene.pack.SceneSkillCapsuleLoader;
 import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.domain.business.scene.repository.SceneRepository;
-import com.xmut.lims.pi.agent.skill.Skill;
+import com.xmut.forma.pi.agent.skill.Skill;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
