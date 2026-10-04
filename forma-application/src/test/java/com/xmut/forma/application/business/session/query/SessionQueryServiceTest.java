@@ -3,19 +3,27 @@ package com.xmut.forma.application.business.session.query;
 import com.xmut.forma.application.business.history.dto.HistoryArtifactDetailDTO;
 import com.xmut.forma.application.business.history.query.HistoryArtifactQuery;
 import com.xmut.forma.application.business.history.query.HistoryQueryService;
+import com.xmut.forma.application.business.artifact.SkillBackedHistoryExcludeCodes;
 import com.xmut.forma.application.business.session.dto.SessionSummaryDTO;
 import com.xmut.forma.application.business.session.dto.SessionTurnDTO;
 import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.common.page.Page;
+import com.xmut.forma.domain.business.agent.model.GenerationRun;
 import com.xmut.forma.domain.business.agent.model.PiLogicalRunRef;
 import com.xmut.forma.domain.business.agent.model.PiMessage;
 import com.xmut.forma.domain.business.agent.model.PiSession;
 import com.xmut.forma.domain.business.agent.model.PiToolCallRef;
 import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.forma.domain.business.agent.repository.PiSessionQueryRepository;
+import com.xmut.forma.domain.business.artifact.model.Artifact;
+import com.xmut.forma.domain.business.artifact.model.ArtifactType;
+import com.xmut.forma.domain.business.artifact.repository.ArtifactRepository;
 import com.xmut.forma.pi.ai.message.Message;
 import com.xmut.forma.pi.agent.session.SessionStore;
+import com.xmut.forma.pi.agent.skill.InMemorySkillCatalog;
+import com.xmut.forma.pi.agent.skill.Skill;
+import com.xmut.forma.pi.agent.skill.SkillCatalogProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -57,6 +65,7 @@ class SessionQueryServiceTest {
     private SessionStore sessionStore;
     private GenerationRunRepository generationRunRepository;
     private HistoryQueryService historyQueryService;
+    private ArtifactRepository artifactRepository;
     private SessionQueryService service;
 
     @BeforeEach
@@ -65,11 +74,24 @@ class SessionQueryServiceTest {
         sessionStore = mock(SessionStore.class);
         generationRunRepository = mock(GenerationRunRepository.class);
         historyQueryService = mock(HistoryQueryService.class);
+        artifactRepository = mock(ArtifactRepository.class);
+        when(generationRunRepository.findById(anyString())).thenReturn(Optional.empty());
+        InMemorySkillCatalog catalog = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
+        catalog.register(Skill.builder()
+                .id("ecommerce-skulist")
+                .description("d")
+                .promptRef("classpath:x")
+                .allowedTools(Collections.singletonList("read_skill"))
+                .persistAs("sku")
+                .hideFromHistory(Collections.singletonList("listing_plan"))
+                .build());
         service = new SessionQueryService(
                 piSessionQueryRepository,
                 sessionStore,
                 generationRunRepository,
                 historyQueryService,
+                artifactRepository,
+                new SkillBackedHistoryExcludeCodes(catalog),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -218,6 +240,74 @@ class SessionQueryServiceTest {
     }
 
     @Test
+    void listStripsReminderBeforeUsingUserTextAsTitle() {
+        String prefix = "<reminder>\n"
+                + "本轮交付槽位（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n"
+                + "- view: view.json\n"
+                + "- artifact: artifact.json\n"
+                + "必须由 write_file / render_view 写入。对话不要输出 {\"output\":...}。\n"
+                + "</reminder>\n\n";
+        String body = repeat('啊', 45);
+        when(piSessionQueryRepository.selectByUserSince(eq(USER), any(Instant.class), eq("ecommerce"), eq(50)))
+                .thenReturn(Collections.singletonList(meta(SESSION, USER, "ecommerce", NOW)));
+        when(sessionStore.load(SESSION)).thenReturn(Collections.singletonList(Message.user(prefix + body)));
+
+        List<SessionSummaryDTO> titled = service.list(SessionListQuery.builder()
+                .userId(USER).sceneCode("ecommerce").limit(null).build());
+
+        assertEquals(40, titled.get(0).getTitle().length());
+        assertEquals(body.substring(0, 40), titled.get(0).getTitle());
+    }
+
+    @Test
+    void pageTurnsAttachesVisibleArtifactRefAndPersistAs() {
+        stubOneTurn("run-a", "你好");
+        GenerationRun run = GenerationRun.start(
+                "run-a", USER, "hold-1", SESSION, "scene-1", "ecommerce", NOW);
+        run.markSettled("art-sku", NOW);
+        when(generationRunRepository.findById("run-a")).thenReturn(Optional.of(run));
+        when(artifactRepository.findById("art-sku")).thenReturn(Optional.of(artifact("art-sku", "sku")));
+
+        Page<SessionTurnDTO> page = service.pageTurns(SessionTurnPageQuery.builder()
+                .userId(USER).sessionId(SESSION).nextToken(null).limit(null).build());
+
+        assertEquals("art-sku", page.getItems().get(0).getArtifactRef());
+        assertEquals("sku", page.getItems().get(0).getPersistAs());
+    }
+
+    @Test
+    void pageTurnsOmitsListingPlanSoItDoesNotBecomeAFinalCard() {
+        stubOneTurn("run-a", "请生成上架素材");
+        GenerationRun run = GenerationRun.start(
+                "run-a", USER, "hold-1", SESSION, "scene-1", "ecommerce", NOW);
+        run.markSettled("art-plan", NOW);
+        when(generationRunRepository.findById("run-a")).thenReturn(Optional.of(run));
+        when(artifactRepository.findById("art-plan"))
+                .thenReturn(Optional.of(artifact("art-plan", "listing_plan")));
+
+        Page<SessionTurnDTO> page = service.pageTurns(SessionTurnPageQuery.builder()
+                .userId(USER).sessionId(SESSION).nextToken(null).limit(null).build());
+
+        assertNull(page.getItems().get(0).getArtifactRef());
+        assertNull(page.getItems().get(0).getPersistAs());
+    }
+
+    @Test
+    void pageTurnsLeavesArtifactEmptyWhenRunHasNoRef() {
+        stubOneTurn("run-a", "你好");
+        GenerationRun run = GenerationRun.start(
+                "run-a", USER, "hold-1", SESSION, "scene-1", "ecommerce", NOW);
+        when(generationRunRepository.findById("run-a")).thenReturn(Optional.of(run));
+
+        Page<SessionTurnDTO> page = service.pageTurns(SessionTurnPageQuery.builder()
+                .userId(USER).sessionId(SESSION).nextToken(null).limit(null).build());
+
+        assertNull(page.getItems().get(0).getArtifactRef());
+        assertNull(page.getItems().get(0).getPersistAs());
+        verify(artifactRepository, never()).findById(anyString());
+    }
+
+    @Test
     void listClampsLimitToMaxOneHundred() {
         when(piSessionQueryRepository.selectByUserSince(eq(USER), any(Instant.class), isNull(), eq(100)))
                 .thenReturn(Collections.emptyList());
@@ -254,6 +344,30 @@ class SessionQueryServiceTest {
         assertEquals("xhs-break-1", found.get().getId());
         verify(historyQueryService).findById(argThat(q ->
                 USER.equals(q.getUserId()) && "xhs-break-1".equals(q.getArtifactId())));
+    }
+
+    @Test
+    void latestArtifactFetchesTechDigestWhenTyped() {
+        HistoryArtifactDetailDTO expected = new HistoryArtifactDetailDTO(
+                "digest-1", "tech_digest", "tech_digest", "科技速读", NOW,
+                Collections.emptyMap(), SESSION);
+        Instant since = NOW.minus(60, ChronoUnit.DAYS);
+        when(generationRunRepository.findLatestSettledArtifactRefBySession(
+                USER, SESSION, since, "tech_digest"))
+                .thenReturn(Optional.of("digest-1"));
+        when(historyQueryService.findById(any(HistoryArtifactQuery.class))).thenReturn(expected);
+
+        Optional<HistoryArtifactDetailDTO> found = service.getLatestArtifact(
+                SessionLatestArtifactQuery.builder()
+                        .userId(USER)
+                        .sessionId(SESSION)
+                        .artifactType("tech_digest")
+                        .build());
+
+        assertTrue(found.isPresent());
+        assertEquals("tech_digest", found.get().getArtifactType());
+        verify(generationRunRepository).findLatestSettledArtifactRefBySession(
+                USER, SESSION, since, "tech_digest");
     }
 
     @Test
@@ -304,6 +418,23 @@ class SessionQueryServiceTest {
                 SessionLatestArtifactQuery.builder().userId(USER).sessionId(SESSION).build());
 
         assertFalse(found.isPresent());
+    }
+
+    private void stubOneTurn(String runId, String userText) {
+        when(piSessionQueryRepository.findBySessionId(SESSION))
+                .thenReturn(Optional.of(meta(SESSION, USER, "ecommerce", NOW)));
+        when(piSessionQueryRepository.getLogicalRunIds(eq(SESSION), isNull(), eq(20)))
+                .thenReturn(Page.of(Collections.singletonList(new PiLogicalRunRef(runId, 2L)), null));
+        when(piSessionQueryRepository.getMessagesByLogicalRunIds(eq(SESSION), eq(Collections.singletonList(runId))))
+                .thenReturn(Arrays.asList(
+                        msg("user", userText, 1L, NOW, runId, null, null),
+                        msg("assistant", "好的", 2L, NOW, runId, null, null)));
+    }
+
+    private static Artifact artifact(String id, String typeCode) {
+        return Artifact.create(
+                id, USER, "run-a", ArtifactType.fromCode(typeCode),
+                "ecommerce", null, "t", "{}", NOW);
     }
 
     private static PiSession meta(String sessionId, String userId, String sceneCode, Instant updatedAt) {

@@ -8,13 +8,19 @@ import com.xmut.forma.application.business.session.dto.SessionTurnDTO;
 import com.xmut.forma.application.business.session.support.SessionTurnAssembler;
 import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.exception.ErrorCode;
+import com.xmut.forma.common.output.TurnReminderSyntax;
 import com.xmut.forma.common.page.Page;
 import com.xmut.forma.common.util.StringUtils;
+import com.xmut.forma.domain.business.agent.model.GenerationRun;
 import com.xmut.forma.domain.business.agent.model.PiLogicalRunRef;
 import com.xmut.forma.domain.business.agent.model.PiMessage;
 import com.xmut.forma.domain.business.agent.model.PiSession;
 import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.forma.domain.business.agent.repository.PiSessionQueryRepository;
+import com.xmut.forma.domain.business.artifact.ArtifactHistoryExcludeCodes;
+import com.xmut.forma.domain.business.artifact.model.Artifact;
+import com.xmut.forma.domain.business.artifact.model.ArtifactType;
+import com.xmut.forma.domain.business.artifact.repository.ArtifactRepository;
 import com.xmut.forma.pi.ai.message.Message;
 import com.xmut.forma.pi.agent.session.SessionStore;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -49,6 +56,9 @@ public class SessionQueryService {
     private final SessionStore sessionStore;
     private final GenerationRunRepository generationRunRepository;
     private final HistoryQueryService historyQueryService;
+    private final ArtifactRepository artifactRepository;
+    /** chat + Skill {@code hideFromHistory}，由 {@code SkillBackedHistoryExcludeCodes} 提供。 */
+    private final ArtifactHistoryExcludeCodes historyExcludeCodes;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -104,7 +114,66 @@ public class SessionQueryService {
         messages = keepReplayMessages(messages);
         List<SessionTurnDTO> assembled = SessionTurnAssembler.assemble(messages);
         List<SessionTurnDTO> ascending = orderTurnsByRunTipOrder(assembled, runRefs);
+        attachVisibleArtifacts(ascending, uid);
         return Page.of(ascending, runPage.getNextToken());
+    }
+
+    /**
+     * 本轮 {@code generation_run.artifact_ref} 有值，且成果类型不在历史排除码里，才写入回放卡片。
+     * {@code listing_plan} 等中间稿被排除，不出现终稿卡片。
+     */
+    private void attachVisibleArtifacts(List<SessionTurnDTO> turns, String userId) {
+        if (turns == null || turns.isEmpty()) {
+            return;
+        }
+        for (SessionTurnDTO turn : turns) {
+            if (turn == null || !StringUtils.hasText(turn.getRunId())) {
+                continue;
+            }
+            Optional<GenerationRun> found = generationRunRepository.findById(turn.getRunId());
+            if (found == null || !found.isPresent()) {
+                continue;
+            }
+            GenerationRun run = found.get();
+            if (!userId.equals(run.getUserId())) {
+                continue;
+            }
+            String ref = run.getArtifactRef();
+            if (!StringUtils.hasText(ref)) {
+                continue;
+            }
+            Optional<Artifact> loaded = artifactRepository.findById(ref.trim());
+            if (loaded == null || !loaded.isPresent() || loaded.get().getType() == null) {
+                continue;
+            }
+            Artifact artifact = loaded.get();
+            if (!userId.equals(artifact.getUserId())) {
+                continue;
+            }
+            String code = artifact.getType().getCode();
+            if (!StringUtils.hasText(code) || isHistoryExcluded(code)) {
+                continue;
+            }
+            turn.setArtifactRef(ref.trim());
+            turn.setPersistAs(code.trim().toLowerCase(Locale.ROOT));
+        }
+    }
+
+    private boolean isHistoryExcluded(String code) {
+        if (historyExcludeCodes == null || !StringUtils.hasText(code)) {
+            return false;
+        }
+        List<String> excluded = historyExcludeCodes.codes();
+        if (excluded == null || excluded.isEmpty()) {
+            return false;
+        }
+        String normalized = code.trim().toLowerCase(Locale.ROOT);
+        for (String item : excluded) {
+            if (item != null && normalized.equals(item.trim().toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 按 ① 返回的 tipSeq 升序排放 turns（聊天新在后）。 */
@@ -141,8 +210,7 @@ public class SessionQueryService {
 
     /**
      * 会话侧栏最近可用成果：本人该 session 上最新 history 类型 artifact_ref，详情走 HistoryQuery（含 resign / 60 天窗）。
-     * {@code artifactType} 可选：{@code picklist} / {@code sku} / {@code xhs_topiclist} / {@code xhs_note} / {@code xhs_break} / {@code tech_digest}；
-     * 空则上述类型里取最新一条。
+     * {@code artifactType} 可选，须为 {@link ArtifactType#isSessionHistory()} 的类型码；空则取这些类型里最新一条。
      */
     @Transactional(readOnly = true)
     public Optional<HistoryArtifactDetailDTO> getLatestArtifact(SessionLatestArtifactQuery query) {
@@ -215,7 +283,11 @@ public class SessionQueryService {
                     || !StringUtils.hasText(message.getContent())) {
                 continue;
             }
-            String content = message.getContent().trim();
+            String stripped = TurnReminderSyntax.strip(message.getContent());
+            if (!StringUtils.hasText(stripped)) {
+                continue;
+            }
+            String content = stripped.trim();
             if (content.length() <= TITLE_MAX_CHARS) {
                 return content;
             }

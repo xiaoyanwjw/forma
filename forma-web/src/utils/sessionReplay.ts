@@ -1,5 +1,42 @@
 import type { ProcessEvent } from '@/composables/agent/agentProgress'
 
+const REMINDER_OPEN = '<reminder>'
+const REMINDER_CLOSE = '</reminder>'
+
+/** 与 Java {@code String#trim()} 相同：只去掉码点 {@code <= 32} 的字符。 */
+function javaTrim(content: string): string {
+  let start = 0
+  let end = content.length
+  while (start < end && content.charCodeAt(start) <= 32) start++
+  while (end > start && content.charCodeAt(end - 1) <= 32) end--
+  return content.slice(start, end)
+}
+
+function leadingTrimEnd(content: string): number {
+  let i = 0
+  while (i < content.length && content.charCodeAt(i) <= 32) i++
+  return i
+}
+
+/**
+ * 若 trim 后以 `<reminder>` 开头，删到第一个 `</reminder>`，并再吃掉后面至多两个换行。
+ * 与 forma-common `TurnReminderSyntax.strip` 同一例子。
+ */
+export function stripTurnReminder(content: string | null | undefined): string | null | undefined {
+  if (content == null) return content
+  if (!javaTrim(content).startsWith(REMINDER_OPEN)) return content
+  const open = leadingTrimEnd(content)
+  const close = content.indexOf(REMINDER_CLOSE, open + REMINDER_OPEN.length)
+  if (close < 0) return content
+  let end = close + REMINDER_CLOSE.length
+  let newlines = 0
+  while (end < content.length && newlines < 2 && content.charAt(end) === '\n') {
+    end++
+    newlines++
+  }
+  return content.slice(end)
+}
+
 /** R1 回放行（来自 pi_session_entry 的 user/assistant/tool）。 */
 export type SessionReplayRow = {
   role?: string
@@ -101,9 +138,27 @@ export type ReplayBubble = {
   at?: number
   /** 本轮还原的 AGENT/LLM/TOOL，供 STATUS「过程」展开 */
   processEvents?: ProcessEvent[]
+  /** Computer 窗格 id（来自场景 spec，非场景白名单） */
+  pane?: string
 }
 
-export type ReplayArtifactKind = 'picks' | 'listing' | 'topiclist' | 'note' | 'break'
+/** 窗格 id；新场景不必改本文件枚举。 */
+export type ReplayArtifactKind = string
+
+export type ReplayContext = {
+  fallbackPane?: string | null
+  typeToPane?: Record<string, string>
+  successByPane?: Record<string, string>
+}
+
+function asReplayContext(
+  kindOrCtx?: ReplayArtifactKind | null | ReplayContext,
+): ReplayContext {
+  if (kindOrCtx && typeof kindOrCtx === 'object') {
+    return kindOrCtx
+  }
+  return { fallbackPane: kindOrCtx ?? null }
+}
 
 type TurnRow = {
   role: 'assistant' | 'tool'
@@ -132,7 +187,13 @@ export function parseReplayTime(createdAt?: string | null): number | undefined {
   return Number.isNaN(ms) ? undefined : ms
 }
 
-function statusTextFor(artifactKind: ReplayArtifactKind | null | undefined): string {
+function statusTextFor(
+  artifactKind: ReplayArtifactKind | null | undefined,
+  successByPane?: Record<string, string>,
+): string {
+  if (artifactKind && successByPane?.[artifactKind]) {
+    return successByPane[artifactKind]
+  }
   if (artifactKind === 'listing') {
     return '已生成上架素材，右侧 Computer 可查看主图位与文案。'
   }
@@ -145,10 +206,21 @@ function statusTextFor(artifactKind: ReplayArtifactKind | null | undefined): str
   if (artifactKind === 'topiclist') {
     return '已生成选题清单，右侧 Computer 可查看。'
   }
-  return '已生成选品成果，右侧 Computer 可查看。'
+  if (artifactKind === 'picks' || !artifactKind) {
+    return '已生成选品成果，右侧 Computer 可查看。'
+  }
+  return '已生成结果，右侧 Computer 可查看。'
 }
 
-function inferXhsKindFromDump(content: string): 'topiclist' | 'note' | 'break' | null {
+function extractDumpTypeCode(content: string): string | null {
+  const persist = content.match(/"persistAs"\s*:\s*"([^"]+)"/)
+  if (persist?.[1]?.trim()) return persist[1].trim().toLowerCase()
+  const type = content.match(/"artifactType"\s*:\s*"([^"]+)"/)
+  if (type?.[1]?.trim()) return type[1].trim().toLowerCase()
+  return null
+}
+
+function inferXhsKindFromDump(content: string): string | null {
   const t = content || ''
   if (/"artifactType"\s*:\s*"xhs_note"/.test(t) || /"persistAs"\s*:\s*"xhs_note"/.test(t)) {
     return 'note'
@@ -178,8 +250,13 @@ function inferXhsKindFromDump(content: string): 'topiclist' | 'note' | 'break' |
 export function inferArtifactKindFromDump(
   content: string,
   fallback?: ReplayArtifactKind | null,
+  typeToPane?: Record<string, string>,
 ): ReplayArtifactKind | null {
   const t = content || ''
+  const code = extractDumpTypeCode(t)
+  if (code && typeToPane?.[code]) {
+    return typeToPane[code]
+  }
   const xhs = inferXhsKindFromDump(t)
   if (xhs) return xhs
   if (
@@ -192,7 +269,7 @@ export function inferArtifactKindFromDump(
   ) {
     return 'listing'
   }
-  if (/"niche"\s*:/.test(t) || /"sourceUrl"\s*:/.test(t) || /"pl-\d+"/.test(t)) {
+  if (/"niche"\s*:/.test(t) || /"pl-\d+"/.test(t)) {
     return 'picks'
   }
   if (/"type"\s*:\s*"list"/.test(t)) {
@@ -229,9 +306,10 @@ export function inferArtifactKindForTurn(
   successContent: string,
   userPrompt?: string,
   fallback?: ReplayArtifactKind | null,
+  typeToPane?: Record<string, string>,
 ): ReplayArtifactKind | null {
   if (isArtifactDumpContent(successContent)) {
-    return inferArtifactKindFromDump(successContent, fallback)
+    return inferArtifactKindFromDump(successContent, fallback, typeToPane)
   }
   const path = extractOutputPointerPath(successContent) || ''
   if (/(^|\/)(plan|exec)(\/|$)/i.test(path)) {
@@ -370,8 +448,9 @@ function collectTurnFromRows(rows: CleanRow[]): TurnRow[] {
  */
 export function toReplayBubbles(
   rows: SessionReplayRow[] | null | undefined,
-  artifactKind?: ReplayArtifactKind | null,
+  kindOrCtx?: ReplayArtifactKind | null | ReplayContext,
 ): ReplayBubble[] {
+  const ctx = asReplayContext(kindOrCtx)
   if (!rows) return []
   const cleaned: CleanRow[] = []
   let anon = 0
@@ -381,7 +460,9 @@ export function toReplayBubbles(
     const roleRaw = (row.role || '').toLowerCase()
     const role =
       roleRaw === 'user' ? 'user' : roleRaw === 'tool' ? 'tool' : 'assistant'
-    const content = typeof row.content === 'string' ? row.content.trim() : ''
+    const raw = typeof row.content === 'string' ? row.content : ''
+    const content =
+      role === 'user' ? (stripTurnReminder(raw) ?? '').trim() : raw.trim()
     const toolCalls = Array.isArray(row.toolCalls)
       ? row.toolCalls
           .filter((t) => t && (t.id || t.toolName))
@@ -426,7 +507,7 @@ export function toReplayBubbles(
       cluster.push(cleaned[i])
       i += 1
     }
-    const bubbles = collapseCluster(cluster, artifactKind)
+    const bubbles = collapseCluster(cluster, ctx)
     out.push(...bubbles)
   }
   return out
@@ -434,7 +515,7 @@ export function toReplayBubbles(
 
 function collapseCluster(
   cluster: CleanRow[],
-  artifactKind: ReplayArtifactKind | null | undefined,
+  ctx: ReplayContext,
 ): ReplayBubble[] {
   if (!cluster.length) return []
   let userPrompt: string | undefined
@@ -447,7 +528,7 @@ function collapseCluster(
     }
   }
   const turn = collectTurnFromRows(cluster)
-  const agent = collapseTurn(turn, userPrompt, artifactKind)
+  const agent = collapseTurn(turn, userPrompt, ctx)
   const out: ReplayBubble[] = []
   if (userPrompt) {
     out.push({ role: 'user', content: userPrompt, kind: 'text', at: userAt })
@@ -459,7 +540,7 @@ function collapseCluster(
 function collapseTurn(
   turn: TurnRow[],
   userPrompt: string | undefined,
-  artifactKind: ReplayArtifactKind | null | undefined,
+  ctx: ReplayContext,
 ): ReplayBubble | null {
   const assistants = turn.filter((r) => r.role === 'assistant')
   if (!assistants.length && !turn.some((r) => r.role === 'tool')) {
@@ -475,30 +556,138 @@ function collapseTurn(
   if (!success) {
     return null
   }
-  const kind = inferArtifactKindForTurn(turn, success.content, userPrompt, artifactKind)
+  const kind = inferArtifactKindForTurn(
+    turn,
+    success.content,
+    userPrompt,
+    ctx.fallbackPane,
+    ctx.typeToPane,
+  )
   const processEvents = buildProcessEventsFromTurn(turn)
   return {
     role: 'assistant',
-    content: statusTextFor(kind),
+    content: statusTextFor(kind, ctx.successByPane),
     kind: 'artifact',
     at: success.at,
     processEvents: processEvents.length ? processEvents : undefined,
+    pane: kind || undefined,
   }
+}
+
+export type ReplayTurnInput = {
+  messages?: SessionReplayRow[] | null
+  /** 已落库且可展示的成果 id；有值则本轮视为成功卡片 */
+  artifactRef?: string | null
+  /** 成果类型码，经 typeToPane 选窗格 */
+  persistAs?: string | null
 }
 
 /**
  * 后端已按逻辑 runId 聚成 turns；这里只按轮映射气泡（同轮 messages 再走 toReplayBubbles）。
+ * 有 artifactRef 时出成功卡片；没有则仍看助手原文里的成果/指针（旧会话）。
  */
 export function toReplayBubblesFromTurns(
-  turns: { messages?: SessionReplayRow[] | null }[] | null | undefined,
-  artifactKind?: ReplayArtifactKind | null,
+  turns: ReplayTurnInput[] | null | undefined,
+  kindOrCtx?: ReplayArtifactKind | null | ReplayContext,
 ): ReplayBubble[] {
   if (!turns?.length) return []
   const out: ReplayBubble[] = []
   for (const turn of turns) {
     const messages = Array.isArray(turn?.messages) ? turn.messages : []
     if (!messages.length) continue
-    out.push(...toReplayBubbles(messages, artifactKind))
+    const bubbles = toReplayBubbles(messages, kindOrCtx)
+    const ref = typeof turn?.artifactRef === 'string' ? turn.artifactRef.trim() : ''
+    if (!ref) {
+      out.push(...bubbles)
+      continue
+    }
+    out.push(...withPersistedArtifact(bubbles, messages, turn?.persistAs, kindOrCtx))
   }
   return out
+}
+
+function withPersistedArtifact(
+  bubbles: ReplayBubble[],
+  messages: SessionReplayRow[],
+  persistAs: string | null | undefined,
+  kindOrCtx?: ReplayArtifactKind | null | ReplayContext,
+): ReplayBubble[] {
+  const ctx = asReplayContext(kindOrCtx)
+  const user = bubbles.find((b) => b.role === 'user')
+  const pane = resolvePersistedPane(persistAs, ctx, messages, user?.content)
+  const existing = bubbles.find((b) => b.kind === 'artifact')
+  if (existing) {
+    if (pane) {
+      existing.content = statusTextFor(pane, ctx.successByPane)
+      existing.pane = pane
+    }
+    return bubbles
+  }
+  return [...bubbles, synthesizeArtifactBubble(messages, pane, ctx)]
+}
+
+function resolvePersistedPane(
+  persistAs: string | null | undefined,
+  ctx: ReplayContext,
+  messages: SessionReplayRow[],
+  userPrompt?: string,
+): string | null {
+  const code = persistAs?.trim().toLowerCase() || ''
+  if (code && ctx.typeToPane?.[code]) return ctx.typeToPane[code]
+  const inferred = inferArtifactKindForTurn(
+    turnRowsFromMessages(messages),
+    '',
+    userPrompt,
+    ctx.fallbackPane,
+    ctx.typeToPane,
+  )
+  return inferred || ctx.fallbackPane || null
+}
+
+function synthesizeArtifactBubble(
+  messages: SessionReplayRow[],
+  pane: string | null,
+  ctx: ReplayContext,
+): ReplayBubble {
+  const processEvents = buildProcessEventsFromTurn(turnRowsFromMessages(messages))
+  let at: number | undefined
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const parsed = parseReplayTime(messages[i]?.createdAt)
+    if (parsed != null) {
+      at = parsed
+      break
+    }
+  }
+  return {
+    role: 'assistant',
+    content: statusTextFor(pane, ctx.successByPane),
+    kind: 'artifact',
+    at,
+    processEvents: processEvents.length ? processEvents : undefined,
+    pane: pane || undefined,
+  }
+}
+
+function turnRowsFromMessages(messages: SessionReplayRow[]): TurnRow[] {
+  const rows: TurnRow[] = []
+  for (const row of messages) {
+    const roleRaw = (row.role || '').toLowerCase()
+    if (roleRaw !== 'assistant' && roleRaw !== 'tool' && roleRaw !== 'agent') continue
+    const toolCalls = Array.isArray(row.toolCalls)
+      ? row.toolCalls
+          .filter((t) => t && (t.id || t.toolName))
+          .map((t) => ({
+            id: t.id?.trim() || undefined,
+            toolName: t.toolName?.trim() || undefined,
+          }))
+      : undefined
+    rows.push({
+      role: roleRaw === 'tool' ? 'tool' : 'assistant',
+      content: typeof row.content === 'string' ? row.content : '',
+      at: parseReplayTime(row.createdAt),
+      toolCallId: row.toolCallId?.trim() || undefined,
+      toolCalls,
+    })
+  }
+  return rows
 }

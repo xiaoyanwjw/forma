@@ -1,5 +1,6 @@
 package com.xmut.forma.extension.output;
 
+import com.xmut.forma.common.output.TurnReminderSyntax;
 import com.xmut.forma.common.util.StringUtils;
 
 import java.nio.file.InvalidPathException;
@@ -11,9 +12,6 @@ import java.nio.file.Paths;
  * 关键设计：字节由测试锁死；路径是否能写进提醒由 {@link #slot(String)} 决定。
  */
 public final class TurnReminder {
-
-    private static final String OPEN = "<reminder>";
-    private static final String CLOSE = "</reminder>";
 
     private TurnReminder() {
     }
@@ -29,27 +27,10 @@ public final class TurnReminder {
 
     /**
      * 若 trim 后以 {@code <reminder>} 起，删到第一个 {@code </reminder>} 及其后至多两个换行。
-     * 关标签缺失时原样返回。
+     * 规则在 {@link TurnReminderSyntax#strip(String)}，与会话标题、回放共用。
      */
     public static String strip(String content) {
-        if (content == null) {
-            return null;
-        }
-        if (!content.trim().startsWith(OPEN)) {
-            return content;
-        }
-        int open = leadingTrimEnd(content);
-        int close = content.indexOf(CLOSE, open + OPEN.length());
-        if (close < 0) {
-            return content;
-        }
-        int end = close + CLOSE.length();
-        int newlines = 0;
-        while (end < content.length() && newlines < 2 && content.charAt(end) == '\n') {
-            end++;
-            newlines++;
-        }
-        return content.substring(end);
+        return TurnReminderSyntax.strip(content);
     }
 
     /**
@@ -78,14 +59,5 @@ public final class TurnReminder {
             return null;
         }
         return value;
-    }
-
-    /** Same leading cut as {@link String#trim()}: chars {@code <= ' '}. */
-    private static int leadingTrimEnd(String content) {
-        int i = 0;
-        while (i < content.length() && content.charAt(i) <= ' ') {
-            i++;
-        }
-        return i;
     }
 }

@@ -33,6 +33,13 @@ export interface SessionTurn {
   runId?: string | null
   at?: string | null
   userPrompt?: string | null
+  /**
+   * 本轮已落库且可展示的成果 id。
+   * 没有这个字段时，回放仍按助手原文里的成果/指针判断（兼容旧会话）。
+   */
+  artifactRef?: string | null
+  /** 成果类型码，用来选 Computer 窗格 */
+  persistAs?: string | null
   messages: SessionMessage[]
 }
 

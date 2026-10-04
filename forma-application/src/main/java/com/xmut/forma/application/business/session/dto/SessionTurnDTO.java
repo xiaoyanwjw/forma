@@ -16,6 +16,10 @@ public class SessionTurnDTO {
     private Instant at;
     /** 首条非 HITL 用户文案；确认回执不算 */
     private String userPrompt;
+    /** 本轮已落库且可进历史的成果 id；中间稿（如 listing_plan）不下发 */
+    private String artifactRef;
+    /** 成果类型码，与 Skill persistAs 一致 */
+    private String persistAs;
     /** 本轮全部回放行（含 tool / HITL 回执），按 seq 升序 */
     private List<SessionMessageDTO> messages = Collections.emptyList();
 
@@ -51,6 +55,22 @@ public class SessionTurnDTO {
 
     public void setUserPrompt(String userPrompt) {
         this.userPrompt = userPrompt;
+    }
+
+    public String getArtifactRef() {
+        return artifactRef;
+    }
+
+    public void setArtifactRef(String artifactRef) {
+        this.artifactRef = artifactRef;
+    }
+
+    public String getPersistAs() {
+        return persistAs;
+    }
+
+    public void setPersistAs(String persistAs) {
+        this.persistAs = persistAs;
     }
 
     public List<SessionMessageDTO> getMessages() {

@@ -5,6 +5,7 @@ import {
   isDisplayableTurnSuccess,
   keepReplayRow,
   logicalRunId,
+  stripTurnReminder,
   toReplayBubbles,
   toReplayBubblesFromTurns,
 } from '@/utils/sessionReplay'
@@ -323,6 +324,167 @@ describe('sessionReplay', () => {
       ['assistant', '已生成选品成果，右侧 Computer 可查看。'],
       ['user', '请生成上架素材'],
       ['assistant', '已生成上架素材，右侧 Computer 可查看主图位与文案。'],
+    ])
+  })
+
+  it('toReplayBubbles maps persistAs via typeToPane instead of scene ifs', () => {
+    const dump =
+      '```json\n{"artifactType":"tech_digest","persistAs":"tech_digest","view":{"version":2,"title":"速读","format":"html","content":"<p>x</p>"},"artifact":{"source":"fetch","sourceUrl":"https://github.com/xiaoyanw/forma","excerpts":[{"heading":"h","quotes":["q"]}]}}\n```'
+    const bubbles = toReplayBubbles(
+      [
+        {
+          role: 'user',
+          content: '请速读这个链接，我关心它适不适合小团队用：https://github.com/xiaoyanw/forma',
+        },
+        {
+          role: 'assistant',
+          content: 'fetching',
+          toolCalls: [{ id: 'c1', toolName: 'fetch_web_page' }],
+        },
+        { role: 'tool', content: 'ok', toolCallId: 'c1' },
+        { role: 'assistant', content: dump },
+      ],
+      {
+        fallbackPane: 'digest',
+        typeToPane: { tech_digest: 'digest' },
+        successByPane: { digest: '已生成速读摘要，右侧 Computer 可查看。' },
+      },
+    )
+    expect(bubbles.map((b) => [b.role, b.kind, b.content, b.pane])).toEqual([
+      [
+        'user',
+        'text',
+        '请速读这个链接，我关心它适不适合小团队用：https://github.com/xiaoyanw/forma',
+        undefined,
+      ],
+      ['assistant', 'artifact', '已生成速读摘要，右侧 Computer 可查看。', 'digest'],
+    ])
+  })
+
+  it('toReplayBubbles uses fallback pane for output pointer when dump has no persistAs', () => {
+    const bubbles = toReplayBubbles(
+      [
+        { role: 'user', content: '请速读这篇文档' },
+        { role: 'assistant', content: '{"output":"digest.md"}' },
+      ],
+      {
+        fallbackPane: 'digest',
+        successByPane: { digest: '已生成速读摘要，右侧 Computer 可查看。' },
+      },
+    )
+    expect(bubbles[1]?.content).toBe('已生成速读摘要，右侧 Computer 可查看。')
+    expect(bubbles[1]?.pane).toBe('digest')
+  })
+
+  it('stripTurnReminder matches the shared reminder examples', () => {
+    const body = '用户原文'
+    const prefix =
+      '<reminder>\n' +
+      '本轮交付槽位（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n' +
+      '- view: view.json\n' +
+      '- artifact: artifact.json\n' +
+      '必须由 write_file / render_view 写入。对话不要输出 {"output":...}。\n' +
+      '</reminder>\n\n'
+    expect(stripTurnReminder(prefix + body)).toBe(body)
+    expect(stripTurnReminder('<reminder>\nX\n</reminder>\n' + body)).toBe(body)
+    expect(stripTurnReminder('<reminder>\nX\n</reminder>' + body)).toBe(body)
+    expect(stripTurnReminder('<reminder>\nX\n</reminder>\n\n\nrest')).toBe('\nrest')
+    expect(stripTurnReminder(' \n<reminder>\nX\n</reminder>\n\n  hello')).toBe('  hello')
+    expect(stripTurnReminder('note <reminder>\nX\n</reminder>\n\n')).toBe(
+      'note <reminder>\nX\n</reminder>\n\n',
+    )
+    expect(stripTurnReminder('<REMINDER>\nX\n</reminder>\n\nrest')).toBe(
+      '<REMINDER>\nX\n</reminder>\n\nrest',
+    )
+    expect(stripTurnReminder('<reminder>\nsee </reminder> early\n</reminder>\n\nrest')).toBe(
+      ' early\n</reminder>\n\nrest',
+    )
+    expect(stripTurnReminder('<reminder>\nno close')).toBe('<reminder>\nno close')
+    expect(stripTurnReminder(null)).toBeNull()
+    expect(stripTurnReminder('')).toBe('')
+    expect(stripTurnReminder('   ')).toBe('   ')
+  })
+
+  it('toReplayBubblesFromTurns treats artifactRef as a success card and strips the user reminder', () => {
+    const bubbles = toReplayBubblesFromTurns(
+      [
+        {
+          runId: 'run-1',
+          artifactRef: 'art-1',
+          persistAs: 'tech_digest',
+          messages: [
+            {
+              role: 'user',
+              content: '<reminder>\nX\n</reminder>\n\n请速读这篇文档',
+              runId: 'run-1',
+            },
+            {
+              role: 'assistant',
+              content: '写好了，在右侧查看。',
+              runId: 'run-1',
+              createdAt: '2026-10-02T05:00:10Z',
+            },
+          ],
+        },
+      ],
+      {
+        fallbackPane: 'digest',
+        typeToPane: { tech_digest: 'digest' },
+        successByPane: { digest: '已生成速读摘要，右侧 Computer 可查看。' },
+      },
+    )
+    expect(bubbles.map((b) => [b.role, b.kind, b.content, b.pane])).toEqual([
+      ['user', 'text', '请速读这篇文档', undefined],
+      ['assistant', 'artifact', '已生成速读摘要，右侧 Computer 可查看。', 'digest'],
+    ])
+    expect(bubbles[1]?.at).toBe(Date.parse('2026-10-02T05:00:10Z'))
+  })
+
+  it('toReplayBubblesFromTurns keeps one card and prefers persistAs over an old pointer', () => {
+    const bubbles = toReplayBubblesFromTurns(
+      [
+        {
+          artifactRef: 'art-1',
+          persistAs: 'tech_digest',
+          messages: [
+            { role: 'user', content: '请帮我生成选品清单' },
+            { role: 'assistant', content: '{"output":"final.json"}' },
+          ],
+        },
+      ],
+      {
+        fallbackPane: 'picks',
+        typeToPane: { tech_digest: 'digest' },
+        successByPane: { digest: '已生成速读摘要，右侧 Computer 可查看。' },
+      },
+    )
+    expect(bubbles.filter((b) => b.kind === 'artifact')).toHaveLength(1)
+    expect(bubbles[1]?.content).toBe('已生成速读摘要，右侧 Computer 可查看。')
+    expect(bubbles[1]?.pane).toBe('digest')
+  })
+
+  it('toReplayBubblesFromTurns still uses displayable text when the turn has no artifactRef', () => {
+    const bubbles = toReplayBubblesFromTurns(
+      [
+        {
+          messages: [
+            { role: 'user', content: '<reminder>\nX\n</reminder>\n\n帮我找杯子' },
+            { role: 'assistant', content: '这是杯子建议' },
+          ],
+        },
+        {
+          messages: [
+            { role: 'user', content: '请帮我生成选品清单' },
+            { role: 'assistant', content: '{"output":"final.json"}' },
+          ],
+        },
+      ],
+      'picks',
+    )
+    expect(bubbles.map((b) => [b.role, b.kind, b.content])).toEqual([
+      ['user', 'text', '帮我找杯子'],
+      ['user', 'text', '请帮我生成选品清单'],
+      ['assistant', 'artifact', '已生成选品成果，右侧 Computer 可查看。'],
     ])
   })
 })
