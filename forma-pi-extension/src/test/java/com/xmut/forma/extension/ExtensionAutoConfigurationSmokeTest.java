@@ -48,6 +48,7 @@ class ExtensionAutoConfigurationSmokeTest {
         assertTrue(listed.contains("com.xmut.forma.extension.config.SkuToolsConfiguration"));
         assertTrue(listed.contains("com.xmut.forma.extension.config.XhsToolsConfiguration"));
         assertTrue(listed.contains("com.xmut.forma.extension.config.WebFetchToolsConfiguration"));
+        assertTrue(listed.contains("com.xmut.forma.extension.config.TechExcerptToolsConfiguration"));
         assertTrue(listed.contains("com.xmut.forma.extension.config.ViewToolsConfiguration"));
         assertTrue(listed.contains("com.xmut.forma.extension.config.FormaModelCatalogAutoConfiguration"));
     }
