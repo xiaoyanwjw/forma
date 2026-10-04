@@ -46,6 +46,8 @@ class FormaPiToolCatalogConfigurationTest {
                 handlerClassOf(defs, "search_xhs_note"));
         assertEquals("com.xmut.forma.extension.tool.xhs.FetchXhsNoteToolHandler",
                 handlerClassOf(defs, "fetch_xhs_note"));
+        assertEquals("com.xmut.forma.extension.tool.web.FetchWebPageToolHandler",
+                handlerClassOf(defs, "fetch_web_page"));
         assertEquals(RenderViewToolHandler.class.getName(), handlerClassOf(defs, "render_view"));
         assertTrue(defs.stream().anyMatch(d -> "render_view".equals(d.getId())
                 && d.getSchema() != null
