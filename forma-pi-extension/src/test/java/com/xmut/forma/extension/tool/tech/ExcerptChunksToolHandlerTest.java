@@ -68,6 +68,24 @@ class ExcerptChunksToolHandlerTest {
     }
 
     @Test
+    void callerChunksCapAtTwelveAndMarkPartialWhenLonger() throws Exception {
+        ExcerptChunksToolHandler handler = new ExcerptChunksToolHandler(null);
+        ToolResult capped = handler.handle(numberedChunksCall(13), ctx());
+        assertTrue(capped.isSuccess());
+        JsonNode over = MAPPER.readTree(capped.getOutput());
+        assertTrue(over.get("partialCoverage").asBoolean());
+        assertEquals(12, over.get("excerpts").size());
+        assertEquals("h0", over.get("excerpts").get(0).get("heading").asText());
+        assertEquals("h11", over.get("excerpts").get(11).get("heading").asText());
+        assertFalse(capped.getOutput().contains("句子12"));
+
+        ToolResult exact = handler.handle(numberedChunksCall(12), ctx());
+        JsonNode full = MAPPER.readTree(exact.getOutput());
+        assertFalse(full.get("partialCoverage").asBoolean());
+        assertEquals(12, full.get("excerpts").size());
+    }
+
+    @Test
     void chunksWinOverPastedText() throws Exception {
         ModelProvider model = new ScriptedModel("{\"quotes\":[\"块内句子。\"]}");
         ExcerptChunksToolHandler handler = new ExcerptChunksToolHandler(new ModelChunkExcerpter(model));
@@ -194,6 +212,17 @@ class ExcerptChunksToolHandlerTest {
 
     private ToolContext ctx() {
         return new ToolContext("r1", "t1", null, workspace.toString());
+    }
+
+    private static ToolCallEntry numberedChunksCall(int count) {
+        ObjectNode args = JsonNodeFactory.instance.objectNode();
+        ArrayNode chunks = args.putArray("chunks");
+        for (int i = 0; i < count; i++) {
+            ObjectNode one = chunks.addObject();
+            one.put("heading", "h" + i);
+            one.put("text", "句子" + i + "。");
+        }
+        return new ToolCallEntry("c1", ExcerptChunksToolHandler.TOOL_NAME, args);
     }
 
     private static ToolCallEntry chunksCall(String a, String b) {

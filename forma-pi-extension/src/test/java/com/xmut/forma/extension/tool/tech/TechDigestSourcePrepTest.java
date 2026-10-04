@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Scanner;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,6 +38,19 @@ class TechDigestSourcePrepTest {
     }
 
     @Test
+    void thousandCharBodyIsOneChunkWithoutOverlapTail() {
+        StringBuilder body = new StringBuilder();
+        while (body.length() < 1000) {
+            body.append("甲乙丙丁戊己庚辛壬癸");
+        }
+        String text = body.substring(0, 1000);
+        TechDigestPrepResult result = TechDigestSourcePrep.slice(text);
+        assertEquals(1, result.getChunks().size());
+        assertEquals(1000, result.getChunks().get(0).getText().length());
+        assertFalse(result.isPartialCoverage());
+    }
+
+    @Test
     void shortStringProducesAtLeastOneChunk() {
         TechDigestPrepResult result = TechDigestSourcePrep.slice("简短说明：这是一段用于速读的测试文字。");
         assertFalse(result.getChunks().isEmpty());
@@ -44,11 +58,22 @@ class TechDigestSourcePrepTest {
     }
 
     @Test
-    void longRfcFixtureCapsAtTwelveChunksWithPartialCoverage() throws Exception {
+    void bodyPastTwelveChunksMarksPartialCoverage() {
+        StringBuilder body = new StringBuilder();
+        while (body.length() < 20000) {
+            body.append("甲乙丙丁戊己庚辛壬癸");
+        }
+        TechDigestPrepResult result = TechDigestSourcePrep.slice(body.substring(0, 20000));
+        assertEquals(12, result.getChunks().size());
+        assertTrue(result.isPartialCoverage());
+    }
+
+    @Test
+    void longRfcFixtureFitsInTwelveChunks() throws Exception {
         String md = readFixture("techdigest/fixtures/long-rfc.md");
         TechDigestPrepResult result = TechDigestSourcePrep.slice(md);
         assertTrue(result.getChunks().size() <= 12);
-        assertTrue(result.isPartialCoverage());
+        assertFalse(result.isPartialCoverage());
         for (TechDigestChunk chunk : result.getChunks()) {
             assertTrue(chunk.getText().length() <= MAX_CHUNK
                             || chunkContainsOnlyOversizedFence(chunk.getText()),

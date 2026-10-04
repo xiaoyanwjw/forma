@@ -5,7 +5,7 @@ import com.xmut.forma.extension.tool.web.port.WebFetchHit;
 import com.xmut.forma.extension.tool.web.port.WebFetchPort;
 
 /**
- * Fixed public-page fixture used when {@code forma.web-fetch.client} is not apify.
+ * Fixed public-page fixture used when the client is not apify, or apify has a blank token.
  */
 public final class MockWebFetchClient implements WebFetchPort {
 

@@ -30,6 +30,7 @@ public final class ExcerptChunksToolHandler implements ToolHandler {
 
     public static final String TOOL_NAME = "excerpt_chunks";
     static final String DEFAULT_SOURCE_PATH = "source.md";
+    private static final int MAX_CALLER_CHUNKS = 12;
 
     private final ModelChunkExcerpter excerpter;
     private final ObjectMapper objectMapper;
@@ -85,7 +86,7 @@ public final class ExcerptChunksToolHandler implements ToolHandler {
         if (args != null) {
             JsonNode chunks = args.get("chunks");
             if (chunks != null && chunks.isArray() && chunks.size() > 0) {
-                return new Prepared(parseChunks(chunks), false);
+                return prepareCallerChunks(chunks);
             }
             String text = textOrNull(args.get("text"));
             if (StringUtils.hasText(text)) {
@@ -110,6 +111,14 @@ public final class ExcerptChunksToolHandler implements ToolHandler {
         String body = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
         TechDigestPrepResult sliced = TechDigestSourcePrep.slice(body);
         return new Prepared(sliced.getChunks(), sliced.isPartialCoverage());
+    }
+
+    private static Prepared prepareCallerChunks(JsonNode chunks) {
+        List<TechDigestChunk> parsed = parseChunks(chunks);
+        if (parsed.size() <= MAX_CALLER_CHUNKS) {
+            return new Prepared(parsed, false);
+        }
+        return new Prepared(new ArrayList<TechDigestChunk>(parsed.subList(0, MAX_CALLER_CHUNKS)), true);
     }
 
     private static List<TechDigestChunk> parseChunks(JsonNode chunks) {

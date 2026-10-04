@@ -193,7 +193,9 @@ public final class TechDigestSourcePrep {
                 }
             }
         }
-        if (buf.length() > 0 || overlapPrefix.length() > 0) {
+        // A finished take leaves only overlapPrefix when buf is empty. That tail already
+        // sits inside the previous chunk; emitting it again makes an extra ~80-char chunk.
+        if (buf.length() > 0) {
             String tail = overlapPrefix + buf.toString();
             if (tail.trim().length() > 0) {
                 chunks.add(new TechDigestChunk(heading, tail));

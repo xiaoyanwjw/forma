@@ -22,6 +22,10 @@ public class WebFetchToolsConfiguration {
         if (!"apify".equalsIgnoreCase(props.getClient())) {
             return new MockWebFetchClient();
         }
+        String token = props.getApify().getToken();
+        if (token == null || token.trim().isEmpty()) {
+            return new MockWebFetchClient();
+        }
         return new ApifyWebsiteContentCrawlerClient(props, new ApifyOkHttpTransport());
     }
 
