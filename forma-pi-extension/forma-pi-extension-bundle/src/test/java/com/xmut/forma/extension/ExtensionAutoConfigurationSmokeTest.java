@@ -3,6 +3,8 @@ package com.xmut.forma.extension;
 import com.xmut.forma.extension.config.FormaModelCatalogAutoConfiguration;
 import com.xmut.forma.extension.config.SkuToolsConfiguration;
 import com.xmut.forma.extension.config.XhsToolsConfiguration;
+import com.xmut.forma.pi.agent.skill.InMemorySkillCatalog;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -19,6 +21,7 @@ class ExtensionAutoConfigurationSmokeTest {
     @Test
     void catalog_overlay_loads_from_spring_factories() {
         new ApplicationContextRunner()
+                .withBean(SkillCatalog.class, InMemorySkillCatalog::new)
                 .withConfiguration(AutoConfigurations.of(
                         SkuToolsConfiguration.class,
                         XhsToolsConfiguration.class,

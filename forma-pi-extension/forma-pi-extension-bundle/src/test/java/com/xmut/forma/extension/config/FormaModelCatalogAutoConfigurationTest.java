@@ -1,5 +1,7 @@
 package com.xmut.forma.extension.config;
 
+import com.xmut.forma.pi.agent.skill.InMemorySkillCatalog;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import com.xmut.forma.pi.ai.model.ModelCatalog;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -11,6 +13,7 @@ class FormaModelCatalogAutoConfigurationTest {
     @Test
     void modelCatalog_resolves_sku_and_xhs_rerank_use_cases() {
         new ApplicationContextRunner()
+                .withBean(SkillCatalog.class, InMemorySkillCatalog::new)
                 .withConfiguration(AutoConfigurations.of(
                         FormaModelCatalogAutoConfiguration.class,
                         SkuToolsConfiguration.class,

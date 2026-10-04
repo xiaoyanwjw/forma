@@ -56,10 +56,11 @@ class DefaultAgentSessionSubscribeTest {
                 .containsExactly(
                         PiEventType.COMMAND,
                         PiEventType.BEFORE_AGENT_START,
+                        PiEventType.BEFORE_MODEL_REQUEST,
                         PiEventType.AGENT_START,
                         PiEventType.AGENT_END);
-        assertThat(events.get(2).getPayload()).isEqualTo(result.getSessionId());
-        assertThat(events.get(3).getPayload()).isSameAs(result);
+        assertThat(events.get(3).getPayload()).isEqualTo(result.getSessionId());
+        assertThat(events.get(4).getPayload()).isSameAs(result);
         verify(conversationLoop).run(any(TurnInput.class), any());
         closeQuietly(sub);
     }
@@ -99,11 +100,12 @@ class DefaultAgentSessionSubscribeTest {
                 .containsExactly(
                         PiEventType.COMMAND,
                         PiEventType.BEFORE_AGENT_START,
+                        PiEventType.BEFORE_MODEL_REQUEST,
                         PiEventType.AGENT_START,
                         PiEventType.SUSPENDED,
                         PiEventType.AGENT_END);
-        assertThat(events.get(3).getPayload()).isSameAs(result);
         assertThat(events.get(4).getPayload()).isSameAs(result);
+        assertThat(events.get(5).getPayload()).isSameAs(result);
     }
 
     @Test

@@ -168,7 +168,7 @@ class DefaultConversationLoopTest {
         DefaultAgent loop = new DefaultAgent(DefaultToolLoopGraph.create(com.xmut.forma.pi.agent.graph.node.AgentTurnNode.forTopologyTest(), InMemoryToolCatalog.empty()), new InMemoryCheckpointer(), new InMemoryResumeIdempotencyStore(), new IterationBudget(25), InMemoryToolCatalog.empty(), null);
         ConversationResult result = loop.run(null);
         assertThat(result.getStatus()).isEqualTo(ConversationResult.Status.FAILED);
-        assertThat(result.getFinalResponse()).contains("request required");
+        assertThat(result.getFinalResponse()).contains("turnInput required");
     }
 
     @Test
