@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.util.StringUtils;
 
 /**
- * Adam {@link ModelCatalog} overlay for SKU / XHS rerank use cases.
+ * Adam {@link ModelCatalog} overlay for SKU / XHS rerank and tech excerpt use cases.
  *
  * <p>Does not declare {@link com.xmut.forma.pi.agent.tool.ToolCatalog}; the unique catalog
  * comes from pi-agent {@code AgentConfiguration}.
@@ -46,6 +46,7 @@ public class FormaModelCatalogAutoConfiguration {
                 resolveUseCase(xhsProps == null ? null : xhsProps.getSearcher().getRerankUseCase(), "forma.xhs.rerank"),
                 rerankDescriptor(resolveUseCase(
                         xhsProps == null ? null : xhsProps.getSearcher().getRerankUseCase(), "forma.xhs.rerank")));
+        overlay.putOverride("forma.tech.excerpt", excerptDescriptor("forma.tech.excerpt"));
         return overlay;
     }
 
@@ -58,6 +59,14 @@ public class FormaModelCatalogAutoConfiguration {
                 .useCase(useCase)
                 .temperature(0.0)
                 .maxTokens(512)
+                .build();
+    }
+
+    static ModelDescriptor excerptDescriptor(String useCase) {
+        return InMemoryModelCatalog.defaultChatDescriptor().toBuilder()
+                .useCase(useCase)
+                .temperature(0.0)
+                .maxTokens(1024)
                 .build();
     }
 }
