@@ -8,8 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "forma.sku-search")
 public class SkuSearchProperties {
 
-    /** mock（默认）或 apify */
-    private String client = "mock";
+    /** apify（默认）或 mock */
+    private String client = "apify";
 
     private final Apify apify = new Apify();
 

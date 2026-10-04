@@ -8,8 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "forma.xhs-note-search")
 public class XhsNoteSearchProperties {
 
-    /** mock（默认）或 apify */
-    private String client = "mock";
+    /** apify（默认）或 mock */
+    private String client = "apify";
 
     private final Apify apify = new Apify();
 

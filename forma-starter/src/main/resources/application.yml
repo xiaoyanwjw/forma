@@ -44,38 +44,8 @@ credit:
   admin:
     user-ids: ${CREDIT_ADMIN_USER_IDS:}
 
+# sku-search / xhs-note-* 默认与 APIFY_TOKEN 绑定见 forma-pi-extension/application.yml
 forma:
-  sku-search:
-    client: ${FORMA_SKU_SEARCH_CLIENT:apify}
-    apify:
-      actor-id: zen-studio/taobao-search-scraper
-      timeout-ms: 120000
-      token: ${APIFY_TOKEN:}
-    searcher:
-      enabled: true
-      source-page-size: 20
-      rerank-pool-size: 40
-      rerank-use-case: forma.sku.rerank
-      rerank-timeout-ms: 12000
-      # banned-title-keywords:
-  xhs-note-search:
-    client: ${FORMA_XHS_NOTE_SEARCH_CLIENT:apify}
-    apify:
-      actor-id: opspilot.cc/xiaohongshu-keyword-search-scraper
-      timeout-ms: 120000
-      token: ${APIFY_TOKEN:}
-    searcher:
-      enabled: true
-      source-page-size: 20
-      rerank-pool-size: 40
-      rerank-use-case: forma.xhs.rerank
-      rerank-timeout-ms: 12000
-  xhs-note-fetch:
-    client: ${FORMA_XHS_NOTE_FETCH_CLIENT:apify}
-    apify:
-      actor-id: khadinakbar/xiaohongshu-note-detail-scraper
-      timeout-ms: 120000
-      token: ${APIFY_TOKEN:}
   workspace:
     root: ${FORMA_WORKSPACE_ROOT:}
 

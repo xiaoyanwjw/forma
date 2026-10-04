@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class XhsNoteSearchPropertiesTest {
 
     @Test
-    void defaults_mock_and_default_actor() {
+    void defaults_apify_and_default_actor() {
         XhsNoteSearchProperties p = new XhsNoteSearchProperties();
-        assertEquals("mock", p.getClient());
+        assertEquals("apify", p.getClient());
         assertEquals("opspilot.cc/xiaohongshu-keyword-search-scraper", p.getApify().getActorId());
         assertTrue(p.getSearcher().isEnabled());
         assertEquals(40, p.getSearcher().getRerankPoolSize());
