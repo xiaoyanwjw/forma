@@ -35,4 +35,11 @@ class ArtifactTypeTest {
         assertEquals(ArtifactType.XHS_NOTE, ArtifactType.fromCode("XHS_NOTE"));
         assertEquals(ArtifactType.XHS_BREAK, ArtifactType.fromCode("xhs_break"));
     }
+
+    @Test
+    void codes_include_tech_digest() {
+        assertEquals("tech_digest", ArtifactType.TECH_DIGEST.getCode());
+        assertEquals(ArtifactType.TECH_DIGEST, ArtifactType.fromCode("tech_digest"));
+        assertEquals(ArtifactType.TECH_DIGEST, ArtifactType.fromCode("TECH_DIGEST"));
+    }
 }

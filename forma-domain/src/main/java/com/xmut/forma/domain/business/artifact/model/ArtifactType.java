@@ -11,7 +11,8 @@ public enum ArtifactType {
     CHAT("chat"),
     XHS_TOPICLIST("xhs_topiclist"),
     XHS_NOTE("xhs_note"),
-    XHS_BREAK("xhs_break");
+    XHS_BREAK("xhs_break"),
+    TECH_DIGEST("tech_digest");
 
     private final String code;
 

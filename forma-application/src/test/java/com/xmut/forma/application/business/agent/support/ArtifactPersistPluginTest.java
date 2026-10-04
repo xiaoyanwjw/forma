@@ -177,6 +177,28 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
+    void persist_techDigest_mapsType() {
+        PersistedGenerationArtifact out = plugin.persist(
+                "u1", "r1", "tech_digest", SkillRunProfile.PERSIST_TECH_DIGEST,
+                listViewMap(), usableTechDigestPayload());
+        assertNotNull(out.getArtifactRef());
+        ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
+        verify(artifactRepository).save(cap.capture());
+        assertEquals(ArtifactType.TECH_DIGEST, cap.getValue().getType());
+    }
+
+    @Test
+    void persist_techDigest_rejectsEmptyExcerpts() {
+        Map<String, Object> artifact = usableTechDigestPayload();
+        artifact.put("excerpts", Collections.emptyList());
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "tech_digest", SkillRunProfile.PERSIST_TECH_DIGEST,
+                        listViewMap(), artifact));
+        assertEquals(ArtifactPersistPlugin.MSG_TECH_DIGEST_UNUSABLE, ex.getMessage());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
     void persist_listingPlan_acceptsMinimalPlan() {
         PersistedGenerationArtifact out = plugin.persist(
                 "u1", "r1", "ecommerce", SkillRunProfile.PERSIST_LISTING_PLAN, planView(), usablePlanPayload());
@@ -202,6 +224,17 @@ class ArtifactPersistPluginTest {
         verify(artifactRepository).update(cap.capture());
         assertEquals(ArtifactType.SKU, cap.getValue().getType());
         assertEquals("art-plan-1", cap.getValue().getId());
+    }
+
+    private static Map<String, Object> usableTechDigestPayload() {
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("title", "一篇科技文");
+        payload.put("source", "paste");
+        Map<String, Object> excerpt = new LinkedHashMap<String, Object>();
+        excerpt.put("heading", "引言");
+        excerpt.put("quotes", Collections.singletonList("原文一句"));
+        payload.put("excerpts", Collections.singletonList(excerpt));
+        return payload;
     }
 
     private static Map<String, Object> usablePlanPayload() {
