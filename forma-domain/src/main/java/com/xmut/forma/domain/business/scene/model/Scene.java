@@ -1,5 +1,6 @@
 package com.xmut.forma.domain.business.scene.model;
 
+import com.xmut.forma.domain.business.scene.constant.SceneCategory;
 import com.xmut.forma.domain.business.scene.constant.SceneStatus;
 
 import java.time.Instant;
@@ -12,6 +13,7 @@ public class Scene {
     private String id;
     private String sceneCode;
     private String displayName;
+    private SceneCategory category;
     private SceneStatus status;
     private int sortOrder;
     private String summary;
@@ -40,6 +42,14 @@ public class Scene {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public SceneCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(SceneCategory category) {
+        this.category = category;
     }
 
     public SceneStatus getStatus() {

@@ -19,6 +19,7 @@ class FormaModelCatalogAutoConfigurationTest {
                     ModelCatalog catalog = ctx.getBean(ModelCatalog.class);
                     assertNotNull(catalog.resolve("forma.sku.rerank"));
                     assertNotNull(catalog.resolve("forma.xhs.rerank"));
+                    assertNotNull(catalog.resolve("forma.tech.excerpt"));
                 });
     }
 }

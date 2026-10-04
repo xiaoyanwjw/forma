@@ -19,6 +19,7 @@ const ECOMMERCE = {
   bizId: 'a1000001-0001-4000-8000-000000000001',
   sceneCode: 'ecommerce',
   displayName: '电商开店',
+  category: 'ecommerce',
   status: 'AVAILABLE',
   sortOrder: 1,
   summary: '选品与上架',

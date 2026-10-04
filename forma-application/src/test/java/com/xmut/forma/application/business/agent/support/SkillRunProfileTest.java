@@ -84,4 +84,16 @@ class SkillRunProfileTest {
         assertTrue(profile.isBilledXhsBreak());
         assertEquals(SkillRunProfile.billedXhsBreak().getPersistAs(), profile.getPersistAs());
     }
+
+    @Test
+    void techDigestResolvesToPersistTechDigest() {
+        SkillRunProfile profile = SkillRunProfile.resolve("tech-digest", false);
+        assertEquals("tech_digest", profile.getPersistAs());
+        assertEquals(SkillRunProfile.PERSIST_TECH_DIGEST, profile.getPersistAs());
+        assertEquals(SceneCapabilityPackLoader.SKILL_TECH_DIGEST, profile.getSkillId());
+        assertTrue(profile.isSettleEnabled());
+        assertTrue(profile.isRequireUserText());
+        assertTrue(profile.isBilledTechDigest());
+        assertEquals(SkillRunProfile.billedTechDigest().getPersistAs(), profile.getPersistAs());
+    }
 }

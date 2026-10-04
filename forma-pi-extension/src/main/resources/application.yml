@@ -13,3 +13,7 @@ forma:
     client: ${FORMA_XHS_NOTE_FETCH_CLIENT:apify}
     apify:
       token: ${APIFY_TOKEN:}
+  web-fetch:
+    client: ${FORMA_WEB_FETCH_CLIENT:apify}
+    apify:
+      token: ${APIFY_TOKEN:}

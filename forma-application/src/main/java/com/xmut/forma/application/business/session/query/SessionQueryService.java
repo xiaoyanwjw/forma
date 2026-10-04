@@ -141,7 +141,7 @@ public class SessionQueryService {
 
     /**
      * 会话侧栏最近可用成果：本人该 session 上最新 history 类型 artifact_ref，详情走 HistoryQuery（含 resign / 60 天窗）。
-     * {@code artifactType} 可选：{@code picklist} / {@code sku} / {@code xhs_topiclist} / {@code xhs_note} / {@code xhs_break}；
+     * {@code artifactType} 可选：{@code picklist} / {@code sku} / {@code xhs_topiclist} / {@code xhs_note} / {@code xhs_break} / {@code tech_digest}；
      * 空则上述类型里取最新一条。
      */
     @Transactional(readOnly = true)

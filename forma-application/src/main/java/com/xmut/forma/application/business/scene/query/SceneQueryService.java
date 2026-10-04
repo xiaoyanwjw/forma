@@ -58,6 +58,7 @@ public class SceneQueryService {
                 scene.getId(),
                 scene.getSceneCode(),
                 scene.getDisplayName(),
+                scene.getCategory().getCode(),
                 scene.getStatus().name(),
                 scene.getSortOrder(),
                 scene.getSummary());

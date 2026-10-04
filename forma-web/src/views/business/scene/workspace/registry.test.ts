@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { techDigestSpec } from '@/views/business/scene/tech/spec'
 import { xhsSpec } from '@/views/business/scene/xiaohongshu/spec'
 import { getSceneWorkspaceSpec } from '@/views/business/scene/workspace/registry'
 
@@ -35,5 +36,15 @@ describe('getSceneWorkspaceSpec', () => {
     expect(x?.paneByArtifactType.xhs_break).toBe('break')
     expect(x).not.toHaveProperty('itemHandoffs')
     expect(x).not.toHaveProperty('toolbarHandoffs')
+  })
+
+  it('maps tech_digest digest pane', () => {
+    const t = getSceneWorkspaceSpec('tech_digest')
+    expect(t).toBe(techDigestSpec)
+    expect(t?.breadcrumb).toBe('科技速读')
+    expect(t?.artifactTypes).toEqual(['tech_digest'])
+    expect(t?.paneBySkillId['tech-digest']).toBe('digest')
+    expect(t?.paneByArtifactType.tech_digest).toBe('digest')
+    expect(t?.paneByArtifactType.digest).toBe('digest')
   })
 })

@@ -6,6 +6,9 @@ spring:
     name: forma
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  # forma-pi-extension 用同名 @Primary ModelCatalog 覆盖 pi-agent 默认目录
+  main:
+    allow-bean-definition-overriding: true
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 生产默认 UTC（Spine：存储 UTC）；本地 dev 见 application-dev.yml

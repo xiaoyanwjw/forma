@@ -42,6 +42,9 @@ public final class ViewRenderHelpers {
         if ("ecommerce-skulist".equals(skillId)) {
             return enrichSkulist(deepCopy(source));
         }
+        if ("tech-digest".equals(skillId)) {
+            return enrichTechDigest(deepCopy(source));
+        }
         return source;
     }
 
@@ -55,6 +58,24 @@ public final class ViewRenderHelpers {
         enrichItems(artifact, ViewRenderHelpers::pickItemHelpers);
         putItemCount(artifact);
         return artifact;
+    }
+
+    private static Map<String, Object> enrichTechDigest(Map<String, Object> artifact) {
+        putDefaultEmptyList(artifact, "points");
+        putDefaultEmptyList(artifact, "excerpts");
+        putDefaultEmptyList(artifact, "uncertainties");
+        Object uncertainties = artifact.get("uncertainties");
+        if (uncertainties instanceof List && !((List<?>) uncertainties).isEmpty()) {
+            artifact.put("hasUncertainties", Boolean.TRUE);
+        }
+        return artifact;
+    }
+
+    private static void putDefaultEmptyList(Map<String, Object> artifact, String key) {
+        Object raw = artifact.get(key);
+        if (!(raw instanceof List)) {
+            artifact.put(key, new ArrayList<Object>());
+        }
     }
 
     private static Map<String, Object> enrichBreak(Map<String, Object> artifact) {

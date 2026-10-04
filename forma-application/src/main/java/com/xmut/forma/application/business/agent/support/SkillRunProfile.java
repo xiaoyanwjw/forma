@@ -17,6 +17,7 @@ public final class SkillRunProfile {
     public static final String PERSIST_XHS_TOPICLIST = "xhs_topiclist";
     public static final String PERSIST_XHS_NOTE = "xhs_note";
     public static final String PERSIST_XHS_BREAK = "xhs_break";
+    public static final String PERSIST_TECH_DIGEST = "tech_digest";
 
     private final String skillId;
     private final boolean settleEnabled;
@@ -75,6 +76,11 @@ public final class SkillRunProfile {
                 SceneCapabilityPackLoader.SKILL_XHS_BREAK, true, PERSIST_XHS_BREAK, true, false, true);
     }
 
+    public static SkillRunProfile billedTechDigest() {
+        return new SkillRunProfile(
+                SceneCapabilityPackLoader.SKILL_TECH_DIGEST, true, PERSIST_TECH_DIGEST, true, false, true);
+    }
+
     /**
      * Resolve profile from API flags.
      * <ul>
@@ -105,6 +111,9 @@ public final class SkillRunProfile {
         }
         if (SceneCapabilityPackLoader.SKILL_XHS_BREAK.equals(id)) {
             return billedXhsBreak();
+        }
+        if (SceneCapabilityPackLoader.SKILL_TECH_DIGEST.equals(id)) {
+            return billedTechDigest();
         }
         throw new BusinessException(ErrorCode.PARAM_INVALID, "暂不支持该 Skill 计费生成: " + id);
     }
@@ -153,5 +162,9 @@ public final class SkillRunProfile {
 
     public boolean isBilledXhsBreak() {
         return settleEnabled && PERSIST_XHS_BREAK.equals(persistAs);
+    }
+
+    public boolean isBilledTechDigest() {
+        return settleEnabled && PERSIST_TECH_DIGEST.equals(persistAs);
     }
 }

@@ -12,9 +12,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ModelProviderCompleteTest {
 
@@ -46,12 +48,82 @@ class ModelProviderCompleteTest {
     }
 
     @Test
-    void public_api_has_complete_and_stream_no_chatWithTools() {
+    void public_api_has_complete_completeBatch_and_stream_no_chatWithTools() {
         Method[] methods = ModelProvider.class.getDeclaredMethods();
         List<String> names = Arrays.stream(methods).map(Method::getName).collect(java.util.stream.Collectors.toList());
-        assertThat(names).contains("complete", "stream");
+        assertThat(names).contains("complete", "completeBatch", "stream");
         assertThat(names).doesNotContain("chat", "chatWithTools");
-        assertThat(ModelProvider.class.getDeclaredMethods()).hasSize(2);
+        assertThat(ModelProvider.class.getDeclaredMethods()).hasSize(3);
+    }
+
+    @Test
+    void completeBatch_preserves_order_and_empty_is_empty() {
+        ModelProvider provider = new StubModelProvider();
+        assertThat(provider.completeBatch(null)).isEmpty();
+        assertThat(provider.completeBatch(Collections.<ModelRequest>emptyList())).isEmpty();
+
+        List<ModelRequest> batch = Arrays.asList(
+                ModelRequest.builder()
+                        .messages(Collections.singletonList(
+                                Message.builder().role("user").content("a").build()))
+                        .build(),
+                ModelRequest.builder()
+                        .messages(Collections.singletonList(
+                                Message.builder().role("user").content("b").build()))
+                        .build());
+        List<ModelResponse> responses = provider.completeBatch(batch);
+        assertThat(responses).hasSize(2);
+        assertThat(responses.get(0).getContent()).isEqualTo("a");
+        assertThat(responses.get(1).getContent()).isEqualTo("b");
+        assertThat(ModelCompleteBatchExecutor.POOL.isShutdown()).isFalse();
+    }
+
+    @Test
+    void completeBatch_runs_complete_concurrently() {
+        AtomicInteger inflight = new AtomicInteger();
+        AtomicInteger maxInflight = new AtomicInteger();
+        ModelProvider provider = request -> {
+            int n = inflight.incrementAndGet();
+            maxInflight.accumulateAndGet(n, Math::max);
+            try {
+                Thread.sleep(80L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+            } finally {
+                inflight.decrementAndGet();
+            }
+            return ModelResponse.builder()
+                    .content(request.getMessages().get(0).getContent())
+                    .toolCalls(Collections.emptyList())
+                    .build();
+        };
+        List<ModelRequest> batch = Arrays.asList(userReq("a"), userReq("b"), userReq("c"));
+        List<ModelResponse> responses = provider.completeBatch(batch);
+        assertThat(responses).extracting(ModelResponse::getContent).containsExactly("a", "b", "c");
+        assertThat(maxInflight.get()).isGreaterThan(1);
+    }
+
+    @Test
+    void completeBatch_unwraps_complete_failure() {
+        ModelProvider provider = request -> {
+            if ("boom".equals(request.getMessages().get(0).getContent())) {
+                throw new IllegalArgumentException("bad chunk");
+            }
+            return ModelResponse.builder()
+                    .content("ok")
+                    .toolCalls(Collections.emptyList())
+                    .build();
+        };
+        assertThatThrownBy(() -> provider.completeBatch(Arrays.asList(userReq("ok"), userReq("boom"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("bad chunk");
+    }
+
+    private static ModelRequest userReq(String content) {
+        return ModelRequest.builder()
+                .messages(Collections.singletonList(Message.builder().role("user").content(content).build()))
+                .build();
     }
 
     @Test

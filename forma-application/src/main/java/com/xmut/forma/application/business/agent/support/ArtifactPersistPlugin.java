@@ -36,6 +36,8 @@ public class ArtifactPersistPlugin {
     public static final String MSG_LISTING_PLAN_UNUSABLE =
             "策划分镜不合格：需含 templateId、成交方向、3～5 条分镜与详情大纲、标题草稿";
     public static final String MSG_XHS_UNUSABLE = "小红书成果不合格：需含非空 view 与 artifact";
+    public static final String MSG_TECH_DIGEST_UNUSABLE =
+            "科技速读成果不合格：需含非空 view、非空 title、source 为 fetch 或 paste、以及非空 excerpts";
 
     private final ArtifactRepository artifactRepository;
     private final ObjectMapper objectMapper;
@@ -68,6 +70,8 @@ public class ArtifactPersistPlugin {
             requireUsableSkuPayload(data);
         } else if (isXhsType(type)) {
             requireUsableXhsPayload(projectedView, data);
+        } else if (isTechDigestType(type)) {
+            requireUsableTechDigestPayload(projectedView, data);
         }
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         Map<String, Object> view = projectedView != null ? projectedView : Collections.<String, Object>emptyMap();
@@ -118,6 +122,9 @@ public class ArtifactPersistPlugin {
         if (SkillRunProfile.PERSIST_XHS_BREAK.equals(persistAs)) {
             return ArtifactType.XHS_BREAK;
         }
+        if (SkillRunProfile.PERSIST_TECH_DIGEST.equals(persistAs)) {
+            return ArtifactType.TECH_DIGEST;
+        }
         throw new BusinessException(ErrorCode.PARAM_INVALID, "未支持的成果类型: " + persistAs);
     }
 
@@ -130,6 +137,30 @@ public class ArtifactPersistPlugin {
     static void requireUsableXhsPayload(Map<String, Object> view, Map<String, Object> data) {
         if (view == null || view.isEmpty() || data == null || data.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_XHS_UNUSABLE);
+        }
+    }
+
+    private static boolean isTechDigestType(ArtifactType type) {
+        return type == ArtifactType.TECH_DIGEST;
+    }
+
+    /**
+     * 可用科技速读：非空 view；title 非空；source 为 fetch 或 paste；excerpts 为非空 list。
+     */
+    static void requireUsableTechDigestPayload(Map<String, Object> view, Map<String, Object> data) {
+        if (view == null || view.isEmpty() || data == null) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_DIGEST_UNUSABLE);
+        }
+        if (!StringUtils.hasText(text(data.get("title")))) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_DIGEST_UNUSABLE);
+        }
+        String source = text(data.get("source"));
+        if (!"fetch".equals(source) && !"paste".equals(source)) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_DIGEST_UNUSABLE);
+        }
+        Object excerpts = data.get("excerpts");
+        if (!(excerpts instanceof List) || ((List<?>) excerpts).isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_DIGEST_UNUSABLE);
         }
     }
 

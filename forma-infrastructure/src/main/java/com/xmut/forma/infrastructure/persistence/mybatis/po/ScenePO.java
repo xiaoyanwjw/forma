@@ -11,6 +11,7 @@ public class ScenePO {
     private String bizId;
     private String sceneCode;
     private String displayName;
+    private String category;
     private String status;
     private Integer sortOrder;
     private String summary;
@@ -47,6 +48,14 @@ public class ScenePO {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public String getStatus() {

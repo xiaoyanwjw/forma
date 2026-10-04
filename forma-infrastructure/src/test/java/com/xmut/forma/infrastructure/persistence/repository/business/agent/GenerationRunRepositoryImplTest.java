@@ -34,7 +34,7 @@ class GenerationRunRepositoryImplTest {
     }
 
     @Test
-    void untypedLatestArtifactSqlIncludesXhsHistoryTypes() throws Exception {
+    void untypedLatestArtifactSqlIncludesHistoryTypes() throws Exception {
         InputStream in = GenerationRunMapper.class.getResourceAsStream(
                 "/mybatis/mapper/GenerationRunMapper.xml");
         assertNotNull(in);
@@ -43,7 +43,7 @@ class GenerationRunRepositoryImplTest {
             scanner.useDelimiter("\\A");
             xml = scanner.hasNext() ? scanner.next() : "";
         }
-        assertTrue(xml.contains("'picklist', 'sku', 'xhs_topiclist', 'xhs_note', 'xhs_break'"));
+        assertTrue(xml.contains("'picklist', 'sku', 'xhs_topiclist', 'xhs_note', 'xhs_break', 'tech_digest'"));
     }
 
     @Test

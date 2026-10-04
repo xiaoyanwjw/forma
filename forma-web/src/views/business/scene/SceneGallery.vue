@@ -8,7 +8,12 @@ import { getScenes } from '@/api/business/scene/scene'
 import { getSceneWorkspaceSpec } from '@/views/business/scene/workspace/registry'
 import { ApiError } from '@/api/client'
 import { clearToken } from '@/api/http'
-import type { Scene } from '@/types/business/scene'
+import {
+  SCENE_CATEGORY_TABS,
+  compareScenesByGalleryOrder,
+  type Scene,
+  type SceneCategoryFilter,
+} from '@/types/business/scene'
 
 const TOAST_MS = 4500
 
@@ -17,13 +22,19 @@ const scenes = ref<Scene[]>([])
 const loading = ref(true)
 const error = ref('')
 const needsLogin = ref(false)
+const categoryFilter = ref<SceneCategoryFilter>('all')
 const toastText = ref('')
 const toastVisible = ref(false)
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 
 const sortedScenes = computed(() =>
-  [...scenes.value].sort((a, b) => a.sortOrder - b.sortOrder),
+  [...scenes.value].sort(compareScenesByGalleryOrder),
 )
+
+const filteredScenes = computed(() => {
+  if (categoryFilter.value === 'all') return sortedScenes.value
+  return sortedScenes.value.filter((s) => s.category === categoryFilter.value)
+})
 
 function workspaceTarget(scene: Scene) {
   if (scene.status !== 'AVAILABLE') {
@@ -108,15 +119,35 @@ function goLogin() {
           <p>选一个场景，开始创作</p>
         </div>
 
+        <div
+          v-if="!loading && !error && sortedScenes.length"
+          class="category-tabs"
+          role="tablist"
+          aria-label="场景分类"
+        >
+          <button
+            v-for="tab in SCENE_CATEGORY_TABS"
+            :key="tab.code"
+            type="button"
+            class="category-tab"
+            role="tab"
+            :class="{ on: categoryFilter === tab.code }"
+            :aria-selected="categoryFilter === tab.code ? 'true' : 'false'"
+            @click="categoryFilter = tab.code"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+
         <p v-if="loading" class="status">加载中…</p>
 
         <template v-else-if="error">
           <p class="status error" role="alert">{{ error }}</p>
         </template>
 
-        <div v-else-if="sortedScenes.length" class="scene-grid" role="list">
+        <div v-else-if="filteredScenes.length" class="scene-grid" role="list">
           <SceneCard
-            v-for="scene in sortedScenes"
+            v-for="scene in filteredScenes"
             :key="scene.bizId"
             :scene="scene"
             :to="workspaceTarget(scene)"
@@ -127,6 +158,8 @@ function goLogin() {
             </template>
           </SceneCard>
         </div>
+
+        <p v-else-if="sortedScenes.length" class="status">这个分类暂时还没有场景。</p>
 
         <p v-else class="status">暂时没有可展示的场景。</p>
       </template>
@@ -261,6 +294,45 @@ function goLogin() {
   color: var(--mute);
   font-size: 0.95rem;
   max-width: 36em;
+}
+
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 2px;
+  margin: 0 0 28px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.category-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--mute);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 8px 12px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+
+.category-tab:hover {
+  color: var(--ink);
+}
+
+.category-tab.on {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+  font-weight: 600;
+}
+
+.category-tab:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .scene-grid {

@@ -34,6 +34,11 @@ class FormaPiToolCatalogConfigurationTest {
         assertNotNull(catalog.resolve(InMemoryModelCatalog.DEFAULT_USE_CASE));
         assertNotNull(catalog.resolve("forma.xhs.rerank"));
         assertEquals("forma.xhs.rerank", catalog.resolve("forma.xhs.rerank").getUseCase());
+        ModelDescriptor excerpt = catalog.resolve("forma.tech.excerpt");
+        assertNotNull(excerpt);
+        assertEquals("forma.tech.excerpt", excerpt.getUseCase());
+        assertEquals(0.0, excerpt.getTemperature());
+        assertEquals(1024, excerpt.getMaxTokens());
     }
 
     @Test
@@ -46,6 +51,10 @@ class FormaPiToolCatalogConfigurationTest {
                 handlerClassOf(defs, "search_xhs_note"));
         assertEquals("com.xmut.forma.extension.tool.xhs.FetchXhsNoteToolHandler",
                 handlerClassOf(defs, "fetch_xhs_note"));
+        assertEquals("com.xmut.forma.extension.tool.web.FetchWebPageToolHandler",
+                handlerClassOf(defs, "fetch_web_page"));
+        assertEquals("com.xmut.forma.extension.tool.tech.ExcerptChunksToolHandler",
+                handlerClassOf(defs, "excerpt_chunks"));
         assertEquals(RenderViewToolHandler.class.getName(), handlerClassOf(defs, "render_view"));
         assertTrue(defs.stream().anyMatch(d -> "render_view".equals(d.getId())
                 && d.getSchema() != null
@@ -65,6 +74,7 @@ class FormaPiToolCatalogConfigurationTest {
                     ModelCatalog catalog = context.getBean(ModelCatalog.class);
                     assertNotNull(catalog.resolve("forma.sku.rerank"));
                     assertNotNull(catalog.resolve("forma.xhs.rerank"));
+                    assertNotNull(catalog.resolve("forma.tech.excerpt"));
                     assertNotNull(catalog.resolve(InMemoryModelCatalog.DEFAULT_USE_CASE));
                 });
     }
