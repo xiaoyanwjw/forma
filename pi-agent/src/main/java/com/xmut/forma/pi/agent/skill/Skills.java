@@ -43,12 +43,20 @@ public final class Skills {
         String name = frontmatter.get("name");
         String description = frontmatter.get("description");
         List<String> allowedTools = parseAllowedTools(frontmatter.get("allowed-tools"));
+        String persistAs = readFrontmatterValue(text, "persistAs");
+        List<String> hideFromHistory = parseAllowedTools(readFrontmatterValue(text, "hideFromHistory"));
         return Skill.builder()
                 .id(name)
                 .description(description)
                 .promptRef(derivePromptRef(skillMd))
                 .allowedTools(allowedTools)
                 .sceneCode(sceneCodeFromPath)
+                .persistAs(persistAs)
+                .hideFromHistory(hideFromHistory)
+                .viewPath(readFrontmatterValue(text, "viewPath"))
+                .artifactPath(readFrontmatterValue(text, "artifactPath"))
+                .planViewPath(readFrontmatterValue(text, "planViewPath"))
+                .planArtifactPath(readFrontmatterValue(text, "planArtifactPath"))
                 .build();
     }
 
@@ -124,6 +132,42 @@ public final class Skills {
             if ("scenes".equals(parts[i]) && StringUtils.hasText(parts[i + 1])) {
                 return parts[i + 1];
             }
+        }
+        return null;
+    }
+
+    /**
+     * 读 frontmatter 任意缩进的 {@code key:}（如 {@code metadata.output.persistAs}）。
+     */
+    static String readFrontmatterValue(String text, String key) {
+        if (!StringUtils.hasText(text) || !StringUtils.hasText(key)) {
+            return null;
+        }
+        String normalized = text.replace("\r\n", "\n");
+        if (!normalized.startsWith("---\n")) {
+            return null;
+        }
+        int end = normalized.indexOf("\n---\n", 4);
+        if (end < 0) {
+            if (normalized.endsWith("\n---")) {
+                end = normalized.length() - 4;
+            } else {
+                return null;
+            }
+        }
+        String block = normalized.substring(4, end);
+        String prefix = key.trim() + ":";
+        String[] lines = block.split("\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String trimmed = lines[i].trim();
+            if (!trimmed.startsWith(prefix)) {
+                continue;
+            }
+            String value = trimmed.substring(prefix.length()).trim();
+            if (isYamlBlockScalarIndicator(value)) {
+                return null;
+            }
+            return StringUtils.hasText(value) ? unquote(value) : null;
         }
         return null;
     }
