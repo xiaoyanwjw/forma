@@ -12,6 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Paste path: source prep ({@link TechDigestSourcePrep#slice}) then excerpt quote guard
  * ({@link ExcerptQuoteGuard#sanitize}). Simulates model quotes equal to each chunk's first sentence.
+ * Paste success is the T4 open gate: credits settle only after a usable {@code view.json} is persisted
+ * (粘贴成功才结算), not on fetch or excerpt generation alone.
  */
 class TechDigestPastePipelineTest {
 
