@@ -152,7 +152,18 @@ public final class TechDigestSourcePrep {
             }
             buf.append(piece.text);
             while (buf.length() >= MIN_CHUNK) {
+                if (overlapPrefix.length() > 0 && startsWithFenceOpener(buf.toString())) {
+                    char before = overlapPrefix.charAt(overlapPrefix.length() - 1);
+                    if (before != '\n' && before != '\r') {
+                        overlapPrefix = overlapPrefix + "\n";
+                    }
+                }
                 int take = Math.min(MAX_CHUNK - overlapPrefix.length(), buf.length());
+                if (take <= 0) {
+                    break;
+                }
+                take = adjustTakeForFences(overlapPrefix, buf.toString(), take);
+                take = takeThroughCompleteFences(overlapPrefix, buf.toString(), take);
                 if (take <= 0) {
                     break;
                 }
@@ -160,10 +171,25 @@ public final class TechDigestSourcePrep {
                 chunks.add(new TechDigestChunk(heading, body));
                 String consumed = buf.substring(0, take);
                 buf.delete(0, take);
-                overlapPrefix = tail(consumed, OVERLAP);
+                overlapPrefix = fenceSafeTail(overlapPrefix + consumed, OVERLAP);
                 if (buf.length() > 0 && overlapPrefix.length() > 0) {
-                    buf.insert(0, overlapPrefix);
-                    overlapPrefix = "";
+                    if (overlapPrefix.contains("```") && !allFencesComplete(overlapPrefix)) {
+                        overlapPrefix = "";
+                    }
+                    if (overlapPrefix.length() > 0) {
+                        int prefixLen = overlapPrefix.length();
+                        buf.insert(0, overlapPrefix);
+                        overlapPrefix = "";
+                        if (prefixLen < buf.length() && startsWithFenceOpener(buf.substring(prefixLen))) {
+                            if (prefixLen > 0) {
+                                char before = buf.charAt(prefixLen - 1);
+                                if (before != '\n' && before != '\r') {
+                                    buf.insert(prefixLen, '\n');
+                                }
+                            }
+                        }
+                        stripLeadingPartialBackticks(buf);
+                    }
                 }
             }
         }
@@ -191,11 +217,168 @@ public final class TechDigestSourcePrep {
         return sb.toString();
     }
 
-    private static String tail(String s, int maxChars) {
-        if (s.length() <= maxChars) {
+    private static int endAfterFenceLine(String md, int fenceMarker) {
+        int end = fenceMarker;
+        while (end < md.length() && md.charAt(end) != '\n') {
+            end++;
+        }
+        if (end < md.length()) {
+            end++;
+        }
+        return end;
+    }
+
+    /**
+     * Never split inside a fenced region; extend take through the closing fence if needed.
+     */
+    private static int adjustTakeForFences(String prefix, String buf, int take) {
+        if (take <= 0 || buf.isEmpty()) {
+            return take;
+        }
+        String combined = prefix + buf;
+        int cut = prefix.length() + take;
+        int pos = 0;
+        while (pos < combined.length()) {
+            int open = indexOfFenceOpen(combined, pos);
+            if (open < 0) {
+                break;
+            }
+            int close = indexOfFenceClose(combined, open);
+            if (close < 0) {
+                if (open < cut) {
+                    return buf.length();
+                }
+                break;
+            }
+            int fenceEnd = endAfterFenceLine(combined, close);
+            if (open < cut && cut < fenceEnd) {
+                int extended = fenceEnd - prefix.length();
+                return Math.min(extended, buf.length());
+            }
+            pos = fenceEnd;
+        }
+        return take;
+    }
+
+    /** Overlap must not begin inside a fenced region or reuse fence lines. */
+    private static String fenceSafeTail(String consumed, int maxChars) {
+        if (maxChars <= 0 || consumed.isEmpty()) {
+            return "";
+        }
+        int afterLastFence = endAfterLastCompleteFence(consumed);
+        int start = Math.max(afterLastFence, consumed.length() - maxChars);
+        start = fenceSafeOverlapStart(consumed, start);
+        String tail = trimTrailingPartialBackticks(consumed.substring(start));
+        if (tail.contains("```") && !allFencesComplete(tail)) {
+            return "";
+        }
+        return tail;
+    }
+
+    /** Overlap must not end with 1–2 backticks that could complete ``` with the next segment. */
+    private static String trimTrailingPartialBackticks(String s) {
+        int run = 0;
+        for (int i = s.length() - 1; i >= 0 && s.charAt(i) == '`'; i--) {
+            run++;
+        }
+        if (run == 0 || run >= 3) {
             return s;
         }
-        return s.substring(s.length() - maxChars);
+        return s.substring(0, s.length() - run);
+    }
+
+    private static boolean startsWithFenceOpener(String text) {
+        return text.length() >= 3 && text.charAt(0) == '`' && text.charAt(1) == '`' && text.charAt(2) == '`';
+    }
+
+    private static void stripLeadingPartialBackticks(StringBuilder buf) {
+        int run = 0;
+        while (run < buf.length() && buf.charAt(run) == '`') {
+            run++;
+        }
+        if (run > 0 && run < 3) {
+            buf.delete(0, run);
+        }
+    }
+
+    private static boolean allFencesComplete(String text) {
+        int pos = 0;
+        while (pos < text.length()) {
+            int open = indexOfFenceOpen(text, pos);
+            if (open < 0) {
+                return true;
+            }
+            int close = indexOfFenceClose(text, open);
+            if (close < 0) {
+                return false;
+            }
+            pos = endAfterFenceLine(text, close);
+        }
+        return true;
+    }
+
+    private static int takeThroughCompleteFences(String prefix, String buf, int take) {
+        take = Math.min(take, buf.length());
+        if (take <= 0) {
+            return take;
+        }
+        String combined = prefix + buf;
+        int cut = prefix.length() + take;
+        int pos = 0;
+        while (pos < cut) {
+            int open = indexOfFenceOpen(combined, pos);
+            if (open < 0 || open >= cut) {
+                break;
+            }
+            int close = indexOfFenceClose(combined, open);
+            if (close < 0 || close >= cut) {
+                int needCut = close < 0 ? combined.length() : endAfterFenceLine(combined, close);
+                return Math.min(needCut - prefix.length(), buf.length());
+            }
+            pos = endAfterFenceLine(combined, close);
+        }
+        return take;
+    }
+
+    private static int endAfterLastCompleteFence(String text) {
+        int pos = 0;
+        int lastEnd = 0;
+        while (pos < text.length()) {
+            int open = indexOfFenceOpen(text, pos);
+            if (open < 0) {
+                break;
+            }
+            int close = indexOfFenceClose(text, open);
+            if (close < 0) {
+                break;
+            }
+            lastEnd = endAfterFenceLine(text, close);
+            pos = lastEnd;
+        }
+        return lastEnd;
+    }
+
+    private static int fenceSafeOverlapStart(String text, int overlapStart) {
+        int pos = 0;
+        while (pos < text.length()) {
+            int open = indexOfFenceOpen(text, pos);
+            if (open < 0) {
+                break;
+            }
+            int close = indexOfFenceClose(text, open);
+            if (close < 0) {
+                if (overlapStart > open) {
+                    return text.length();
+                }
+                break;
+            }
+            int fenceEnd = endAfterFenceLine(text, close);
+            if (overlapStart > open && overlapStart < fenceEnd) {
+                overlapStart = fenceEnd;
+            }
+            pos = fenceEnd;
+        }
+        return Math.min(overlapStart, text.length());
     }
 
     private static List<TechDigestChunk> sampleTwelve(List<TechDigestChunk> all) {

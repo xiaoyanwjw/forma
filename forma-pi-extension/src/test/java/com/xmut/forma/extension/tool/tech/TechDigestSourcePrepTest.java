@@ -2,6 +2,7 @@ package com.xmut.forma.extension.tool.tech;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Scanner;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,7 +15,10 @@ class TechDigestSourcePrepTest {
 
     @Test
     void emptyInputYieldsNoChunks() {
-        TechDigestPrepResult result = TechDigestSourcePrep.slice("");
+        TechDigestPrepResult result = TechDigestSourcePrep.slice(null);
+        assertTrue(result.getChunks().isEmpty());
+        assertFalse(result.isPartialCoverage());
+        result = TechDigestSourcePrep.slice("");
         assertTrue(result.getChunks().isEmpty());
         assertFalse(result.isPartialCoverage());
         result = TechDigestSourcePrep.slice("   \n  ");
@@ -46,8 +50,10 @@ class TechDigestSourcePrepTest {
         assertTrue(result.getChunks().size() <= 12);
         assertTrue(result.isPartialCoverage());
         for (TechDigestChunk chunk : result.getChunks()) {
-            assertTrue(chunk.getText().length() <= MAX_CHUNK,
+            assertTrue(chunk.getText().length() <= MAX_CHUNK
+                            || chunkContainsOnlyOversizedFence(chunk.getText()),
                     "chunk length " + chunk.getText().length());
+            assertCompleteFencePairs(chunk.getText());
         }
     }
 
@@ -74,6 +80,26 @@ class TechDigestSourcePrepTest {
     }
 
     @Test
+    void oversizedFenceBlockIsOneChunkWithIntactFences() {
+        StringBuilder inner = new StringBuilder();
+        while (inner.length() < 1600) {
+            inner.append("// padding line for fence body\n");
+        }
+        String md = "```text\n" + inner + "```";
+        TechDigestPrepResult result = TechDigestSourcePrep.slice(md);
+        assertFalse(result.getChunks().isEmpty());
+        List<TechDigestChunk> chunks = result.getChunks();
+        assertTrue(chunks.size() >= 1);
+        TechDigestChunk sole = chunks.get(0);
+        assertTrue(sole.getText().contains("```text"));
+        assertTrue(sole.getText().trim().endsWith("```"));
+        assertTrue(sole.getText().length() > MAX_CHUNK);
+        for (TechDigestChunk chunk : chunks) {
+            assertCompleteFencePairs(chunk.getText());
+        }
+    }
+
+    @Test
     void packedChunksRespectTargetSizeWhenSourceIsLong() throws Exception {
         String md = readFixture("techdigest/fixtures/long-rfc.md");
         TechDigestPrepResult result = TechDigestSourcePrep.slice(md);
@@ -84,6 +110,62 @@ class TechDigestSourcePrepTest {
             }
         }
         assertTrue(largeEnough >= 3, "expect several full-sized chunks from long fixture");
+    }
+
+    private static void assertCompleteFencePairs(String text) {
+        if (!text.contains("```")) {
+            return;
+        }
+        int pos = 0;
+        while (pos < text.length()) {
+            int open = indexOfLineStartFence(text, pos);
+            if (open < 0) {
+                break;
+            }
+            int close = indexOfLineStartFence(text, open + 3);
+            assertTrue(close >= 0, "chunk tears a fenced region");
+            int end = close;
+            while (end < text.length() && text.charAt(end) != '\n') {
+                end++;
+            }
+            if (end < text.length()) {
+                end++;
+            }
+            pos = end;
+        }
+    }
+
+    private static boolean chunkContainsOnlyOversizedFence(String text) {
+        if (!text.contains("```")) {
+            return false;
+        }
+        int open = indexOfLineStartFence(text, 0);
+        if (open != 0) {
+            return false;
+        }
+        int close = indexOfLineStartFence(text, open + 3);
+        if (close < 0) {
+            return false;
+        }
+        int end = close;
+        while (end < text.length() && text.charAt(end) != '\n') {
+            end++;
+        }
+        if (end < text.length()) {
+            end++;
+        }
+        return end == text.length() && text.length() > MAX_CHUNK;
+    }
+
+    private static int indexOfLineStartFence(String text, int from) {
+        int i = text.indexOf("```", from);
+        while (i >= 0) {
+            if (i == 0 || text.charAt(i - 1) == '\n') {
+                return i;
+            }
+            i = text.indexOf("```", i + 3);
+        }
+        return -1;
     }
 
     private static String readFixture(String path) throws Exception {
