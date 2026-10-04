@@ -9,6 +9,8 @@ metadata:
     billing: true
     persistAs: xhs_note
     requiresView: true
+    viewPath: view.json
+    artifactPath: artifact.json
 ---
 
 # 笔记种草稿
@@ -49,9 +51,9 @@ metadata:
 
 5. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `template/view.mustache`；`format` 默认为 **html**）。勿手写 `view.content`。
 
-6. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"view.json"}`。
+6. **交付路径与成功标准。** 本轮 view / artifact 相对路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **view** 与 **artifact** 两文件。不要在对话里输出 `{"output":...}` 或粘贴整包 JSON。
 
-7. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重跑 `render_view`。
+7. **过 Verification。** 全部勾上再结束本轮；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
 ## Quality
 
@@ -65,22 +67,22 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** `artifact.json` + **`view.json`**（`render_view` 产出）+ **对话**指针 `{"output":"view.json"}`。完整字段与示例 → [output.md](references/output.md)。
+成功终态：**盘上** reminder 指定的 **view** + **artifact** 两文件（通常 `view.json` + `artifact.json`）。完整字段与示例 → [output.md](references/output.md)。
 
 速记：
 
 - 有选题交接时 `artifact.topicItemId` 必填且与输入 `tp-n` 一致
 - `titleOptions` **3–5**；`tags` **5–10**；`imageHints` **3–5**
 - `view.version` = **`2`**；`view.format` = **`html`**；`view.title` 与 `artifact.title` 同一中文标题
-- 成功路径除指针外无闲聊
+- 成功路径无跑题闲聊
 
 ## Verification
 
-输出前逐项自检（全部通过才允许发指针）：
+输出前逐项自检（全部通过才允许结束本轮）：
 
 - [ ] 本轮**未**调用 `search_xhs_note` / `fetch_xhs_note` / `ask_human`
 - [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
-- [ ] 终稿对话**仅** `{"output":"view.json"}`；**未**在对话里贴整包大 JSON
+- [ ] `<reminder>` 中的 view / artifact 两路径均已写盘；**未**在对话里贴整包大 JSON 或 `{"output":...}`
 - [ ] 输入含选题条目 id 时 `topicItemId` 必填且一致；口述笔记可省略
 - [ ] `titleOptions` 为 3–5 条互不重复的可发标题
 - [ ] `body` 非空，真人分享感，未编造未提供功效/数据
@@ -88,11 +90,11 @@ metadata:
 - [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.content` 可见标题备选 + 正文 + 标签 + 配图提示
 - [ ] `view.title` / `artifact.title` 为同一中文标题
 - [ ] **未** 输出 v1 `blocks` JSON 视图
-- [ ] 成功路径除指针外无闲聊；失败路径无人话以外的假 JSON
+- [ ] 成功路径无跑题闲聊；失败路径无人话以外的假 JSON
 
 ## Failures
 
-下列情况**只回一句人话原因**，不要输出 JSON 或指针：
+下列情况**只回一句人话原因**，不要输出 JSON：
 
 - 完全离题闲聊，看不出要写哪篇笔记
 - 用户只要选题清单或只要爆文拆解（引导去对应胶囊，不要硬写笔记）

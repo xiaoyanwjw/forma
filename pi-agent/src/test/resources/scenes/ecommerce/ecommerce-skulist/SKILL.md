@@ -8,7 +8,12 @@ metadata:
   output:
     billing: true
     persistAs: sku
+    hideFromHistory: listing_plan
     requiresView: true
+    viewPath: exec/view.json
+    artifactPath: exec/artifact.json
+    planViewPath: plan/view.json
+    planArtifactPath: plan/artifact.json
 ---
 
 # Listing 套装
@@ -48,7 +53,7 @@ metadata:
 
 5. **渲染策划视图。** 调用 **`render_view`**（`artifact`: `plan/artifact.json`，`out`: `plan/view.json`，`template`: `template/plan/view.mustache`）。**不要** hero 占位图、详情三件套、生图 Prompt。勿手写 HTML `content`。
 
-6. **策划指针。** 对话**仅**输出 `{"output":"plan/view.json"}`（无围栏、无整包 JSON）。过下方「策划」Verification 再发。
+6. **策划交付。** 本轮 view / artifact 路径以 `<reminder>` 为准（策划段通常为 `plan/view.json` + `plan/artifact.json`）。**成功** = 两文件已在盘上。不要在对话里输出 `{"output":...}` 或整包 JSON。过下方「策划」Verification 后再 `ask_human`。
 
 7. **立刻 `ask_human`**（勿在 Computer / JSON 里自造确认按钮）：
 
@@ -64,7 +69,7 @@ metadata:
 ```
 
 - **`confirm_execute`** → 继续第 8 步。**禁止**在收到此选项前写 `framePrompts` 或上架四字段。
-- **`supplement` 和/或自由文本**（无 option 的纯文本同补充）→ **只改策划**（`driver` / `frames` / `modules` / `titleDraft` / `assumptions`；**不得**改 `templateId` / `picklistItemId`）；回到第 4～7 步重写 `plan/*`、再发指针、再 `ask_human`。
+- **`supplement` 和/或自由文本**（无 option 的纯文本同补充）→ **只改策划**（`driver` / `frames` / `modules` / `titleDraft` / `assumptions`；**不得**改 `templateId` / `picklistItemId`）；回到第 4～7 步重写 `plan/*`、再 `ask_human`。
 
 8. **构造领域实体（执行）。** 继承策划字段（可微调 `titleDraft` / `frames` / `modules`，仍须满足条数与门禁；`picklistItemId` 原样保留）。补齐完整执行 **artifact**：上架四字段（像真实淘宝详情，不要鸡汤问答腔）+ 与 `frames` **等长**的 `framePrompts`（每项 `{ "prompt": "…", "negative": "…" }`，`negative` 可选；只出 Prompt，不调生图）。  
    - `detailTitle`：品类词 + 2～4 个卖点词；  
@@ -75,7 +80,7 @@ metadata:
 
 9. **渲染执行视图。** 调用 **`render_view`**（`artifact`: `exec/artifact.json`，`out`: `exec/view.json`，`template`: `template/exec/view.mustache`）。模板含 hero 占位 `<img data-forma-media-role="hero" …>`。勿手写 HTML `content`。
 
-10. **执行指针。** 过下方「执行」Verification 后，对话**仅**输出 `{"output":"exec/view.json"}`。**禁止**输出 `platformCopies` / `preferredPlatform`。
+10. **执行交付。** 本轮 view / artifact 路径以 `<reminder>` 为准（执行段通常为 `exec/view.json` + `exec/artifact.json`）。**成功** = 两文件已在盘上。过下方「执行」Verification 后结束。**禁止**输出 `platformCopies` / `preferredPlatform`；不要在对话里输出 `{"output":...}`。
 
 ## Quality
 
@@ -90,15 +95,15 @@ metadata:
 
 ## Output
 
-- **策划：** 盘上 `plan/artifact.json` + `plan/view.json`（`render_view`）+ 指针 `{"output":"plan/view.json"}` → 随后 `ask_human`
-- **执行：** 盘上 `exec/artifact.json` + `exec/view.json`（`render_view`）+ 指针 `{"output":"exec/view.json"}`  
+- **策划：** `<reminder>` 指定的 plan view + plan artifact 两文件已在盘上（通常 `plan/view.json` + `plan/artifact.json`）→ 随后 `ask_human`
+- **执行：** `<reminder>` 指定的 exec view + exec artifact 两文件已在盘上（通常 `exec/view.json` + `exec/artifact.json`）  
 字段、示例与好坏例 → [output.md](references/output.md)。
 
 应用层：首次 `ask_human` 前以 `listing_plan` 落库（读 `plan/view.json` + 同目录 `plan/artifact.json`）；确认后按 `persistAs: sku` 落库（读 `exec/view.json` + 同目录 `exec/artifact.json`）。同一 `runId` 工作区在策划 settle 后**保留**，供补充/执行继续写盘。
 
 ## Verification
 
-### 策划指针前（`plan/view.json`）
+### 策划段（reminder 中的 plan 路径）
 
 - [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.title` / `artifact.title` 为同一中文标题
 - [ ] `artifact.templateId` = `domestic-generic-default`
@@ -109,10 +114,10 @@ metadata:
 - [ ] HTML 与 `artifact` 短字段同一事实
 - [ ] **未** 输出 v1 `blocks` JSON 视图
 - [ ] 已写 `plan/artifact.json`，且已成功 **`render_view`** 写出 **`plan/view.json`**
-- [ ] 对话**仅** `{"output":"plan/view.json"}`；发指针后**必须** `ask_human`（未确认前禁止执行稿）
+- [ ] reminder 中的 plan view / plan artifact 均已写盘；**必须** `ask_human`（未确认前禁止执行稿）；**未**输出 `{"output":...}`
 - [ ] 未编造 BSR / 销量 / 资质；未宣称违禁功效
 
-### 执行指针前（`exec/view.json`）
+### 执行段（reminder 中的 exec 路径）
 
 - [ ] 继承策划必填字段（含交接路径下的 `picklistItemId`）；四字段均非空
 - [ ] `framePrompts.length` = `frames.length`；每条 `prompt` 非空；非空壳「8k/杰作/最佳质量」
@@ -123,8 +128,8 @@ metadata:
 - [ ] `mediaObjectIds` 可缺省或 `[]`（近端不强制）
 - [ ] **不要** `platformCopies`
 - [ ] 已写 `exec/artifact.json`，且已成功 **`render_view`** 写出 **`exec/view.json`**
-- [ ] 对话**仅** `{"output":"exec/view.json"}`
-- [ ] 成功路径除指针外无闲聊（`ask_human` 除外）
+- [ ] reminder 中的 exec view / exec artifact 均已写盘；**未**输出 `{"output":...}`
+- [ ] 成功路径无跑题闲聊（`ask_human` 除外）
 
 ## Failures
 

@@ -9,6 +9,8 @@ metadata:
     billing: true
     persistAs: xhs_topiclist
     requiresView: true
+    viewPath: view.json
+    artifactPath: artifact.json
 ---
 
 # 选题清单
@@ -31,8 +33,8 @@ metadata:
 4. **分配 id。** 按最终清单顺序为每条赋 `tp-1`…`tp-n`；后续领域实体与视图实体的 `id` **同序同值**。
 5. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**，再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
 6. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `template/view.mustache`）。勿手写 HTML `view.content`。
-7. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"view.json"}`。禁止在对话里粘贴整包 JSON 或 `artifact.json` / `view.json` 全文。
-8. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重跑 `render_view`。
+7. **交付路径与成功标准。** 本轮 view / artifact 相对路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **view** 与 **artifact** 两文件。不要在对话里输出 `{"output":...}` 或粘贴整包 JSON。
+8. **过 Verification。** 全部勾上再结束本轮；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
 ## Tool: search_xhs_note
 
@@ -60,7 +62,7 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** `artifact.json` + **`view.json`**（`render_view` 产出）+ **对话**指针 `{"output":"view.json"}`。完整字段、模板与好坏例 → [output.md](references/output.md)。
+成功终态：**盘上** reminder 指定的 **view** + **artifact** 两文件（通常 `view.json` + `artifact.json`）。完整字段、模板与好坏例 → [output.md](references/output.md)。
 
 速记：
 
@@ -75,11 +77,11 @@ metadata:
 
 ## Verification
 
-输出前逐项自检（全部通过才允许发指针）：
+输出前逐项自检（全部通过才允许结束本轮）：
 
 - [ ] 本轮恰好 **1** 次 `search_xhs_note`（成功或失败都只这一次）
 - [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
-- [ ] 终稿对话**仅** `{"output":"view.json"}`；**未**在对话里贴整包大 JSON
+- [ ] `<reminder>` 中的 view / artifact 两路径均已写盘；**未**在对话里贴整包大 JSON 或 `{"output":...}`
 - [ ] `artifact.items` 与 `view.json` 内 HTML `<ol>` 条目均为 **8–12** 条，条数一致、顺序对应
 - [ ] 每条 `id` 非空，格式 `tp-n`（从 1 顺序）；手递 prompt 与 artifact **同 id 同序**
 - [ ] 至少 **3** 个不同 `angle`（或人群切口），且无空泛「日常」「种草」三连凑数
@@ -92,11 +94,11 @@ metadata:
 - [ ] `view.title` / `artifact.title` 为同一中文标题；正文免责声明含字面量 `非实时平台全站行情`
 - [ ] **未** 输出 v1 `blocks` / `list` JSON 视图
 - [ ] 未编造官方热榜 / 全站实时推广池 / 实时互动榜
-- [ ] 成功路径除指针外无闲聊；失败路径无人话以外的假 JSON
+- [ ] 成功路径无跑题闲聊；失败路径无人话以外的假 JSON
 
 ## Failures
 
-下列情况**只回一句人话原因**，不要输出 JSON 或指针：
+下列情况**只回一句人话原因**，不要输出 JSON：
 
 - 无法理解用户要做选题（完全离题闲聊）
 - 写出的 8–12 条仍无法满足 Quality（同质凑数、无 3 个角度）且改盘后仍不合格

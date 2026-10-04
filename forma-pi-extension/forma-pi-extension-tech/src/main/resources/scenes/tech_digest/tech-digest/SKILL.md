@@ -9,6 +9,8 @@ metadata:
     billing: true
     persistAs: tech_digest
     requiresView: true
+    viewPath: view.json
+    artifactPath: artifact.json
 ---
 
 # 科技速读
@@ -37,9 +39,9 @@ metadata:
 
 5. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `template/view.mustache`）。勿手写 HTML `view.content`。近端**无**文末手递按钮。
 
-6. **终稿只输出指针。** 对话里**仅**一个 JSON 对象（无围栏、无其它文字）：`{"output":"view.json"}`。
+6. **交付路径与成功标准。** 本轮 view / artifact 相对路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **view** 与 **artifact** 两文件。不要在对话里输出 `{"output":...}` 或粘贴整包 JSON。
 
-7. **过 Verification。** 全部勾上再发指针；任一不满足 → Fail 或改盘后重跑 `render_view`。
+7. **过 Verification。** 全部勾上再结束本轮；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
 ## Tool: fetch_web_page
 
@@ -73,18 +75,18 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** `artifact.json` + **`view.json`**（`render_view` 产出）+ **对话**指针 `{"output":"view.json"}`。完整字段与示例 → [output.md](references/output.md)。
+成功终态：**盘上** reminder 指定的 **view** + **artifact** 两文件（通常 `view.json` + `artifact.json`）。完整字段与示例 → [output.md](references/output.md)。
 
 速记：
 
 - `source` = **`fetch`** 或 **`paste`**（不要用别的枚举）
-- 无可用正文不发指针
+- 无可用正文不写盘、不当作成功交付
 - `view.version` = **`2`**；`view.format` = **`html`**；含「AI 摘要，请对照原文」
-- 成功路径除指针外无闲聊（失败路径只人话）
+- 成功路径无跑题闲聊（失败路径只人话）
 
 ## Verification
 
-输出前逐项自检（全部通过才允许发指针）：
+输出前逐项自检（全部通过才允许结束本轮）：
 
 - [ ] 有可用原文（来自粘贴或一次成功的 `fetch_web_page`），且 `excerpts` 非空
 - [ ] 有链接且无粘贴时，本轮 `fetch_web_page` **至多 1 次**且成功；已有粘贴则 **0 次** fetch
@@ -92,16 +94,16 @@ metadata:
 - [ ] `source=fetch` 时 quotes 来自拉取正文；`source=paste` 时来自用户粘贴，未用假链冒充拉取成功
 - [ ] 主模型总结**未**把 `source.md` 全文灌进提示或 artifact 全文字段
 - [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
-- [ ] 终稿对话**仅** `{"output":"view.json"}`
+- [ ] `<reminder>` 中的 view / artifact 两路径均已写盘；**未**输出 `{"output":...}`
 - [ ] `title` / `oneLiner` / `points` / `forWhom` 非空且可对照 `excerpts`
 - [ ] `view.version` = **`2`**；`view.format` = **`html`**；view 含免责声明，**无**手递按钮
 - [ ] `view.title` / `artifact.title` 为同一中文标题
 - [ ] **未** 输出 v1 `blocks` JSON 视图
-- [ ] 成功路径除指针外无闲聊
+- [ ] 成功路径无跑题闲聊
 
 ## Failures
 
-下列情况**只回一句人话原因**，不要输出 JSON 或指针：
+下列情况**只回一句人话原因**，不要输出 JSON：
 
 - 用户没给链接也没粘贴正文
 - 给了链接但 `fetch_web_page` 失败 / 正文太短，且用户没有粘贴正文 → 请换公开链接或直接粘贴正文后再速读
