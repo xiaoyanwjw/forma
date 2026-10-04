@@ -9,7 +9,9 @@ export async function flushUi() {
 }
 
 /** Mount unified Workspace on `/scenes/:sceneCode`. */
-export async function mountSceneWorkspace(sceneCode: 'ecommerce' | 'xiaohongshu') {
+export async function mountSceneWorkspace(
+  sceneCode: 'ecommerce' | 'xiaohongshu' | 'tech_digest',
+) {
   const root = document.createElement('div')
   document.body.appendChild(root)
   const router = createRouter({

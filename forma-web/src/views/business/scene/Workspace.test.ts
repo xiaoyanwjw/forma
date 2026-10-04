@@ -13,6 +13,7 @@ const ECOMMERCE = {
   bizId: 'a1000001-0001-4000-8000-000000000001',
   sceneCode: 'ecommerce',
   displayName: '电商开店',
+  category: 'ecommerce',
   status: 'AVAILABLE',
   sortOrder: 1,
   summary: '选品与上架',
@@ -22,9 +23,20 @@ const XHS = {
   bizId: 'a1000001-0001-4000-8000-000000000003',
   sceneCode: 'xiaohongshu',
   displayName: '小红书种草',
+  category: 'content',
   status: 'AVAILABLE',
-  sortOrder: 3,
+  sortOrder: 2,
   summary: '笔记结构与种草表达',
+}
+
+const TECH_DIGEST = {
+  bizId: 'a1000001-0001-4000-8000-000000000005',
+  sceneCode: 'tech_digest',
+  displayName: '科技速读',
+  category: 'tech',
+  status: 'COMING_SOON',
+  sortOrder: 1,
+  summary: '丢产品页、AI 文章或技术文档链接：解析正文，一页摘要带走。',
 }
 
 const ECOMMERCE_SKILLS = {
@@ -41,6 +53,19 @@ const ECOMMERCE_SKILLS = {
       label: '生成素材',
       examplePrompt: '请为商品「Mac Mini 拓展坞」生成上架素材。',
       sortOrder: 2,
+    },
+  ],
+}
+
+const TECH_DIGEST_SKILLS = {
+  sceneCode: 'tech_digest',
+  skills: [
+    {
+      skillId: 'tech-digest',
+      label: '科技速读',
+      examplePrompt:
+        '请速读这个链接，我关心它适不适合小团队用：https://example.com/product',
+      sortOrder: 1,
     },
   ],
 }
@@ -98,14 +123,19 @@ function sseBody(chunks: string[]) {
   })
 }
 
-function mockCatalog() {
+function sceneSkillsForUrl(url: string) {
+  if (url.includes('xiaohongshu')) return XHS_SKILLS
+  if (url.includes('tech_digest')) return TECH_DIGEST_SKILLS
+  return ECOMMERCE_SKILLS
+}
+
+function mockCatalog(scenes: unknown[] = [ECOMMERCE, XHS, TECH_DIGEST]) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = String(input)
     if (url.includes('/api/v1/scenes/') && url.includes('/skills')) {
-      const skills = url.includes('xiaohongshu') ? XHS_SKILLS : ECOMMERCE_SKILLS
-      return okScenes(skills)
+      return okScenes(sceneSkillsForUrl(url))
     }
-    if (url.includes('/api/v1/scenes')) return okScenes([ECOMMERCE, XHS])
+    if (url.includes('/api/v1/scenes')) return okScenes(scenes)
     if (url.includes('/api/v1/sessions')) return okScenes([])
     if (url.includes('/api/v1/credits')) return creditsResponse()
     if (url.includes('/api/v1/agent/runs')) {
@@ -121,7 +151,7 @@ function mockCatalog() {
   })
 }
 
-function mountWorkspace(sceneCode: 'ecommerce' | 'xiaohongshu') {
+function mountWorkspace(sceneCode: 'ecommerce' | 'xiaohongshu' | 'tech_digest') {
   return mountSceneWorkspace(sceneCode)
 }
 
@@ -211,5 +241,20 @@ describe('Workspace skill send', () => {
     expect(bodies[0]?.sceneCode).toBe('xiaohongshu')
     expect(bodies[0]?.skillId).toBe('xhs-topiclist')
     expect(bodies[0]?.text).toBe('帮我做桌搭选题')
+  })
+
+  it('tech_digest shows 科技速读 capsule and posts tech-digest', async () => {
+    const mounted = await mountWorkspace('tech_digest')
+    unmount = mounted.unmount
+    expect(mounted.root.querySelector('[data-demo]')).toBeNull()
+    const pills = mounted.root.querySelectorAll('[data-testid="session-quick-row"] .pill')
+    expect(pills.length).toBeGreaterThanOrEqual(1)
+    expect(pills[0]?.textContent?.trim()).toBe('科技速读')
+    await sendPrompt(mounted.root, '速读这个链接 https://example.com', 0)
+    const bodies = billedRunBodies(fetchMock)
+    expect(bodies.length).toBeGreaterThanOrEqual(1)
+    expect(bodies[0]?.sceneCode).toBe('tech_digest')
+    expect(bodies[0]?.skillId).toBe('tech-digest')
+    expect(bodies[0]?.text).toBe('速读这个链接 https://example.com')
   })
 })
