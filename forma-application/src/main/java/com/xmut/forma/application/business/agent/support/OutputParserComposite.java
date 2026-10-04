@@ -3,6 +3,7 @@ package com.xmut.forma.application.business.agent.support;
 import com.xmut.forma.common.output.OutputParseContext;
 import com.xmut.forma.common.output.OutputParser;
 import com.xmut.forma.common.output.ParsedGenerationOutput;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,7 @@ import java.util.List;
  * 关键设计：已经接手的 parser 抛错就失败，不再改走闲聊兜底。收集列表时排除自己。
  */
 @Component
+@Primary
 public class OutputParserComposite implements OutputParser {
 
     private final List<OutputParser> parsers;

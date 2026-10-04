@@ -2,6 +2,7 @@ package com.xmut.forma.extension.config;
 
 import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
+import com.xmut.forma.extension.ecommerce.SkulistOutputParser;
 import com.xmut.forma.extension.ecommerce.SkulistTurnReminderExtension;
 import com.xmut.forma.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.forma.extension.tool.sku.client.ApifyTaobaoSkuSearchClient;
@@ -79,5 +80,10 @@ public class SkuToolsConfiguration {
     @Bean
     public SkulistTurnReminderExtension skulistTurnReminderExtension(SkillCatalog skillCatalog) {
         return new SkulistTurnReminderExtension(skillCatalog);
+    }
+
+    @Bean
+    public SkulistOutputParser skulistOutputParser(SkillCatalog skillCatalog) {
+        return new SkulistOutputParser(skillCatalog);
     }
 }

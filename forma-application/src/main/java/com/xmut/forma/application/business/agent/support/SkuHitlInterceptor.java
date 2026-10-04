@@ -10,6 +10,7 @@ import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
 import com.xmut.forma.common.output.OutputParseContext;
+import com.xmut.forma.common.output.OutputParser;
 import com.xmut.forma.common.output.ParsedGenerationOutput;
 import com.xmut.forma.common.util.StringUtils;
 import com.xmut.forma.application.business.agent.workspace.RunWorkspaceService;
@@ -18,13 +19,10 @@ import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import com.xmut.forma.pi.ai.message.Message;
-
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -41,7 +39,7 @@ public class SkuHitlInterceptor
     static final String MSG_LISTING_MODEL_FAILED = "上架素材生成失败，请稍后重试";
 
     private final CreditHoldSupport creditHoldSupport;
-    private final OutputParserComposite outputParserComposite;
+    private final OutputParser outputParser;
     private final ArtifactPersistPlugin artifactPersistPlugin;
     private final ComputerViewResolver computerViewResolver;
     private final GenerationRunRepository generationRunRepository;
@@ -49,14 +47,14 @@ public class SkuHitlInterceptor
     private final RunWorkspaceService runWorkspaceService;
 
     public SkuHitlInterceptor(CreditHoldSupport creditHoldSupport,
-                              OutputParserComposite outputParserComposite,
+                              OutputParser outputParser,
                               ArtifactPersistPlugin artifactPersistPlugin,
                               ComputerViewResolver computerViewResolver,
                               GenerationRunRepository generationRunRepository,
                               Clock clock,
                               RunWorkspaceService runWorkspaceService) {
         this.creditHoldSupport = creditHoldSupport;
-        this.outputParserComposite = outputParserComposite;
+        this.outputParser = outputParser;
         this.artifactPersistPlugin = artifactPersistPlugin;
         this.computerViewResolver = computerViewResolver;
         this.generationRunRepository = generationRunRepository;
@@ -123,8 +121,7 @@ public class SkuHitlInterceptor
     }
 
     /**
-     * 流式碎片未拼出可用策划时，用缓冲全文 / Turn 终稿 / 最近 assistant 消息补候选。
-     * 产品顺序仍是「先策划、再 ask_human」；此处只修捕获。
+     * 策划正文在盘上。缓冲和终稿只用来回显，不再从 assistant 消息里找指针。
      */
     private void seedPlanCandidateFromTurn(BilledRunContext ctx) {
         if (StringUtils.hasText(ctx.getAssistantTextCandidate())) {
@@ -133,36 +130,23 @@ public class SkuHitlInterceptor
         if (captureSkuPlanCandidate(ctx.getAssistantTextBuffer(), ctx)) {
             return;
         }
-        if (captureSkuPlanCandidate(ctx.getTurnFinalResponse(), ctx)) {
-            return;
-        }
-        List<Message> messages = ctx.getTurnMessages();
-        if (messages == null || messages.isEmpty()) {
-            return;
-        }
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            Message message = messages.get(i);
-            if (message == null || !"assistant".equalsIgnoreCase(message.getRole())) {
-                continue;
-            }
-            if (captureSkuPlanCandidate(message.getContent(), ctx)) {
-                return;
-            }
-        }
+        captureSkuPlanCandidate(ctx.getTurnFinalResponse(), ctx);
     }
 
     private void persistOrEchoSkuPlan(BilledRunContext billedCtx, Consumer<SseEvent> sink) {
         GenerationRunContext context = billedCtx.getRun();
-        String planText = billedCtx.getAssistantTextCandidate();
         String toolCallId = billedCtx.getPendingToolCallId();
-
-        if (!StringUtils.hasText(planText)) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
-        }
-        ParsedGenerationOutput parsed = parsePlan(planText, billedCtx);
+        ParsedGenerationOutput parsed = parsePlanOutput(billedCtx);
         if (parsed.getRawView() == null
                 || !ArtifactPersistPlugin.isUsableSkuPlanPayload(parsed.getBusinessPayload())) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
+        }
+        String planText = billedCtx.getAssistantTextCandidate();
+        if (!StringUtils.hasText(planText)) {
+            planText = billedCtx.getTurnFinalResponse();
+        }
+        if (!StringUtils.hasText(planText)) {
+            planText = "";
         }
 
         Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
@@ -208,11 +192,9 @@ public class SkuHitlInterceptor
         }
         ParsedGenerationOutput parsed;
         try {
-            parsed = parseText(text, ctx);
-        } catch (IllegalArgumentException ex) {
-            // 指针已出现但文件未就绪：记下原文，挂起落库时再解析并走失败收尾。
-            ctx.setAssistantTextCandidate(text.trim());
-            return true;
+            parsed = parsePlanOutput(ctx);
+        } catch (BusinessException ex) {
+            return false;
         }
         if (parsed.getRawView() == null || parsed.getRawView().isEmpty()) {
             return false;
@@ -224,28 +206,37 @@ public class SkuHitlInterceptor
         return true;
     }
 
-    private ParsedGenerationOutput parseText(String text, BilledRunContext ctx) {
-        return outputParserComposite.parse(OutputParseContext.builder()
+    /**
+     * 策划 settle 固定 resumeOptionId 为空，让 skulist parser 走 plan 槽。
+     */
+    private ParsedGenerationOutput parsePlanOutput(BilledRunContext ctx) {
+        String echo = ctx.getAssistantTextCandidate();
+        if (!StringUtils.hasText(echo)) {
+            echo = ctx.getTurnFinalResponse();
+        }
+        OutputParseContext parseCtx = OutputParseContext.builder()
                 .skillId(ctx.getProfile().getSkillId())
                 .sceneCode(ctx.getRun().getSceneCode())
-                .resumeOptionId(ctx.getResumeOptionId())
-                .finalResponse(text)
+                .resumeOptionId(null)
+                .finalResponse(echo)
                 .workspaceRoot(runDir(ctx))
-                .build());
+                .build();
+        if (!outputParser.appliesTo(parseCtx)) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
+        }
+        try {
+            return outputParser.parse(parseCtx);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID,
+                    StringUtils.hasText(ex.getMessage())
+                            ? ex.getMessage()
+                            : ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
+        }
     }
 
     private Path runDir(BilledRunContext ctx) {
         GenerationRunContext run = ctx.getRun();
         return runWorkspaceService.runDir(run.getSessionId(), run.getRunId());
-    }
-
-    private ParsedGenerationOutput parsePlan(String text, BilledRunContext ctx) {
-        try {
-            return parseText(text, ctx);
-        } catch (IllegalArgumentException ex) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID,
-                    StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果文件无效");
-        }
     }
 
     private static Map<String, Object> toArtifactReady(PersistedGenerationArtifact persisted,

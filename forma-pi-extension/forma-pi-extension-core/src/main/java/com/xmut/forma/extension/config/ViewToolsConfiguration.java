@@ -1,6 +1,7 @@
 package com.xmut.forma.extension.config;
 
 import com.xmut.forma.extension.output.TurnReminderExtension;
+import com.xmut.forma.extension.output.WorkspaceOutputParser;
 import com.xmut.forma.extension.tool.view.CatalogSkillTemplateLoader;
 import com.xmut.forma.extension.tool.view.MustacheViewRenderer;
 import com.xmut.forma.extension.tool.view.RenderViewToolHandler;
@@ -36,5 +37,10 @@ public class ViewToolsConfiguration {
     @Bean
     public TurnReminderExtension turnReminderExtension(SkillCatalog skillCatalog) {
         return new TurnReminderExtension(skillCatalog);
+    }
+
+    @Bean
+    public WorkspaceOutputParser workspaceOutputParser(SkillCatalog skillCatalog) {
+        return new WorkspaceOutputParser(skillCatalog);
     }
 }

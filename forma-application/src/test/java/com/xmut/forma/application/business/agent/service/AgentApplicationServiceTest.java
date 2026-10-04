@@ -14,12 +14,11 @@ import com.xmut.forma.application.business.computer.ComputerViewResolver;
 import com.xmut.forma.application.business.computer.NoSkillMarkdownProjector;
 import com.xmut.forma.application.business.computer.NormalizeViewProjector;
 import com.xmut.forma.application.business.session.query.SessionQueryService;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xmut.forma.common.output.OutputParseContext;
+import com.xmut.forma.extension.ecommerce.SkulistOutputParser;
+import com.xmut.forma.extension.output.WorkspaceOutputParser;
 import com.xmut.forma.common.output.OutputParser;
-import com.xmut.forma.common.output.ParsedGenerationOutput;
 import com.xmut.forma.common.util.StringUtils;
 import com.xmut.forma.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.forma.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -45,9 +44,7 @@ import com.xmut.forma.pi.agent.session.TurnResult;
 import com.xmut.forma.pi.agent.skill.Skill;
 import com.xmut.forma.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.Ordered;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
@@ -55,7 +52,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -111,6 +109,8 @@ class AgentApplicationServiceTest {
     @Mock
     private SceneCapabilityPackLoader sceneCapabilityPackLoader;
     @Mock
+    private com.xmut.forma.pi.agent.skill.SkillCatalog skillCatalog;
+    @Mock
     private AgentSession agentSession;
     @Mock
     private ArtifactPersistPlugin artifactPersistPlugin;
@@ -136,13 +136,23 @@ class AgentApplicationServiceTest {
                 .thenReturn(tempWorkspace);
         org.mockito.Mockito.lenient().when(runWorkspaceService.runDir(anyString(), anyString()))
                 .thenReturn(tempWorkspace);
+        org.mockito.Mockito.lenient().when(skillCatalog.resolve(anyString())).thenAnswer(inv ->
+                Optional.of(catalogSkill(inv.getArgument(0))));
+        org.mockito.Mockito.lenient().when(skillCatalog.get(anyString())).thenAnswer(inv ->
+                Optional.of(catalogSkill(inv.getArgument(0))));
         service = newService(defaultViewResolver());
+        writeEnvelope("view.json", "artifact.json", VALID_PICKLIST_JSON);
+        writeEnvelope("plan/view.json", "plan/artifact.json", VALID_PLAN_JSON);
+        writeEnvelope("exec/view.json", "exec/artifact.json", VALID_LISTING_JSON);
     }
 
     private AgentApplicationService newService(ComputerViewResolver viewResolver) {
         GenerationOutputParser fallback = new GenerationOutputParser();
         OutputParserComposite composite = new OutputParserComposite(
-                java.util.Arrays.<OutputParser>asList(new SkillJsonViewStandIn(), fallback),
+                java.util.Arrays.<OutputParser>asList(
+                        new SkulistOutputParser(skillCatalog),
+                        new WorkspaceOutputParser(skillCatalog),
+                        fallback),
                 fallback);
         SkuHitlInterceptor listingHitl = new SkuHitlInterceptor(
                 new CreditHoldSupport(creditApplicationService),
@@ -925,14 +935,14 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    @Disabled("Task 6: missing workspace file fails inside WorkspaceOutputParser")
-    void outputPointerMissing_releasesWithoutSettle() {
+    void outputPointerMissing_releasesWithoutSettle() throws Exception {
+        Files.deleteIfExists(tempWorkspace.resolve("view.json"));
         GenerationRunContext ctx = picklistCtx("run-ptr-miss", "session-ptr-miss");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-ptr-miss", "session-ptr-miss", "{\"output\":\"missing.json\"}",
+                TurnResult.ok("run-ptr-miss", "session-ptr-miss", "done",
                         Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-ptr-miss")).thenReturn(Optional.of(
                 GenerationRun.start("run-ptr-miss", USER_ID, HOLD_ID, "session-ptr-miss",
@@ -943,7 +953,7 @@ class AgentApplicationServiceTest {
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals("output file missing: missing.json", failed.getData().get("reason"));
+        assertEquals("output file missing: view.json", failed.getData().get("reason"));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
         verify(artifactPersistPlugin, never()).persist(
@@ -952,16 +962,13 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    @Disabled("Task 6: disk view/artifact is read by WorkspaceOutputParser")
     void outputPointerFile_settlesAndDeletesWorkspace() throws Exception {
-        Files.write(tempWorkspace.resolve("final.json"),
-                VALID_PICKLIST_JSON.getBytes(StandardCharsets.UTF_8));
         GenerationRunContext ctx = picklistCtx("run-ptr-ok", "session-ptr-ok");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
         });
         when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-ptr-ok", "session-ptr-ok", "{\"output\":\"final.json\"}",
+                TurnResult.ok("run-ptr-ok", "session-ptr-ok", "done",
                         Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
         when(generationRunRepository.findById("run-ptr-ok")).thenReturn(Optional.of(
                 GenerationRun.start("run-ptr-ok", USER_ID, HOLD_ID, "session-ptr-ok",
@@ -977,12 +984,12 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    @Disabled("Task 6: missing plan file fails inside SkulistOutputParser")
-    void listingPlanPointerMissing_releasesWithoutSettle() {
+    void listingPlanPointerMissing_releasesWithoutSettle() throws Exception {
+        Files.deleteIfExists(tempWorkspace.resolve("plan/view.json"));
         GenerationRunContext ctx = listingCtx("run-plan-ptr", "session-plan-ptr");
         stubEcommercePack();
         stubListingAskHumanSuspend("run-plan-ptr", "session-plan-ptr",
-                "{\"output\":\"plan/final.json\"}", ASK_CALL_ID);
+                "策划稿", ASK_CALL_ID);
         when(generationRunRepository.findById("run-plan-ptr")).thenReturn(Optional.of(
                 GenerationRun.start("run-plan-ptr", USER_ID, HOLD_ID, "session-plan-ptr",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE,
@@ -993,7 +1000,7 @@ class AgentApplicationServiceTest {
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals("output file missing: plan/final.json", failed.getData().get("reason"));
+        assertEquals("output file missing: plan/view.json", failed.getData().get("reason"));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
         verify(runWorkspaceService, never()).deleteRunDirQuietly(anyString(), anyString());
@@ -1059,6 +1066,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void streamPicklistRunPrefersSkillViewOverLegacyProjection() {
+        writeEnvelope("view.json", "artifact.json", SKILL_OWNED_VIEW_JSON);
         GenerationRunContext ctx = picklistCtx("run-pl-view", "session-pl-view");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-view", "session-pl-view", SKILL_OWNED_VIEW_JSON);
@@ -1657,6 +1665,25 @@ class AgentApplicationServiceTest {
         when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(ecommercePack());
     }
 
+    private static String persistAsForSkill(String id) {
+        if (SceneCapabilityPackLoader.SKILL_SKULIST.equals(id)) {
+            return SkillRunProfile.PERSIST_SKU;
+        }
+        if (SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST.equals(id)) {
+            return SkillRunProfile.PERSIST_XHS_TOPICLIST;
+        }
+        if (SceneCapabilityPackLoader.SKILL_XHS_NOTE.equals(id)) {
+            return SkillRunProfile.PERSIST_XHS_NOTE;
+        }
+        if (SceneCapabilityPackLoader.SKILL_XHS_BREAK.equals(id)) {
+            return SkillRunProfile.PERSIST_XHS_BREAK;
+        }
+        if (SceneCapabilityPackLoader.SKILL_TECH_DIGEST.equals(id)) {
+            return SkillRunProfile.PERSIST_TECH_DIGEST;
+        }
+        return SkillRunProfile.PERSIST_PICKLIST;
+    }
+
     private static SceneCapabilityPack ecommercePack() {
         return new SceneCapabilityPack(ECOM_SCENE_CODE, Arrays.asList(
                 skill(SceneCapabilityPackLoader.SKILL_PICKLIST,
@@ -1702,62 +1729,40 @@ class AgentApplicationServiceTest {
         return scene;
     }
 
-    /**
-     * Test stand-in until Task 6 workspace parsers read disk.
-     * Applies only when a skill id is present and the final text still carries an inline view object.
-     */
-    static final class SkillJsonViewStandIn implements OutputParser, Ordered {
-
-        private static final TypeReference<Map<String, Object>> MAP_TYPE =
-                new TypeReference<Map<String, Object>>() {
-                };
-
-        private final ObjectMapper objectMapper = new ObjectMapper();
-
-        @Override
-        public int getOrder() {
-            return 0;
+    private static Skill catalogSkill(String id) {
+        Skill.SkillBuilder builder = Skill.builder()
+                .id(id)
+                .description(id)
+                .promptRef("classpath:scenes/test/" + id + "/SKILL.md")
+                .allowedTools(Collections.singletonList("read_skill"))
+                .persistAs(persistAsForSkill(id));
+        if (SceneCapabilityPackLoader.SKILL_PICKLIST.equals(id)) {
+            builder.viewPath("view.json").artifactPath("artifact.json");
+        } else if (SceneCapabilityPackLoader.SKILL_SKULIST.equals(id)) {
+            builder.viewPath("exec/view.json")
+                    .artifactPath("exec/artifact.json")
+                    .planViewPath("plan/view.json")
+                    .planArtifactPath("plan/artifact.json");
         }
+        return builder.build();
+    }
 
-        @Override
-        public boolean appliesTo(OutputParseContext ctx) {
-            return viewNode(ctx) != null;
+    private void writeEnvelope(String viewRel, String artifactRel, String envelope) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(envelope);
+            writeJson(mapper, viewRel, root.get("view"));
+            writeJson(mapper, artifactRel, root.get("artifact"));
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
         }
+    }
 
-        @Override
-        public ParsedGenerationOutput parse(OutputParseContext ctx) {
-            JsonNode view = viewNode(ctx);
-            Map<String, Object> rawView = objectMapper.convertValue(view, MAP_TYPE);
-            Map<String, Object> payload = Collections.emptyMap();
-            JsonNode root = root(ctx.getFinalResponse());
-            JsonNode artifact = root == null ? null : root.get("artifact");
-            if (artifact != null && artifact.isObject()) {
-                payload = objectMapper.convertValue(artifact, MAP_TYPE);
-            }
-            return new ParsedGenerationOutput(rawView, payload);
+    private void writeJson(ObjectMapper mapper, String rel, JsonNode node) throws IOException {
+        Path path = tempWorkspace.resolve(rel);
+        if (path.getParent() != null) {
+            Files.createDirectories(path.getParent());
         }
-
-        private JsonNode viewNode(OutputParseContext ctx) {
-            if (ctx == null || !StringUtils.hasText(ctx.getSkillId())) {
-                return null;
-            }
-            JsonNode root = root(ctx.getFinalResponse());
-            if (root == null || !root.has("view") || !root.get("view").isObject()) {
-                return null;
-            }
-            return root.get("view");
-        }
-
-        private JsonNode root(String raw) {
-            if (!StringUtils.hasText(raw)) {
-                return null;
-            }
-            try {
-                JsonNode node = objectMapper.readTree(raw.trim());
-                return node != null && node.isObject() ? node : null;
-            } catch (Exception ex) {
-                return null;
-            }
-        }
+        Files.write(path, mapper.writeValueAsBytes(node));
     }
 }
