@@ -1,7 +1,9 @@
 package com.xmut.forma.extension.config;
 
 import com.xmut.forma.extension.tool.sku.SearchSkuToolHandler;
+import com.xmut.forma.extension.tool.tech.ExcerptChunksToolHandler;
 import com.xmut.forma.extension.tool.view.RenderViewToolHandler;
+import com.xmut.forma.extension.tool.web.FetchWebPageToolHandler;
 import com.xmut.forma.extension.tool.xhs.FetchXhsNoteToolHandler;
 import com.xmut.forma.extension.tool.xhs.SearchXhsNoteToolHandler;
 import com.xmut.forma.pi.agent.config.PiAutoConfiguration;
@@ -28,7 +30,9 @@ class FormaPrimaryToolCatalogOverrideTest {
                     FormaModelCatalogAutoConfiguration.class,
                     SkuToolsConfiguration.class,
                     XhsToolsConfiguration.class,
-                    ViewToolsConfiguration.class)
+                    ViewToolsConfiguration.class,
+                    WebFetchToolsConfiguration.class,
+                    TechExcerptToolsConfiguration.class)
             .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class));
 
     @Test
@@ -67,6 +71,8 @@ class FormaPrimaryToolCatalogOverrideTest {
             assertThat(catalog.resolve("search_xhs_note")).isPresent();
             assertThat(catalog.resolve("fetch_xhs_note")).isPresent();
             assertThat(catalog.resolve("render_view")).isPresent();
+            assertThat(catalog.resolve("fetch_web_page")).isPresent();
+            assertThat(catalog.resolve("excerpt_chunks")).isPresent();
             assertThat(catalog.resolve("ask_human")).isPresent();
             assertThat(catalog.resolve("write_file")).isPresent();
             assertThat(catalog.resolve("read_file")).isPresent();
@@ -78,6 +84,8 @@ class FormaPrimaryToolCatalogOverrideTest {
             assertThat(catalog.handlerOf("search_xhs_note").get()).isInstanceOf(SearchXhsNoteToolHandler.class);
             assertThat(catalog.handlerOf("fetch_xhs_note").get()).isInstanceOf(FetchXhsNoteToolHandler.class);
             assertThat(catalog.handlerOf("render_view").get()).isInstanceOf(RenderViewToolHandler.class);
+            assertThat(catalog.handlerOf("fetch_web_page").get()).isInstanceOf(FetchWebPageToolHandler.class);
+            assertThat(catalog.handlerOf("excerpt_chunks").get()).isInstanceOf(ExcerptChunksToolHandler.class);
             assertThat(catalog.handlerOf("ask_human")).isPresent();
             assertThat(catalog.handlerOf("ask_human").get()).isInstanceOf(AskHumanToolHandler.class);
             assertThat(catalog.handlerOf("write_file").get()).isInstanceOf(WriteFileToolHandler.class);
