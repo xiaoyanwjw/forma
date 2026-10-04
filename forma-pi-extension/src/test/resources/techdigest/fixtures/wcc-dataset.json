@@ -1,0 +1,10 @@
+[
+  {
+    "url": "https://example.com/product",
+    "text": "Forma Edge 推理节点可在 Docker 中启动，文档要求最低 8GB 内存与 AVX2 指令集。 控制台支持导入 GGUF 权重，文件保存在本地卷，不会自动上传云端。 官方在 Ryzen 9 实验室环境下测得 7B Q4 约 95 到 110 token 每秒，未对用户硬件做 SLA 承诺。 本季度软件对注册用户免费，第三方模型许可证需用户自行确认。 Q2 计划提供 Windows 安装包预览与 OpenAI 兼容 HTTP API。 Forma Edge 推理节点可在 Docker 中启动，文档要求最低 8GB 内存与 AVX2 指令集。 控制台支持导入 GGUF 权重，文件保存在本地卷，不会自动上传云端。 官方在 Ryzen 9 实验室环境下测得 7B Q4 约 95 到 110 token 每秒，未对用户硬件做 SLA 承诺。 本季度软件对注册用户免费，第三方模型许可证需用户自行确认。 Q2 计划提供 Windows 安装包预览与 OpenAI 兼容 HTTP API。 Forma Edge 推理节点可在 Docker 中启动，文档要求最低 8GB 内存与 AVX2 指令集。 控制台支持导入 GGUF 权重，文件保存在本地卷，不会自动上传云端。 官方在 Ryzen 9 实验室环境下测得 7B Q4 约 95 到 110 token 每秒，未对用户硬件做 SLA 承诺。 本季度软件对注册用户免费，第三方模型许可证需用户自行确认。 Q2 计划提供 Windows 安装包预览与 OpenAI 兼容 HTTP API。",
+    "markdown": "# 示例产品\n\nForma Edge 推理节点可在 Docker 中启动，文档要求最低 8GB 内存与 AVX2 指令集。 控制台支持导入 GGUF 权重，文件保存在本地卷，不会自动上传云端。 官方在 Ryzen 9 实验室环境下测得 7B Q4 约 95 到 110 token 每秒，未对用户硬件做 SLA 承诺。 本季度软件对注册用户免费，第三方模型许可证需用户自行确认。 Q2 计划提供 Windows 安装包预览与 OpenAI 兼容 HTTP API。 Forma Edge 推理节点可在 Docker 中启动，文档要求最低 8GB 内存与 AVX2 指令集。 控制台支持导入 GGUF 权重，文件保存在本地卷，不会自动上传云端。 官方在 Ryzen 9 实验室环境下测得 7B Q4 约 95 到 110 token 每秒，未对用户硬件做 SLA 承诺。 本季度软件对注册用户免费，第三方模型许可证需用户自行确认。 Q2 计划提供 Windows 安装包预览与 OpenAI 兼容 HTTP API。 Forma Edge 推理节点可在 Docker 中启动，文档要求最低 8GB 内存与 AVX2 指令集。 控制台支持导入 GGUF 权重，文件保存在本地卷，不会自动上传云端。 官方在 Ryzen 9 实验室环境下测得 7B Q4 约 95 到 110 token 每秒，未对用户硬件做 SLA 承诺。 本季度软件对注册用户免费，第三方模型许可证需用户自行确认。 Q2 计划提供 Windows 安装包预览与 OpenAI 兼容 HTTP API。\n\n## 规格\n\n- 8GB RAM\n- AVX2 CPU\n",
+    "metadata": {
+      "title": "示例产品"
+    }
+  }
+]
