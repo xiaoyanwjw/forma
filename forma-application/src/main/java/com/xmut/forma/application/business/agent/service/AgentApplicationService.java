@@ -12,7 +12,7 @@ import com.xmut.forma.application.business.agent.support.BilledRunInterceptor;
 import com.xmut.forma.application.business.agent.support.BilledRunListener;
 import com.xmut.forma.application.business.agent.support.BilledSuspendedHandler;
 import com.xmut.forma.application.business.agent.support.CreditHoldSupport;
-import com.xmut.forma.application.business.agent.support.GenerationOutputParser;
+import com.xmut.forma.application.business.agent.support.OutputParserComposite;
 import com.xmut.forma.application.business.agent.support.ListingHitlOptions;
 import com.xmut.forma.application.business.agent.support.PersistedGenerationArtifact;
 import com.xmut.forma.application.business.agent.support.SkuHitlInterceptor;
@@ -27,6 +27,7 @@ import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
+import com.xmut.forma.common.output.OutputParseContext;
 import com.xmut.forma.common.output.ParsedGenerationOutput;
 import com.xmut.forma.common.util.ObjectUtils;
 import com.xmut.forma.common.util.StringUtils;
@@ -99,7 +100,7 @@ public class AgentApplicationService {
     private final SceneRepository sceneRepository;
     private final SceneCapabilityPackLoader sceneCapabilityPackLoader;
     private final AgentSession agentSession;
-    private final GenerationOutputParser generationOutputParser;
+    private final OutputParserComposite outputParserComposite;
     private final ArtifactPersistPlugin artifactPersistPlugin;
     private final ComputerViewResolver computerViewResolver;
     private final List<BilledRunInterceptor> billedRunInterceptors;
@@ -423,7 +424,7 @@ public class AgentApplicationService {
                 emit(sink, SseEvent.of(SseEventName.MESSAGE_DELTA, delta));
             }
 
-            ParsedGenerationOutput parsed = parseFinalOutput(finalResponse, runDir);
+            ParsedGenerationOutput parsed = parseFinalOutput(context, runContext, finalResponse, runDir);
             Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                     .skillBound(profile.isSkillBound())
                     .finalResponse(finalResponse)
@@ -608,7 +609,7 @@ public class AgentApplicationService {
                 delta.put("text", finalResponse);
                 emit(sink, SseEvent.of(SseEventName.MESSAGE_DELTA, delta));
             }
-            ParsedGenerationOutput parsed = parseFinalOutput(finalResponse, runDir);
+            ParsedGenerationOutput parsed = parseFinalOutput(context, runContext, finalResponse, runDir);
             Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                     .skillBound(profile.isSkillBound())
                     .finalResponse(finalResponse)
@@ -800,9 +801,19 @@ public class AgentApplicationService {
                 .build();
     }
 
-    private ParsedGenerationOutput parseFinalOutput(String finalResponse, Path runDir) {
+    private ParsedGenerationOutput parseFinalOutput(GenerationRunContext context,
+                                                    BilledRunContext runContext,
+                                                    String finalResponse,
+                                                    Path runDir) {
         try {
-            return generationOutputParser.parse(finalResponse, runDir);
+            OutputParseContext ctx = OutputParseContext.builder()
+                    .skillId(context.getProfile().getSkillId())
+                    .sceneCode(context.getSceneCode())
+                    .resumeOptionId(runContext.getResumeOptionId())
+                    .finalResponse(finalResponse)
+                    .workspaceRoot(runDir)
+                    .build();
+            return outputParserComposite.parse(ctx);
         } catch (IllegalArgumentException ex) {
             throw new BusinessException(ErrorCode.PARAM_INVALID,
                     StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果文件无效");

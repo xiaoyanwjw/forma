@@ -9,6 +9,7 @@ import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
+import com.xmut.forma.common.output.OutputParseContext;
 import com.xmut.forma.common.output.ParsedGenerationOutput;
 import com.xmut.forma.common.util.StringUtils;
 import com.xmut.forma.application.business.agent.workspace.RunWorkspaceService;
@@ -40,7 +41,7 @@ public class SkuHitlInterceptor
     static final String MSG_LISTING_MODEL_FAILED = "上架素材生成失败，请稍后重试";
 
     private final CreditHoldSupport creditHoldSupport;
-    private final GenerationOutputParser generationOutputParser;
+    private final OutputParserComposite outputParserComposite;
     private final ArtifactPersistPlugin artifactPersistPlugin;
     private final ComputerViewResolver computerViewResolver;
     private final GenerationRunRepository generationRunRepository;
@@ -48,14 +49,14 @@ public class SkuHitlInterceptor
     private final RunWorkspaceService runWorkspaceService;
 
     public SkuHitlInterceptor(CreditHoldSupport creditHoldSupport,
-                              GenerationOutputParser generationOutputParser,
+                              OutputParserComposite outputParserComposite,
                               ArtifactPersistPlugin artifactPersistPlugin,
                               ComputerViewResolver computerViewResolver,
                               GenerationRunRepository generationRunRepository,
                               Clock clock,
                               RunWorkspaceService runWorkspaceService) {
         this.creditHoldSupport = creditHoldSupport;
-        this.generationOutputParser = generationOutputParser;
+        this.outputParserComposite = outputParserComposite;
         this.artifactPersistPlugin = artifactPersistPlugin;
         this.computerViewResolver = computerViewResolver;
         this.generationRunRepository = generationRunRepository;
@@ -207,7 +208,7 @@ public class SkuHitlInterceptor
         }
         ParsedGenerationOutput parsed;
         try {
-            parsed = generationOutputParser.parse(text, runDir(ctx));
+            parsed = parseText(text, ctx);
         } catch (IllegalArgumentException ex) {
             // 指针已出现但文件未就绪：记下原文，挂起落库时再解析并走失败收尾。
             ctx.setAssistantTextCandidate(text.trim());
@@ -223,6 +224,16 @@ public class SkuHitlInterceptor
         return true;
     }
 
+    private ParsedGenerationOutput parseText(String text, BilledRunContext ctx) {
+        return outputParserComposite.parse(OutputParseContext.builder()
+                .skillId(ctx.getProfile().getSkillId())
+                .sceneCode(ctx.getRun().getSceneCode())
+                .resumeOptionId(ctx.getResumeOptionId())
+                .finalResponse(text)
+                .workspaceRoot(runDir(ctx))
+                .build());
+    }
+
     private Path runDir(BilledRunContext ctx) {
         GenerationRunContext run = ctx.getRun();
         return runWorkspaceService.runDir(run.getSessionId(), run.getRunId());
@@ -230,7 +241,7 @@ public class SkuHitlInterceptor
 
     private ParsedGenerationOutput parsePlan(String text, BilledRunContext ctx) {
         try {
-            return generationOutputParser.parse(text, runDir(ctx));
+            return parseText(text, ctx);
         } catch (IllegalArgumentException ex) {
             throw new BusinessException(ErrorCode.PARAM_INVALID,
                     StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果文件无效");
