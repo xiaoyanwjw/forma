@@ -13,7 +13,9 @@ import org.springframework.context.annotation.FilterType;
  * <p>
  * Boot 2.7 {@code @SpringBootApplication} has no {@code excludeFilters} attribute
  * (that alias exists only in Boot 3). Expanding the composed annotation keeps a
- * single scan with Boot's default exclude filters plus the extension regex.
+ * single scan with Boot's default exclude filters plus extension / Pi config regex.
+ * Pi {@code AgentConfiguration} must not be component-scanned or it registers Stub
+ * before {@code PiAiAutoConfiguration} can bind DeepSeek.
  */
 @SpringBootConfiguration
 @EnableAutoConfiguration
@@ -22,7 +24,7 @@ import org.springframework.context.annotation.FilterType;
         excludeFilters = {
                 @ComponentScan.Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
                 @ComponentScan.Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class),
-                @ComponentScan.Filter(type = FilterType.REGEX, pattern = "com\\.xmut\\.forma\\.extension\\..*")
+                @ComponentScan.Filter(type = FilterType.REGEX, pattern = "com\\.xmut\\.forma\\.(extension|pi\\.agent\\.config)\\..*")
         })
 public class Application {
 

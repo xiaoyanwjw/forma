@@ -1,0 +1,6 @@
+# Loaded by FormaExtensionApplicationYmlEnvironmentPostProcessor (Boot 2.7 does not merge jar application.yml).
+forma:
+  sku-search:
+    client: ${FORMA_SKU_SEARCH_CLIENT:apify}
+    apify:
+      token: ${APIFY_TOKEN:}

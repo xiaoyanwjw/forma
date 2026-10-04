@@ -1,0 +1,10 @@
+# Loaded by FormaExtensionApplicationYmlEnvironmentPostProcessor (Boot 2.7 does not merge jar application.yml).
+forma:
+  xhs-note-search:
+    client: ${FORMA_XHS_NOTE_SEARCH_CLIENT:apify}
+    apify:
+      token: ${APIFY_TOKEN:}
+  xhs-note-fetch:
+    client: ${FORMA_XHS_NOTE_FETCH_CLIENT:apify}
+    apify:
+      token: ${APIFY_TOKEN:}

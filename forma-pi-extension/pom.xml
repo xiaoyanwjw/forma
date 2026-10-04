@@ -11,42 +11,16 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>forma-pi-extension</artifactId>
-    <packaging>jar</packaging>
-    <name>Forma Pi Extension</name>
-    <description>Pi 业务扩展：SKU / XHS 等工具与技能（不依赖 application）</description>
+    <artifactId>forma-pi-extension-parent</artifactId>
+    <packaging>pom</packaging>
+    <name>Forma Pi Extension Parent</name>
+    <description>core + 场景包；总开关 artifact 为 forma-pi-extension-bundle</description>
 
-    <dependencies>
-        <dependency>
-            <groupId>com.xmut.forma</groupId>
-            <artifactId>pi-agent</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.xmut.forma</groupId>
-            <artifactId>forma-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-autoconfigure</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.samskivert</groupId>
-            <artifactId>jmustache</artifactId>
-            <version>1.15</version>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>forma-pi-extension-core</module>
+        <module>forma-pi-extension-ecommerce</module>
+        <module>forma-pi-extension-xiaohongshu</module>
+        <module>forma-pi-extension-tech</module>
+        <module>forma-pi-extension-bundle</module>
+    </modules>
 </project>

@@ -92,7 +92,8 @@ Forma 把日常技能收进场景和 Skill。用户选场景、跑一轮，Agent
 
 ```bash
 cp APP-META/docker-config/environment/.env.example APP-META/docker-config/environment/.env
-# 修改 JWT_SECRET（≥32 字节）。本地可先不填模型 Key。
+# 填 JWT_SECRET（≥32 字节）、APIFY_TOKEN、DEEPSEEK_API_KEY 等。
+# 本地 IDE 点运行也会读取这一份（不覆盖系统里已经有的同名变量）。
 ```
 
 
@@ -161,7 +162,7 @@ docker compose -f APP-META/docker-config/docker-compose.yml down
 | Starter                     | `forma-starter/`                                        | Spring Boot 入口                         |
 | Application                 | `forma-application/`                                    | 用例、计费编排、Computer 投影                    |
 | Domain / Infra / Interfaces | `forma-domain/` · `…-infrastructure/` · `…-interfaces/` | DDD 分层                                 |
-| Pi 扩展                       | `forma-pi-extension/`                                   | 场景包、tools、Mustache（`spring.factories`） |
+| Pi 扩展                       | `forma-pi-extension/`                                   | `core` + 电商/小红书/科技场景包；总开关 `bundle` |
 | Pi 运行时                      | `pi-ai/` `pi-agent/`                                    | Agent                                  |
 | 运维                          | `APP-META/`                                             | Compose、Dockerfile、bootstrap SQL       |
 
@@ -205,7 +206,7 @@ forma/
 ├── forma-domain/
 ├── forma-infrastructure/
 ├── forma-interfaces/
-├── forma-pi-extension/     # 场景 · tools · 模板
+├── forma-pi-extension/     # core · ecommerce · xiaohongshu · tech · bundle
 ├── pi-ai/pi-agent/      # Pi 运行时
 ├── forma-web/              # Vue SPA
 ├── APP-META/               # Compose · SQL · bootstrap

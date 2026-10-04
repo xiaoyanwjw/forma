@@ -94,7 +94,8 @@ Default ports:
 
 ```bash
 cp APP-META/docker-config/environment/.env.example APP-META/docker-config/environment/.env
-# Edit JWT_SECRET (≥32 bytes). Leave model keys empty for local stub.
+# Fill JWT_SECRET (≥32 bytes), APIFY_TOKEN, DEEPSEEK_API_KEY as needed.
+# IDE Run/Debug also reads this file (does not override variables already in the OS).
 ```
 
 
@@ -163,7 +164,7 @@ Local MySQL / `dev` profile writes `DATETIME` in **Asia/Shanghai** by default (`
 | Starter                     | `forma-starter/`                                        | Spring Boot entry                                       |
 | Application                 | `forma-application/`                                    | Use cases, agent billing, Computer projectors           |
 | Domain / Infra / Interfaces | `forma-domain/` · `…-infrastructure/` · `…-interfaces/` | DDD slices                                              |
-| Pi extension                | `forma-pi-extension/`                                   | Scene packs, tools, Mustache views (`spring.factories`) |
+| Pi extension                | `forma-pi-extension/`                                   | `core` + scene jars; starter depends on `forma-pi-extension-bundle` |
 | Pi runtime                  | `pi-ai/` · `pi-agent/`                                  | Agent                                                   |
 | Ops                         | `APP-META/`                                             | Compose, Dockerfile, bootstrap SQL                      |
 
@@ -207,7 +208,7 @@ forma/
 ├── forma-domain/
 ├── forma-infrastructure/
 ├── forma-interfaces/
-├── forma-pi-extension/     # Scenes · tools · templates
+├── forma-pi-extension/     # core · ecommerce · xiaohongshu · tech · bundle
 ├── pi-ai/ · pi-agent/      # Pi runtime
 ├── forma-web/              # Vue SPA
 ├── APP-META/               # Compose · SQL · bootstrap

@@ -21,6 +21,18 @@ class PiAiAutoConfigurationStubTest {
             assertThat(context).hasSingleBean(ModelProvider.class);
             ModelProvider provider = context.getBean(ModelProvider.class);
             assertThat(provider).isNotNull();
+            assertThat(provider.getClass().getSimpleName()).isEqualTo("ProtocolRoutingModelProvider");
         });
+    }
+
+    @Test
+    void withDeepSeekApiKey_registersDecoratedVendorRoute() {
+        contextRunner
+                .withPropertyValues("ai.providers.deepseek.api-key=sk-test")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ModelProvider.class);
+                    assertThat(context.getBean(ModelProvider.class).getClass().getSimpleName())
+                            .isEqualTo("RateLimitedModelProvider");
+                });
     }
 }

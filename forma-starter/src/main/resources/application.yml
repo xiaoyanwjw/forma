@@ -47,7 +47,7 @@ credit:
   admin:
     user-ids: ${CREDIT_ADMIN_USER_IDS:}
 
-# sku-search / xhs-note-* 默认与 APIFY_TOKEN 绑定见 forma-pi-extension/application.yml
+# sku / xhs / web-fetch 默认见各场景包 application.yml（core 启动时合并进 Environment）
 forma:
   workspace:
     root: ${FORMA_WORKSPACE_ROOT:}

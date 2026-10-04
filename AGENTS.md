@@ -38,7 +38,7 @@ docker compose -f APP-META/docker-config/docker-compose.yml down
 ## 2. Testing
 
 - 改动处补测；提交前相关测试应绿。
-- 后端：`mvn -pl forma-starter -am test`（先单模块再全 reactor）。
+- 后端：`mvn -pl forma-starter -am test`（先单模块再全 reactor）。Pi 扩展全量：`mvn -pl forma-pi-extension/bundle -am test`；单场景：`mvn -pl forma-pi-extension/tech -am test`（`tech` 可换成 `ecommerce` / `xiaohongshu` / `core`）。
 - 前端：`cd forma-web && npm run lint`；构建 `npm run build`。
 - Compose 冒烟：`docker compose -f APP-META/docker-config/docker-compose.yml config`，再 `up -d` 确认 mysql + starter。
 
@@ -49,7 +49,7 @@ docker compose -f APP-META/docker-config/docker-compose.yml down
 | 路径 | 用途 |
 |------|------|
 | `forma-*` | Java 业务多模块（平铺；无 `backend/` 包一层） |
-| `forma-pi-extension/` | 业务 Pi 扩展：SKU/XHS tools + scenes 资源（spring.factories） |
+| `forma-pi-extension/` | Pi 扩展：`core` + 场景包 `ecommerce`·`xiaohongshu`·`tech`；总开关 `bundle` |
 | `pi-ai/` · `pi-agent/` | Pi 运行时（自 LIMS 拷贝改名） |
 | `forma-web/` | Vue SPA |
 | `APP-META/docker-config/` · `APP-META/bootstrap/` | Compose / Dockerfile / SQL（对齐 LIMS） |
@@ -93,7 +93,7 @@ docker compose -f APP-META/docker-config/docker-compose.yml down
 - 密钥走环境变量 / `APP-META` secrets
 - 积分只经 CreditLedger；结算仅在可用成果落库之后
 - 模型调用只经后端 `pi-ai`；业务入口用 `AgentSession`
-- 业务 tool/skill 资源进 `forma-pi-extension`，不进 `pi-agent`
+- 业务 tool/skill 资源进 `forma-pi-extension` 场景包（不进 `pi-agent`）；starter 只依赖 `forma-pi-extension-bundle`
 - 架构冲突先对齐 Spine
 
 **Ask first**

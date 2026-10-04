@@ -1,0 +1,4 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.xmut.forma.extension.config.ViewToolsConfiguration
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.xmut.forma.extension.config.FormaExtensionEnvPostProcessor

@@ -273,6 +273,15 @@
   line-height: 1.55;
 }
 
+.git-view .git-md .markdown-body .forma-callout ul {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+}
+
+.git-view .git-md .markdown-body .forma-callout li {
+  margin: 0 0 4px;
+}
+
 .git-view .git-md .markdown-body .forma-sh {
   display: inline-flex;
   height: 20px;

@@ -1,7 +1,0 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.xmut.forma.extension.config.SkuToolsConfiguration,\
-com.xmut.forma.extension.config.XhsToolsConfiguration,\
-com.xmut.forma.extension.config.WebFetchToolsConfiguration,\
-com.xmut.forma.extension.config.TechExcerptToolsConfiguration,\
-com.xmut.forma.extension.config.ViewToolsConfiguration,\
-com.xmut.forma.extension.config.FormaModelCatalogAutoConfiguration

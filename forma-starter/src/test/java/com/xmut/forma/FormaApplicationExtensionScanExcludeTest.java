@@ -42,7 +42,8 @@ class FormaApplicationExtensionScanExcludeTest {
         assertThat(filters[1].type()).isEqualTo(FilterType.CUSTOM);
         assertThat(filters[1].classes()).containsExactly(AutoConfigurationExcludeFilter.class);
         assertThat(filters[2].type()).isEqualTo(FilterType.REGEX);
-        assertThat(filters[2].pattern()).containsExactly("com\\.xmut\\.forma\\.extension\\..*");
+        assertThat(filters[2].pattern()).containsExactly(
+                "com\\.xmut\\.forma\\.(extension|pi\\.agent\\.config)\\..*");
     }
 
     @Test

@@ -1,0 +1,66 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<div class="forma-deck">
+<span class="forma-sh"><span class="k">类型</span><span class="v info">科技速读</span></span>
+<span class="forma-sh"><span class="k">来源</span><span class="v {{sourceClass}}">{{sourceLabel}}</span></span>
+<span class="forma-sh"><span class="k">要点</span><span class="v gray">{{pointCount}}</span></span>
+<span class="forma-sh"><span class="k">摘录</span><span class="v gray">{{excerptCount}}</span></span>
+{{#hasUncertainties}}<span class="forma-sh"><span class="k">核实</span><span class="v warn">{{uncertaintyCount}}</span></span>{{/hasUncertainties}}
+</div>
+{{#oneLiner}}
+<div class="forma-callout">
+<div class="t">一句话</div>
+{{oneLiner}}
+</div>
+{{/oneLiner}}
+<p class="forma-lede">AI 摘要，请对照原文。{{#hasConcern}} 你关心：{{concern}}{{/hasConcern}}</p>
+<h2>要点</h2>
+<table class="forma-mx">
+<thead>
+<tr>
+<th>#</th>
+<th>带走什么</th>
+</tr>
+</thead>
+<tbody>
+{{#pointItems}}
+<tr>
+<td class="n">{{indexLabel}}</td>
+<td>{{text}}</td>
+</tr>
+{{/pointItems}}
+</tbody>
+</table>
+<h2>原文摘录</h2>
+{{#excerpts}}
+<details class="forma-blk"{{#detailsOpen}} open{{/detailsOpen}}>
+<summary>
+{{heading}}
+<span class="forma-sh"><span class="k">句数</span><span class="v gray">{{quoteCount}}</span></span>
+</summary>
+<div class="body">
+{{#quotes}}
+<div class="forma-quote">{{.}}</div>
+{{/quotes}}
+</div>
+</details>
+{{/excerpts}}
+{{#forWhom}}
+<h2>适合谁</h2>
+<table class="forma-kv">
+<tbody>
+<tr><th>受众</th><td>{{forWhom}}</td></tr>
+</tbody>
+</table>
+{{/forWhom}}
+{{#hasUncertainties}}
+<h2>需核实</h2>
+<div class="forma-callout hot">
+<div class="t">原文没说清</div>
+<ul>
+{{#uncertainties}}<li>{{.}}</li>{{/uncertainties}}
+</ul>
+</div>
+{{/hasUncertainties}}
+{{#hasSourceUrl}}<p>原文：<a href="{{sourceUrl}}">{{sourceUrl}}</a></p>{{/hasSourceUrl}}
+</article>

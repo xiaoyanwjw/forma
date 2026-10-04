@@ -36,4 +36,15 @@ describe('toPreviewHtml', () => {
     const html = toPreviewHtml('markdown', 'Hello **x**')
     expect(html).toMatch(/<strong>x<\/strong>/)
   })
+
+  it('keeps digest kit classes used by ecommerce and xhs views', () => {
+    const html = toPreviewHtml(
+      'html',
+      '<article class="markdown-body"><div class="forma-deck"><span class="forma-sh"><span class="k">类型</span><span class="v info">科技速读</span></span></div><table class="forma-mx"><tr><td class="n">01</td></tr></table><details class="forma-blk" open><summary>h</summary><div class="body"><div class="forma-quote">q</div></div></details></article>',
+    )
+    expect(html).toContain('forma-deck')
+    expect(html).toContain('forma-mx')
+    expect(html).toContain('forma-blk')
+    expect(html).toContain('forma-quote')
+  })
 })

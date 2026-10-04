@@ -152,7 +152,27 @@
             </dependency>
             <dependency>
                 <groupId>com.xmut.forma</groupId>
-                <artifactId>forma-pi-extension</artifactId>
+                <artifactId>forma-pi-extension-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xmut.forma</groupId>
+                <artifactId>forma-pi-extension-ecommerce</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xmut.forma</groupId>
+                <artifactId>forma-pi-extension-xiaohongshu</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xmut.forma</groupId>
+                <artifactId>forma-pi-extension-tech</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xmut.forma</groupId>
+                <artifactId>forma-pi-extension-bundle</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
