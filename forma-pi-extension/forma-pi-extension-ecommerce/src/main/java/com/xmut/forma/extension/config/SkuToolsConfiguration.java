@@ -2,6 +2,7 @@ package com.xmut.forma.extension.config;
 
 import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
+import com.xmut.forma.extension.ecommerce.SkulistTurnReminderExtension;
 import com.xmut.forma.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.forma.extension.tool.sku.client.ApifyTaobaoSkuSearchClient;
 import com.xmut.forma.extension.tool.sku.client.FallbackSkuSearchClient;
@@ -12,6 +13,7 @@ import com.xmut.forma.extension.tool.sku.search.ModelSkuReranker;
 import com.xmut.forma.extension.tool.sku.search.SkuReranker;
 import com.xmut.forma.extension.tool.sku.search.SkuSearcher;
 import com.xmut.forma.extension.common.ApifyOkHttpTransport;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import com.xmut.forma.pi.ai.model.ModelProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +23,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registers SKU search Handler and Port/Searcher. Schema comes from {@code tools/sku/*.tool.json}.
+ * Registers SKU search Handler and Port/Searcher, plus the skulist turn-slot reminder.
+ * Schema comes from {@code tools/sku/*.tool.json}.
  */
 @Configuration
 @EnableConfigurationProperties(SkuSearchProperties.class)
@@ -71,5 +74,10 @@ public class SkuToolsConfiguration {
     @Bean
     public SearchSkuToolHandler searchSkuToolHandler(SkuSearcher skuSearcher) {
         return new SearchSkuToolHandler(skuSearcher);
+    }
+
+    @Bean
+    public SkulistTurnReminderExtension skulistTurnReminderExtension(SkillCatalog skillCatalog) {
+        return new SkulistTurnReminderExtension(skillCatalog);
     }
 }

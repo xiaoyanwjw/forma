@@ -1,5 +1,6 @@
 package com.xmut.forma.extension.config;
 
+import com.xmut.forma.extension.output.TurnReminderExtension;
 import com.xmut.forma.extension.tool.view.CatalogSkillTemplateLoader;
 import com.xmut.forma.extension.tool.view.MustacheViewRenderer;
 import com.xmut.forma.extension.tool.view.RenderViewToolHandler;
@@ -10,7 +11,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ResourceLoader;
 
 /**
- * Registers {@code render_view}. Schema comes from {@code tools/view/render_view.tool.json}.
+ * Registers {@code render_view} and the core turn-slot reminder.
+ * Schema comes from {@code tools/view/render_view.tool.json}.
  */
 @Configuration
 public class ViewToolsConfiguration {
@@ -29,5 +31,10 @@ public class ViewToolsConfiguration {
     public RenderViewToolHandler renderViewToolHandler(SkillTemplateLoader skillTemplateLoader,
                                                        MustacheViewRenderer mustacheViewRenderer) {
         return new RenderViewToolHandler(skillTemplateLoader, mustacheViewRenderer);
+    }
+
+    @Bean
+    public TurnReminderExtension turnReminderExtension(SkillCatalog skillCatalog) {
+        return new TurnReminderExtension(skillCatalog);
     }
 }
