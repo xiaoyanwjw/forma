@@ -1,5 +1,6 @@
 package com.xmut.forma.infrastructure.persistence.repository.business.scene;
 
+import com.xmut.forma.domain.business.scene.constant.SceneCategory;
 import com.xmut.forma.domain.business.scene.constant.SceneStatus;
 import com.xmut.forma.domain.business.scene.model.Scene;
 import com.xmut.forma.domain.business.scene.repository.SceneRepository;
@@ -54,6 +55,7 @@ public class SceneRepositoryImpl implements SceneRepository {
         scene.setId(po.getBizId());
         scene.setSceneCode(po.getSceneCode());
         scene.setDisplayName(po.getDisplayName());
+        scene.setCategory(SceneCategory.fromCode(po.getCategory()));
         scene.setStatus(SceneStatus.fromCode(po.getStatus()));
         scene.setSortOrder(po.getSortOrder() == null ? 0 : po.getSortOrder());
         scene.setSummary(po.getSummary());

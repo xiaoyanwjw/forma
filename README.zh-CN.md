@@ -55,7 +55,7 @@ Forma 把日常技能收进场景和 Skill。用户选场景、跑一轮，Agent
 ## 功能
 
 - 注册 / 登录（JWT）与账户设置
-- 场景画廊（`AVAILABLE` + `COMING_SOON` 灰卡），积分全站共用
+- 场景画廊：五类筛选（科技 / 电商 / 内容 / 体育 / 生活）；`AVAILABLE` + `COMING_SOON` 灰卡；积分全站共用
 - 工作台：电商（选品 → 素材）、小红书（选题 → 笔记 / 拆解）
 - Pi Agent 计费预占；SSE 用 `fetch` + JWT（不用原生 `EventSource`）
 - Computer DocPreview：GitHub README 风；Forma 视图协议（`.forma-*`、`data-forma-*`）
@@ -280,7 +280,7 @@ cd forma-web && npm test -- --run
 
 **已可用（本地 / 近端）：** 登录注册、积分、场景画廊、电商 + 小红书工作台、计费 Agent 运行、Computer DocPreview（Forma 视图协议）、历史、账户设置、Compose 引导。
 
-**延期 / 灰卡：** 短视频带货、本地生活等 `COMING_SOON` 场景，待包与门禁开放。
+**延期 / 灰卡：** 科技速读（科技）、装备选购对比（体育）、短视频带货、周末行程（生活=出行）等 `COMING_SOON`，待包与门禁开放。场景路线图见 `sdd/planning-artifacts/scene-product-plan-2026-10-04.md`。
 
 ## 联系
 

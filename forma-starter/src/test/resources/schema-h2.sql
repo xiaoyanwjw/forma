@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS forma_scene (
     biz_id        VARCHAR(36)  NOT NULL,
     scene_code    VARCHAR(64)  NOT NULL,
     display_name  VARCHAR(64)  NOT NULL,
+    category      VARCHAR(32)  NOT NULL,
     status        VARCHAR(16)  NOT NULL,
     sort_order    INT          NOT NULL,
     summary       VARCHAR(512) NOT NULL,
@@ -203,21 +204,30 @@ CREATE TABLE IF NOT EXISTS forma_scene (
 );
 
 CREATE INDEX IF NOT EXISTS idx_forma_scene_sort ON forma_scene (sort_order);
+CREATE INDEX IF NOT EXISTS idx_forma_scene_category ON forma_scene (category);
 
--- 可重复执行：先清近端四码再写入（与 002_seed_scene.sql 同序）
-DELETE FROM forma_scene WHERE scene_code IN ('ecommerce', 'short_video', 'xiaohongshu', 'local_life');
+-- 可重复执行：先清近端六码再写入（与 002_seed_scene.sql 同序）
+DELETE FROM forma_scene WHERE scene_code IN (
+    'ecommerce', 'xiaohongshu', 'short_video', 'tech_product', 'tech_digest', 'sports_gear', 'local_life', 'weekend_trip'
+);
 
-INSERT INTO forma_scene (biz_id, scene_code, display_name, status, sort_order, summary, created_at, updated_at)
+INSERT INTO forma_scene (biz_id, scene_code, display_name, category, status, sort_order, summary, created_at, updated_at)
 VALUES
-    ('a1000001-0001-4000-8000-000000000001', 'ecommerce', '电商开店', 'AVAILABLE', 1,
+    ('a1000001-0001-4000-8000-000000000005', 'tech_digest', '科技速读', 'tech', 'COMING_SOON', 1,
+     '丢产品页、AI 文章或技术文档链接：解析正文，一页摘要带走。',
+     TIMESTAMP '2026-10-04 00:00:00', TIMESTAMP '2026-10-04 00:00:00'),
+    ('a1000001-0001-4000-8000-000000000001', 'ecommerce', '电商开店', 'ecommerce', 'AVAILABLE', 2,
      '选品与上架素材：带理由的候选清单，以及可直接用的主图和详情。',
      TIMESTAMP '2026-09-26 00:00:00', TIMESTAMP '2026-09-26 00:00:00'),
-    ('a1000001-0001-4000-8000-000000000002', 'short_video', '短视频带货', 'COMING_SOON', 2,
-     '脚本、镜头与带货选品：帮你定拍什么、怎么讲、带哪款货。',
-     TIMESTAMP '2026-09-26 00:00:00', TIMESTAMP '2026-09-26 00:00:00'),
-    ('a1000001-0001-4000-8000-000000000003', 'xiaohongshu', '小红书种草', 'AVAILABLE', 3,
+    ('a1000001-0001-4000-8000-000000000003', 'xiaohongshu', '小红书种草', 'content', 'AVAILABLE', 3,
      '笔记结构与种草表达：帮你写标题、正文与更像真人分享的草稿。',
      TIMESTAMP '2026-09-26 00:00:00', TIMESTAMP '2026-09-26 00:00:00'),
-    ('a1000001-0001-4000-8000-000000000004', 'local_life', '本地生活', 'COMING_SOON', 4,
-     '到店、团购与周边生意：帮你整理套餐卖点与上架说法。',
-     TIMESTAMP '2026-09-26 00:00:00', TIMESTAMP '2026-09-26 00:00:00');
+    ('a1000001-0001-4000-8000-000000000002', 'short_video', '短视频带货', 'content', 'COMING_SOON', 4,
+     '脚本、镜头与带货选品：帮你定拍什么、怎么讲、带哪款货。',
+     TIMESTAMP '2026-09-26 00:00:00', TIMESTAMP '2026-09-26 00:00:00'),
+    ('a1000001-0001-4000-8000-000000000006', 'sports_gear', '装备选购对比', 'sports', 'COMING_SOON', 5,
+     '跑鞋、球拍怎么选：对比表 + 一句话推荐，帮你少踩坑。',
+     TIMESTAMP '2026-10-04 00:00:00', TIMESTAMP '2026-10-04 00:00:00'),
+    ('a1000001-0001-4000-8000-000000000004', 'weekend_trip', '周末行程', 'life', 'COMING_SOON', 6,
+     '半天到一天怎么玩：路线、时段和吃饭点，一页带走。',
+     TIMESTAMP '2026-10-04 00:00:00', TIMESTAMP '2026-10-04 00:00:00');

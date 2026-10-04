@@ -8,6 +8,8 @@ public class SceneDTO {
     private String bizId;
     private String sceneCode;
     private String displayName;
+    /** 一级分类码：tech / ecommerce / content / sports / life */
+    private String category;
     private String status;
     private int sortOrder;
     private String summary;
@@ -15,11 +17,12 @@ public class SceneDTO {
     public SceneDTO() {
     }
 
-    public SceneDTO(String bizId, String sceneCode, String displayName, String status,
-                    int sortOrder, String summary) {
+    public SceneDTO(String bizId, String sceneCode, String displayName, String category,
+                    String status, int sortOrder, String summary) {
         this.bizId = bizId;
         this.sceneCode = sceneCode;
         this.displayName = displayName;
+        this.category = category;
         this.status = status;
         this.sortOrder = sortOrder;
         this.summary = summary;
@@ -47,6 +50,14 @@ public class SceneDTO {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public String getStatus() {

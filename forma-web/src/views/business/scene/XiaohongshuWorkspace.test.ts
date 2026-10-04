@@ -25,8 +25,9 @@ const XHS = {
   bizId: 'a1000001-0001-4000-8000-000000000003',
   sceneCode: 'xiaohongshu',
   displayName: '小红书种草',
+  category: 'content',
   status: 'AVAILABLE',
-  sortOrder: 3,
+  sortOrder: 2,
   summary: '笔记结构与种草表达',
 }
 

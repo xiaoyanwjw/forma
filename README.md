@@ -57,7 +57,7 @@ Not a fit if you only want to chat, and don’t mean to hand a skill to an agent
 ## Features
 
 - Operator auth (register / login JWT) and account settings
-- Scene gallery (`AVAILABLE` + `COMING_SOON` grey cards) with shared credits
+- Scene gallery with five category tabs (tech / e-commerce / content / sports / life); `AVAILABLE` + `COMING_SOON` grey cards; shared credits
 - Scene workspaces: e-commerce (picklist → listing) and Xiaohongshu (topics → note / break)
 - Pi agent runs with billed hold; SSE via `fetch` + JWT (not raw `EventSource`)
 - Computer DocPreview: GitHub-README style HTML, Forma view grammar (`.forma-*`, `data-forma-*`)
@@ -282,7 +282,7 @@ Prefer repo scripts / Compose; do not invent ad-hoc commands. Coding style slice
 
 **In product use (local / near-term):** Auth, credits, scene gallery, e-commerce + Xiaohongshu workspaces, billed agent runs, Computer DocPreview (Forma view protocol), history, account settings, Compose bootstrap.
 
-**Deferred / grey cards:** Short-video commerce, local life, and other `COMING_SOON` scenes until packs + gates open.
+**Deferred / grey cards:** Tech digest (tech), gear compare (sports), short-video commerce, weekend trip (life / outing) — `COMING_SOON` until packs + gates open. Scene roadmap: `sdd/planning-artifacts/scene-product-plan-2026-10-04.md`.
 
 ## Contact
 

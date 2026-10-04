@@ -8,6 +8,7 @@
         <result property="bizId" column="biz_id"/>
         <result property="sceneCode" column="scene_code"/>
         <result property="displayName" column="display_name"/>
+        <result property="category" column="category"/>
         <result property="status" column="status"/>
         <result property="sortOrder" column="sort_order"/>
         <result property="summary" column="summary"/>
@@ -16,19 +17,19 @@
     </resultMap>
 
     <select id="selectAllOrdered" resultMap="SceneResultMap">
-        SELECT id, biz_id, scene_code, display_name, status, sort_order, summary, created_at, updated_at
+        SELECT id, biz_id, scene_code, display_name, category, status, sort_order, summary, created_at, updated_at
         FROM forma_scene
         ORDER BY sort_order ASC, id ASC
     </select>
 
     <select id="selectByBizId" resultMap="SceneResultMap">
-        SELECT id, biz_id, scene_code, display_name, status, sort_order, summary, created_at, updated_at
+        SELECT id, biz_id, scene_code, display_name, category, status, sort_order, summary, created_at, updated_at
         FROM forma_scene
         WHERE biz_id = #{bizId}
     </select>
 
     <select id="selectBySceneCode" resultMap="SceneResultMap">
-        SELECT id, biz_id, scene_code, display_name, status, sort_order, summary, created_at, updated_at
+        SELECT id, biz_id, scene_code, display_name, category, status, sort_order, summary, created_at, updated_at
         FROM forma_scene
         WHERE scene_code = #{sceneCode}
     </select>

@@ -25,9 +25,18 @@ defineProps<{
     <template v-else-if="sceneCode === 'xiaohongshu'">
       <path d="M12 20l-3.5-7H4l8-9 8 9h-4.5L12 20z" />
     </template>
-    <template v-else-if="sceneCode === 'local_life'">
+    <template v-else-if="sceneCode === 'local_life' || sceneCode === 'weekend_trip'">
       <path d="M12 21s7-4.5 7-11a7 7 0 10-14 0c0 6.5 7 11 7 11z" />
       <circle cx="12" cy="10" r="2.5" />
+    </template>
+    <template v-else-if="sceneCode === 'tech_digest' || sceneCode === 'tech_product'">
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M9 7h6M9 11h6M9 15h4" />
+    </template>
+    <template v-else-if="sceneCode === 'sports_gear'">
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4v16M4 12h16" />
+      <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
     </template>
     <template v-else>
       <circle cx="12" cy="12" r="7" />

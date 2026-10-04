@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS forma_scene (
     biz_id        VARCHAR(36)  NOT NULL COMMENT '业务场景 ID（UUID）',
     scene_code    VARCHAR(64)  NOT NULL COMMENT '稳定场景码（绑定能力包）',
     display_name  VARCHAR(64)  NOT NULL COMMENT '画廊展示名',
+    category      VARCHAR(32)  NOT NULL COMMENT '一级分类码：tech/ecommerce/content/sports/life',
     status        VARCHAR(16)  NOT NULL COMMENT 'AVAILABLE / COMING_SOON',
     sort_order    INT          NOT NULL COMMENT '画廊排序（升序）',
     summary       VARCHAR(512) NOT NULL COMMENT '卡片短文案',
@@ -86,7 +87,8 @@ CREATE TABLE IF NOT EXISTS forma_scene (
     PRIMARY KEY (id),
     UNIQUE KEY uk_forma_scene_biz (biz_id),
     UNIQUE KEY uk_forma_scene_code (scene_code),
-    KEY idx_forma_scene_sort (sort_order)
+    KEY idx_forma_scene_sort (sort_order),
+    KEY idx_forma_scene_category (category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Forma 场景目录（SceneCatalog）';
 
 -- Pi SessionStore

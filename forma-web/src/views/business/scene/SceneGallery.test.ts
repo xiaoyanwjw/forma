@@ -10,38 +10,60 @@ async function flushUi() {
   await nextTick()
 }
 
-const FOUR_SCENES = [
+const SIX_SCENES = [
   {
     bizId: 'a1000001-0001-4000-8000-000000000001',
     sceneCode: 'ecommerce',
     displayName: '电商开店',
+    category: 'ecommerce',
     status: 'AVAILABLE',
     sortOrder: 1,
     summary: '选品与上架素材：带理由的候选清单，以及可直接用的主图和详情。',
   },
   {
-    bizId: 'a1000001-0001-4000-8000-000000000002',
-    sceneCode: 'short_video',
-    displayName: '短视频带货',
-    status: 'COMING_SOON',
-    sortOrder: 2,
-    summary: '脚本、镜头与带货选品：帮你定拍什么、怎么讲、带哪款货。',
-  },
-  {
     bizId: 'a1000001-0001-4000-8000-000000000003',
     sceneCode: 'xiaohongshu',
     displayName: '小红书种草',
-    status: 'COMING_SOON',
-    sortOrder: 3,
+    category: 'content',
+    status: 'AVAILABLE',
+    sortOrder: 2,
     summary: '笔记结构与种草表达：帮你写标题、正文与更像真人分享的草稿。',
   },
   {
-    bizId: 'a1000001-0001-4000-8000-000000000004',
-    sceneCode: 'local_life',
-    displayName: '本地生活',
+    bizId: 'a1000001-0001-4000-8000-000000000002',
+    sceneCode: 'short_video',
+    displayName: '短视频带货',
+    category: 'content',
     status: 'COMING_SOON',
-    sortOrder: 4,
-    summary: '到店、团购与周边生意：帮你整理套餐卖点与上架说法。',
+    sortOrder: 3,
+    summary: '脚本、镜头与带货选品：帮你定拍什么、怎么讲、带哪款货。',
+  },
+  {
+    bizId: 'a1000001-0001-4000-8000-000000000005',
+    sceneCode: 'tech_digest',
+    displayName: '科技速读',
+    category: 'tech',
+    status: 'COMING_SOON',
+    sortOrder: 1,
+    summary: '丢产品页、AI 文章或技术文档链接：解析正文，一页摘要带走。',
+  },
+  {
+    bizId: 'a1000001-0001-4000-8000-000000000006',
+    sceneCode: 'sports_gear',
+    displayName: '装备选购对比',
+    category: 'sports',
+    status: 'COMING_SOON',
+    sortOrder: 5,
+    summary: '跑鞋、球拍怎么选：对比表 + 一句话推荐，帮你少踩坑。',
+  },
+  {
+    bizId: 'a1000001-0001-4000-8000-000000000004',
+    sceneCode: 'weekend_trip',
+    displayName: '周末行程',
+    category: 'life',
+    status: 'COMING_SOON',
+    sortOrder: 6,
+    summary: '半天到一天怎么玩：路线、时段和吃饭点，一页带走。',
   },
 ]
 
@@ -102,13 +124,15 @@ describe('SceneGallery', () => {
     unmount = undefined
   })
 
-  it('renders 1 live + 3 soon cards sorted by sortOrder; header scenes is current', async () => {
+  it('renders 2 live + 4 soon cards in category-tab order; header scenes is current', async () => {
     setToken('jwt')
     const shuffled = [
-      FOUR_SCENES[2],
-      FOUR_SCENES[0],
-      FOUR_SCENES[3],
-      FOUR_SCENES[1],
+      SIX_SCENES[2],
+      SIX_SCENES[0],
+      SIX_SCENES[5],
+      SIX_SCENES[1],
+      SIX_SCENES[4],
+      SIX_SCENES[3],
     ]
     vi.stubGlobal(
       'fetch',
@@ -140,18 +164,26 @@ describe('SceneGallery', () => {
     expect(mounted.root.textContent).toMatch(/选一个场景，开始创作/)
     expect(mounted.root.textContent).not.toMatch(/示意|近端|空壳/)
 
+    const tabs = Array.from(mounted.root.querySelectorAll('.category-tab')).map((t) =>
+      t.textContent?.trim(),
+    )
+    expect(tabs).toEqual(['全部', '科技', '电商', '内容', '体育', '生活'])
+    expect(mounted.root.querySelector('.category-tab.on')?.textContent?.trim()).toBe('全部')
+
     const gridCards = Array.from(mounted.root.querySelectorAll('.scene-grid > .scene-card'))
     expect(gridCards.map((c) => c.querySelector('h2')?.textContent?.trim())).toEqual([
+      '科技速读',
       '电商开店',
-      '短视频带货',
       '小红书种草',
-      '本地生活',
+      '短视频带货',
+      '装备选购对比',
+      '周末行程',
     ])
 
     const live = mounted.root.querySelectorAll('.scene-card.live')
     const soon = mounted.root.querySelectorAll('.scene-card.soon')
-    expect(live.length).toBe(1)
-    expect(soon.length).toBe(3)
+    expect(live.length).toBe(2)
+    expect(soon.length).toBe(4)
     expect(live[0]?.textContent).toMatch(/电商开店/)
     expect(live[0]?.textContent).toMatch(/可用/)
     expect(live[0]?.textContent).not.toMatch(/开始使用/)
@@ -171,7 +203,7 @@ describe('SceneGallery', () => {
     expect(toast?.getAttribute('role')).toBe('status')
     expect(toast?.getAttribute('aria-live')).toBe('polite')
     expect(toast?.getAttribute('aria-hidden')).toBe('false')
-    expect(toast?.textContent).toMatch(/「短视频带货」马上就来/)
+    expect(toast?.textContent).toMatch(/「科技速读」马上就来/)
     expect(toast?.textContent).toMatch(/你也可以先从电商开店开始/)
     expect(toast?.querySelector('a')).toBeNull()
 
@@ -183,13 +215,61 @@ describe('SceneGallery', () => {
     expect(mounted.root.querySelector('[aria-label="账户"]')).toBeTruthy()
   })
 
+  it('category tab filters cards; empty category shows empty copy', async () => {
+    setToken('jwt')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (String(url).includes('/api/v1/scenes')) {
+          return Promise.resolve(okScenes(SIX_SCENES))
+        }
+        return Promise.resolve(
+          okScenes({
+            tier: 'FREE',
+            available: 14,
+            balance: 20,
+            reserved: 0,
+            nextResetAt: '2026-10-24T10:00:00Z',
+            periodAnchorAt: '2026-09-24T10:00:00Z',
+          }),
+        )
+      }),
+    )
+
+    const mounted = await mountGallery()
+    unmount = mounted.unmount
+    await flushUi()
+
+    const techTab = Array.from(mounted.root.querySelectorAll('.category-tab')).find(
+      (t) => t.textContent?.trim() === '科技',
+    ) as HTMLButtonElement
+    techTab.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    await flushUi()
+
+    expect(techTab.classList.contains('on')).toBe(true)
+    const techCards = Array.from(mounted.root.querySelectorAll('.scene-grid > .scene-card'))
+    expect(techCards.map((c) => c.querySelector('h2')?.textContent?.trim())).toEqual(['科技速读'])
+    expect(techCards[0]?.classList.contains('soon')).toBe(true)
+
+    const contentTab = Array.from(mounted.root.querySelectorAll('.category-tab')).find(
+      (t) => t.textContent?.trim() === '内容',
+    ) as HTMLButtonElement
+    contentTab.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    await flushUi()
+    expect(
+      Array.from(mounted.root.querySelectorAll('.scene-grid > .scene-card')).map((c) =>
+        c.querySelector('h2')?.textContent?.trim(),
+      ),
+    ).toEqual(['小红书种草', '短视频带货'])
+  })
+
   it('coming-soon toast updates on another gray card and auto-dismisses', async () => {
     setToken('jwt')
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string) => {
         if (String(url).includes('/api/v1/scenes')) {
-          return Promise.resolve(okScenes(FOUR_SCENES))
+          return Promise.resolve(okScenes(SIX_SCENES))
         }
         return Promise.resolve(
           okScenes({
@@ -216,7 +296,7 @@ describe('SceneGallery', () => {
       )
       await nextTick()
       await nextTick()
-      expect(mounted.root.querySelector('.toast.show')?.textContent).toMatch(/「短视频带货」马上就来/)
+      expect(mounted.root.querySelector('.toast.show')?.textContent).toMatch(/「科技速读」马上就来/)
 
       ;(soonCards[1] as HTMLButtonElement).dispatchEvent(
         new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }),
@@ -224,7 +304,7 @@ describe('SceneGallery', () => {
       await nextTick()
       await nextTick()
       const toast = mounted.root.querySelector('.toast.show')
-      expect(toast?.textContent).toMatch(/「小红书种草」马上就来/)
+      expect(toast?.textContent).toMatch(/「短视频带货」马上就来/)
       expect(toast?.getAttribute('aria-hidden')).toBe('false')
 
       await vi.advanceTimersByTimeAsync(4500)
@@ -242,7 +322,7 @@ describe('SceneGallery', () => {
       'fetch',
       vi.fn().mockImplementation((url: string) => {
         if (String(url).includes('/api/v1/scenes')) {
-          return Promise.resolve(okScenes(FOUR_SCENES))
+          return Promise.resolve(okScenes(SIX_SCENES))
         }
         return Promise.resolve(
           okScenes({
@@ -271,14 +351,11 @@ describe('SceneGallery', () => {
 
   it('AVAILABLE xiaohongshu card navigates to Xiaohongshu workspace', async () => {
     setToken('jwt')
-    const scenes = FOUR_SCENES.map((s) =>
-      s.sceneCode === 'xiaohongshu' ? { ...s, status: 'AVAILABLE' } : s,
-    )
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string) => {
         if (String(url).includes('/api/v1/scenes')) {
-          return Promise.resolve(okScenes(scenes))
+          return Promise.resolve(okScenes(SIX_SCENES))
         }
         return Promise.resolve(
           okScenes({
@@ -328,6 +405,7 @@ describe('SceneGallery', () => {
 
     expect(getToken()).toBeNull()
     expect(mounted.root.querySelectorAll('.scene-card').length).toBe(0)
+    expect(mounted.root.querySelector('.category-tabs')).toBeNull()
     expect(mounted.root.textContent).toMatch(/登录/)
     const goLogin = Array.from(mounted.root.querySelectorAll('button')).find((b) =>
       b.textContent?.trim() === '登录',
@@ -386,7 +464,7 @@ describe('SceneGallery', () => {
     setToken('jwt')
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(() => Promise.resolve(okScenes(FOUR_SCENES))),
+      vi.fn().mockImplementation(() => Promise.resolve(okScenes(SIX_SCENES))),
     )
     const mounted = await mountGallery()
     unmount = mounted.unmount
