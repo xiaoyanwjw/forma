@@ -218,6 +218,34 @@ class RenderViewToolHandlerTest {
     }
 
     @Test
+    void handle_techDigest_skill_template_renders_minimalArtifact() throws Exception {
+        InMemorySkillCatalog catalog = new InMemorySkillCatalog();
+        catalog.registerBootstrap(Skill.builder()
+                .id("tech-digest")
+                .description("digest")
+                .promptRef("classpath:scenes/tech_digest/tech-digest/SKILL.md")
+                .allowedTools(Collections.<String>emptyList())
+                .build());
+        RenderViewToolHandler handler = new RenderViewToolHandler(
+                new CatalogSkillTemplateLoader(catalog, new DefaultResourceLoader()),
+                new MustacheViewRenderer());
+        Path run = Files.createTempDirectory("render-view-tech-digest-");
+        Files.write(run.resolve("artifact.json"),
+                "{\"title\":\"科技速读\",\"oneLiner\":\"\",\"forWhom\":\"\"}"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        ToolResult result = handler.handle(
+                call(JsonNodeFactory.instance.objectNode()),
+                new ToolContext("r1", "t1", "tech-digest", run.toString()));
+
+        assertTrue(result.isSuccess());
+        JsonNode view = MAPPER.readTree(Files.readAllBytes(run.resolve("view.json")));
+        String content = view.get("content").asText();
+        assertTrue(content.contains("科技速读"));
+        assertTrue(content.contains("AI 摘要，请对照原文"));
+    }
+
+    @Test
     void handle_topiclist_skill_template_renders_handoff_button() throws Exception {
         InMemorySkillCatalog catalog = new InMemorySkillCatalog();
         catalog.registerBootstrap(Skill.builder()

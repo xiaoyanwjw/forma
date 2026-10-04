@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ViewRenderHelpersTest {
@@ -208,6 +209,29 @@ class ViewRenderHelpersTest {
         List<String> tags = (List<String>) enriched.get("tagItems");
         assertEquals(2, tags.size());
         assertEquals("Mac Mini", tags.get(0));
+    }
+
+    @Test
+    void enrich_techDigest_defaultsEmptyListsAndHasUncertaintiesFlag() {
+        Map<String, Object> artifact = new LinkedHashMap<String, Object>();
+        artifact.put("title", "速读标题");
+
+        Map<String, Object> enriched = ViewRenderHelpers.enrich("tech-digest", artifact);
+
+        assertNotSame(artifact, enriched);
+        assertTrue(enriched.get("points") instanceof List);
+        assertTrue(((List<?>) enriched.get("points")).isEmpty());
+        assertTrue(enriched.get("excerpts") instanceof List);
+        assertTrue(((List<?>) enriched.get("excerpts")).isEmpty());
+        assertTrue(enriched.get("uncertainties") instanceof List);
+        assertTrue(((List<?>) enriched.get("uncertainties")).isEmpty());
+        assertNull(enriched.get("hasUncertainties"));
+
+        Map<String, Object> withUncertainties = new LinkedHashMap<String, Object>();
+        withUncertainties.put("title", "t");
+        withUncertainties.put("uncertainties", java.util.Collections.singletonList("待核实"));
+        Map<String, Object> flagged = ViewRenderHelpers.enrich("tech-digest", withUncertainties);
+        assertEquals(Boolean.TRUE, flagged.get("hasUncertainties"));
     }
 
     @Test
