@@ -25,6 +25,25 @@ class SceneSkillCapsuleLoaderTest {
     }
 
     @Test
+    void launchLocationForTechDigestSkillMd() {
+        assertThat(SceneSkillCapsuleLoader.launchLocation(
+                "classpath:scenes/tech_digest/tech-digest/SKILL.md"))
+                .isEqualTo("classpath:scenes/tech_digest/tech-digest/launch.json");
+    }
+
+    @Test
+    void loadForReadsTechDigestLaunchJson() {
+        List<SceneSkillCapsuleItemDTO> items = loader.loadFor(Collections.singletonList(
+                skill("tech-digest", "classpath:scenes/tech_digest/tech-digest/SKILL.md")));
+
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).getSkillId()).isEqualTo("tech-digest");
+        assertThat(items.get(0).getLabel()).isEqualTo("科技速读");
+        assertThat(items.get(0).getExamplePrompt()).contains("example.com/product");
+        assertThat(items.get(0).getSortOrder()).isEqualTo(1);
+    }
+
+    @Test
     void loadForReadsClasspathLaunchJsonInSortOrder() {
         List<SceneSkillCapsuleItemDTO> items = loader.loadFor(Arrays.asList(
                 skill("ecommerce-skulist", "classpath:scenes/ecommerce/ecommerce-skulist/SKILL.md"),
