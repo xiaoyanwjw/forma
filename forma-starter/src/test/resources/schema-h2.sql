@@ -213,7 +213,7 @@ DELETE FROM forma_scene WHERE scene_code IN (
 
 INSERT INTO forma_scene (biz_id, scene_code, display_name, category, status, sort_order, summary, created_at, updated_at)
 VALUES
-    ('a1000001-0001-4000-8000-000000000005', 'tech_digest', '科技速读', 'tech', 'COMING_SOON', 1,
+    ('a1000001-0001-4000-8000-000000000005', 'tech_digest', '科技速读', 'tech', 'AVAILABLE', 1,
      '丢产品页、AI 文章或技术文档链接：解析正文，一页摘要带走。',
      TIMESTAMP '2026-10-04 00:00:00', TIMESTAMP '2026-10-04 00:00:00'),
     ('a1000001-0001-4000-8000-000000000001', 'ecommerce', '电商开店', 'ecommerce', 'AVAILABLE', 2,

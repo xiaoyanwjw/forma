@@ -75,7 +75,7 @@ class SceneCatalogIntegrationTest {
                 .andExpect(jsonPath("$.data[0].sceneCode").value("tech_digest"))
                 .andExpect(jsonPath("$.data[0].category").value("tech"))
                 .andExpect(jsonPath("$.data[0].displayName").value("科技速读"))
-                .andExpect(jsonPath("$.data[0].status").value("COMING_SOON"))
+                .andExpect(jsonPath("$.data[0].status").value("AVAILABLE"))
                 .andExpect(jsonPath("$.data[0].sortOrder").value(1))
                 .andExpect(jsonPath("$.data[1].bizId").value(SEED_ECOMMERCE_BIZ_ID))
                 .andExpect(jsonPath("$.data[1].sceneCode").value("ecommerce"))

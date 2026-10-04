@@ -43,7 +43,7 @@ const SIX_SCENES = [
     sceneCode: 'tech_digest',
     displayName: '科技速读',
     category: 'tech',
-    status: 'COMING_SOON',
+    status: 'AVAILABLE',
     sortOrder: 1,
     summary: '丢产品页、AI 文章或技术文档链接：解析正文，一页摘要带走。',
   },
@@ -124,7 +124,7 @@ describe('SceneGallery', () => {
     unmount = undefined
   })
 
-  it('renders 2 live + 4 soon cards in category-tab order; header scenes is current', async () => {
+  it('renders 3 live + 3 soon cards in category-tab order; header scenes is current', async () => {
     setToken('jwt')
     const shuffled = [
       SIX_SCENES[2],
@@ -182,9 +182,9 @@ describe('SceneGallery', () => {
 
     const live = mounted.root.querySelectorAll('.scene-card.live')
     const soon = mounted.root.querySelectorAll('.scene-card.soon')
-    expect(live.length).toBe(2)
-    expect(soon.length).toBe(4)
-    expect(live[0]?.textContent).toMatch(/电商开店/)
+    expect(live.length).toBe(3)
+    expect(soon.length).toBe(3)
+    expect(live[0]?.textContent).toMatch(/科技速读/)
     expect(live[0]?.textContent).toMatch(/可用/)
     expect(live[0]?.textContent).not.toMatch(/开始使用/)
     soon.forEach((card) => {
@@ -193,17 +193,26 @@ describe('SceneGallery', () => {
     })
     expect(mounted.root.querySelectorAll('a.scene-card.soon').length).toBe(0)
 
+    const tech = live[0] as HTMLAnchorElement
+    expect(tech.getAttribute('href')).toBe('/scenes/tech_digest')
+    tech.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    await flushUi()
+    expect(mounted.router.currentRoute.value.name).toBe('scene-workspace')
+    expect(mounted.router.currentRoute.value.params.sceneCode).toBe('tech_digest')
+    expect(mounted.root.querySelector('.toast.show')).toBeNull()
+
     const firstSoon = soon[0] as HTMLButtonElement
+    expect(firstSoon.textContent).toMatch(/短视频带货/)
     firstSoon.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
     await flushUi()
-    expect(mounted.router.currentRoute.value.name).toBe('scenes')
+    expect(mounted.router.currentRoute.value.params.sceneCode).toBe('tech_digest')
 
     const toast = mounted.root.querySelector('.toast.show')
     expect(toast).toBeTruthy()
     expect(toast?.getAttribute('role')).toBe('status')
     expect(toast?.getAttribute('aria-live')).toBe('polite')
     expect(toast?.getAttribute('aria-hidden')).toBe('false')
-    expect(toast?.textContent).toMatch(/「科技速读」马上就来/)
+    expect(toast?.textContent).toMatch(/「短视频带货」马上就来/)
     expect(toast?.textContent).toMatch(/你也可以先从电商开店开始/)
     expect(toast?.querySelector('a')).toBeNull()
 
@@ -249,7 +258,8 @@ describe('SceneGallery', () => {
     expect(techTab.classList.contains('on')).toBe(true)
     const techCards = Array.from(mounted.root.querySelectorAll('.scene-grid > .scene-card'))
     expect(techCards.map((c) => c.querySelector('h2')?.textContent?.trim())).toEqual(['科技速读'])
-    expect(techCards[0]?.classList.contains('soon')).toBe(true)
+    expect(techCards[0]?.classList.contains('live')).toBe(true)
+    expect((techCards[0] as HTMLAnchorElement).getAttribute('href')).toBe('/scenes/tech_digest')
 
     const contentTab = Array.from(mounted.root.querySelectorAll('.category-tab')).find(
       (t) => t.textContent?.trim() === '内容',
@@ -296,7 +306,7 @@ describe('SceneGallery', () => {
       )
       await nextTick()
       await nextTick()
-      expect(mounted.root.querySelector('.toast.show')?.textContent).toMatch(/「科技速读」马上就来/)
+      expect(mounted.root.querySelector('.toast.show')?.textContent).toMatch(/「短视频带货」马上就来/)
 
       ;(soonCards[1] as HTMLButtonElement).dispatchEvent(
         new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }),
@@ -304,7 +314,7 @@ describe('SceneGallery', () => {
       await nextTick()
       await nextTick()
       const toast = mounted.root.querySelector('.toast.show')
-      expect(toast?.textContent).toMatch(/「短视频带货」马上就来/)
+      expect(toast?.textContent).toMatch(/「装备选购对比」马上就来/)
       expect(toast?.getAttribute('aria-hidden')).toBe('false')
 
       await vi.advanceTimersByTimeAsync(4500)
@@ -341,7 +351,8 @@ describe('SceneGallery', () => {
     unmount = mounted.unmount
     await flushUi()
 
-    const live = mounted.root.querySelector('a.scene-card.live') as HTMLAnchorElement | null
+    const liveCards = Array.from(mounted.root.querySelectorAll('a.scene-card.live'))
+    const live = liveCards.find((c) => c.textContent?.includes('电商开店')) as HTMLAnchorElement | undefined
     expect(live?.getAttribute('href')).toBe('/scenes/ecommerce')
     live?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
     await flushUi()
