@@ -45,6 +45,20 @@ class SkulistOutputParserTest {
     }
 
     @Test
+    void undeclared_output_paths_do_not_apply() {
+        InMemorySkillCatalog catalog = new InMemorySkillCatalog();
+        catalog.registerBootstrap(Skill.builder()
+                .id(SKILL)
+                .description(SKILL)
+                .promptRef("classpath:skulist.md")
+                .build());
+        SkulistOutputParser parser = new SkulistOutputParser(catalog);
+
+        assertFalse(parser.appliesTo(ctx(SKILL, null)));
+        assertFalse(parser.appliesTo(ctx(SKILL, "confirm_execute")));
+    }
+
+    @Test
     void plan_phase_reads_plan_slots() throws Exception {
         write("plan/view.json",
                 "{\"version\":2,\"title\":\"策划\",\"format\":\"html\",\"content\":\"<p>p</p>\"}");
