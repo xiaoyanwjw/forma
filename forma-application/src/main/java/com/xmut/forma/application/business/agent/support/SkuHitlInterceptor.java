@@ -9,6 +9,7 @@ import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
+import com.xmut.forma.common.output.ParsedGenerationOutput;
 import com.xmut.forma.common.util.StringUtils;
 import com.xmut.forma.application.business.agent.workspace.RunWorkspaceService;
 import com.xmut.forma.domain.business.agent.model.GenerationRun;

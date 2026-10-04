@@ -1,6 +1,7 @@
 package com.xmut.forma.application.business.agent.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xmut.forma.common.output.ParsedGenerationOutput;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

@@ -1,4 +1,4 @@
-package com.xmut.forma.application.business.agent.support;
+package com.xmut.forma.common.output;
 
 import java.util.Collections;
 import java.util.Map;
