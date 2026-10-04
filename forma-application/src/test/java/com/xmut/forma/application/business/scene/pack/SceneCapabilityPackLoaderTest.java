@@ -82,6 +82,30 @@ class SceneCapabilityPackLoaderTest {
     }
 
     @Test
+    void loadTechDigestRequiresSkillFromCatalog() {
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("tech_digest")).thenReturn(Collections.singletonList(
+                Skill.builder().id("tech-digest").description("d")
+                        .promptRef("classpath:scenes/tech_digest/tech-digest/SKILL.md")
+                        .allowedTools(Collections.singletonList("read_skill"))
+                        .sceneCode("tech_digest").build()));
+        SceneCapabilityPack pack = new SceneCapabilityPackLoader(skills).load("tech_digest");
+        assertThat(pack.hasSkill(SceneCapabilityPackLoader.SKILL_TECH_DIGEST)).isTrue();
+    }
+
+    @Test
+    void loadTechDigestFailsWhenSkillMissing() {
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("tech_digest")).thenReturn(Collections.singletonList(
+                Skill.builder().id("other").description("d")
+                        .promptRef("classpath:scenes/tech_digest/other/SKILL.md")
+                        .allowedTools(Collections.singletonList("read_skill"))
+                        .sceneCode("tech_digest").build()));
+        assertThatThrownBy(() -> new SceneCapabilityPackLoader(skills).load("tech_digest"))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
     void loadBlankSceneCodeFailsWithHumanMessage() {
         SkillCatalog skills = mock(SkillCatalog.class);
         SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);

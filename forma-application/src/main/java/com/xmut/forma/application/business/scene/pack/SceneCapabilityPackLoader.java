@@ -34,9 +34,11 @@ public class SceneCapabilityPackLoader {
     public static final String SKILL_XHS_TOPICLIST = "xhs-topiclist";
     public static final String SKILL_XHS_NOTE = "xhs-note";
     public static final String SKILL_XHS_BREAK = "xhs-break";
+    public static final String SKILL_TECH_DIGEST = "tech-digest";
 
     static final String SCENE_ECOMMERCE = "ecommerce";
     static final String SCENE_XHS = "xiaohongshu";
+    static final String SCENE_TECH_DIGEST = "tech_digest";
 
     private static final Set<String> ECOMMERCE_REQUIRED_SKILLS =
             Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
@@ -44,6 +46,9 @@ public class SceneCapabilityPackLoader {
     private static final Set<String> XHS_REQUIRED_SKILLS =
             Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
                     SKILL_XHS_TOPICLIST, SKILL_XHS_NOTE, SKILL_XHS_BREAK)));
+    private static final Set<String> TECH_DIGEST_REQUIRED_SKILLS =
+            Collections.unmodifiableSet(new LinkedHashSet<String>(Collections.singletonList(
+                    SKILL_TECH_DIGEST)));
 
     private final SkillCatalog skillConfig;
 
@@ -81,6 +86,9 @@ public class SceneCapabilityPackLoader {
         }
         if (SCENE_XHS.equals(sceneCode)) {
             return XHS_REQUIRED_SKILLS;
+        }
+        if (SCENE_TECH_DIGEST.equals(sceneCode)) {
+            return TECH_DIGEST_REQUIRED_SKILLS;
         }
         return null;
     }
