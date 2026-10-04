@@ -8,7 +8,9 @@ import com.xmut.forma.pi.agent.event.PiEvent;
 import com.xmut.forma.pi.agent.event.PiEventBus;
 import com.xmut.forma.pi.agent.event.PiEventType;
 import com.xmut.forma.pi.agent.extension.BeforeAgentStartEvent;
+import com.xmut.forma.pi.agent.extension.BeforeModelRequestEvent;
 import com.xmut.forma.pi.agent.extension.ContextModifier;
+import com.xmut.forma.pi.agent.extension.ModelRequestModifier;
 import com.xmut.forma.pi.agent.agent.Agent;
 import com.xmut.forma.pi.ai.message.Message;
 import com.xmut.forma.pi.agent.resource.PiResourceLoader;
@@ -101,6 +103,10 @@ public final class DefaultAgentSession implements AgentSession {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "before_agent_start failed")));
         }
 
+        List<Message> forModel = beforeModelRequest(
+                runId, request.getSkillId(), request.getWorkspaceRoot(), expanded.text, messages);
+        messages = forModel;
+
         final TurnInput input = TurnInput.builder()
                 .sessionId(sessionId)
                 .domain(request.getDomain())
@@ -169,6 +175,24 @@ public final class DefaultAgentSession implements AgentSession {
         }
     }
 
+    /**
+     * 进模型前改最后一条 user。extension 返回 null 则原样。
+     * 异常只打日志，不阻断本轮。
+     */
+    private List<Message> beforeModelRequest(String runId, String skillId, String workspaceRoot,
+            String thisTurnText, List<Message> messages) {
+        try {
+            ModelRequestModifier mod = eventBus.emit(
+                    PiEvent.of(PiEventType.BEFORE_MODEL_REQUEST,
+                            new BeforeModelRequestEvent(runId, skillId, workspaceRoot, thisTurnText, messages)),
+                    ModelRequestModifier.class);
+            return (mod == null ? ModelRequestModifier.empty() : mod).apply(messages);
+        } catch (RuntimeException e) {
+            log.warn("before_model_request failed runId={}: {}", runId, e.toString());
+            return messages;
+        }
+    }
+
     /** 通知订阅方「模型回合开始」；emit 失败只打日志。 */
     private void onAgentStart(String sessionId) {
         try {
@@ -222,6 +246,13 @@ public final class DefaultAgentSession implements AgentSession {
             List<Message> existing = StringUtils.hasText(sessionId)
                     ? sessionStore.load(sessionId)
                     : Collections.<Message>emptyList();
+
+            String human = request.getHumanInput();
+            if (StringUtils.hasText(human)) {
+                List<Message> one = Collections.singletonList(Message.user(human));
+                one = beforeModelRequest(runId, null, request.getWorkspaceRoot(), human, one);
+                request = request.toBuilder().humanInput(one.get(0).getContent()).build();
+            }
 
             // 3. 调用 Agent.resume
             onAgentStart(sessionId);

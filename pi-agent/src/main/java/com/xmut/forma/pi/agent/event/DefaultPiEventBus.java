@@ -91,6 +91,7 @@ public final class DefaultPiEventBus implements PiEventBus {
             case BEFORE_AGENT_START:
                 return clazz.cast(beforeAgentStart(event, handlers));
             case COMMAND:
+            case BEFORE_MODEL_REQUEST:
                 return clazz.cast(firstNonNull(event, handlers));
             case BEFORE_TOOL_CALL:
                 return clazz.cast(beforeToolCall(event, handlers));
