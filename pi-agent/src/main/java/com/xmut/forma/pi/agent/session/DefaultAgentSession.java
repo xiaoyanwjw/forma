@@ -165,7 +165,11 @@ public final class DefaultAgentSession implements AgentSession {
     /** 跑模型前的上下文改写钩子；emit 失败降级为空 modifier，不阻断主路径。 */
     private ContextModifier beforeAgentStart(String runId, String text, String context) {
         try {
-            final PiEvent piEvent = PiEvent.of(PiEventType.BEFORE_AGENT_START, new BeforeAgentStartEvent(runId, text, context));
+            final PiEvent piEvent = PiEvent.of(PiEventType.BEFORE_AGENT_START, BeforeAgentStartEvent.builder()
+                    .runId(runId)
+                    .userText(text)
+                    .pageContext(context)
+                    .build());
             ContextModifier result = eventBus.emit(piEvent, ContextModifier.class);
 
             return result != null ? result : ContextModifier.empty();

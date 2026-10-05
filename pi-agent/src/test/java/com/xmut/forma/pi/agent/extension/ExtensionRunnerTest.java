@@ -72,12 +72,15 @@ class ExtensionRunnerTest {
 
     @Test
     void register_before_agent_start_collects_volatile_append_only() {
-        PiExtension ext = bus -> bus.register(PiEventType.BEFORE_AGENT_START, e ->
-                ContextModifier.appendVariable("VOL-EXTRA"));
+        PiExtension ext = bus -> bus.register(PiEventType.BEFORE_AGENT_START, (mod, e) ->
+                mod.getSystem().appendVariable("VOL-EXTRA"));
         PiEventBus bus = busWith(ext);
         ContextModifier result = bus.emit(
                 PiEvent.of(PiEventType.BEFORE_AGENT_START,
-                        new BeforeAgentStartEvent("r1", "hello", null)),
+                        BeforeAgentStartEvent.builder()
+                                .runId("r1")
+                                .userText("hello")
+                                .build()),
                 ContextModifier.class);
         assertThat(result.getAppend().getVariable()).isEqualTo("VOL-EXTRA");
         assertThat(result.getAppend().getContext()).isNull();

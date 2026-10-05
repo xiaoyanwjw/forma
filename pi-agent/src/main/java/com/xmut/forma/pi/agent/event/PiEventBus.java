@@ -1,5 +1,7 @@
 package com.xmut.forma.pi.agent.event;
 
+import com.xmut.forma.pi.agent.extension.BeforeAgentStartHandler;
+
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -22,9 +24,20 @@ public interface PiEventBus extends Emitter {
     /**
      * 注册可变处理器。emit 时在 observe 之后同步调用；返回值按类型归约。
      *
+     * <p>{@link PiEventType#BEFORE_AGENT_START} 必须改用
+     * {@link #register(PiEventType, BeforeAgentStartHandler)}，误用本方法抛 {@link IllegalArgumentException}。
+     *
      * @return 关闭即退订
      */
     AutoCloseable register(PiEventType type, Function<PiEvent, Object> handler);
+
+    /**
+     * 注册 BEFORE_AGENT_START 累加器。各 handler 按注册顺序改同一份上下文。
+     *
+     * @param type 必须是 {@link PiEventType#BEFORE_AGENT_START}
+     * @return 关闭即退订
+     */
+    AutoCloseable register(PiEventType type, BeforeAgentStartHandler handler);
 
     /** 清空全部 observe / on。 */
     void clear();

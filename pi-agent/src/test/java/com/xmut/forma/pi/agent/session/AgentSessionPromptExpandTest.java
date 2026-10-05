@@ -234,8 +234,8 @@ class AgentSessionPromptExpandTest {
     void before_agent_start_goes_to_volatile_append() {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenReturn(ConversationResult.ok("r1", "ok", Collections.emptyList()));
-        PiExtension ext = bus -> bus.register(com.xmut.forma.pi.agent.event.PiEventType.BEFORE_AGENT_START, e ->
-                ContextModifier.appendVariable("VOL-FROM-EXT"));
+        PiExtension ext = bus -> bus.register(com.xmut.forma.pi.agent.event.PiEventType.BEFORE_AGENT_START, (mod, e) ->
+                mod.getSystem().appendVariable("VOL-FROM-EXT"));
         DefaultAgentSession session = sessionWith(runner(ext), testLoader());
 
         session.prompt(PromptRequest.builder()
@@ -296,7 +296,7 @@ class AgentSessionPromptExpandTest {
     void before_agent_start_throw_is_swallowed_and_prompt_continues() {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenReturn(ConversationResult.ok("r1", "ok", Collections.emptyList()));
-        PiExtension boom = bus -> bus.register(com.xmut.forma.pi.agent.event.PiEventType.BEFORE_AGENT_START, e -> {
+        PiExtension boom = bus -> bus.register(com.xmut.forma.pi.agent.event.PiEventType.BEFORE_AGENT_START, (mod, e) -> {
             throw new IllegalStateException("start boom");
         });
         DefaultAgentSession session = sessionWith(runner(boom), testLoader());

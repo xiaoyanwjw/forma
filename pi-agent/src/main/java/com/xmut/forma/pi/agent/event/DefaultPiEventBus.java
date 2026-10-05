@@ -1,11 +1,10 @@
 package com.xmut.forma.pi.agent.event;
 
+import com.xmut.forma.pi.agent.extension.BeforeAgentStartHandler;
 import com.xmut.forma.pi.agent.extension.ContextModifier;
-import com.xmut.forma.pi.agent.extension.PromptSegments;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +25,7 @@ public final class DefaultPiEventBus implements PiEventBus {
 
     private final List<Consumer<PiEvent>> observers = new CopyOnWriteArrayList<Consumer<PiEvent>>();
     private final Map<PiEventType, List<Function<PiEvent, Object>>> ons = new ConcurrentHashMap<PiEventType, List<Function<PiEvent, Object>>>();
+    private final List<BeforeAgentStartHandler> beforeAgentStartHandlers = new CopyOnWriteArrayList<BeforeAgentStartHandler>();
 
     @Override
     public AutoCloseable subscribe(Consumer<PiEvent> handler) {
@@ -42,6 +42,10 @@ public final class DefaultPiEventBus implements PiEventBus {
     @Override
     public AutoCloseable register(PiEventType type, Function<PiEvent, Object> handler) {
         final PiEventType eventType = Objects.requireNonNull(type, "type");
+        if (eventType == PiEventType.BEFORE_AGENT_START) {
+            throw new IllegalArgumentException(
+                    "BEFORE_AGENT_START must use register(PiEventType, BeforeAgentStartHandler)");
+        }
         final Function<PiEvent, Object> on = Objects.requireNonNull(handler, "handler");
 
         List<Function<PiEvent, Object>> ons = this.ons.get(eventType);
@@ -57,6 +61,23 @@ public final class DefaultPiEventBus implements PiEventBus {
             @Override
             public void close() {
                 target.remove(on);
+            }
+        };
+    }
+
+    @Override
+    public AutoCloseable register(PiEventType type, BeforeAgentStartHandler handler) {
+        final PiEventType eventType = Objects.requireNonNull(type, "type");
+        if (eventType != PiEventType.BEFORE_AGENT_START) {
+            throw new IllegalArgumentException(
+                    "BeforeAgentStartHandler can only be registered for BEFORE_AGENT_START");
+        }
+        final BeforeAgentStartHandler on = Objects.requireNonNull(handler, "handler");
+        beforeAgentStartHandlers.add(on);
+        return new AutoCloseable() {
+            @Override
+            public void close() {
+                beforeAgentStartHandlers.remove(on);
             }
         };
     }
@@ -89,7 +110,7 @@ public final class DefaultPiEventBus implements PiEventBus {
         List<Function<PiEvent, Object>> handlers = ons.get(event.getType());
         switch (event.getType()) {
             case BEFORE_AGENT_START:
-                return clazz.cast(beforeAgentStart(event, handlers));
+                return clazz.cast(beforeAgentStart(event));
             case COMMAND:
             case BEFORE_MODEL_REQUEST:
                 return clazz.cast(firstNonNull(event, handlers));
@@ -103,55 +124,18 @@ public final class DefaultPiEventBus implements PiEventBus {
     }
 
     /**
-     * Merge handlers：overwrite 每段后写覆盖；append 每段按序拼接。
+     * 新建一份 ContextModifier，按注册顺序交给各 handler 就地累加。
      */
-    private ContextModifier beforeAgentStart(PiEvent event, List<Function<PiEvent, Object>> handlers) {
-        if (CollectionUtils.isEmpty(handlers)) {
-            return ContextModifier.empty();
-        }
-
-        String owStable = null;
-        String owContext = null;
-        String owVariable = null;
-        String apStable = null;
-        String apContext = null;
-        String apVariable = null;
-
-        for (Function<PiEvent, Object> handler : handlers) {
-            Object raw = null;
+    private ContextModifier beforeAgentStart(PiEvent event) {
+        ContextModifier modifier = ContextModifier.empty();
+        for (BeforeAgentStartHandler handler : beforeAgentStartHandlers) {
             try {
-                raw = handler.apply(event);
+                handler.apply(modifier, event);
             } catch (Exception e) {
                 log.warn("on handler failed for {}: {}", event.getType(), e.toString());
             }
-            if (!(raw instanceof ContextModifier)) {
-                continue;
-            }
-            ContextModifier piece = (ContextModifier) raw;
-            PromptSegments ow = piece.getOverwrite();
-            if (ow != null) {
-                owStable = lastNonBlank(owStable, ow.getStable());
-                owContext = lastNonBlank(owContext, ow.getContext());
-                owVariable = lastNonBlank(owVariable, ow.getVariable());
-            }
-            PromptSegments ap = piece.getAppend();
-            if (ap != null) {
-                apStable = join(apStable, ap.getStable());
-                apContext = join(apContext, ap.getContext());
-                apVariable = join(apVariable, ap.getVariable());
-            }
         }
-
-        PromptSegments overwrite = anyText(owStable, owContext, owVariable)
-                ? PromptSegments.of(owStable, owContext, owVariable)
-                : null;
-        PromptSegments append = anyText(apStable, apContext, apVariable)
-                ? PromptSegments.of(apStable, apContext, apVariable)
-                : null;
-        if (overwrite == null && append == null) {
-            return ContextModifier.empty();
-        }
-        return ContextModifier.of(overwrite, append);
+        return modifier;
     }
 
     private Object firstNonNull(PiEvent event, List<Function<PiEvent, Object>> handlers) {
@@ -223,31 +207,10 @@ public final class DefaultPiEventBus implements PiEventBus {
         return acc;
     }
 
-    private static String lastNonBlank(String previous, String next) {
-        if (!StringUtils.hasText(next)) {
-            return previous;
-        }
-        return next.trim();
-    }
-
-    private static String join(String left, String right) {
-        if (!StringUtils.hasText(right)) {
-            return left;
-        }
-        String trimmed = right.trim();
-        if (!StringUtils.hasText(left)) {
-            return trimmed;
-        }
-        return left + "\n\n" + trimmed;
-    }
-
-    private static boolean anyText(String a, String b, String c) {
-        return StringUtils.hasText(a) || StringUtils.hasText(b) || StringUtils.hasText(c);
-    }
-
     @Override
     public void clear() {
         observers.clear();
         ons.clear();
+        beforeAgentStartHandlers.clear();
     }
 }
