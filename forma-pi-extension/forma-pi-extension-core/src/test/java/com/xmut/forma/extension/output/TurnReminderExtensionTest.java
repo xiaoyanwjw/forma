@@ -1,11 +1,12 @@
 package com.xmut.forma.extension.output;
 
 import com.xmut.forma.extension.config.ViewToolsConfiguration;
+import com.xmut.forma.pi.agent.agent.UserPromptInput;
 import com.xmut.forma.pi.agent.event.DefaultPiEventBus;
 import com.xmut.forma.pi.agent.event.PiEvent;
 import com.xmut.forma.pi.agent.event.PiEventType;
-import com.xmut.forma.pi.agent.extension.BeforeModelRequestEvent;
-import com.xmut.forma.pi.agent.extension.ModelRequestModifier;
+import com.xmut.forma.pi.agent.extension.BeforeAgentStartEvent;
+import com.xmut.forma.pi.agent.extension.ContextModifier;
 import com.xmut.forma.pi.agent.skill.InMemorySkillCatalog;
 import com.xmut.forma.pi.agent.skill.Skill;
 import com.xmut.forma.pi.agent.skill.SkillCatalog;
@@ -19,52 +20,48 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TurnReminderExtensionTest {
 
     @Test
-    void returns_null_when_event_is_not_ours() {
+    void leaves_user_unset_when_event_is_not_ours() {
         TurnReminderExtension extension = extension(skill("demo", "view.json", "artifact.json", null, null));
 
-        assertNull(extension.onBeforeModelRequest(null));
-        assertNull(extension.onBeforeModelRequest(PiEvent.of(PiEventType.BEFORE_MODEL_REQUEST)));
-        assertNull(extension.onBeforeModelRequest(PiEvent.of(PiEventType.COMMAND, "nope")));
+        assertUserUnset(extension, null);
+        assertUserUnset(extension, PiEvent.of(PiEventType.BEFORE_AGENT_START));
+        assertUserUnset(extension, PiEvent.of(PiEventType.COMMAND, "nope"));
     }
 
     @Test
-    void returns_null_when_skill_id_blank() {
+    void leaves_user_unset_when_skill_id_blank() {
         TurnReminderExtension extension = extension(skill("demo", "view.json", "artifact.json", null, null));
 
-        assertNull(extension.onBeforeModelRequest(request(null, "hello")));
-        assertNull(extension.onBeforeModelRequest(request("  ", "hello")));
+        assertUserUnset(extension, request(null, "hello"));
+        assertUserUnset(extension, request("  ", "hello"));
     }
 
     @Test
-    void returns_null_when_skill_missing() {
+    void leaves_user_unset_when_skill_missing() {
         TurnReminderExtension extension = new TurnReminderExtension(new InMemorySkillCatalog());
 
-        assertNull(extension.onBeforeModelRequest(request("demo", "hello")));
+        assertUserUnset(extension, request("demo", "hello"));
     }
 
     @Test
-    void returns_null_when_view_or_artifact_missing() {
-        assertNull(extension(skill("demo", null, "artifact.json", null, null))
-                .onBeforeModelRequest(request("demo", "hello")));
-        assertNull(extension(skill("demo", "  ", "artifact.json", null, null))
-                .onBeforeModelRequest(request("demo", "hello")));
-        assertNull(extension(skill("demo", "view.json", null, null, null))
-                .onBeforeModelRequest(request("demo", "hello")));
+    void leaves_user_unset_when_view_or_artifact_missing() {
+        assertUserUnset(extension(skill("demo", null, "artifact.json", null, null)), request("demo", "hello"));
+        assertUserUnset(extension(skill("demo", "  ", "artifact.json", null, null)), request("demo", "hello"));
+        assertUserUnset(extension(skill("demo", "view.json", null, null, null)), request("demo", "hello"));
     }
 
     @Test
-    void returns_null_when_plan_view_path_present() {
+    void leaves_user_unset_when_plan_view_path_present() {
         TurnReminderExtension extension = extension(
                 skill("ecommerce-skulist", "exec/view.json", "exec/artifact.json",
                         "plan/view.json", "plan/artifact.json"));
 
-        assertNull(extension.onBeforeModelRequest(request("ecommerce-skulist", "hello")));
+        assertUserUnset(extension, request("ecommerce-skulist", "hello"));
     }
 
     @Test
@@ -72,66 +69,58 @@ class TurnReminderExtensionTest {
         TurnReminderExtension extension = extension(
                 skill("demo", "view.json", "artifact.json", null, "plan/artifact.json"));
 
-        ModelRequestModifier modifier = extension.onBeforeModelRequest(request("demo", "hello"));
+        ContextModifier modifier = apply(extension, request("demo", "hello"));
 
-        assertNotNull(modifier);
-        assertEquals(TurnReminder.prefix("view.json", "artifact.json"), modifier.getLastUserPrefix());
+        assertUserPrefix(modifier, "hello", "view.json", "artifact.json");
     }
 
     @Test
-    void returns_null_when_path_has_dotdot_or_is_absolute() {
-        assertNull(extension(skill("demo", "plan/../view.json", "artifact.json", null, null))
-                .onBeforeModelRequest(request("demo", "hello")));
-        assertNull(extension(skill("demo", "view.json", "/tmp/artifact.json", null, null))
-                .onBeforeModelRequest(request("demo", "hello")));
-        assertNull(extension(skill("demo", "C:/view.json", "artifact.json", null, null))
-                .onBeforeModelRequest(request("demo", "hello")));
-        assertNull(extension(skill("demo", "\\\\share\\view.json", "artifact.json", null, null))
-                .onBeforeModelRequest(request("demo", "hello")));
+    void leaves_user_unset_when_path_has_dotdot_or_is_absolute() {
+        assertUserUnset(extension(skill("demo", "plan/../view.json", "artifact.json", null, null)),
+                request("demo", "hello"));
+        assertUserUnset(extension(skill("demo", "view.json", "/tmp/artifact.json", null, null)),
+                request("demo", "hello"));
+        assertUserUnset(extension(skill("demo", "C:/view.json", "artifact.json", null, null)),
+                request("demo", "hello"));
+        assertUserUnset(extension(skill("demo", "\\\\share\\view.json", "artifact.json", null, null)),
+                request("demo", "hello"));
     }
 
     @Test
-    void returns_modifier_for_relative_slots() {
+    void sets_user_modifier_for_relative_slots() {
         TurnReminderExtension extension = extension(
                 skill("demo", " view.json ", " artifact.json ", "  ", null));
 
-        ModelRequestModifier modifier = extension.onBeforeModelRequest(request(" demo ", "hello"));
+        ContextModifier modifier = apply(extension, request(" demo ", "hello"));
 
-        assertNotNull(modifier);
-        assertEquals(TurnReminder.prefix("view.json", "artifact.json"), modifier.getLastUserPrefix());
+        assertUserPrefix(modifier, "hello", "view.json", "artifact.json");
     }
 
     @Test
-    void does_not_mutate_messages_and_allows_null_message_list() {
+    void apply_does_not_mutate_the_caller_message_list() {
         List<Message> messages = new ArrayList<Message>();
         messages.add(Message.user("hi"));
-        BeforeModelRequestEvent payload = new BeforeModelRequestEvent(
-                "run-1", "demo", "/tmp/ws", "hi", messages);
         TurnReminderExtension extension = extension(skill("demo", "view.json", "artifact.json", null, null));
 
-        ModelRequestModifier modifier = extension.onBeforeModelRequest(
-                PiEvent.of(PiEventType.BEFORE_MODEL_REQUEST, payload));
+        ContextModifier modifier = apply(extension, request("demo", "hi"));
 
-        assertNotNull(modifier);
+        assertNotNull(modifier.getUser());
+        List<Message> out = modifier.getUser().apply(messages);
         assertEquals(1, messages.size());
         assertEquals("hi", messages.get(0).getContent());
-        assertSame(messages, payload.getMessages());
-
-        assertNotNull(extension.onBeforeModelRequest(PiEvent.of(
-                PiEventType.BEFORE_MODEL_REQUEST,
-                new BeforeModelRequestEvent("run-1", "demo", "/tmp/ws", "hi", null))));
+        assertEquals(TurnReminder.prefix("view.json", "artifact.json") + "hi", out.get(0).getContent());
+        assertNull(modifier.getUser().apply(null));
     }
 
     @Test
-    void register_puts_modifier_on_the_bus() {
+    void register_puts_user_modifier_on_the_bus() {
         TurnReminderExtension extension = extension(skill("demo", "view.json", "artifact.json", null, null));
         DefaultPiEventBus bus = new DefaultPiEventBus();
         extension.register(bus);
 
-        ModelRequestModifier modifier = bus.emit(request("demo", "hello"), ModelRequestModifier.class);
+        ContextModifier modifier = bus.emit(request("demo", "hello"), ContextModifier.class);
 
-        assertNotNull(modifier);
-        assertEquals(TurnReminder.prefix("view.json", "artifact.json"), modifier.getLastUserPrefix());
+        assertUserPrefix(modifier, "hello", "view.json", "artifact.json");
     }
 
     @Test
@@ -145,6 +134,26 @@ class TurnReminderExtensionTest {
         SkillCatalog catalog = new InMemorySkillCatalog();
         TurnReminderExtension bean = new ViewToolsConfiguration().turnReminderExtension(catalog);
         assertNotNull(bean);
+    }
+
+    private static void assertUserUnset(TurnReminderExtension extension, PiEvent event) {
+        assertNull(apply(extension, event).getUser());
+    }
+
+    private static ContextModifier apply(TurnReminderExtension extension, PiEvent event) {
+        ContextModifier modifier = ContextModifier.empty();
+        extension.onBeforeAgentStart(modifier, event);
+        return modifier;
+    }
+
+    private static void assertUserPrefix(ContextModifier modifier, String body, String view, String artifact) {
+        assertNotNull(modifier.getUser());
+        List<Message> formatted = UserPromptInput.builder()
+                .messages(Collections.singletonList(Message.user(body)))
+                .apply(modifier)
+                .build()
+                .format();
+        assertEquals(TurnReminder.prefix(view, artifact) + body, formatted.get(0).getContent());
     }
 
     private static TurnReminderExtension extension(Skill skill) {
@@ -166,11 +175,11 @@ class TurnReminderExtensionTest {
     }
 
     private static PiEvent request(String skillId, String thisTurnText) {
-        return PiEvent.of(PiEventType.BEFORE_MODEL_REQUEST, new BeforeModelRequestEvent(
-                "run-1",
-                skillId,
-                "/tmp/ws",
-                thisTurnText,
-                Collections.singletonList(Message.user(thisTurnText == null ? "hi" : thisTurnText))));
+        return PiEvent.of(PiEventType.BEFORE_AGENT_START, BeforeAgentStartEvent.builder()
+                .runId("run-1")
+                .skillId(skillId)
+                .workspaceRoot("/tmp/ws")
+                .userText(thisTurnText)
+                .build());
     }
 }

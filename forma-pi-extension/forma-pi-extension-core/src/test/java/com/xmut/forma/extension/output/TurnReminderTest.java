@@ -1,11 +1,21 @@
 package com.xmut.forma.extension.output;
 
+import com.xmut.forma.pi.ai.message.Message;
+import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class TurnReminderTest {
+
+    private static final String PREFIX = "<reminder>\nX\n</reminder>\n\n";
 
     @Test
     void prefix_is_exact_bytes() {
@@ -67,6 +77,73 @@ class TurnReminderTest {
         assertNull(TurnReminder.strip(null));
         assertEquals("", TurnReminder.strip(""));
         assertEquals("   ", TurnReminder.strip("   "));
+    }
+
+    @Test
+    void prefix_last_user_prefixes_only_the_last_user_and_does_not_mutate_input() {
+        Message earlier = Message.user("earlier");
+        Message assistant = Message.assistant("mid", Collections.<ToolCallEntry>emptyList());
+        Message last = Message.user("原文");
+        List<Message> input = new ArrayList<Message>(Arrays.asList(earlier, assistant, last));
+
+        List<Message> out = TurnReminder.prefixLastUser(input, PREFIX);
+
+        assertSame(earlier, out.get(0));
+        assertSame(assistant, out.get(1));
+        assertEquals(PREFIX + "原文", out.get(2).getContent());
+        assertEquals("原文", input.get(2).getContent());
+        assertEquals("earlier", earlier.getContent());
+    }
+
+    @Test
+    void prefix_last_user_prefixes_last_user_when_an_assistant_follows() {
+        Message user = Message.user("ask");
+        Message assistant = Message.assistant("ans", Collections.<ToolCallEntry>emptyList());
+        List<Message> input = Arrays.asList(user, assistant);
+
+        List<Message> out = TurnReminder.prefixLastUser(input, "P\n");
+
+        assertEquals("P\nask", out.get(0).getContent());
+        assertSame(assistant, out.get(1));
+        assertEquals("ask", user.getContent());
+    }
+
+    @Test
+    void prefix_last_user_is_idempotent_when_content_already_starts_with_reminder() {
+        String already = "  <reminder>\nold\n</reminder>\n\nbody";
+        List<Message> input = new ArrayList<Message>(Collections.singletonList(Message.user(already)));
+
+        List<Message> out = TurnReminder.prefixLastUser(input, PREFIX);
+
+        assertEquals(already, out.get(0).getContent());
+        assertSame(input.get(0), out.get(0));
+    }
+
+    @Test
+    void prefix_last_user_null_and_empty_return_as_is() {
+        assertNull(TurnReminder.prefixLastUser(null, PREFIX));
+        List<Message> empty = Collections.emptyList();
+        assertSame(empty, TurnReminder.prefixLastUser(empty, PREFIX));
+    }
+
+    @Test
+    void prefix_last_user_without_user_returns_input() {
+        Message assistant = Message.assistant("only", Collections.<ToolCallEntry>emptyList());
+        List<Message> input = Collections.singletonList(assistant);
+
+        List<Message> out = TurnReminder.prefixLastUser(input, PREFIX);
+
+        assertSame(input, out);
+        assertSame(assistant, out.get(0));
+    }
+
+    @Test
+    void prefix_last_user_blank_prefix_returns_input() {
+        Message user = Message.user("hi");
+        List<Message> input = Collections.singletonList(user);
+
+        assertSame(user, TurnReminder.prefixLastUser(input, null).get(0));
+        assertSame(user, TurnReminder.prefixLastUser(input, "  \n").get(0));
     }
 
     private static String expected(String viewPath, String artifactPath) {
