@@ -1,7 +1,7 @@
 package com.xmut.forma.pi.agent.agent;
 
 import com.xmut.forma.pi.agent.IterationBudget;
-import com.xmut.forma.pi.agent.ResumeRequest;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.extension.ContextModifier;
 import com.xmut.forma.pi.agent.extension.UserModifier;
@@ -11,6 +11,7 @@ import com.xmut.forma.pi.agent.graph.checkpoint.InMemoryResumeIdempotencyStore;
 import com.xmut.forma.pi.agent.graph.node.AgentTurnNode;
 import com.xmut.forma.pi.ai.message.Message;
 import com.xmut.forma.pi.agent.tool.InMemoryToolCatalog;
+import com.xmut.forma.pi.agent.tool.ToolDecision;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -24,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DefaultAgentPrepareTest {
 
     @Test
-    void prepare_writes_workspace_root_when_present() {
+    void prepare_derives_workspace_from_config_when_not_passed() {
         DefaultAgent loop = new DefaultAgent(
                 DefaultToolLoopGraph.create(AgentTurnNode.forTopologyTest(), InMemoryToolCatalog.empty()),
                 new InMemoryCheckpointer(),
@@ -33,20 +34,42 @@ class DefaultAgentPrepareTest {
                 InMemoryToolCatalog.empty(),
                 null);
         Map<String, Object> input = loop.prepare(
-                TurnInput.withUser("hi").workspaceRoot(" /tmp/ws/sessions/s/r ").build(),
+                TurnInput.withUser("hi")
+                        .sessionId("sess-a")
+                        .runId("run-b")
+                        .build(),
                 InMemoryToolCatalog.empty(),
                 null);
-        assertThat(input.get(StateKeys.WORKSPACE_ROOT)).isEqualTo("/tmp/ws/sessions/s/r");
+        assertThat((String) input.get(StateKeys.WORKSPACE_ROOT))
+                .endsWith("/sessions/sess-a/run-b");
     }
 
     @Test
-    void applyWorkspaceRoot_request_overrides_stale_checkpoint_value() {
-        Map<String, Object> input = new HashMap<>();
-        input.put(StateKeys.WORKSPACE_ROOT, "/stale/from/checkpoint");
-        DefaultAgent.applyWorkspaceRoot(
-                ResumeRequest.builder().workspaceRoot(" /tmp/ws/sessions/s/r ").build(),
-                input);
-        assertThat(input.get(StateKeys.WORKSPACE_ROOT)).isEqualTo("/tmp/ws/sessions/s/r");
+    void resume_prepare_writes_workspace_like_prompt() {
+        DefaultAgent loop = agent();
+        Map<String, Object> input = loop.prepare(
+                ResumeInput.builder()
+                        .runId("run-b")
+                        .sessionId("sess-a")
+                        .decision(ToolDecision.APPROVE)
+                        .build());
+        assertThat((String) input.get(StateKeys.WORKSPACE_ROOT))
+                .endsWith("/sessions/sess-a/run-b");
+        assertThat(input.get(StateKeys.TOOL_APPROVAL)).isEqualTo(ToolDecision.APPROVE);
+    }
+
+    @Test
+    void resume_prepare_applies_user_modifier_to_human_input() {
+        ContextModifier modifier = ContextModifier.empty();
+        modifier.setUser(prefixLastUser("R\n"));
+        Map<String, Object> input = agent().prepare(
+                ResumeInput.builder()
+                        .runId("run-b")
+                        .decision(ToolDecision.APPROVE)
+                        .humanInput("confirm")
+                        .contextModifier(modifier)
+                        .build());
+        assertThat((String) input.get(StateKeys.HUMAN_INPUT)).isEqualTo("R\nconfirm");
     }
 
     @Test
@@ -71,14 +94,6 @@ class DefaultAgentPrepareTest {
         List<Message> messages = (List<Message>) input.get(StateKeys.MESSAGES);
         assertThat(messages).extracting(Message::getContent).containsExactly("R\n原文");
         assertThat(messages).extracting(Message::getRole).doesNotContain("system");
-    }
-
-    @Test
-    void applyWorkspaceRoot_blank_request_keeps_checkpoint_value() {
-        Map<String, Object> input = new HashMap<>();
-        input.put(StateKeys.WORKSPACE_ROOT, "/stale/from/checkpoint");
-        DefaultAgent.applyWorkspaceRoot(ResumeRequest.builder().build(), input);
-        assertThat(input.get(StateKeys.WORKSPACE_ROOT)).isEqualTo("/stale/from/checkpoint");
     }
 
     private static DefaultAgent agent() {

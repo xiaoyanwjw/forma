@@ -142,7 +142,7 @@ class WorkspaceOutputParserTest {
                 .skillId("demo")
                 .attachment(attachmentOf("out/view.json"))
                 .finalResponse("{\"output\":\"ignored.json\",\"view\":{\"title\":\"from-text\"}}")
-                .workspaceRoot(root)
+                .runWorkspace(root)
                 .build());
 
         assertEquals("from-disk", out.getRawView().get("title"));
@@ -158,7 +158,7 @@ class WorkspaceOutputParserTest {
         return OutputParseContext.builder()
                 .skillId("demo")
                 .attachment(attachmentOf(output))
-                .workspaceRoot(root)
+                .runWorkspace(root)
                 .finalResponse("hello")
                 .build();
     }

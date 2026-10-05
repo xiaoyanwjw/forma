@@ -1,6 +1,7 @@
 package com.xmut.forma.pi.agent.tool.base;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.xmut.forma.common.workspace.RunWorkspacePaths;
 import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 import org.springframework.util.StringUtils;
@@ -21,11 +22,18 @@ public final class LocalFileSupport {
     private LocalFileSupport() {
     }
 
-    static String workspaceRoot(ToolContext ctx) {
-        if (ctx == null || !StringUtils.hasText(ctx.getWorkspaceRoot())) {
+    public static String workspace(ToolContext ctx) {
+        if (ctx != null && StringUtils.hasText(ctx.getWorkspaceRoot())) {
+            return ctx.getWorkspaceRoot();
+        }
+        if (ctx == null) {
             return null;
         }
-        return ctx.getWorkspaceRoot();
+        try {
+            return RunWorkspacePaths.runDir(ctx.getSessionId(), ctx.getRunId()).toString();
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     static String textArg(ToolCallEntry call, String field) {
@@ -59,7 +67,7 @@ public final class LocalFileSupport {
         if (!normalized.startsWith(normalizedRun)) {
             throw new IllegalArgumentException("path escapes run directory");
         }
-        assertNoSymlinkEscape(normalizedRun, normalized);
+        requireNoSymlinkEscape(normalizedRun, normalized);
         return normalized;
     }
 
@@ -67,7 +75,7 @@ public final class LocalFileSupport {
      * After lexical normalize, reject targets whose real path (or a symlink parent)
      * resolves outside the run directory.
      */
-    private static void assertNoSymlinkEscape(Path runDirNormalized, Path target) {
+    private static void requireNoSymlinkEscape(Path runDirNormalized, Path target) {
         try {
             Path realRun = Files.exists(runDirNormalized)
                     ? runDirNormalized.toRealPath()

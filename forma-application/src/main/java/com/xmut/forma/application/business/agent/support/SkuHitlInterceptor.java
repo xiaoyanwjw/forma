@@ -14,7 +14,7 @@ import com.xmut.forma.common.output.OutputParseContext;
 import com.xmut.forma.common.output.OutputParser;
 import com.xmut.forma.common.output.ParsedGenerationOutput;
 import com.xmut.forma.common.output.TurnAttachment;
-import com.xmut.forma.common.output.TurnAttachmentProvider;
+import com.xmut.forma.common.output.RunAttachProvider;
 import com.xmut.forma.common.util.StringUtils;
 import com.xmut.forma.domain.business.agent.model.GenerationRun;
 import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
@@ -33,6 +33,7 @@ import java.util.function.Consumer;
  * 策划文本捕获（Listener）、挂起时 persist/echo 策划（SuspendedHandler）。
  * 计费收尾在 {@code settleOnSuspended} / {@code releaseOnSuspended}。
  */
+@Deprecated
 @Slf4j
 @Component
 public class SkuHitlInterceptor
@@ -47,7 +48,7 @@ public class SkuHitlInterceptor
     private final GenerationRunRepository generationRunRepository;
     private final Clock clock;
     private final RunWorkspaceService runWorkspaceService;
-    private final TurnAttachmentProvider turnAttachmentProvider;
+    private final RunAttachProvider runAttachProvider;
 
     public SkuHitlInterceptor(CreditHoldSupport creditHoldSupport,
                               OutputParser outputParser,
@@ -56,7 +57,7 @@ public class SkuHitlInterceptor
                               GenerationRunRepository generationRunRepository,
                               Clock clock,
                               RunWorkspaceService runWorkspaceService,
-                              TurnAttachmentProvider turnAttachmentProvider) {
+                              RunAttachProvider runAttachProvider) {
         this.creditHoldSupport = creditHoldSupport;
         this.outputParser = outputParser;
         this.artifactPersistPlugin = artifactPersistPlugin;
@@ -64,7 +65,7 @@ public class SkuHitlInterceptor
         this.generationRunRepository = generationRunRepository;
         this.clock = clock;
         this.runWorkspaceService = runWorkspaceService;
-        this.turnAttachmentProvider = turnAttachmentProvider;
+        this.runAttachProvider = runAttachProvider;
     }
 
     @Override
@@ -72,7 +73,7 @@ public class SkuHitlInterceptor
         if (!ctx.getProfile().isBilledSku()) {
             return;
         }
-        if (!ListingHitlOptions.CONFIRM_EXECUTE.equals(ctx.getResumeOptionId())) {
+        if (!HitlOptions.CONFIRM_EXECUTE.equals(ctx.getResumeOptionId())) {
             return;
         }
         String execHoldId = creditHoldSupport.reserveOne(ctx.getRun().getUserId());
@@ -92,7 +93,7 @@ public class SkuHitlInterceptor
         if (!StringUtils.hasText(ctx.getResumeOptionId())) {
             return;
         }
-        if (!ListingHitlOptions.CONFIRM_EXECUTE.equals(ctx.getResumeOptionId())) {
+        if (!HitlOptions.CONFIRM_EXECUTE.equals(ctx.getResumeOptionId())) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_MODEL_FAILED);
         }
         ctx.setPersistAs(SkillRunProfile.PERSIST_SKU);
@@ -219,14 +220,14 @@ public class SkuHitlInterceptor
         if (!StringUtils.hasText(echo)) {
             echo = ctx.getTurnFinalResponse();
         }
-        TurnAttachment att = turnAttachmentProvider.of(ctx.getProfile().getSkillId(), null);
+        TurnAttachment att = runAttachProvider.of(ctx.getProfile().getSkillId(), null);
         OutputParseContext parseCtx = OutputParseContext.builder()
                 .skillId(ctx.getProfile().getSkillId())
                 .sceneCode(ctx.getRun().getSceneCode())
                 .resumeOptionId(null)
                 .attachment(att)
                 .finalResponse(echo)
-                .workspaceRoot(runDir(ctx))
+                .runWorkspace(runDir(ctx))
                 .build();
         if (!outputParser.appliesTo(parseCtx)) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);

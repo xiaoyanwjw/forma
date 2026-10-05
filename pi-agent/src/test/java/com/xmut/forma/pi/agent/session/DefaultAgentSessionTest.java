@@ -2,6 +2,7 @@ package com.xmut.forma.pi.agent.session;
 
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.ConversationResult;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.ResumeRequest;
 import com.xmut.forma.pi.agent.agent.Agent;
 import com.xmut.forma.pi.ai.message.ContentPart;
@@ -93,7 +94,7 @@ class DefaultAgentSessionTest {
     }
 
     @Test
-    void prompt_forwards_workspaceRoot_to_turnInput() {
+    void prompt_forwards_session_and_run_without_workspaceRoot() {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenAnswer(inv -> {
                     TurnInput req = inv.getArgument(0);
@@ -102,12 +103,14 @@ class DefaultAgentSessionTest {
 
         session.prompt(PromptRequest.builder()
                 .text("hi")
-                .workspaceRoot("/tmp/ws/sessions/s/r")
+                .sessionId("s-ws")
+                .runId("r-ws")
                 .build());
 
         ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
         verify(conversationLoop).run(cap.capture(), any());
-        assertThat(cap.getValue().getWorkspaceRoot()).isEqualTo("/tmp/ws/sessions/s/r");
+        assertThat(cap.getValue().getSessionId()).isEqualTo("s-ws");
+        assertThat(cap.getValue().getRunId()).isEqualTo("r-ws");
     }
 
     @Test
@@ -227,7 +230,7 @@ class DefaultAgentSessionTest {
 
     @Test
     void resume_without_tenant_delegates_to_loop() {
-        when(conversationLoop.resume(any(ResumeRequest.class), any()))
+        when(conversationLoop.resume(any(ResumeInput.class), any()))
                 .thenReturn(ConversationResult.ok("r1", "resumed", Collections.emptyList()));
         TurnResult result = session.resume(ResumeRequest.builder()
                 .runId("r1")
@@ -237,22 +240,22 @@ class DefaultAgentSessionTest {
         assertThat(result.getStatus()).isEqualTo(TurnResult.Status.OK);
         assertThat(result.getFinalResponse()).isEqualTo("resumed");
         assertThat(result.getFinalResponse()).doesNotContain("tenantId required");
-        verify(conversationLoop).resume(any(ResumeRequest.class), any());
+        verify(conversationLoop).resume(any(ResumeInput.class), any());
     }
 
     @Test
-    void resume_forwards_workspaceRoot_to_agent() {
-        when(conversationLoop.resume(any(ResumeRequest.class), any()))
+    void resume_forwards_bound_ids_to_agent() {
+        when(conversationLoop.resume(any(ResumeInput.class), any()))
                 .thenReturn(ConversationResult.ok("r-ws", "resumed", Collections.emptyList()));
         session.resume(ResumeRequest.builder()
                 .runId("r-ws")
                 .sessionId("s-ws")
                 .decision(com.xmut.forma.pi.agent.tool.ToolDecision.APPROVE)
-                .workspaceRoot("/tmp/ws/sessions/s/r")
                 .build());
-        ArgumentCaptor<ResumeRequest> cap = ArgumentCaptor.forClass(ResumeRequest.class);
+        ArgumentCaptor<ResumeInput> cap = ArgumentCaptor.forClass(ResumeInput.class);
         verify(conversationLoop).resume(cap.capture(), any());
-        assertThat(cap.getValue().getWorkspaceRoot()).isEqualTo("/tmp/ws/sessions/s/r");
+        assertThat(cap.getValue().getSessionId()).isEqualTo("s-ws");
+        assertThat(cap.getValue().getRunId()).isEqualTo("r-ws");
     }
 
     @Test
@@ -290,7 +293,7 @@ class DefaultAgentSessionTest {
         Message plan = Message.assistant("plan-json", Collections.emptyList());
         sessionStore.append("s-hitl2", "run-hitl2:suspend", Arrays.asList(user, plan));
 
-        when(conversationLoop.resume(any(ResumeRequest.class), any()))
+        when(conversationLoop.resume(any(ResumeInput.class), any()))
                 .thenAnswer(inv -> {
                     List<Message> full = Arrays.asList(
                             user,
@@ -333,7 +336,7 @@ class DefaultAgentSessionTest {
         Message toolReply = Message.tool(callId, "{\"selectedId\":\"confirm_execute\"}");
         Message finalAsst = Message.assistant("listing-done", Collections.emptyList());
 
-        when(conversationLoop.resume(any(ResumeRequest.class), any()))
+        when(conversationLoop.resume(any(ResumeInput.class), any()))
                 .thenReturn(ConversationResult.ok("run-ask", "done",
                         Arrays.asList(user, askFromCheckpoint, toolReply, finalAsst)));
 

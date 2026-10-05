@@ -46,6 +46,22 @@ class WriteFileToolHandlerTest {
     }
 
     @Test
+    void write_usesConfiguredRootWhenWorkspaceNotOnContext() throws Exception {
+        Path root = Files.createTempDirectory("ws-cfg-");
+        com.xmut.forma.common.workspace.RunWorkspacePaths.bindRoot(root);
+        try {
+            ToolContext ctx = new ToolContext("run-1", "t", null, null, "sess-1");
+            ToolResult w = new WriteFileToolHandler().handle(
+                    call("write_file", "{\"path\":\"a.txt\",\"content\":\"ok\"}"), ctx);
+            assertTrue(w.isSuccess());
+            Path written = root.resolve("sessions").resolve("sess-1").resolve("run-1").resolve("a.txt");
+            assertTrue(Files.isRegularFile(written));
+        } finally {
+            com.xmut.forma.common.workspace.RunWorkspacePaths.bindRoot(null);
+        }
+    }
+
+    @Test
     void write_emptyContent_createsEmptyFile() throws Exception {
         Path run = Files.createTempDirectory("ws-");
         ToolContext ctx = new ToolContext("r", "t", null, run.toString());

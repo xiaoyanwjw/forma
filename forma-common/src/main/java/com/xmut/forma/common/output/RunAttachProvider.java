@@ -1,5 +1,5 @@
 package com.xmut.forma.common.output;
 
-public interface TurnAttachmentProvider {
+public interface RunAttachProvider {
     TurnAttachment of(String skillId, String resumeOptionId);
 }

@@ -59,7 +59,8 @@ public final class RenderViewToolHandler implements ToolHandler {
     public ToolResult handle(ToolCallEntry call, ToolContext ctx) {
         String callId = call != null ? call.getId() : null;
         try {
-            if (ctx == null || !StringUtils.hasText(ctx.getWorkspaceRoot())) {
+            String root = LocalFileSupport.workspace(ctx);
+            if (root == null) {
                 return ToolResult.failed(callId, TOOL_NAME, "workspace root missing");
             }
             if (!StringUtils.hasText(ctx.getActiveSkillId())) {
@@ -72,7 +73,7 @@ public final class RenderViewToolHandler implements ToolHandler {
             String formatResolved = StringUtils.hasText(formatParam)
                     ? formatParam.trim()
                     : orDefault(SKILL_DEFAULT_FORMAT.get(ctx.getActiveSkillId()), "html");
-            Path workspace = Paths.get(ctx.getWorkspaceRoot());
+            Path workspace = Paths.get(root);
             Path artifactPath = LocalFileSupport.resolveUnder(workspace, artifactRel);
             Path outPath = LocalFileSupport.resolveUnder(workspace, outRel);
             if (!Files.isRegularFile(artifactPath)) {

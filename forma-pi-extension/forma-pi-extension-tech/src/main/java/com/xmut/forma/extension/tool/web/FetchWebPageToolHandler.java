@@ -17,7 +17,6 @@ import java.nio.file.Paths;
 import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.StringUtils;
 
 /**
  * Pi tool {@code fetch_web_page}: guard the URL, fetch one page, write {@code source.md}.
@@ -46,9 +45,11 @@ public final class FetchWebPageToolHandler implements ToolHandler {
     public ToolResult handle(ToolCallEntry call, ToolContext ctx) {
         String callId = call != null ? call.getId() : null;
         try {
-            if (ctx == null || !StringUtils.hasText(ctx.getWorkspaceRoot())) {
+            String workspace = LocalFileSupport.workspace(ctx);
+            if (workspace == null) {
                 return ToolResult.failed(callId, TOOL_NAME, "workspace root missing");
             }
+
             String url = extractUrl(call);
             WebFetchUrls.validatePublicHttpUrl(url);
             WebFetchHit hit = fetchPort.fetch(url.trim());
@@ -56,7 +57,7 @@ public final class FetchWebPageToolHandler implements ToolHandler {
                 return failure(callId, "empty_body");
             }
             String text = hit.getText();
-            Path path = LocalFileSupport.resolveUnder(Paths.get(ctx.getWorkspaceRoot()), SOURCE_PATH);
+            Path path = LocalFileSupport.resolveUnder(Paths.get(workspace), SOURCE_PATH);
             Path parent = path.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);

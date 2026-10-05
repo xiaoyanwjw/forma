@@ -121,7 +121,6 @@ class TurnReminderExtensionTest {
         return PiEvent.of(PiEventType.BEFORE_AGENT_START, BeforeAgentStartEvent.builder()
                 .runId("run-1")
                 .skillId("demo")
-                .workspaceRoot("/tmp/ws")
                 .userText("hello")
                 .attachment(attachmentOf(output))
                 .build());

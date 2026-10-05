@@ -3,6 +3,7 @@ package com.xmut.forma.pi.agent.session;
 import com.xmut.forma.common.output.TurnAttachment;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.ConversationResult;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.ResumeRequest;
 import com.xmut.forma.pi.agent.event.PiEvent;
 import com.xmut.forma.pi.agent.event.PiEventType;
@@ -267,7 +268,7 @@ class AgentSessionPromptExpandTest {
         when(conversationLoop.run(any(TurnInput.class), any()))
                 .thenReturn(ConversationResult.ok("r1", "ok", Collections.emptyList()))
                 .thenReturn(ConversationResult.failed("r2", "boom"));
-        when(conversationLoop.resume(any(ResumeRequest.class), any()))
+        when(conversationLoop.resume(any(ResumeInput.class), any()))
                 .thenReturn(ConversationResult.suspended("r3", "human"));
 
         session.prompt(PromptRequest.builder().text("a").build());
@@ -342,7 +343,6 @@ class AgentSessionPromptExpandTest {
                 .text("原文")
                 .context("PAGE")
                 .skillId("ecommerce-skulist")
-                .workspaceRoot("/tmp/ws")
                 .attachment(TurnAttachment.of(plan))
                 .build();
         session.prompt(request);
@@ -353,9 +353,7 @@ class AgentSessionPromptExpandTest {
         assertThat(lastUser(sent).getContent()).isEqualTo("原文");
         assertThat(sent.get(0).getContent()).isEqualTo("kept");
         assertThat(seen.get().getSkillId()).isEqualTo("ecommerce-skulist");
-        assertThat(seen.get().getWorkspaceRoot()).isEqualTo("/tmp/ws");
         assertThat(seen.get().getUserText()).isEqualTo("原文");
-        assertThat(seen.get().getPageContext()).isEqualTo("PAGE");
         assertThat(seen.get().getAttachment()).isEqualTo(request.getAttachment());
 
         List<Message> stored = sessionStore.load("s-rem");
@@ -376,7 +374,7 @@ class AgentSessionPromptExpandTest {
     }
 
     @Test
-    void resume_rewrites_human_input_via_user_prompt_and_leaves_stored_history() {
+    void resume_hangs_before_agent_start_modifier_and_leaves_human_input() {
         String prefix = "R\n";
         AtomicReference<BeforeAgentStartEvent> seen = new AtomicReference<BeforeAgentStartEvent>();
         PiExtension ext = bus -> bus.register(PiEventType.BEFORE_AGENT_START, (mod, e) -> {
@@ -386,7 +384,7 @@ class AgentSessionPromptExpandTest {
         List<Message> history = Collections.singletonList(Message.user("historical"));
         sessionStore.getOrCreate(Session.Meta.builder().sessionId("s-res").source("api").build());
         sessionStore.append("s-res", "seed", history);
-        when(conversationLoop.resume(any(ResumeRequest.class), any()))
+        when(conversationLoop.resume(any(ResumeInput.class), any()))
                 .thenReturn(ConversationResult.ok("r-res", "ok", history));
         DefaultAgentSession session = sessionWith(runner(ext), testLoader());
         List<PiEvent> events = new ArrayList<PiEvent>();
@@ -398,7 +396,6 @@ class AgentSessionPromptExpandTest {
         ResumeRequest request = ResumeRequest.builder()
                 .runId("r-res")
                 .sessionId("s-res")
-                .workspaceRoot("/tmp/ws")
                 .skillId("ecommerce-skulist")
                 .resumeOptionId("confirm_execute")
                 .attachment(TurnAttachment.of(exec))
@@ -407,16 +404,16 @@ class AgentSessionPromptExpandTest {
                 .build();
         session.resume(request);
 
-        ArgumentCaptor<ResumeRequest> cap = ArgumentCaptor.forClass(ResumeRequest.class);
+        ArgumentCaptor<ResumeInput> cap = ArgumentCaptor.forClass(ResumeInput.class);
         verify(conversationLoop).resume(cap.capture(), any());
-        assertThat(cap.getValue().getHumanInput()).isEqualTo(prefix + "confirm_execute go");
+        assertThat(cap.getValue().getHumanInput()).isEqualTo("confirm_execute go");
+        assertThat(cap.getValue().getContextModifier()).isNotNull();
+        assertThat(cap.getValue().getContextModifier().getUser()).isNotNull();
         assertThat(seen.get().getSkillId()).isEqualTo("ecommerce-skulist");
         assertThat(seen.get().getResumeOptionId()).isEqualTo("confirm_execute");
         assertThat(seen.get().getAttachment()).isEqualTo(request.getAttachment());
         assertThat(seen.get().getAttachment().get("viewPath")).isEqualTo("exec/view.json");
-        assertThat(seen.get().getWorkspaceRoot()).isEqualTo("/tmp/ws");
         assertThat(seen.get().getUserText()).isEqualTo("confirm_execute go");
-        assertThat(seen.get().getPageContext()).isNull();
         assertThat(sessionStore.load("s-res")).extracting(Message::getContent).containsExactly("historical");
         assertThat(events).extracting(PiEvent::getType).contains(PiEventType.BEFORE_AGENT_START);
     }

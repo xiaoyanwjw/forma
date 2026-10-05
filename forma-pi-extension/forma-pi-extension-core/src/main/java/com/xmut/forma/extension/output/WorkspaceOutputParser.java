@@ -40,6 +40,6 @@ public final class WorkspaceOutputParser implements OutputParser {
             throw new IllegalArgumentException("output file missing: view.json");
         }
 
-        return reader.read(ctx.getWorkspaceRoot(), output);
+        return reader.read(ctx.getRunWorkspace(), output);
     }
 }

@@ -16,6 +16,7 @@ public final class ToolContext {
     private final String traceId;
     private final String activeSkillId;
     private final String workspaceRoot;
+    private final String sessionId;
 
     public ToolContext(String runId, String traceId) {
         this(runId, traceId, null);
@@ -26,10 +27,15 @@ public final class ToolContext {
     }
 
     public ToolContext(String runId, String traceId, String activeSkillId, String workspaceRoot) {
+        this(runId, traceId, activeSkillId, workspaceRoot, null);
+    }
+
+    public ToolContext(String runId, String traceId, String activeSkillId, String workspaceRoot, String sessionId) {
         this.runId = runId;
         this.traceId = traceId;
         this.activeSkillId = StringUtils.hasText(activeSkillId) ? activeSkillId.trim() : null;
         this.workspaceRoot = StringUtils.hasText(workspaceRoot) ? workspaceRoot.trim() : null;
+        this.sessionId = StringUtils.hasText(sessionId) ? sessionId.trim() : null;
     }
 
     public static ToolContext from(NodeContext nodeContext) {
@@ -39,6 +45,7 @@ public final class ToolContext {
     public static ToolContext from(NodeContext nodeContext, GraphState state) {
         String active = null;
         String workspaceRoot = null;
+        String sessionId = null;
         if (state != null) {
             Object raw = state.get(StateKeys.ACTIVE_SKILL_ID);
             if (raw instanceof String && StringUtils.hasText((String) raw)) {
@@ -48,15 +55,20 @@ public final class ToolContext {
             if (ws instanceof String && StringUtils.hasText((String) ws)) {
                 workspaceRoot = ((String) ws).trim();
             }
+            Object sid = state.get(StateKeys.SESSION_ID);
+            if (sid instanceof String && StringUtils.hasText((String) sid)) {
+                sessionId = ((String) sid).trim();
+            }
         }
         if (nodeContext == null) {
-            return new ToolContext(null, null, active, workspaceRoot);
+            return new ToolContext(null, null, active, workspaceRoot, sessionId);
         }
         return new ToolContext(
                 nodeContext.getRunId(),
                 nodeContext.getTraceId(),
                 active,
-                workspaceRoot);
+                workspaceRoot,
+                sessionId);
     }
 
     public String getRunId() {
@@ -72,8 +84,12 @@ public final class ToolContext {
         return activeSkillId;
     }
 
-    /** 本 run 工作区绝对路径；可空（未注入时沙箱工具应失败）。 */
+    /** 本 run 工作区绝对路径；可空（未注入时工具按配置根 + session/run 推导）。 */
     public String getWorkspaceRoot() {
         return workspaceRoot;
+    }
+
+    public String getSessionId() {
+        return sessionId;
     }
 }

@@ -3,7 +3,7 @@ package com.xmut.forma.pi.agent.agent;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.ConversationResult;
 import com.xmut.forma.pi.agent.IterationBudget;
-import com.xmut.forma.pi.agent.ResumeRequest;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.graph.CompileConfig;
 import com.xmut.forma.pi.agent.graph.CompiledGraph;
 import com.xmut.forma.pi.agent.graph.GraphOutcome;
@@ -18,6 +18,7 @@ import com.xmut.forma.pi.ai.message.Message;
 import com.xmut.forma.pi.agent.skill.ActiveSkill;
 import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import com.xmut.forma.pi.agent.skill.SkillSelector;
+import com.xmut.forma.common.workspace.RunWorkspacePaths;
 import com.xmut.forma.pi.agent.event.Emitter;
 import com.xmut.forma.pi.agent.extension.ContextModifier;
 import com.xmut.forma.pi.agent.tool.ToolDecision;
@@ -162,22 +163,229 @@ public final class DefaultAgent implements Agent {
         if (StringUtils.hasText(turnInput.getSessionId())) {
             input.put(StateKeys.SESSION_ID, turnInput.getSessionId().trim());
         }
-        applyWorkspaceRoot(turnInput.getWorkspaceRoot(), input);
+
+        final String runWorkspace = resolveWorkspace(turnInput.getSessionId(), turnInput.getRunId());
+        input.put(StateKeys.WORKSPACE_ROOT, runWorkspace);
 
         return input;
     }
 
-    /** 请求侧工作区根覆盖写入；有值时优先于 checkpoint 旧值。 */
-    static void applyWorkspaceRoot(ResumeRequest request, Map<String, Object> input) {
-        if (request == null) {
-            return;
+    static String resolveWorkspace(String sessionId, String runId) {
+        try {
+            return RunWorkspacePaths.runDir(sessionId, runId).toString();
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
-        applyWorkspaceRoot(request.getWorkspaceRoot(), input);
     }
 
-    static void applyWorkspaceRoot(String workspaceRoot, Map<String, Object> input) {
-        if (input != null && StringUtils.hasText(workspaceRoot)) {
-            input.put(StateKeys.WORKSPACE_ROOT, workspaceRoot.trim());
+    @Override
+    public ConversationResult resume(ResumeInput input) {
+        return resume(input, null);
+    }
+
+    /**
+     * HITL 续跑：confirmId 幂等占位 → tool-result / WRITE 双路径 → {@code compiled.resume}。
+     *
+     * @param input   已绑定续跑入参（须含 runId；toolCallId+result 与 WRITE decision 互斥）
+     * @param emitter 可选事件出口；可为 null
+     * @return 图终态映射后的 {@link ConversationResult}
+     */
+    @Override
+    public ConversationResult resume(ResumeInput input, Emitter emitter) {
+        if (!StringUtils.hasText(input.getRunId())) {
+            return ConversationResult.failed(null, "resume requires runId");
+        }
+
+        CancelHandle handle = new CancelHandle();
+        String runId = input.getRunId().trim();
+        String confirmId = input.getConfirmId();
+
+        boolean claimed = false;
+        try {
+            // 1. 占住 runId
+            if (activeRuns.putIfAbsent(runId, handle) != null) {
+                return ConversationResult.failed(runId, "run already active: " + runId);
+            }
+
+            // 2. confirmId 幂等：COMPLETED/IN_PROGRESS 短路；CLAIMED 继续
+            Claim claim = claim(runId, confirmId);
+            if (claim.result != null) {
+                return claim.result;
+            }
+            claimed = claim.claimed;
+
+            // 3. 解析续跑模式（tool-result vs WRITE）；非法则 fail-closed
+            ResumeResult resumeResult = resolveResumeResult(input, runId);
+            if (resumeResult.invalid != null) {
+                complete(claimed, runId, confirmId, resumeResult.invalid);
+                return resumeResult.invalid;
+            }
+
+            // 4. 组装 resume input（与 prompt 的 prepare 同一收口）
+            Map<String, Object> graphInput;
+            try {
+                graphInput = prepare(input);
+            } catch (IllegalArgumentException ex) {
+                ConversationResult failed = ConversationResult.failed(runId, ex.getMessage());
+                complete(claimed, runId, confirmId, failed);
+                return failed;
+            }
+
+            // 5. 编译图并 resume
+            CompiledGraph compiled = stateGraph.compile(CompileConfig.builder()
+                    .checkpointer(checkpointer)
+                    .maxSupersteps(budget.maxTotal())
+                    .overallTimeout(mapOverallTimeout(budget))
+                    .build());
+
+            RunnableConfig runnableConfig = RunnableConfig.builder()
+                    .runId(runId)
+                    .traceId(input.getTraceId())
+                    .cancelSignal(handle.flag::get)
+                    .cancelReason(handle.reason)
+                    .emitter(emitter)
+                    .build();
+
+            GraphOutcome outcome = compiled.resume(graphInput, runnableConfig);
+            ConversationResult result = mapOutcome(runId, outcome);
+
+            // 6. 收敛幂等占位：再挂起 abandon；其余终态 complete
+            complete(claimed, runId, confirmId, result);
+            return result;
+        } catch (RuntimeException ex) {
+            try {
+                complete(claimed, runId, confirmId, null);
+            } catch (RuntimeException abandonEx) {
+                log.warn("resume abandon after failure failed runId={}: {}", runId, abandonEx.toString());
+            }
+            log.error("resume failed runId={}: {}", runId, ex.toString());
+            return ConversationResult.failed(runId, ex.getMessage());
+        } finally {
+            activeRuns.remove(runId, handle);
+        }
+    }
+
+    /**
+     * 幂等占位入口。
+     * 功能描述：无 confirmId 则跳过；COMPLETED/IN_PROGRESS 经 {@link Claim#result} 短路返回。
+     */
+    private Claim claim(String runId, String confirmId) {
+        if (confirmId == null) {
+            return Claim.skipped();
+        }
+
+        ResumeIdempotencyStore.ClaimResult claim = resumeIdempotencyStore.claim(runId, confirmId);
+        switch (claim.getStatus()) {
+            case COMPLETED:
+                ConversationResult cached = claim.getCompletedResult() != null
+                        ? claim.getCompletedResult()
+                        : ConversationResult.failed(runId, "idempotent resume: empty cached result");
+                return Claim.completed(cached);
+            case IN_PROGRESS:
+                return Claim.completed(ConversationResult.failed(runId,
+                        "resume already in progress for confirmId=" + confirmId));
+            case CLAIMED:
+                return Claim.claimed();
+            default:
+                return Claim.completed(ConversationResult.failed(runId, "unknown claim status"));
+        }
+    }
+
+    /**
+     * 解析 resume 双模式（tool-result vs WRITE）。
+     * 功能描述：互斥或都缺时 {@link ResumeResult#invalid} 非空（fail-closed）。
+     */
+    private static ResumeResult resolveResumeResult(ResumeInput input, String runId) {
+        boolean answeringTool = StringUtils.hasText(input.getToolCallId());
+        ToolDecision decision = resolveDecision(input);
+        if (answeringTool && decision != null) {
+            return ResumeResult.invalid(ConversationResult.failed(runId,
+                    "resume tool-result and WRITE decision are mutually exclusive"));
+        }
+        if (!answeringTool && decision == null) {
+            return ResumeResult.invalid(ConversationResult.failed(runId,
+                    "resume requires toolCallId+result or decision (APPROVE|DENY)/approved"));
+        }
+        return ResumeResult.ok();
+    }
+
+    /**
+     * HITL 续跑入图：盖批准、接上人的回复、钉本轮工作区。
+     */
+    Map<String, Object> prepare(ResumeInput input) {
+        Objects.requireNonNull(input, "input required");
+
+        Map<String, Object> graphInput = new HashMap<String, Object>();
+        String human = formatHuman(input);
+        ToolDecision decision = resolveDecision(input);
+        if (decision != null) {
+            graphInput.put(StateKeys.TOOL_APPROVAL, decision);
+            if (StringUtils.hasText(human)) {
+                graphInput.put(StateKeys.HUMAN_INPUT, human);
+            }
+        }
+
+        applyHumanTurn(graphInput, input, human);
+        graphInput.put(StateKeys.WORKSPACE_ROOT,
+                resolveWorkspace(input.getSessionId(), input.getRunId()));
+        return graphInput;
+    }
+
+    /** 把人的回复接到上次对话后面；回答挂起工具时顺带清掉未跑完的 call。 */
+    private void applyHumanTurn(Map<String, Object> graphInput, ResumeInput input, String note) {
+        String toolCallId = textOrNull(input.getToolCallId());
+        boolean answeringTool = toolCallId != null;
+        if (!answeringTool && !StringUtils.hasText(note)) {
+            return;
+        }
+        if (answeringTool) {
+            graphInput.put(StateKeys.TOOL_CALLS, Collections.emptyList());
+        }
+        GraphState prior = priorState(input.getRunId());
+        if (prior == null) {
+            return;
+        }
+        List<Message> messages = Message.copyFrom(prior.get(StateKeys.MESSAGES));
+        if (answeringTool && !hasToolReply(messages, toolCallId)) {
+            throw new IllegalArgumentException("unknown toolCallId: " + toolCallId);
+        }
+        Message.append(messages, null, null, Message.user(note != null ? note : ""));
+        graphInput.put(StateKeys.MESSAGES, messages);
+    }
+
+    private static String formatHuman(ResumeInput input) {
+        String note = input.getHumanInput();
+        if (!StringUtils.hasText(note)) {
+            return note;
+        }
+        List<Message> formatted = UserPromptInput.builder()
+                .messages(Collections.singletonList(Message.user(note)))
+                .apply(input.getContextModifier())
+                .build()
+                .format();
+        if (formatted.isEmpty() || formatted.get(0) == null) {
+            return note;
+        }
+        return formatted.get(0).getContent();
+    }
+
+    private GraphState priorState(String runId) {
+        Checkpoint latest = checkpointer.loadLatest(runId).orElse(null);
+        return latest != null ? latest.getState() : null;
+    }
+
+    /**
+     * 收敛 claim 后的 store complete/abandon 样板。
+     * 功能描述：未 claim 则 no-op；SUSPENDED 或异常（result==null）→ store.abandon；其余终态 → store.complete。
+     */
+    private void complete(boolean claimed, String runId, String confirmId, ConversationResult result) {
+        if (!claimed) {
+            return;
+        }
+        if (result == null || result.getStatus() == ConversationResult.Status.SUSPENDED) {
+            resumeIdempotencyStore.abandon(runId, confirmId);
+        } else {
+            resumeIdempotencyStore.complete(runId, confirmId, result);
         }
     }
 
@@ -278,157 +486,6 @@ public final class DefaultAgent implements Agent {
         }
     }
 
-    @Override
-    public ConversationResult resume(ResumeRequest request) {
-        return resume(request, null);
-    }
-
-    /**
-     * HITL 续跑：confirmId 幂等占位 → tool-result / WRITE 双路径 → {@code compiled.resume}。
-     *
-     * @param request 续跑请求（须含 runId；toolCallId+result 与 WRITE decision 互斥）
-     * @param emitter 可选事件出口；可为 null
-     * @return 图终态映射后的 {@link ConversationResult}
-     */
-    @Override
-    public ConversationResult resume(ResumeRequest request, Emitter emitter) {
-        if (!StringUtils.hasText(request.getRunId())) {
-            return ConversationResult.failed(null, "resume requires runId");
-        }
-
-        CancelHandle handle = new CancelHandle();
-        String runId = request.getRunId().trim();
-        String confirmId = request.getConfirmId();
-
-        boolean claimed = false;
-        try {
-            // 1. 占住 runId
-            if (activeRuns.putIfAbsent(runId, handle) != null) {
-                return ConversationResult.failed(runId, "run already active: " + runId);
-            }
-
-            // 2. confirmId 幂等：COMPLETED/IN_PROGRESS 短路；CLAIMED 继续
-            Claim claim = claim(runId, confirmId);
-            if (claim.result != null) {
-                return claim.result;
-            }
-            claimed = claim.claimed;
-
-            // 3. 解析续跑模式（tool-result vs WRITE）；非法则 fail-closed
-            ResumeResult resumeResult = resolveResumeResult(request, runId);
-            if (resumeResult.invalid != null) {
-                complete(claimed, runId, confirmId, resumeResult.invalid);
-                return resumeResult.invalid;
-            }
-
-            // 4. 组装 resume input
-            final Map<String, Object> input;
-            if (resumeResult.toolResultMode) {
-                try {
-                    input = prepareToolResult(request, runId);
-                } catch (IllegalArgumentException ex) {
-                    ConversationResult failed = ConversationResult.failed(runId, ex.getMessage());
-                    complete(claimed, runId, confirmId, failed);
-                    return failed;
-                }
-            } else {
-                input = prepareWrite(request, resumeResult.decision, runId);
-            }
-            applyWorkspaceRoot(request, input);
-
-            // 5. 编译图并 resume
-            CompiledGraph compiled = stateGraph.compile(CompileConfig.builder()
-                    .checkpointer(checkpointer)
-                    .maxSupersteps(budget.maxTotal())
-                    .overallTimeout(mapOverallTimeout(budget))
-                    .build());
-
-            RunnableConfig runnableConfig = RunnableConfig.builder()
-                    .runId(runId)
-                    .traceId(request.getTraceId())
-                    .cancelSignal(handle.flag::get)
-                    .cancelReason(handle.reason)
-                    .emitter(emitter)
-                    .build();
-
-            GraphOutcome outcome = compiled.resume(input, runnableConfig);
-            ConversationResult result = mapOutcome(runId, outcome);
-
-            // 6. 收敛幂等占位：再挂起 abandon；其余终态 complete
-            complete(claimed, runId, confirmId, result);
-            return result;
-        } catch (RuntimeException ex) {
-            try {
-                complete(claimed, runId, confirmId, null);
-            } catch (RuntimeException abandonEx) {
-                log.warn("resume abandon after failure failed runId={}: {}", runId, abandonEx.toString());
-            }
-            log.error("resume failed runId={}: {}", runId, ex.toString());
-            return ConversationResult.failed(runId, ex.getMessage());
-        } finally {
-            activeRuns.remove(runId, handle);
-        }
-    }
-
-    /**
-     * 幂等占位入口。
-     * 功能描述：无 confirmId 则跳过；COMPLETED/IN_PROGRESS 经 {@link Claim#result} 短路返回。
-     */
-    private Claim claim(String runId, String confirmId) {
-        if (confirmId == null) {
-            return Claim.skipped();
-        }
-
-        ResumeIdempotencyStore.ClaimResult claim = resumeIdempotencyStore.claim(runId, confirmId);
-        switch (claim.getStatus()) {
-            case COMPLETED:
-                ConversationResult cached = claim.getCompletedResult() != null
-                        ? claim.getCompletedResult()
-                        : ConversationResult.failed(runId, "idempotent resume: empty cached result");
-                return Claim.completed(cached);
-            case IN_PROGRESS:
-                return Claim.completed(ConversationResult.failed(runId,
-                        "resume already in progress for confirmId=" + confirmId));
-            case CLAIMED:
-                return Claim.claimed();
-            default:
-                return Claim.completed(ConversationResult.failed(runId, "unknown claim status"));
-        }
-    }
-
-    /**
-     * 解析 resume 双模式（tool-result vs WRITE）。
-     * 功能描述：互斥或都缺时 {@link ResumeResult#invalid} 非空（fail-closed）。
-     */
-    private static ResumeResult resolveResumeResult(ResumeRequest request, String runId) {
-        boolean toolResultMode = StringUtils.hasText(request.getToolCallId());
-        ToolDecision decision = resolveDecision(request);
-        if (toolResultMode && decision != null) {
-            return ResumeResult.invalid(ConversationResult.failed(runId,
-                    "resume tool-result and WRITE decision are mutually exclusive"));
-        }
-        if (!toolResultMode && decision == null) {
-            return ResumeResult.invalid(ConversationResult.failed(runId,
-                    "resume requires toolCallId+result or decision (APPROVE|DENY)/approved"));
-        }
-        return ResumeResult.ok(toolResultMode, decision);
-    }
-
-    /**
-     * 收敛 claim 后的 store complete/abandon 样板。
-     * 功能描述：未 claim 则 no-op；SUSPENDED 或异常（result==null）→ store.abandon；其余终态 → store.complete。
-     */
-    private void complete(boolean claimed, String runId, String confirmId, ConversationResult result) {
-        if (!claimed) {
-            return;
-        }
-        if (result == null || result.getStatus() == ConversationResult.Status.SUSPENDED) {
-            resumeIdempotencyStore.abandon(runId, confirmId);
-        } else {
-            resumeIdempotencyStore.complete(runId, confirmId, result);
-        }
-    }
-
     /** {@link #claim} 结果：{@code result} 非空则立即返回；否则看 {@code claimed}。 */
     private static final class Claim {
         final boolean claimed;
@@ -453,85 +510,33 @@ public final class DefaultAgent implements Agent {
     }
 
     /** {@link #resolveResumeResult} 结果：{@code invalid} 非空则 fail-closed。 */
-    private static final class ResumeResult {
-        final boolean toolResultMode;
-        final ToolDecision decision;
+    static final class ResumeResult {
         final ConversationResult invalid;
 
-        private ResumeResult(boolean toolResultMode, ToolDecision decision, ConversationResult invalid) {
-            this.toolResultMode = toolResultMode;
-            this.decision = decision;
+        private ResumeResult(ConversationResult invalid) {
             this.invalid = invalid;
         }
 
-        static ResumeResult ok(boolean toolResultMode, ToolDecision decision) {
-            return new ResumeResult(toolResultMode, decision, null);
+        static ResumeResult ok() {
+            return new ResumeResult(null);
         }
 
         static ResumeResult invalid(ConversationResult failed) {
-            return new ResumeResult(false, null, failed);
+            return new ResumeResult(failed);
         }
     }
 
-    static ToolDecision resolveDecision(ResumeRequest request) {
-        if (request == null) {
+    static ToolDecision resolveDecision(ResumeInput input) {
+        if (input == null) {
             return null;
         }
-        if (request.getDecision() != null) {
-            return request.getDecision();
+        if (input.getDecision() != null) {
+            return input.getDecision();
         }
-        if (request.getApproved() == null) {
+        if (input.getApproved() == null) {
             return null;
         }
-        return request.getApproved() ? ToolDecision.APPROVE : ToolDecision.DENY;
-    }
-
-    /** WRITE 批准路径：写入 TOOL_APPROVAL，可选把 humanInput 追加为 user 消息。 */
-    private Map<String, Object> prepareWrite(ResumeRequest request, ToolDecision decision, String runId) {
-        Map<String, Object> input = new HashMap<>();
-        input.put(StateKeys.TOOL_APPROVAL, decision);
-        if (StringUtils.hasText(request.getHumanInput())) {
-            String note = request.getHumanInput();
-            input.put(StateKeys.HUMAN_INPUT, note);
-
-            // 对齐开源 pi：人工说明直接进 transcript（policy 仍可读 HUMAN_INPUT 作拒绝原因）
-            Checkpoint latest = checkpointer.loadLatest(runId).orElse(null);
-            if (latest != null && latest.getState() != null) {
-                List<Message> messages = Message.copyFrom(latest.getState().get(StateKeys.MESSAGES));
-                Message.append(messages, null, null, Message.user(note));
-                input.put(StateKeys.MESSAGES, messages);
-            }
-        }
-        return input;
-    }
-
-    /**
-     * ask_human 续跑：选项/自由文本作为 user 消息追加；tool 回执已在 interrupt 时写入。
-     * 清空 TOOL_CALLS，resume 重入 tools 后无 call → 边到 agent。
-     *
-     * @throws IllegalArgumentException transcript 中无对应 tool 回执（未知 toolCallId）
-     */
-    private Map<String, Object> prepareToolResult(ResumeRequest request, String runId) {
-        Map<String, Object> input = new HashMap<>();
-        String toolCallId = request.getToolCallId().trim();
-        String text = request.getHumanInput() != null ? request.getHumanInput() : "";
-
-        Checkpoint latest = checkpointer.loadLatest(runId).orElse(null);
-        if (latest == null || latest.getState() == null) {
-            input.put(StateKeys.TOOL_CALLS, Collections.emptyList());
-            return input;
-        }
-
-        GraphState state = latest.getState();
-        List<Message> messages = Message.copyFrom(state.get(StateKeys.MESSAGES));
-        if (!hasToolReply(messages, toolCallId)) {
-            throw new IllegalArgumentException("unknown toolCallId: " + toolCallId);
-        }
-        Message.append(messages, null, null, Message.user(text));
-        input.put(StateKeys.MESSAGES, messages);
-        // 丢弃 interrupt 时未跑完的后续 call；人答之后先回 agent
-        input.put(StateKeys.TOOL_CALLS, Collections.emptyList());
-        return input;
+        return input.getApproved() ? ToolDecision.APPROVE : ToolDecision.DENY;
     }
 
     private static boolean hasToolReply(List<Message> messages, String toolCallId) {

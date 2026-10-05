@@ -180,14 +180,11 @@ class DefaultPiEventBusTest {
         BeforeAgentStartEvent payload = BeforeAgentStartEvent.builder()
                 .runId("r1")
                 .skillId("ecommerce-skulist")
-                .workspaceRoot("/ws")
                 .userText("hi")
-                .pageContext("page")
                 .build();
         bus.emit(PiEvent.of(PiEventType.BEFORE_AGENT_START, payload), ContextModifier.class);
         assertThat(seen.get()).isSameAs(payload);
         assertThat(seen.get().getSkillId()).isEqualTo("ecommerce-skulist");
-        assertThat(seen.get().getWorkspaceRoot()).isEqualTo("/ws");
     }
 
     @Test

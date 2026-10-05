@@ -1,6 +1,7 @@
 package com.xmut.forma.pi.agent.session;
 
 import com.xmut.forma.pi.agent.ConversationResult;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.ResumeRequest;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.event.DefaultPiEventBus;
@@ -10,7 +11,6 @@ import com.xmut.forma.pi.agent.event.PiEventType;
 import com.xmut.forma.pi.agent.extension.BeforeAgentStartEvent;
 import com.xmut.forma.pi.agent.extension.ContextModifier;
 import com.xmut.forma.pi.agent.agent.Agent;
-import com.xmut.forma.pi.agent.agent.UserPromptInput;
 import com.xmut.forma.pi.ai.message.Message;
 import com.xmut.forma.pi.agent.resource.PiResourceLoader;
 import com.xmut.forma.pi.agent.resource.SlashExpansion;
@@ -74,14 +74,14 @@ public final class DefaultAgentSession implements AgentSession {
     public TurnResult prompt(PromptRequest request) {
 
         // 1. 解析 sessionId / runId（空则建会话；缺 runId 发 UUID）
-        String sessionId = request.getSessionId();
-        String runId = getRunId(request);
-        final Session session = sessionStore.getOrCreate(Session.Meta
+        Session session = sessionStore.getOrCreate(Session.Meta
                 .builder()
-                .sessionId(sessionId)
+                .sessionId(request.getSessionId())
                 .source("api")
                 .build());
-        sessionId = session.getSessionId();
+        String sessionId = session.getSessionId();
+        final String runId = getRunId(request);
+        final String skillId = request.getSkillId();
 
         // 2. COMMAND 扩展短路：有人返回 TurnResult 则不再进模型
         TurnResult result = command(request);
@@ -97,34 +97,26 @@ public final class DefaultAgentSession implements AgentSession {
         List<Message> messages = Session.merge(existing, user);
 
         // 4. before_agent_start：只挂 ContextModifier；user 改写留到 prepare
-        ContextModifier overwrite;
-        try {
-            overwrite = beforeAgentStart(BeforeAgentStartEvent.builder()
-                    .runId(runId)
-                    .skillId(request.getSkillId())
-                    .workspaceRoot(request.getWorkspaceRoot())
-                    .userText(expanded.text)
-                    .pageContext(context)
-                    .resumeOptionId(null)
-                    .attachment(request.getAttachment())
-                    .build());
-        } catch (Exception ex) {
-            return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "before_agent_start failed")));
-        }
+        ContextModifier overwrite = beforeAgentStart(BeforeAgentStartEvent.builder()
+                .runId(runId)
+                .skillId(skillId)
+                .userText(expanded.text)
+                .resumeOptionId(null)
+                .attachment(request.getAttachment())
+                .build());
 
+        // 5. 调用 Agent.run
         final TurnInput input = TurnInput.builder()
                 .sessionId(sessionId)
-                .domain(request.getDomain())
                 .runId(runId)
-                .traceId(request.getTraceId())
                 .context(context)
                 .contextModifier(overwrite)
                 .skillId(expanded.skillId)
                 .messages(messages)
-                .workspaceRoot(request.getWorkspaceRoot())
+                .domain(request.getDomain())
+                .traceId(request.getTraceId())
                 .build();
 
-        // 5. 调用 Agent.run
         onAgentStart(sessionId);
         try {
             ConversationResult raw = agent.run(input, eventBus);
@@ -177,13 +169,12 @@ public final class DefaultAgentSession implements AgentSession {
 
         String runId = event.getRunId();
         String text = event.getUserText();
-        String context = event.getPageContext();
 
         try {
             ContextModifier result = eventBus.emit(PiEvent.of(PiEventType.BEFORE_AGENT_START, event), ContextModifier.class);
             return Optional.ofNullable(result).orElse(ContextModifier.empty());
         } catch (RuntimeException e) {
-            log.warn("before_agent_start failed for runId={} text={} context={}: {}", runId, text, context, e.toString());
+            log.warn("before_agent_start failed for runId={} text={} : {}", runId, text, e.toString());
             return ContextModifier.empty();
         }
     }
@@ -220,77 +211,73 @@ public final class DefaultAgentSession implements AgentSession {
     }
 
     /**
-     * HITL 续跑入口：委托 {@link Agent#resume}，OK 时用 {@code runId:resume} 落增量。
+     * HITL 续跑入口：hydrate SessionStore，委托 {@link Agent#resume}，OK 时用 {@code runId:resume} 落增量。
      *
      * @param request 续跑请求（runId / sessionId / toolCallId 或 WRITE decision）
      * @return 终态 {@link TurnResult}
      */
     @Override
     public TurnResult resume(ResumeRequest request) {
-        // 1. 解析 sessionId / runId
-        String sessionId = request.getSessionId();
-        String runId = StringUtils.hasText(request.getRunId())
-                ? request.getRunId().trim()
-                : UUID.randomUUID().toString();
+
+        // 1. 解析 sessionId / runId（有 sessionId 则 hydrate；缺 runId 发 UUID）
+        final Session session = sessionStore.getOrCreate(Session.Meta
+                .builder()
+                .sessionId(request.getSessionId())
+                .source("api")
+                .build());
+        final String sessionId = session.getSessionId();
+        final String runId = getRunId(request);
+        List<Message> existing = sessionStore.load(sessionId);
+
+        // 2. before_agent_start：只挂 ContextModifier；user 改写留到 prepare
+//        ContextModifier overwrite;
+//        try {
+//            overwrite = beforeAgentStart(BeforeAgentStartEvent.builder()
+//                    .runId(runId)
+//                    .skillId(request.getSkillId())
+//                    .userText(request.getHumanInput())
+//                    .resumeOptionId(request.getResumeOptionId())
+//                    .attachment(request.getAttachment())
+//                    .build());
+//        } catch (Exception ex) {
+//            return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "before_agent_start failed")));
+//        }
+
+        // 3. 调用 Agent.resume
+        final ResumeInput input = ResumeInput.builder()
+                .sessionId(sessionId)
+                .runId(runId)
+                .contextModifier(ContextModifier.empty())
+                .humanInput(request.getHumanInput())
+                .toolCallId(request.getToolCallId())
+                .decision(request.getDecision())
+                .approved(request.getApproved())
+                .confirmId(request.getConfirmId())
+                .traceId(request.getTraceId())
+                .build();
+
+        onAgentStart(sessionId);
+        TurnResult result;
         try {
-            // 2. hydrate SessionStore（作 append 前缀基线）
-            if (StringUtils.hasText(sessionId)) {
-                sessionStore.getOrCreate(Session.Meta.builder()
-                        .sessionId(sessionId)
-                        .source("api")
-                        .build());
-            }
-            List<Message> existing = StringUtils.hasText(sessionId)
-                    ? sessionStore.load(sessionId)
-                    : Collections.<Message>emptyList();
-
-            String human = request.getHumanInput();
-            if (StringUtils.hasText(human)) {
-                ContextModifier modifier = beforeAgentStart(BeforeAgentStartEvent.builder()
-                        .runId(runId)
-                        .skillId(request.getSkillId())
-                        .workspaceRoot(request.getWorkspaceRoot())
-                        .userText(human)
-                        .pageContext(null)
-                        .resumeOptionId(request.getResumeOptionId())
-                        .attachment(request.getAttachment())
-                        .build());
-                List<Message> formatted = UserPromptInput.builder()
-                        .messages(Collections.singletonList(Message.user(human)))
-                        .apply(modifier)
-                        .build()
-                        .format();
-                if (!formatted.isEmpty() && formatted.get(0) != null) {
-                    request = request.toBuilder().humanInput(formatted.get(0).getContent()).build();
-                }
-            }
-
-            // 3. 调用 Agent.resume
-            onAgentStart(sessionId);
-            ConversationResult raw = agent.resume(request, eventBus);
-            TurnResult result = mapToTurnResult(raw, sessionId);
-
-            // 4. OK：用 runId:resume 落 tool-result 及后续增量（前缀漂移则 fork）
-            if (TurnResult.Status.OK.equals(result.getStatus())
-                    && StringUtils.hasText(sessionId)) {
-                try {
-                    sessionId = persistTurnDelta(
-                            sessionId,
-                            toRunId(runId, APPEND_KEY_RESUME),
-                            existing,
-                            result.getMessages());
-                    result = withSession(result, sessionId);
-                } catch (Exception ex) {
-                    log.warn("append after resume OK failed sessionId={} runId={}: {}",
-                            sessionId, runId, ex.toString());
-                }
-            }
-
-            // 5. 统一终态出口
-            return onAgentEnd(result);
-        } catch (RuntimeException ex) {
+            ConversationResult raw = agent.resume(input, eventBus);
+            result = mapToTurnResult(raw, sessionId);
+        } catch (Exception ex) {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "resume failed")));
         }
+
+        // 4a. OK：用 runId:resume 落增量（前缀漂移则 fork）
+        if (TurnResult.Status.OK.equals(result.getStatus()) && StringUtils.hasText(sessionId)) {
+            try {
+                persistTurnDelta(sessionId, toRunId(runId, APPEND_KEY_RESUME), existing, result.getMessages());
+                result = withSession(result, sessionId);
+            } catch (Exception ex) {
+                log.warn("append after resume OK failed sessionId={} runId={}: {}",
+                        sessionId, runId, ex.toString());
+            }
+        }
+
+        // 5. 统一终态出口
+        return onAgentEnd(result);
     }
 
     static String toRunId(String runId, String suffix) {
@@ -314,6 +301,13 @@ public final class DefaultAgentSession implements AgentSession {
     }
 
     static String getRunId(PromptRequest request) {
+        if (request != null && StringUtils.hasText(request.getRunId())) {
+            return request.getRunId().trim();
+        }
+        return UUID.randomUUID().toString();
+    }
+
+    static String getRunId(ResumeRequest request) {
         if (request != null && StringUtils.hasText(request.getRunId())) {
             return request.getRunId().trim();
         }

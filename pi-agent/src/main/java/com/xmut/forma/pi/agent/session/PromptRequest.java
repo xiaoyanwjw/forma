@@ -41,9 +41,6 @@ public class PromptRequest {
     /** 页面上下文 → Context 段。 */
     String context;
 
-    /** 本 run 工作区绝对路径；可空。 */
-    String workspaceRoot;
-
     /** 本轮交付附件；闲聊可空（null 视为 empty）。 */
     @Builder.Default
     TurnAttachment attachment = TurnAttachment.empty();
@@ -56,7 +53,6 @@ public class PromptRequest {
                   String skillId,
                   String domain,
                   String context,
-                  String workspaceRoot,
                   TurnAttachment attachment) {
         this.runId = runId;
         this.text = text;
@@ -68,7 +64,6 @@ public class PromptRequest {
         this.skillId = skillId;
         this.domain = domain;
         this.context = context;
-        this.workspaceRoot = workspaceRoot;
         this.attachment = attachment == null ? TurnAttachment.empty() : attachment;
     }
 

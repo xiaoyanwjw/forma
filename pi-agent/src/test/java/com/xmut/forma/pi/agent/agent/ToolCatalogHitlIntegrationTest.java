@@ -3,7 +3,7 @@ package com.xmut.forma.pi.agent.agent;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.ConversationResult;
-import com.xmut.forma.pi.agent.ResumeRequest;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.graph.GraphNode;
 import com.xmut.forma.pi.agent.graph.StateKeys;
 import com.xmut.forma.pi.agent.graph.checkpoint.InMemoryCheckpointer;
@@ -128,7 +128,7 @@ class ToolCatalogHitlIntegrationTest {
         assertThat(readCalls.get()).isZero();
         assertThat(writeCalls.get()).isZero();
 
-        ConversationResult resumed = loop.resume(ResumeRequest.builder()
+        ConversationResult resumed = loop.resume(ResumeInput.builder()
                 .runId("mixed-run")
                 .decision(ToolDecision.APPROVE)
                 .build(), bus);
@@ -156,7 +156,7 @@ class ToolCatalogHitlIntegrationTest {
                 .build(), bus);
         assertThat(first.getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
-        ConversationResult bad = loop.resume(ResumeRequest.builder()
+        ConversationResult bad = loop.resume(ResumeInput.builder()
                 .runId("no-decision-run")
                 .build());
         assertThat(bad.getStatus()).isEqualTo(ConversationResult.Status.FAILED);
@@ -192,7 +192,7 @@ class ToolCatalogHitlIntegrationTest {
         assertThat(handlerCalls.get()).isZero();
         assertThat(events).anyMatch(e -> e.getKind() == ToolAuditEvent.Kind.SUSPEND);
 
-        ConversationResult resumed = loop.resume(ResumeRequest.builder()
+        ConversationResult resumed = loop.resume(ResumeInput.builder()
                 .runId("write-run")
                 .decision(ToolDecision.APPROVE)
                 .build(), bus);
@@ -222,7 +222,7 @@ class ToolCatalogHitlIntegrationTest {
                 .build(), bus);
         assertThat(first.getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
-        ConversationResult resumed = loop.resume(ResumeRequest.builder()
+        ConversationResult resumed = loop.resume(ResumeInput.builder()
                 .runId("  padded-run  ")
                 .decision(ToolDecision.APPROVE)
                 .build(), bus);
@@ -279,7 +279,7 @@ class ToolCatalogHitlIntegrationTest {
                 .build(), bus);
         assertThat(first.getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
-        ConversationResult resumed = loop.resume(ResumeRequest.builder()
+        ConversationResult resumed = loop.resume(ResumeInput.builder()
                 .runId("deny-run")
                 .approved(false)
                 .humanInput("not allowed")

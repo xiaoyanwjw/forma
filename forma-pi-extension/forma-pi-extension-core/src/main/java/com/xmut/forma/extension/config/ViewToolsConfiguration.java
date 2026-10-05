@@ -1,7 +1,7 @@
 package com.xmut.forma.extension.config;
 
-import com.xmut.forma.common.output.TurnAttachmentProvider;
-import com.xmut.forma.extension.output.CatalogTurnAttachmentProvider;
+import com.xmut.forma.common.output.RunAttachProvider;
+import com.xmut.forma.extension.output.CatalogRunAttachmentProvider;
 import com.xmut.forma.extension.output.TurnReminderExtension;
 import com.xmut.forma.extension.output.WorkspaceOutputParser;
 import com.xmut.forma.extension.tool.view.CatalogSkillTemplateLoader;
@@ -39,8 +39,8 @@ public class ViewToolsConfiguration {
 
     @Bean
     @Primary
-    public TurnAttachmentProvider turnAttachmentProvider(SkillCatalog skillCatalog) {
-        return new CatalogTurnAttachmentProvider(skillCatalog);
+    public RunAttachProvider runAttachProvider(SkillCatalog skillCatalog) {
+        return new CatalogRunAttachmentProvider(skillCatalog);
     }
 
     @Bean

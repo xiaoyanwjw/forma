@@ -25,8 +25,8 @@ public final class WriteFileToolHandler implements ToolHandler {
     public ToolResult handle(ToolCallEntry call, ToolContext ctx) {
         String callId = call != null ? call.getId() : null;
         try {
-            String root = LocalFileSupport.workspaceRoot(ctx);
-            if (root == null) {
+            String workspace = LocalFileSupport.workspace(ctx);
+            if (workspace == null) {
                 return ToolResult.failed(callId, TOOL_NAME, LocalFileSupport.MISSING_ROOT);
             }
             String path = LocalFileSupport.textArg(call, "path");
@@ -34,7 +34,7 @@ public final class WriteFileToolHandler implements ToolHandler {
             if (!StringUtils.hasText(path) || content == null) {
                 return ToolResult.failed(callId, TOOL_NAME, "path and content required");
             }
-            Path target = LocalFileSupport.resolve(root, path);
+            Path target = LocalFileSupport.resolve(workspace, path);
             Path parent = target.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);

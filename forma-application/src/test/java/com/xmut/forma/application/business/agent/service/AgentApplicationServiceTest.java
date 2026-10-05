@@ -15,11 +15,11 @@ import com.xmut.forma.application.business.computer.NormalizeViewProjector;
 import com.xmut.forma.application.business.session.query.SessionQueryService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xmut.forma.extension.output.CatalogTurnAttachmentProvider;
+import com.xmut.forma.common.output.RunAttachProvider;
+import com.xmut.forma.extension.output.CatalogRunAttachmentProvider;
 import com.xmut.forma.extension.output.TurnDeliverableKeys;
 import com.xmut.forma.extension.output.WorkspaceOutputParser;
 import com.xmut.forma.common.output.OutputParser;
-import com.xmut.forma.common.output.TurnAttachmentProvider;
 import com.xmut.forma.common.util.StringUtils;
 import com.xmut.forma.application.business.scene.pack.SceneCapabilityPack;
 import com.xmut.forma.application.business.scene.pack.SceneCapabilityPackLoader;
@@ -80,7 +80,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -149,7 +148,7 @@ class AgentApplicationServiceTest {
                         new WorkspaceOutputParser(),
                         fallback),
                 fallback);
-        TurnAttachmentProvider attachments = new CatalogTurnAttachmentProvider(skillCatalog);
+        RunAttachProvider attachments = new CatalogRunAttachmentProvider(skillCatalog);
         SkuHitlInterceptor listingHitl = new SkuHitlInterceptor(
                 new CreditHoldSupport(creditApplicationService),
                 composite,
@@ -874,7 +873,6 @@ class AgentApplicationServiceTest {
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
-        assertEquals(tempWorkspace.toAbsolutePath().toString(), promptCaptor.getValue().getWorkspaceRoot());
         verify(runWorkspaceService).ensureRunDir("session-ws", "run-ws");
     }
 
@@ -895,7 +893,6 @@ class AgentApplicationServiceTest {
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
-        assertEquals(tempWorkspace.toAbsolutePath().toString(), promptCaptor.getValue().getWorkspaceRoot());
         verify(runWorkspaceService).ensureRunDir("session-ws-dry", "run-ws-dry");
         verify(runWorkspaceService, never()).deleteRunDirQuietly(anyString(), anyString());
     }
@@ -917,7 +914,6 @@ class AgentApplicationServiceTest {
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
-        assertEquals(tempWorkspace.toAbsolutePath().toString(), promptCaptor.getValue().getWorkspaceRoot());
         assertEquals(SceneCapabilityPackLoader.SKILL_SKULIST, promptCaptor.getValue().getSkillId());
         assertEquals("view.json",
                 promptCaptor.getValue().getAttachment().get(TurnDeliverableKeys.OUTPUT));
@@ -1342,7 +1338,7 @@ class AgentApplicationServiceTest {
                         .userId(USER_ID)
                         .runId("run-no-cp")
                         .toolCallId(ASK_CALL_ID)
-                        .optionId(ListingHitlOptions.CONFIRM_EXECUTE)
+                        .optionId(HitlOptions.CONFIRM_EXECUTE)
                         .build()));
         assertEquals(AgentApplicationService.MSG_RESUME_NOT_AWAITING, ex.getMessage());
     }

@@ -19,21 +19,9 @@ import java.util.Objects;
 @Builder(toBuilder = true)
 public class TurnInput {
 
-    String runId;
-
-    /** 进图完整 chat 轴（不含 system）。 */
-    @Builder.Default
-    List<Message> messages = Collections.emptyList();
-
-    String taskId;
-
     String sessionId;
 
-    String traceId;
-
-    String skillId;
-
-    String domain;
+    String runId;
 
     /** 页面上下文 → {@code SystemPromptInput.context}。 */
     String context;
@@ -41,31 +29,35 @@ public class TurnInput {
     /** {@code before_agent_start} 对三槽的 overwrite / append。 */
     ContextModifier contextModifier;
 
-    /** 本 run 工作区绝对路径；可空。 */
-    String workspaceRoot;
+    String skillId;
 
-    TurnInput(String runId,
-              List<Message> messages,
-              String taskId,
-              String sessionId,
-              String traceId,
-              String skillId,
-              String domain,
+    /** 进图完整 chat 轴（不含 system）。 */
+    @Builder.Default
+    List<Message> messages = Collections.emptyList();
+
+    String domain;
+
+    String traceId;
+
+
+    TurnInput(String sessionId,
+              String runId,
               String context,
               ContextModifier contextModifier,
-              String workspaceRoot) {
+              String skillId,
+              List<Message> messages,
+              String domain,
+              String traceId) {
+        this.sessionId = sessionId;
         this.runId = runId;
         this.messages = messages == null
                 ? Collections.emptyList()
                 : Collections.unmodifiableList(new ArrayList<>(messages));
-        this.taskId = taskId;
-        this.sessionId = sessionId;
-        this.traceId = traceId;
-        this.skillId = skillId;
-        this.domain = domain;
         this.context = context;
         this.contextModifier = contextModifier;
-        this.workspaceRoot = workspaceRoot;
+        this.skillId = skillId;
+        this.domain = domain;
+        this.traceId = traceId;
     }
 
     /**

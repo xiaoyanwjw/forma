@@ -45,9 +45,9 @@ public final class StateKeys {
     /**
      * {@code String} — 本 run 工作区绝对路径（模型不可改）。
      *
-     * <p>由 {@code DefaultAgent.prepare} 从 {@code TurnInput.workspaceRoot} 写入；
-     * HITL resume 时由 {@code ResumeRequest.workspaceRoot} 覆盖写入（优先于 checkpoint）；
-     * {@code ToolContext.from} 读出供沙箱工具 I/O。
+     * <p>由 {@code DefaultAgent.prepare} 写入：请求显式路径优先，否则按配置根
+     * {@code {root}/sessions/{sessionId}/{runId}}；HITL resume 同样规则覆盖 checkpoint；
+     * {@code ToolContext.from} 读出供沙箱工具 I/O。工具缺路径时再按同一规则从配置推导。
      */
     public static final String WORKSPACE_ROOT = "workspace_root";
 

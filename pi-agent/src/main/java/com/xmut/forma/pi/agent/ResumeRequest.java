@@ -7,9 +7,9 @@ import lombok.Builder;
 import lombok.Value;
 
 /**
- * Agent.resume 入参。
+ * AgentSession.resume 入参。
  * 功能描述：用于图级 HITL / checkpoint 恢复。
- * 关键设计：≠ 上游 Session 的 /resume 斜杠命令。
+ * 关键设计：≠ 上游 Session 的 /resume 斜杠命令；Agent 层入参是 {@link ResumeInput}。
  *
  * <p>双模式互斥（{@link DefaultAgent#resume}）：
  * <ul>
@@ -22,6 +22,9 @@ import lombok.Value;
 @Value
 @Builder(toBuilder = true)
 public class ResumeRequest {
+
+    /** 会话 ID（可选；对齐 TurnInput）。 */
+    String sessionId;
 
     /** 进行中 / 挂起的 run 标识。 */
     String runId;
@@ -36,12 +39,6 @@ public class ResumeRequest {
      * 非空时走 tool-result 路径，与 {@link #decision}/{@link #approved} 互斥。
      */
     String toolCallId;
-
-    /** 会话 ID（可选；对齐 TurnInput）。 */
-    String sessionId;
-
-    /** 链路追踪 ID。 */
-    String traceId;
 
     /**
      * WRITE HITL 决策：{@link ToolDecision#APPROVE} / {@link ToolDecision#DENY}。
@@ -65,12 +62,6 @@ public class ResumeRequest {
      */
     String confirmId;
 
-    /**
-     * 本 run 工作区绝对路径；可空。
-     * 有值时写入 {@code StateKeys.WORKSPACE_ROOT}，覆盖 checkpoint 中缺失或过期的根。
-     */
-    String workspaceRoot;
-
     /** 本轮 Skill id；resume 应从 run 带上，供 BEFORE_AGENT_START 查目录。 */
     String skillId;
 
@@ -81,29 +72,30 @@ public class ResumeRequest {
     @Builder.Default
     TurnAttachment attachment = TurnAttachment.empty();
 
-    ResumeRequest(String runId,
+    /** 链路追踪 ID。 */
+    String traceId;
+
+    ResumeRequest(String sessionId,
+                  String runId,
                   String humanInput,
                   String toolCallId,
-                  String sessionId,
-                  String traceId,
                   ToolDecision decision,
                   Boolean approved,
                   String confirmId,
-                  String workspaceRoot,
                   String skillId,
                   String resumeOptionId,
-                  TurnAttachment attachment) {
+                  TurnAttachment attachment,
+                  String traceId) {
+        this.sessionId = sessionId;
         this.runId = runId;
         this.humanInput = humanInput;
         this.toolCallId = toolCallId;
-        this.sessionId = sessionId;
-        this.traceId = traceId;
         this.decision = decision;
         this.approved = approved;
         this.confirmId = confirmId;
-        this.workspaceRoot = workspaceRoot;
         this.skillId = skillId;
         this.resumeOptionId = resumeOptionId;
         this.attachment = attachment == null ? TurnAttachment.empty() : attachment;
+        this.traceId = traceId;
     }
 }

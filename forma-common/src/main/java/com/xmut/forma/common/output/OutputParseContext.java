@@ -18,7 +18,7 @@ public class OutputParseContext {
     String sceneCode;
     String resumeOptionId;
     String finalResponse;
-    Path workspaceRoot;
+    Path runWorkspace;
     /** 本轮交付附件；闲聊可空（null 视为 empty）。 */
     @Builder.Default
     TurnAttachment attachment = TurnAttachment.empty();
@@ -27,13 +27,13 @@ public class OutputParseContext {
                               String sceneCode,
                               String resumeOptionId,
                               String finalResponse,
-                              Path workspaceRoot,
+                              Path runWorkspace,
                               TurnAttachment attachment) {
         this.skillId = skillId;
         this.sceneCode = sceneCode;
         this.resumeOptionId = resumeOptionId;
         this.finalResponse = finalResponse;
-        this.workspaceRoot = workspaceRoot;
+        this.runWorkspace = runWorkspace;
         this.attachment = attachment == null ? TurnAttachment.empty() : attachment;
     }
 }

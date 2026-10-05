@@ -28,7 +28,7 @@ class OutputParserSpiTest {
                 .sceneCode("ecommerce")
                 .resumeOptionId("confirm_execute")
                 .finalResponse("done")
-                .workspaceRoot(root)
+                .runWorkspace(root)
                 .attachment(attachment)
                 .build();
         OutputParseContext constructed = new OutputParseContext(
@@ -40,7 +40,7 @@ class OutputParserSpiTest {
         assertEquals("ecommerce", built.getSceneCode());
         assertEquals("confirm_execute", built.getResumeOptionId());
         assertEquals("done", built.getFinalResponse());
-        assertEquals(root, built.getWorkspaceRoot());
+        assertEquals(root, built.getRunWorkspace());
         assertEquals("exec/view.json", built.getAttachment().get("viewPath"));
         assertEquals("exec/artifact.json", built.getAttachment().get("artifactPath"));
     }
@@ -52,7 +52,7 @@ class OutputParserSpiTest {
         assertNull(ctx.getSceneCode());
         assertNull(ctx.getResumeOptionId());
         assertNull(ctx.getFinalResponse());
-        assertNull(ctx.getWorkspaceRoot());
+        assertNull(ctx.getRunWorkspace());
         assertEquals(TurnAttachment.empty(), ctx.getAttachment());
         assertTrue(ctx.getAttachment().isEmpty());
     }

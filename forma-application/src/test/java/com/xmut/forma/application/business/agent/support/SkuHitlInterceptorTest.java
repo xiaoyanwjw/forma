@@ -7,11 +7,8 @@ import com.xmut.forma.application.business.computer.NormalizeViewProjector;
 import com.xmut.forma.application.business.credit.service.CreditApplicationService;
 import com.xmut.forma.application.business.agent.workspace.RunWorkspaceService;
 import com.xmut.forma.common.exception.BusinessException;
-import com.xmut.forma.common.output.OutputParseContext;
-import com.xmut.forma.common.output.OutputParser;
-import com.xmut.forma.common.output.ParsedGenerationOutput;
-import com.xmut.forma.common.output.TurnAttachment;
-import com.xmut.forma.common.output.TurnAttachmentProvider;
+import com.xmut.forma.common.output.*;
+import com.xmut.forma.common.output.RunAttachProvider;
 import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.forma.pi.ai.message.Message;
 import org.junit.jupiter.api.Test;
@@ -118,7 +115,7 @@ class SkuHitlInterceptorTest {
     private static SkuHitlInterceptor interceptor(OutputParser parser, ArtifactPersistPlugin persist) {
         RunWorkspaceService workspace = mock(RunWorkspaceService.class);
         when(workspace.runDir(anyString(), anyString())).thenReturn(Paths.get("/tmp/forma-run"));
-        TurnAttachmentProvider attachments = mock(TurnAttachmentProvider.class);
+        RunAttachProvider attachments = mock(RunAttachProvider.class);
         when(attachments.of(anyString(), nullable(String.class))).thenReturn(TurnAttachment.empty());
         return new SkuHitlInterceptor(
                 new CreditHoldSupport(mock(CreditApplicationService.class)),

@@ -1,14 +1,14 @@
 package com.xmut.forma.pi.agent.agent;
 
 import com.xmut.forma.pi.agent.ConversationResult;
-import com.xmut.forma.pi.agent.ResumeRequest;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.event.Emitter;
 
 /**
  * 内部对话控制流（ConversationLoop）。
  * 功能描述：在一张 StateGraph 上执行 invoke / resume 超步。
- * 关键设计：仅供 AgentSession 委托；入参是已绑定的 TurnInput，不是半成品 Prompt。
+ * 关键设计：仅供 AgentSession 委托；入参是已绑定的 TurnInput / ResumeInput，不是半成品 Prompt / ResumeRequest。
  */
 public interface Agent {
 
@@ -21,12 +21,12 @@ public interface Agent {
     ConversationResult run(TurnInput turn, Emitter emitter);
 
     /** 从 checkpoint / HITL 恢复。 */
-    default ConversationResult resume(ResumeRequest request) {
-        return resume(request, null);
+    default ConversationResult resume(ResumeInput input) {
+        return resume(input, null);
     }
 
     /** 从 checkpoint / HITL 恢复；{@code emitter} 可为 null（无订阅）。 */
-    ConversationResult resume(ResumeRequest request, Emitter emitter);
+    ConversationResult resume(ResumeInput input, Emitter emitter);
 
     /** 取消进行中的 run（下一超步边界生效）。空白 runId 静默 no-op。 */
     void cancel(String runId, String reason);

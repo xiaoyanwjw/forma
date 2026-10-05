@@ -99,13 +99,16 @@ public final class ExcerptChunksToolHandler implements ToolHandler {
                 sourcePath = given.trim();
             }
         }
-        if (ctx == null || !StringUtils.hasText(ctx.getWorkspaceRoot())) {
+        String workspace = LocalFileSupport.workspace(ctx);
+        if (workspace == null) {
             throw new IllegalStateException("workspace root missing");
         }
-        Path path = LocalFileSupport.resolveUnder(Paths.get(ctx.getWorkspaceRoot()), sourcePath);
+
+        Path path = LocalFileSupport.resolveUnder(Paths.get(workspace), sourcePath);
         if (!Files.isRegularFile(path)) {
             throw new IllegalStateException("file not found");
         }
+
         String body = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
         TechDigestPrepResult sliced = TechDigestSourcePrep.slice(body);
         return new Prepared(sliced.getChunks(), sliced.isPartialCoverage());

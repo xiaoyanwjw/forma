@@ -91,7 +91,7 @@ class GenerationOutputParserTest {
                 "{\"title\":\"选题\"}".getBytes(StandardCharsets.UTF_8));
         ParsedGenerationOutput out = parser.parse(OutputParseContext.builder()
                 .finalResponse("{\"output\":\"view.json\"}")
-                .workspaceRoot(run)
+                .runWorkspace(run)
                 .build());
         assertNull(out.getRawView());
         assertEquals("{\"output\":\"view.json\"}", out.getBusinessPayload().get("text"));

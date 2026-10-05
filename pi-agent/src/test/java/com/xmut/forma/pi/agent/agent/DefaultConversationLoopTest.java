@@ -3,7 +3,7 @@ package com.xmut.forma.pi.agent.agent;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.ConversationResult;
 import com.xmut.forma.pi.agent.IterationBudget;
-import com.xmut.forma.pi.agent.ResumeRequest;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.graph.GraphNode;
 import com.xmut.forma.pi.agent.graph.StateKeys;
 import com.xmut.forma.pi.agent.graph.checkpoint.InMemoryCheckpointer;
@@ -142,7 +142,7 @@ class DefaultConversationLoopTest {
             }
         };
 
-        ConversationResult resumed = loop.resume(ResumeRequest.builder()
+        ConversationResult resumed = loop.resume(ResumeInput.builder()
                 .runId("resume-emit")
                 .decision(ToolDecision.APPROVE)
                 .build(), emitter);
@@ -307,7 +307,7 @@ class DefaultConversationLoopTest {
         loop.cancel(runId, "bye");
         t.join(5000);
 
-        ConversationResult resumed = loop.resume(ResumeRequest.builder()
+        ConversationResult resumed = loop.resume(ResumeInput.builder()
                 .runId(runId)
                 .decision(ToolDecision.APPROVE)
                 .build());

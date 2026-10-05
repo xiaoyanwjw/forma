@@ -3,7 +3,7 @@ package com.xmut.forma.pi.agent.agent;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.ConversationResult;
-import com.xmut.forma.pi.agent.ResumeRequest;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.graph.GraphNode;
 import com.xmut.forma.pi.agent.graph.StateKeys;
 import com.xmut.forma.pi.agent.graph.checkpoint.Checkpoint;
@@ -59,7 +59,7 @@ class CheckpointPersistenceHitlTest {
         assertThat(storeB.loadLatest("cross-run")).isPresent();
         assertThat(handlerCalls.get()).isZero();
 
-        ConversationResult resumed = loopB.resume(ResumeRequest.builder()
+        ConversationResult resumed = loopB.resume(ResumeInput.builder()
                 .runId("cross-run")
                 .decision(ToolDecision.APPROVE)
                 .confirmId("confirm-1")
@@ -86,7 +86,7 @@ class CheckpointPersistenceHitlTest {
                 .messages(java.util.Collections.singletonList(com.xmut.forma.pi.ai.message.Message.user("save")))
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
-        ResumeRequest resume = ResumeRequest.builder()
+        ResumeInput resume = ResumeInput.builder()
                 .runId("idem-run")
                 .decision(ToolDecision.APPROVE)
                 .confirmId("same-confirm")
@@ -117,7 +117,7 @@ class CheckpointPersistenceHitlTest {
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
         assertThat(store.listByRun("keep-run")).isNotEmpty();
 
-        assertThat(loop.resume(ResumeRequest.builder()
+        assertThat(loop.resume(ResumeInput.builder()
                 .runId("keep-run")
                 .decision(ToolDecision.APPROVE)
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.OK);
@@ -154,7 +154,7 @@ class CheckpointPersistenceHitlTest {
                 .messages(java.util.Collections.singletonList(com.xmut.forma.pi.ai.message.Message.user("save")))
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
-        ResumeRequest deny = ResumeRequest.builder()
+        ResumeInput deny = ResumeInput.builder()
                 .runId("deny-idem")
                 .decision(ToolDecision.DENY)
                 .confirmId("deny-1")
@@ -184,7 +184,7 @@ class CheckpointPersistenceHitlTest {
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
         assertThat(handlerCalls.get()).isEqualTo(1);
 
-        ConversationResult resumed = loop.resume(ResumeRequest.builder()
+        ConversationResult resumed = loop.resume(ResumeInput.builder()
                 .runId("ask-human-run")
                 .toolCallId("c1")
                 .humanInput("{\"selectedId\":\"confirm_execute\"}")
@@ -217,7 +217,7 @@ class CheckpointPersistenceHitlTest {
                 .messages(java.util.Collections.singletonList(com.xmut.forma.pi.ai.message.Message.user("save")))
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
-        ConversationResult failed = loop.resume(ResumeRequest.builder()
+        ConversationResult failed = loop.resume(ResumeInput.builder()
                 .runId("fail-closed")
                 .build(), bus);
         assertThat(failed.getStatus()).isEqualTo(ConversationResult.Status.FAILED);
@@ -238,7 +238,7 @@ class CheckpointPersistenceHitlTest {
                 .messages(java.util.Collections.singletonList(com.xmut.forma.pi.ai.message.Message.user("save")))
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
-        ConversationResult failed = loop.resume(ResumeRequest.builder()
+        ConversationResult failed = loop.resume(ResumeInput.builder()
                 .runId("mutex-run")
                 .toolCallId("c1")
                 .humanInput("answer")
@@ -264,7 +264,7 @@ class CheckpointPersistenceHitlTest {
                 .messages(java.util.Collections.singletonList(com.xmut.forma.pi.ai.message.Message.user("save")))
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
-        ConversationResult failed = loop.resume(ResumeRequest.builder()
+        ConversationResult failed = loop.resume(ResumeInput.builder()
                 .runId("unknown-id-run")
                 .toolCallId("not-pending")
                 .humanInput("should-not-inject")
@@ -330,7 +330,7 @@ class CheckpointPersistenceHitlTest {
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
         boomOnLoad.incrementAndGet();
-        ConversationResult failed = loop.resume(ResumeRequest.builder()
+        ConversationResult failed = loop.resume(ResumeInput.builder()
                 .runId("ex-run")
                 .decision(ToolDecision.APPROVE)
                 .confirmId("confirm-ex")
@@ -376,7 +376,7 @@ class CheckpointPersistenceHitlTest {
                 .messages(java.util.Collections.singletonList(com.xmut.forma.pi.ai.message.Message.user("save")))
                 .build(), bus).getStatus()).isEqualTo(ConversationResult.Status.SUSPENDED);
 
-        ConversationResult mid = loop.resume(ResumeRequest.builder()
+        ConversationResult mid = loop.resume(ResumeInput.builder()
                 .runId("re-suspend")
                 .decision(ToolDecision.APPROVE)
                 .confirmId("confirm-re")
@@ -385,7 +385,7 @@ class CheckpointPersistenceHitlTest {
         assertThat(store.loadLatest("re-suspend")).isPresent();
         assertThat(handlerCalls.get()).isEqualTo(1);
 
-        ConversationResult done = loop.resume(ResumeRequest.builder()
+        ConversationResult done = loop.resume(ResumeInput.builder()
                 .runId("re-suspend")
                 .decision(ToolDecision.APPROVE)
                 .confirmId("confirm-re")

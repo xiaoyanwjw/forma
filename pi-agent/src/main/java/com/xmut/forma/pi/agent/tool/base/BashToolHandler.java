@@ -46,15 +46,15 @@ public final class BashToolHandler implements ToolHandler {
     public ToolResult handle(ToolCallEntry call, ToolContext ctx) {
         String callId = call != null ? call.getId() : null;
         try {
-            String root = LocalFileSupport.workspaceRoot(ctx);
-            if (root == null) {
+            String workspace = LocalFileSupport.workspace(ctx);
+            if (workspace == null) {
                 return ToolResult.failed(callId, TOOL_NAME, LocalFileSupport.MISSING_ROOT);
             }
             String command = LocalFileSupport.textArg(call, "command");
             if (!StringUtils.hasText(command)) {
                 return ToolResult.failed(callId, TOOL_NAME, "command required");
             }
-            Path runDir = Paths.get(root);
+            Path runDir = Paths.get(workspace);
             ProcessBuilder builder = new ProcessBuilder("/bin/bash", "-c", command);
             builder.directory(runDir.toFile());
             builder.redirectErrorStream(true);

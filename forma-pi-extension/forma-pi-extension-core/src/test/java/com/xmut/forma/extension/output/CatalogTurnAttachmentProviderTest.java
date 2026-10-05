@@ -13,7 +13,7 @@ class CatalogTurnAttachmentProviderTest {
 
     @Test
     void packs_catalog_output() {
-        CatalogTurnAttachmentProvider provider = providerWith(oneShot());
+        CatalogRunAttachmentProvider provider = providerWith(oneShot());
 
         TurnAttachment attachment = provider.of("ecommerce-skulist", null);
 
@@ -23,7 +23,7 @@ class CatalogTurnAttachmentProviderTest {
 
     @Test
     void ignores_resume_option() {
-        CatalogTurnAttachmentProvider provider = providerWith(Skill.builder()
+        CatalogRunAttachmentProvider provider = providerWith(Skill.builder()
                 .id("ecommerce-skulist")
                 .description("skulist")
                 .promptRef("classpath:skulist.md")
@@ -37,7 +37,7 @@ class CatalogTurnAttachmentProviderTest {
 
     @Test
     void null_skill_returns_empty() {
-        CatalogTurnAttachmentProvider provider = providerWith(oneShot());
+        CatalogRunAttachmentProvider provider = providerWith(oneShot());
 
         TurnAttachment attachment = provider.of(null, null);
 
@@ -52,10 +52,10 @@ class CatalogTurnAttachmentProviderTest {
         assertNull(TurnReminder.slot("/tmp/a.json"));
     }
 
-    private static CatalogTurnAttachmentProvider providerWith(Skill skill) {
+    private static CatalogRunAttachmentProvider providerWith(Skill skill) {
         InMemorySkillCatalog catalog = new InMemorySkillCatalog();
         catalog.registerBootstrap(skill);
-        return new CatalogTurnAttachmentProvider(catalog);
+        return new CatalogRunAttachmentProvider(catalog);
     }
 
     private static Skill oneShot() {

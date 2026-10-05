@@ -115,7 +115,7 @@ class OutputParserCompositeTest {
 
         ParsedGenerationOutput out = composite.parse(OutputParseContext.builder()
                 .finalResponse("  随便聊聊  ")
-                .workspaceRoot(root)
+                .runWorkspace(root)
                 .build());
 
         assertNull(out.getRawView());

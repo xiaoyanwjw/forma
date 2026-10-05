@@ -27,7 +27,7 @@ public final class TurnReminderExtension implements PiExtension {
         if (modifier == null) {
             return;
         }
-        BeforeAgentStartEvent event = payload(piEvent);
+        BeforeAgentStartEvent event = (BeforeAgentStartEvent) piEvent.getPayload();
         if (event == null) {
             return;
         }
@@ -38,10 +38,4 @@ public final class TurnReminderExtension implements PiExtension {
         modifier.setUser(new DefaultUserModifier(TurnReminder.of(output)));
     }
 
-    private static BeforeAgentStartEvent payload(PiEvent event) {
-        if (event == null || !(event.getPayload() instanceof BeforeAgentStartEvent)) {
-            return null;
-        }
-        return (BeforeAgentStartEvent) event.getPayload();
-    }
 }

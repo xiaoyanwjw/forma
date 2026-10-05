@@ -14,9 +14,7 @@ public class BeforeAgentStartEvent {
 
     String runId;
     String skillId;
-    String workspaceRoot;
     String userText;
-    String pageContext;
     /** HITL 选项 id（如 confirm_execute）；prompt 可空。 */
     String resumeOptionId;
     /** 本轮交付附件；闲聊可空（null 视为 empty）。 */
@@ -25,16 +23,12 @@ public class BeforeAgentStartEvent {
 
     public BeforeAgentStartEvent(String runId,
                                  String skillId,
-                                 String workspaceRoot,
                                  String userText,
-                                 String pageContext,
                                  String resumeOptionId,
                                  TurnAttachment attachment) {
         this.runId = runId;
         this.skillId = skillId;
-        this.workspaceRoot = workspaceRoot;
         this.userText = userText;
-        this.pageContext = pageContext;
         this.resumeOptionId = resumeOptionId;
         this.attachment = attachment == null ? TurnAttachment.empty() : attachment;
     }

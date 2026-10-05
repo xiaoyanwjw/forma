@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.xmut.forma.infrastructure.checkpoint.MysqlCheckpointer;
 import com.xmut.forma.pi.agent.ConversationResult;
 import com.xmut.forma.pi.agent.IterationBudget;
-import com.xmut.forma.pi.agent.ResumeRequest;
+import com.xmut.forma.pi.agent.ResumeInput;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.agent.DefaultAgent;
 import com.xmut.forma.pi.agent.agent.DefaultToolLoopGraph;
@@ -182,7 +182,7 @@ class MysqlCheckpointerIntegrationTest {
                 Integer.class, "mysql-hitl");
         assertThat(rows).isEqualTo(1);
 
-        ConversationResult resumed = loop.resume(ResumeRequest.builder()
+        ConversationResult resumed = loop.resume(ResumeInput.builder()
                 .runId("mysql-hitl")
                 .toolCallId("c1")
                 .humanInput("{\"selectedId\":\"confirm_execute\"}")
