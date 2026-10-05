@@ -31,7 +31,7 @@ export function getSessionMessages(
 
 export function getLatestSessionArtifact(
   sessionId: string,
-  artifactType?: 'picklist' | 'sku' | 'xhs_topiclist' | 'xhs_note' | 'xhs_break',
+  artifactType?: string,
 ) {
   const params = new URLSearchParams()
   if (artifactType) {

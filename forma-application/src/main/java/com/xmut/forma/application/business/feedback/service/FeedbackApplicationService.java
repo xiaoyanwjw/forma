@@ -8,6 +8,7 @@ import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
 import com.xmut.forma.common.util.ObjectUtils;
 import com.xmut.forma.common.util.StringUtils;
+import com.xmut.forma.domain.business.artifact.ArtifactHistoryExcludeCodes;
 import com.xmut.forma.domain.business.artifact.model.Artifact;
 import com.xmut.forma.domain.business.artifact.model.ArtifactType;
 import com.xmut.forma.domain.business.artifact.repository.ArtifactRepository;
@@ -39,6 +40,7 @@ public class FeedbackApplicationService {
     private final FeedbackRepository feedbackRepository;
     private final ArtifactRepository artifactRepository;
     private final Clock clock;
+    private final ArtifactHistoryExcludeCodes historyExcludeCodes;
 
     @Transactional(rollbackFor = Exception.class)
     public FeedbackDTO submit(SubmitFeedbackCommand command) {
@@ -103,7 +105,8 @@ public class FeedbackApplicationService {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_ARTIFACT_UNAVAILABLE);
         }
         ArtifactType type = artifact.getType();
-        if (type != ArtifactType.PICKLIST && type != ArtifactType.SKU) {
+        if (type == null || (historyExcludeCodes.codes() != null
+                && historyExcludeCodes.codes().contains(type.getCode()))) {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_ARTIFACT_UNAVAILABLE);
         }
         return artifact;

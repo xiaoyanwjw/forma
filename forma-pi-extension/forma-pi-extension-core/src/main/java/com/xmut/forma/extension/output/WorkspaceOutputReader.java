@@ -14,9 +14,11 @@ import java.nio.file.Path;
 import java.util.Map;
 
 /**
- * 从本轮工作区读 view 与 artifact 两个相对路径。
- * 功能描述：校验路径落在工作区里，把两个 JSON 对象收成 {@link ParsedGenerationOutput}。
- * 关键设计：文件缺失或空白抛 {@code output file missing: } 加相对路径；含 {@code ..} 拒绝。
+ * 从本轮工作区读 output 相对路径上的 JSON。
+ * 功能描述：校验路径落在工作区里，把该对象收成 {@link ParsedGenerationOutput}。
+ * 关键设计：Skill 只声明 output（通常 view.json）。同目录 artifact.json 是 render_view
+ * 的中间领域实体，落库 data 用它；没有该文件时 data 与 view 同一份。
+ * 文件缺失或空白抛 {@code output file missing: } 加相对路径；含 {@code ..} 拒绝。
  */
 public final class WorkspaceOutputReader {
 
@@ -34,17 +36,37 @@ public final class WorkspaceOutputReader {
         this.objectMapper = objectMapper;
     }
 
-    public ParsedGenerationOutput read(Path root, String viewRel, String artifactRel) {
+    public ParsedGenerationOutput read(Path root, String outputRel) {
         if (root == null) {
             throw new IllegalArgumentException("workspace required");
         }
-        rejectEscape(viewRel);
-        rejectEscape(artifactRel);
-        Path viewFile = LocalFileSupport.resolveUnder(root, viewRel);
-        Path artifactFile = LocalFileSupport.resolveUnder(root, artifactRel);
-        Map<String, Object> rawView = viewMap(readObject(viewFile, viewRel), viewRel);
-        Map<String, Object> artifact = objectMapper.convertValue(readObject(artifactFile, artifactRel), MAP_TYPE);
-        return new ParsedGenerationOutput(rawView, artifact);
+        rejectEscape(outputRel);
+        Path file = LocalFileSupport.resolveUnder(root, outputRel);
+        Map<String, Object> view = viewMap(readObject(file, outputRel), outputRel);
+        return new ParsedGenerationOutput(view, dataBeside(file, outputRel, view));
+    }
+
+    private Map<String, Object> dataBeside(Path outputFile, String outputRel, Map<String, Object> view) {
+        Path dir = outputFile.getParent();
+        if (dir == null) {
+            return view;
+        }
+        Path sibling = dir.resolve("artifact.json");
+        if (!Files.isRegularFile(sibling)) {
+            return view;
+        }
+        return objectMapper.convertValue(readObject(sibling, siblingRel(outputRel)), MAP_TYPE);
+    }
+
+    private static String siblingRel(String outputRel) {
+        if (!StringUtils.hasText(outputRel)) {
+            return "artifact.json";
+        }
+        int slash = outputRel.lastIndexOf('/');
+        if (slash < 0) {
+            return "artifact.json";
+        }
+        return outputRel.substring(0, slash + 1) + "artifact.json";
     }
 
     private Map<String, Object> viewMap(JsonNode node, String rel) {

@@ -3,6 +3,7 @@ package com.xmut.forma.infrastructure.persistence.repository.business.agent;
 import com.xmut.forma.domain.business.agent.constant.GenerationRunStatus;
 import com.xmut.forma.domain.business.agent.model.GenerationRun;
 import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
+import com.xmut.forma.domain.business.artifact.ArtifactHistoryExcludeCodes;
 import com.xmut.forma.infrastructure.persistence.mybatis.mapper.GenerationRunMapper;
 import com.xmut.forma.infrastructure.persistence.mybatis.po.GenerationRunPO;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import java.util.Optional;
 public class GenerationRunRepositoryImpl implements GenerationRunRepository {
 
     private final GenerationRunMapper generationRunMapper;
+    private final ArtifactHistoryExcludeCodes historyExcludeCodes;
 
     @Override
     public void save(GenerationRun run) {
@@ -44,7 +46,7 @@ public class GenerationRunRepositoryImpl implements GenerationRunRepository {
                                                                    String artifactType) {
         return Optional.ofNullable(
                 generationRunMapper.selectLatestUsableArtifactRefBySession(
-                        userId, sessionId, since, artifactType));
+                        userId, sessionId, since, artifactType, historyExcludeCodes.codes()));
     }
 
     private GenerationRunPO toPo(GenerationRun run) {

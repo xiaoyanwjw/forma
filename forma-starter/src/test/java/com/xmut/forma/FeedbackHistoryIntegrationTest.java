@@ -64,7 +64,7 @@ class FeedbackHistoryIntegrationTest {
         String username = "fb_" + shortId();
         String token = registerAndLogin(username);
         String userId = userIdOf(username);
-        String artifactId = saveOwnedArtifact(userId, ArtifactType.PICKLIST, Instant.now(), "选品 A");
+        String artifactId = saveOwnedArtifact(userId, ArtifactType.fromCode("picklist"), Instant.now(), "选品 A");
 
         int availableBefore = availableCredits(token);
 
@@ -96,7 +96,7 @@ class FeedbackHistoryIntegrationTest {
         String username = "fbup_" + shortId();
         String token = registerAndLogin(username);
         String userId = userIdOf(username);
-        String artifactId = saveOwnedArtifact(userId, ArtifactType.PICKLIST, Instant.now(), "选品 upsert");
+        String artifactId = saveOwnedArtifact(userId, ArtifactType.fromCode("picklist"), Instant.now(), "选品 upsert");
 
         mockMvc.perform(post("/api/v1/feedbacks")
                         .header("Authorization", "Bearer " + token)
@@ -137,7 +137,7 @@ class FeedbackHistoryIntegrationTest {
     void feedbackOnOthersArtifactForbidden() throws Exception {
         String token = registerAndLogin("fb2_" + shortId());
         String otherId = UUID.randomUUID().toString();
-        String artifactId = saveOwnedArtifact(otherId, ArtifactType.SKU, Instant.now(), "他人 Listing");
+        String artifactId = saveOwnedArtifact(otherId, ArtifactType.fromCode("sku"), Instant.now(), "他人 Listing");
 
         mockMvc.perform(post("/api/v1/feedbacks")
                         .header("Authorization", "Bearer " + token)
@@ -152,12 +152,12 @@ class FeedbackHistoryIntegrationTest {
         String token = registerAndLogin(username);
         String userId = userIdOf(username);
         Instant now = Instant.now();
-        String pickId = saveOwnedArtifact(userId, ArtifactType.PICKLIST, now.minus(1, ChronoUnit.HOURS), "选品近");
-        String skuId = saveOwnedArtifact(userId, ArtifactType.SKU, now.minus(2, ChronoUnit.HOURS), "上架近");
-        saveOwnedArtifact(userId, ArtifactType.CHAT, now.minus(3, ChronoUnit.HOURS), "聊天不应出现");
-        saveOwnedArtifact(userId, ArtifactType.LISTING_PLAN, now.minus(4, ChronoUnit.HOURS), "策划不应出现");
-        saveOwnedArtifact(userId, ArtifactType.PICKLIST, now.minus(70, ChronoUnit.DAYS), "超窗不应出现");
-        saveOwnedArtifact(UUID.randomUUID().toString(), ArtifactType.PICKLIST, now, "他人不应出现");
+        String pickId = saveOwnedArtifact(userId, ArtifactType.fromCode("picklist"), now.minus(1, ChronoUnit.HOURS), "选品近");
+        String skuId = saveOwnedArtifact(userId, ArtifactType.fromCode("sku"), now.minus(2, ChronoUnit.HOURS), "上架近");
+        saveOwnedArtifact(userId, ArtifactType.fromCode("chat"), now.minus(3, ChronoUnit.HOURS), "聊天不应出现");
+        saveOwnedArtifact(userId, ArtifactType.fromCode("listing_plan"), now.minus(4, ChronoUnit.HOURS), "策划不应出现");
+        saveOwnedArtifact(userId, ArtifactType.fromCode("picklist"), now.minus(70, ChronoUnit.DAYS), "超窗不应出现");
+        saveOwnedArtifact(UUID.randomUUID().toString(), ArtifactType.fromCode("picklist"), now, "他人不应出现");
 
         mockMvc.perform(get("/api/v1/history/artifacts")
                         .header("Authorization", "Bearer " + token))
@@ -183,8 +183,8 @@ class FeedbackHistoryIntegrationTest {
         String token = registerAndLogin(username);
         String userId = userIdOf(username);
         Instant now = Instant.now();
-        String firstId = saveOwnedArtifact(userId, ArtifactType.PICKLIST, now.minus(1, ChronoUnit.HOURS), "旧成果");
-        String secondId = saveOwnedArtifact(userId, ArtifactType.PICKLIST, now, "新成果");
+        String firstId = saveOwnedArtifact(userId, ArtifactType.fromCode("picklist"), now.minus(1, ChronoUnit.HOURS), "旧成果");
+        String secondId = saveOwnedArtifact(userId, ArtifactType.fromCode("picklist"), now, "新成果");
 
         mockMvc.perform(get("/api/v1/history/artifacts/" + firstId)
                         .header("Authorization", "Bearer " + token))
@@ -209,7 +209,7 @@ class FeedbackHistoryIntegrationTest {
         String userId = userIdOf(username);
         Instant now = Instant.now();
         String sessionId = UUID.randomUUID().toString();
-        String artifactId = saveOwnedArtifactWithSession(userId, ArtifactType.SKU, now, "带会话 Listing", sessionId);
+        String artifactId = saveOwnedArtifactWithSession(userId, ArtifactType.fromCode("sku"), now, "带会话 Listing", sessionId);
 
         mockMvc.perform(get("/api/v1/history/artifacts/" + artifactId)
                         .header("Authorization", "Bearer " + token))
@@ -221,7 +221,7 @@ class FeedbackHistoryIntegrationTest {
     @Test
     void historyDetailOthersForbidden() throws Exception {
         String token = registerAndLogin("hx_" + shortId());
-        String otherArtifact = saveOwnedArtifact(UUID.randomUUID().toString(), ArtifactType.PICKLIST,
+        String otherArtifact = saveOwnedArtifact(UUID.randomUUID().toString(), ArtifactType.fromCode("picklist"),
                 Instant.now(), "他人");
 
         mockMvc.perform(get("/api/v1/history/artifacts/" + otherArtifact)

@@ -5,12 +5,10 @@ description: >-
   在用户提到速读链接、解析文章、技术文档摘要时使用。
 allowed-tools: read_skill fetch_web_page excerpt_chunks write_file read_file render_view
 metadata:
-  output:
-    billing: true
-    persistAs: tech_digest
-    requiresView: true
-    viewPath: view.json
-    artifactPath: artifact.json
+  billing: true
+  persistAs: tech_digest
+  requiresView: true
+  output: view.json
 ---
 
 # 科技速读
@@ -39,7 +37,7 @@ metadata:
 
 5. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `template/view.mustache`）。勿手写 HTML `view.content`。近端**无**文末手递按钮。
 
-6. **交付路径与成功标准。** 本轮 view / artifact 相对路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **view** 与 **artifact** 两文件。不要在对话里输出 `{"output":...}` 或粘贴整包 JSON。
+6. **交付路径与成功标准。** 本轮交付路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **output**（通常 `view.json`）。不要在对话里输出 `{"output":...}` 或粘贴整包 JSON。
 
 7. **过 Verification。** 全部勾上再结束本轮；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
@@ -75,7 +73,7 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** reminder 指定的 **view** + **artifact** 两文件（通常 `view.json` + `artifact.json`）。完整字段与示例 → [output.md](references/output.md)。
+成功终态：**盘上** reminder 指定的 **output**（通常 `view.json`）。完整字段与示例 → [output.md](references/output.md)。
 
 速记：
 
@@ -94,7 +92,7 @@ metadata:
 - [ ] `source=fetch` 时 quotes 来自拉取正文；`source=paste` 时来自用户粘贴，未用假链冒充拉取成功
 - [ ] 主模型总结**未**把 `source.md` 全文灌进提示或 artifact 全文字段
 - [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
-- [ ] `<reminder>` 中的 view / artifact 两路径均已写盘；**未**输出 `{"output":...}`
+- [ ] `<reminder>` 中的 output 已写盘；**未**输出 `{"output":...}`
 - [ ] `title` / `oneLiner` / `points` / `forWhom` 非空且可对照 `excerpts`
 - [ ] `view.version` = **`2`**；`view.format` = **`html`**；view 含免责声明，**无**手递按钮
 - [ ] `view.title` / `artifact.title` 为同一中文标题

@@ -23,7 +23,8 @@ public interface ArtifactRepository {
     Optional<Artifact> findByRunId(String runId);
 
     /**
-     * 本人历史列表：时间窗 + 类型集合 + 可选场景；新在前。
+     * 本人历史列表：时间窗 + 可选类型集合 + 可选场景；新在前。
+     * {@code types == null} 表示排除 {@link com.xmut.forma.domain.business.artifact.ArtifactHistoryExcludeCodes}（chat + Skill hideFromHistory）。
      */
     List<Artifact> listByUserSince(String userId,
                                    Instant sinceInclusive,

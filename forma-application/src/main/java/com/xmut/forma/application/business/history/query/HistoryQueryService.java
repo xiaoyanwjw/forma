@@ -11,6 +11,7 @@ import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.common.util.StringUtils;
 import com.xmut.forma.domain.business.agent.model.GenerationRun;
 import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
+import com.xmut.forma.domain.business.artifact.ArtifactHistoryExcludeCodes;
 import com.xmut.forma.domain.business.artifact.model.Artifact;
 import com.xmut.forma.domain.business.artifact.model.ArtifactType;
 import com.xmut.forma.domain.business.artifact.repository.ArtifactRepository;
@@ -22,13 +23,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
- * HistoryQuery：只读聚合本人近 60 天可用成果（选品 / Listing / 小红书场景）。
+ * HistoryQuery：只读聚合本人近 60 天可用成果（排除 chat 与 Skill hideFromHistory）。
  */
 @Service
 @RequiredArgsConstructor
@@ -37,26 +37,19 @@ public class HistoryQueryService {
     public static final int HISTORY_WINDOW_DAYS = 60;
     public static final String MSG_UNAVAILABLE = "成果不存在或无权查看";
 
-    private static final List<ArtifactType> HISTORY_TYPES = Collections.unmodifiableList(
-            Arrays.asList(
-                    ArtifactType.PICKLIST,
-                    ArtifactType.SKU,
-                    ArtifactType.XHS_TOPICLIST,
-                    ArtifactType.XHS_NOTE,
-                    ArtifactType.XHS_BREAK));
-
     private final ArtifactRepository artifactRepository;
     private final GenerationRunRepository generationRunRepository;
     private final HistoryViewResignSupport historyViewResignSupport;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final ArtifactHistoryExcludeCodes historyExcludeCodes;
 
     @Transactional(readOnly = true)
     public List<HistoryArtifactSummaryDTO> list(HistoryListQuery query) {
         String uid = StringUtils.requireHasText(query.getUserId(), "userId required");
         String sceneCode = query.sceneCode();
         Instant since = Instant.now(clock).minus(HISTORY_WINDOW_DAYS, ChronoUnit.DAYS);
-        List<Artifact> rows = artifactRepository.listByUserSince(uid, since, HISTORY_TYPES, sceneCode);
+        List<Artifact> rows = artifactRepository.listByUserSince(uid, since, null, sceneCode);
         List<HistoryArtifactSummaryDTO> result = new ArrayList<HistoryArtifactSummaryDTO>(rows.size());
         for (Artifact artifact : rows) {
             result.add(toSummary(artifact));
@@ -64,7 +57,7 @@ public class HistoryQueryService {
         return result;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = BusinessException.class)
     public HistoryArtifactDetailDTO findById(HistoryArtifactQuery query) {
         String uid = StringUtils.requireHasText(query.getUserId(), "userId required");
         String id = StringUtils.requireHasText(query.getArtifactId(), "artifactId required");
@@ -73,7 +66,7 @@ public class HistoryQueryService {
         if (!uid.equals(artifact.getUserId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE);
         }
-        if (!isHistoryType(artifact.getType())) {
+        if (!isVisibleHistoryType(artifact.getType())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, MSG_UNAVAILABLE);
         }
         Instant since = Instant.now(clock).minus(HISTORY_WINDOW_DAYS, ChronoUnit.DAYS);
@@ -121,8 +114,15 @@ public class HistoryQueryService {
         }
     }
 
-    private static boolean isHistoryType(ArtifactType type) {
-        return type != null && HISTORY_TYPES.contains(type);
+    private boolean isVisibleHistoryType(ArtifactType type) {
+        if (type == null || !StringUtils.hasText(type.getCode())) {
+            return false;
+        }
+        List<String> excluded = historyExcludeCodes.codes();
+        if (excluded == null) {
+            return type.isSessionHistory();
+        }
+        return !excluded.contains(type.getCode());
     }
 
     private static HistoryArtifactSummaryDTO toSummary(Artifact artifact) {

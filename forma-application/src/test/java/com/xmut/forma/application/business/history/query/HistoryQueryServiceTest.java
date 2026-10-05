@@ -57,13 +57,14 @@ class HistoryQueryServiceTest {
                 generationRunRepository,
                 new HistoryViewResignSupport(mediaStore),
                 new ObjectMapper(),
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                () -> java.util.Arrays.asList("chat", "listing_plan"));
         when(generationRunRepository.findById(any())).thenReturn(Optional.empty());
     }
 
     @Test
-    void listUsesSixtyDayWindowAndHistoryTypes() {
-        when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), any(), isNull()))
+    void listUsesSixtyDayWindowAndExcludesInternalTypes() {
+        when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), isNull(), isNull()))
                 .thenReturn(Collections.singletonList(picklist(NOW.minus(1, ChronoUnit.DAYS))));
 
         List<HistoryArtifactSummaryDTO> list = service.list(
@@ -72,36 +73,58 @@ class HistoryQueryServiceTest {
         assertEquals("picklist", list.get(0).getArtifactType());
 
         ArgumentCaptor<Instant> sinceCaptor = ArgumentCaptor.forClass(Instant.class);
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<java.util.Collection<ArtifactType>> typesCaptor =
-                ArgumentCaptor.forClass(java.util.Collection.class);
         verify(artifactRepository).listByUserSince(
-                eq(USER), sinceCaptor.capture(), typesCaptor.capture(), isNull());
+                eq(USER), sinceCaptor.capture(), isNull(), isNull());
         assertEquals(NOW.minus(60, ChronoUnit.DAYS), sinceCaptor.getValue());
-        assertTrue(typesCaptor.getValue().contains(ArtifactType.PICKLIST));
-        assertTrue(typesCaptor.getValue().contains(ArtifactType.SKU));
-        assertTrue(typesCaptor.getValue().contains(ArtifactType.XHS_TOPICLIST));
-        assertTrue(typesCaptor.getValue().contains(ArtifactType.XHS_NOTE));
-        assertTrue(typesCaptor.getValue().contains(ArtifactType.XHS_BREAK));
     }
 
     @Test
     void listPassesSceneCodeFilter() {
-        when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), any(), eq("ecommerce")))
+        when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), isNull(), eq("ecommerce")))
                 .thenReturn(Collections.emptyList());
         assertTrue(service.list(listQuery("ecommerce")).isEmpty());
-        verify(artifactRepository).listByUserSince(eq(USER), any(Instant.class), any(), eq("ecommerce"));
+        verify(artifactRepository).listByUserSince(eq(USER), any(Instant.class), isNull(), eq("ecommerce"));
     }
 
     @Test
     void listPassesXiaohongshuSceneFilter() {
-        when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), any(), eq("xiaohongshu")))
+        when(artifactRepository.listByUserSince(eq(USER), any(Instant.class), isNull(), eq("xiaohongshu")))
                 .thenReturn(Collections.singletonList(xhsBreak(NOW.minus(1, ChronoUnit.DAYS))));
         List<HistoryArtifactSummaryDTO> list = service.list(listQuery("xiaohongshu"));
         assertEquals(1, list.size());
         assertEquals("xhs_break", list.get(0).getArtifactType());
         assertEquals("xiaohongshu", list.get(0).getSceneCode());
-        verify(artifactRepository).listByUserSince(eq(USER), any(Instant.class), any(), eq("xiaohongshu"));
+        verify(artifactRepository).listByUserSince(eq(USER), any(Instant.class), isNull(), eq("xiaohongshu"));
+    }
+
+    @Test
+    void findByIdAllowsOpenSceneType() {
+        ArtifactType open = ArtifactType.fromCode("future_digest");
+        Artifact artifact = Artifact.create(
+                "future-1", USER, "run-f", open, "future",
+                null, "新场景",
+                "{\"view\":{\"title\":\"开类型\",\"format\":\"html\",\"content\":\"<p>x</p>\"},\"data\":{}}",
+                NOW.minus(1, ChronoUnit.DAYS));
+        when(artifactRepository.findById("future-1")).thenReturn(Optional.of(artifact));
+
+        HistoryArtifactDetailDTO detail = service.findById(artifactQuery("future-1"));
+        assertEquals("future_digest", detail.getArtifactType());
+        assertEquals("开类型", detail.getView().get("title"));
+    }
+
+    @Test
+    void findByIdAllowsTechDigest() {
+        Artifact digest = Artifact.create(
+                "digest-1", USER, "run-td", ArtifactType.fromCode("tech_digest"), "tech_digest",
+                null, "科技速读",
+                "{\"view\":{\"title\":\"速读标题\",\"format\":\"html\",\"content\":\"<p>x</p>\"},\"data\":{}}",
+                NOW.minus(1, ChronoUnit.DAYS));
+        when(artifactRepository.findById("digest-1")).thenReturn(Optional.of(digest));
+
+        HistoryArtifactDetailDTO detail = service.findById(artifactQuery("digest-1"));
+        assertEquals("tech_digest", detail.getArtifactType());
+        assertEquals("tech_digest", detail.getSceneCode());
+        assertEquals("速读标题", detail.getView().get("title"));
     }
 
     @Test
@@ -124,7 +147,7 @@ class HistoryQueryServiceTest {
                 + "\"data\":{}"
                 + "}";
         Artifact sku = Artifact.create(
-                "sku-1", USER, "run-2", ArtifactType.SKU, "ecommerce",
+                "sku-1", USER, "run-2", ArtifactType.fromCode("sku"), "ecommerce",
                 null, "Listing", payload, NOW.minus(2, ChronoUnit.DAYS));
         when(artifactRepository.findById("sku-1")).thenReturn(Optional.of(sku));
         when(mediaStore.findById("m1")).thenReturn(Optional.of(
@@ -150,7 +173,7 @@ class HistoryQueryServiceTest {
                 + "\"data\":{}"
                 + "}";
         Artifact sku = Artifact.create(
-                "sku-2", USER, "run-3", ArtifactType.SKU, "ecommerce",
+                "sku-2", USER, "run-3", ArtifactType.fromCode("sku"), "ecommerce",
                 null, "Listing", payload, NOW.minus(1, ChronoUnit.DAYS));
         when(artifactRepository.findById("sku-2")).thenReturn(Optional.of(sku));
         when(mediaStore.findById("m1")).thenReturn(Optional.of(
@@ -188,7 +211,7 @@ class HistoryQueryServiceTest {
     @Test
     void findByIdRejectsChatType() {
         Artifact chat = Artifact.create(
-                "chat-1", USER, "run-c", ArtifactType.CHAT, "ecommerce",
+                "chat-1", USER, "run-c", ArtifactType.fromCode("chat"), "ecommerce",
                 null, "聊", "{}", NOW);
         when(artifactRepository.findById("chat-1")).thenReturn(Optional.of(chat));
 
@@ -199,7 +222,7 @@ class HistoryQueryServiceTest {
     @Test
     void findByIdAttachesSessionIdFromGenerationRun() {
         Artifact sku = Artifact.create(
-                "sku-1", USER, "run-2", ArtifactType.SKU, "ecommerce",
+                "sku-1", USER, "run-2", ArtifactType.fromCode("sku"), "ecommerce",
                 null, "Listing", "{\"view\":{},\"data\":{}}", NOW.minus(2, ChronoUnit.DAYS));
         when(artifactRepository.findById("sku-1")).thenReturn(Optional.of(sku));
         GenerationRun run = GenerationRun.start(
@@ -229,13 +252,13 @@ class HistoryQueryServiceTest {
 
     private static Artifact picklist(Instant createdAt) {
         return Artifact.create(
-                "art-1", USER, "run-1", ArtifactType.PICKLIST, "ecommerce",
+                "art-1", USER, "run-1", ArtifactType.fromCode("picklist"), "ecommerce",
                 null, "选品", "{\"view\":{\"blocks\":[]},\"data\":{}}", createdAt);
     }
 
     private static Artifact xhsBreak(Instant createdAt) {
         return Artifact.create(
-                "xhs-break-1", USER, "run-xhs", ArtifactType.XHS_BREAK, "xiaohongshu",
+                "xhs-break-1", USER, "run-xhs", ArtifactType.fromCode("xhs_break"), "xiaohongshu",
                 null, "爆文拆解",
                 "{\"view\":{\"title\":\"骨架一行\",\"blocks\":[]},\"data\":{\"skeleton\":\"场景痛点一句\"}}",
                 createdAt);

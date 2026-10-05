@@ -5,12 +5,10 @@ description: >-
   在用户提到写笔记、种草文案、标题 tags，或从选题/爆文点「写成笔记」时使用。
 allowed-tools: read_skill write_file read_file render_view
 metadata:
-  output:
-    billing: true
-    persistAs: xhs_note
-    requiresView: true
-    viewPath: view.json
-    artifactPath: artifact.json
+  billing: true
+  persistAs: xhs_note
+  requiresView: true
+  output: view.json
 ---
 
 # 笔记种草稿
@@ -51,7 +49,7 @@ metadata:
 
 5. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `template/view.mustache`；`format` 默认为 **html**）。勿手写 `view.content`。
 
-6. **交付路径与成功标准。** 本轮 view / artifact 相对路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **view** 与 **artifact** 两文件。不要在对话里输出 `{"output":...}` 或粘贴整包 JSON。
+6. **交付路径与成功标准。** 本轮交付路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **output**（通常 `view.json`）。不要在对话里输出 `{"output":...}` 或粘贴整包 JSON。
 
 7. **过 Verification。** 全部勾上再结束本轮；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
@@ -67,7 +65,7 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** reminder 指定的 **view** + **artifact** 两文件（通常 `view.json` + `artifact.json`）。完整字段与示例 → [output.md](references/output.md)。
+成功终态：**盘上** reminder 指定的 **output**（通常 `view.json`）。完整字段与示例 → [output.md](references/output.md)。
 
 速记：
 
@@ -82,7 +80,7 @@ metadata:
 
 - [ ] 本轮**未**调用 `search_xhs_note` / `fetch_xhs_note` / `ask_human`
 - [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
-- [ ] `<reminder>` 中的 view / artifact 两路径均已写盘；**未**在对话里贴整包大 JSON 或 `{"output":...}`
+- [ ] `<reminder>` 中的 output 已写盘；**未**在对话里贴整包大 JSON 或 `{"output":...}`
 - [ ] 输入含选题条目 id 时 `topicItemId` 必填且一致；口述笔记可省略
 - [ ] `titleOptions` 为 3–5 条互不重复的可发标题
 - [ ] `body` 非空，真人分享感，未编造未提供功效/数据

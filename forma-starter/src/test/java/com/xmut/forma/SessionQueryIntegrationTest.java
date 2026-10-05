@@ -213,9 +213,9 @@ class SessionQueryIntegrationTest {
         Instant t1 = Instant.parse("2026-09-20T10:00:00Z");
         Instant t2 = Instant.parse("2026-09-21T10:00:00Z");
         Instant t3 = Instant.parse("2026-09-22T10:00:00Z");
-        String pickId = insertArtifactAndRun(userId, sessionId, ArtifactType.PICKLIST, "旧选品", t1);
-        insertArtifactAndRun(userId, sessionId, ArtifactType.CHAT, "聊天", t3);
-        String skuId = insertArtifactAndRun(userId, sessionId, ArtifactType.SKU, "新 Listing", t2);
+        String pickId = insertArtifactAndRun(userId, sessionId, ArtifactType.fromCode("picklist"), "旧选品", t1);
+        insertArtifactAndRun(userId, sessionId, ArtifactType.fromCode("chat"), "聊天", t3);
+        String skuId = insertArtifactAndRun(userId, sessionId, ArtifactType.fromCode("sku"), "新 Listing", t2);
 
         HistoryArtifactDetailDTO latest = sessionQueryService.getLatestArtifact(
                 SessionLatestArtifactQuery.builder().userId(userId).sessionId(sessionId).build())
@@ -246,11 +246,11 @@ class SessionQueryIntegrationTest {
 
         Instant tooOld = Instant.now().minus(70, ChronoUnit.DAYS);
         Instant recent = Instant.now().minus(1, ChronoUnit.DAYS);
-        String oldSkuId = insertArtifactAndRun(userId, sessionId, ArtifactType.SKU, "超窗 Listing", tooOld);
+        String oldSkuId = insertArtifactAndRun(userId, sessionId, ArtifactType.fromCode("sku"), "超窗 Listing", tooOld);
         jdbcTemplate.update(
                 "UPDATE forma_generation_run SET created_at = ? WHERE artifact_ref = ?",
                 Timestamp.from(Instant.now()), oldSkuId);
-        String pickId = insertArtifactAndRun(userId, sessionId, ArtifactType.PICKLIST, "窗内选品", recent);
+        String pickId = insertArtifactAndRun(userId, sessionId, ArtifactType.fromCode("picklist"), "窗内选品", recent);
 
         HistoryArtifactDetailDTO latest = sessionQueryService.getLatestArtifact(
                 SessionLatestArtifactQuery.builder().userId(userId).sessionId(sessionId).build())
@@ -267,7 +267,7 @@ class SessionQueryIntegrationTest {
         String userId = userIdOf(username);
         String sessionId = "sess-old-" + shortId();
         insertSession(sessionId, userId, Instant.now());
-        insertArtifactAndRun(userId, sessionId, ArtifactType.SKU, "超窗",
+        insertArtifactAndRun(userId, sessionId, ArtifactType.fromCode("sku"), "超窗",
                 Instant.now().minus(70, ChronoUnit.DAYS));
 
         assertFalse(sessionQueryService.getLatestArtifact(

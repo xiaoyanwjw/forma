@@ -19,15 +19,21 @@ class OutputParserSpiTest {
     @Test
     void contextBuilderAndConstructorExposeFields() {
         Path root = Paths.get("/tmp/run");
+        Map<String, Object> exec = new HashMap<String, Object>();
+        exec.put("viewPath", "exec/view.json");
+        exec.put("artifactPath", "exec/artifact.json");
+        TurnAttachment attachment = TurnAttachment.of(exec);
         OutputParseContext built = OutputParseContext.builder()
                 .skillId("ecommerce-skulist")
                 .sceneCode("ecommerce")
                 .resumeOptionId("confirm_execute")
                 .finalResponse("done")
                 .workspaceRoot(root)
+                .attachment(attachment)
                 .build();
         OutputParseContext constructed = new OutputParseContext(
-                "ecommerce-skulist", "ecommerce", "confirm_execute", "done", root);
+                "ecommerce-skulist", "ecommerce", "confirm_execute", "done", root,
+                attachment);
 
         assertEquals(constructed, built);
         assertEquals("ecommerce-skulist", built.getSkillId());
@@ -35,6 +41,8 @@ class OutputParserSpiTest {
         assertEquals("confirm_execute", built.getResumeOptionId());
         assertEquals("done", built.getFinalResponse());
         assertEquals(root, built.getWorkspaceRoot());
+        assertEquals("exec/view.json", built.getAttachment().get("viewPath"));
+        assertEquals("exec/artifact.json", built.getAttachment().get("artifactPath"));
     }
 
     @Test
@@ -45,6 +53,8 @@ class OutputParserSpiTest {
         assertNull(ctx.getResumeOptionId());
         assertNull(ctx.getFinalResponse());
         assertNull(ctx.getWorkspaceRoot());
+        assertEquals(TurnAttachment.empty(), ctx.getAttachment());
+        assertTrue(ctx.getAttachment().isEmpty());
     }
 
     @Test

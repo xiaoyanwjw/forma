@@ -10,6 +10,8 @@ import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.output.OutputParseContext;
 import com.xmut.forma.common.output.OutputParser;
 import com.xmut.forma.common.output.ParsedGenerationOutput;
+import com.xmut.forma.common.output.TurnAttachment;
+import com.xmut.forma.common.output.TurnAttachmentProvider;
 import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
 import com.xmut.forma.pi.ai.message.Message;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,6 +70,7 @@ class SkuHitlInterceptorTest {
 
         assertEquals("output file missing: plan/view.json", ex.getMessage());
         assertNull(seen[0].getResumeOptionId());
+        assertEquals(TurnAttachment.empty(), seen[0].getAttachment());
     }
 
     @Test
@@ -114,6 +118,8 @@ class SkuHitlInterceptorTest {
     private static SkuHitlInterceptor interceptor(OutputParser parser, ArtifactPersistPlugin persist) {
         RunWorkspaceService workspace = mock(RunWorkspaceService.class);
         when(workspace.runDir(anyString(), anyString())).thenReturn(Paths.get("/tmp/forma-run"));
+        TurnAttachmentProvider attachments = mock(TurnAttachmentProvider.class);
+        when(attachments.of(anyString(), nullable(String.class))).thenReturn(TurnAttachment.empty());
         return new SkuHitlInterceptor(
                 new CreditHoldSupport(mock(CreditApplicationService.class)),
                 parser,
@@ -121,7 +127,8 @@ class SkuHitlInterceptorTest {
                 new ComputerViewResolver(Collections.singletonList(new NormalizeViewProjector())),
                 mock(GenerationRunRepository.class),
                 Clock.systemUTC(),
-                workspace);
+                workspace,
+                attachments);
     }
 
     private static BilledRunContext listingContext() {

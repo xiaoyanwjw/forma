@@ -12,6 +12,8 @@ export interface WorkspaceChatMessage {
   failed?: boolean
   /** Replay uses plain bubble; live/synthesized STATUS uses console */
   presentation?: 'bubble' | 'console'
+  /** Computer 窗格；有则点 STATUS 打开对应预览 */
+  previewPane?: string
   /** epoch ms（回放来自 entry.created_at） */
   at?: number
 }

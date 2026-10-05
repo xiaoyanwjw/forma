@@ -1,5 +1,6 @@
 package com.xmut.forma.infrastructure.persistence.repository.business.artifact;
 
+import com.xmut.forma.domain.business.artifact.ArtifactHistoryExcludeCodes;
 import com.xmut.forma.domain.business.artifact.model.Artifact;
 import com.xmut.forma.domain.business.artifact.model.ArtifactType;
 import com.xmut.forma.domain.business.artifact.repository.ArtifactRepository;
@@ -21,6 +22,7 @@ import java.util.Optional;
 public class ArtifactRepositoryImpl implements ArtifactRepository {
 
     private final ArtifactMapper artifactMapper;
+    private final ArtifactHistoryExcludeCodes historyExcludeCodes;
 
     @Override
     public void save(Artifact artifact) {
@@ -64,20 +66,24 @@ public class ArtifactRepositoryImpl implements ArtifactRepository {
         if (!StringUtils.hasText(userId) || sinceInclusive == null) {
             return Collections.emptyList();
         }
-        List<String> typeCodes = new ArrayList<String>();
-        if (types != null) {
+        List<String> typeCodes = null;
+        List<String> excludeTypes = null;
+        if (types == null) {
+            excludeTypes = historyExcludeCodes.codes();
+        } else {
+            typeCodes = new ArrayList<String>();
             for (ArtifactType type : types) {
                 if (type != null) {
                     typeCodes.add(type.getCode());
                 }
             }
-        }
-        if (typeCodes.isEmpty()) {
-            return Collections.emptyList();
+            if (typeCodes.isEmpty()) {
+                return Collections.emptyList();
+            }
         }
         String sceneCode = StringUtils.hasText(sceneCodeOrNull) ? sceneCodeOrNull.trim() : null;
         List<ArtifactPO> rows = artifactMapper.selectByUserSince(
-                userId.trim(), sinceInclusive, typeCodes, sceneCode);
+                userId.trim(), sinceInclusive, typeCodes, excludeTypes, sceneCode);
         if (rows == null || rows.isEmpty()) {
             return Collections.emptyList();
         }

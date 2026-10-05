@@ -5,12 +5,10 @@ description: >-
   在用户提到选品、卖什么、候选清单、测款方向时使用。
 allowed-tools: read_skill search_sku write_file read_file render_view
 metadata:
-  output:
-    billing: true
-    persistAs: picklist
-    requiresView: true
-    viewPath: view.json
-    artifactPath: artifact.json
+  billing: true
+  persistAs: picklist
+  requiresView: true
+  output: view.json
 ---
 
 # 选品清单
@@ -32,7 +30,7 @@ metadata:
 4. **分配 id。** 按最终清单顺序为每条赋 `pl-1`…`pl-n`；后续领域实体与视图实体的 `id` **同序同值**。
 5. **构造领域实体。** 按 [output.md](references/output.md) 拼出完整 **artifact**（测款领域对象：条目、质量字段、assumptions 等），再 `write_file` → `artifact.json`（相对 run 根，**仅** artifact 对象）。可用 `read_file` 自检。
 6. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `template/view.mustache`）。勿手写 HTML `view.content`。
-7. **交付路径与成功标准。** 本轮应写入的 view / artifact 相对路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **view** 与 **artifact** 两文件（`write_file` + `render_view`）。不要在对话里输出 `{"output":...}` 或粘贴 `artifact.json` / `view.json` 全文。
+7. **交付路径与成功标准。** 本轮交付路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **output**（通常 `view.json`，由 `render_view` 写出）。不要在对话里输出 `{"output":...}` 或粘贴 `artifact.json` / `view.json` 全文。
 8. **过 Verification。** 全部勾上再结束本轮；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
 ## Tool: search_sku
@@ -60,7 +58,7 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** reminder 指定的 **view** + **artifact** 两文件（通常 `view.json` + `artifact.json`，由 `write_file` / `render_view` 产出）。完整字段、模板与好坏例 → [output.md](references/output.md)。
+成功终态：**盘上** reminder 指定的 **output**（通常 `view.json`，由 `render_view` 产出）。完整字段、模板与好坏例 → [output.md](references/output.md)。
 
 速记：
 
@@ -78,7 +76,7 @@ metadata:
 
 - [ ] 本轮恰好 **1** 次 `search_sku`，且成功
 - [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
-- [ ] `<reminder>` 中的 view / artifact 两路径均已写盘；**未**在对话里贴整包大 JSON 或 `{"output":...}`
+- [ ] `<reminder>` 中的 output 已写盘；**未**在对话里贴整包大 JSON 或 `{"output":...}`
 - [ ] `artifact.items` 与 `view.json` 内 HTML `<ol>` 条目均为 **8–12** 条，条数一致、顺序对应
 - [ ] 每条 `id` 非空，格式 `pl-n`（从 1 顺序）；手递 prompt 与 artifact **同 id 同序**
 - [ ] 至少 **3** 个不同 `niche`，且无空泛「日用」「家居」三连凑数

@@ -9,6 +9,7 @@ import { formatEventTime } from '@/composables/agent/agentProgress'
 import { parseComputerDocView } from '@/types/business/computerView'
 import type { HistoryArtifactDetail, HistoryArtifactSummary } from '@/types/business/history'
 import type { SessionTurn } from '@/types/business/session'
+import { getSceneWorkspaceSpec } from '@/views/business/scene/workspace/registry'
 import { toReplayBubblesFromTurns } from '@/utils/sessionReplay'
 
 const SCENE_OPTIONS = [
@@ -138,13 +139,13 @@ async function openItem(item: HistoryArtifactSummary) {
 }
 
 function paintHistoryChat(turns: SessionTurn[]) {
-  const kind =
-    detail.value?.artifactType === 'sku'
-      ? 'listing'
-      : detail.value?.artifactType === 'picklist'
-        ? 'picks'
-        : null
-  chatMessages.value = toReplayBubblesFromTurns(turns, kind).map((b) => ({
+  const spec = getSceneWorkspaceSpec(detail.value?.sceneCode || '')
+  const type = (detail.value?.artifactType || '').trim().toLowerCase()
+  const pane = spec?.paneByArtifactType?.[type] ?? null
+  chatMessages.value = toReplayBubblesFromTurns(turns, {
+    fallbackPane: pane,
+    typeToPane: spec?.paneByArtifactType,
+  }).map((b) => ({
     role: b.role,
     content: b.content,
     createdAt: b.at != null ? new Date(b.at).toISOString() : null,

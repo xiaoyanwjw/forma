@@ -3,30 +3,24 @@
 ## 交付方式
 
 1. **工作区文件：** 先领域实体，再 **`render_view`**（勿手写 HTML `content`）：
-   - **策划：** `write_file` → `plan/artifact.json` → **`render_view`**（`artifact`: `plan/artifact.json`，`out`: `plan/view.json`，`template`: `template/plan/view.mustache`）
-   - **执行**（仅 `confirm_execute` 后）：`exec/artifact.json` → **`render_view`**（`artifact`: `exec/artifact.json`，`out`: `exec/view.json`，`template`: `template/exec/view.mustache`）
-   - **补充：** 重写 `plan/artifact.json` 后重跑策划 `render_view`，再发指针并 `ask_human`
-2. **对话终稿（指针）：** 成功时**只**输出一个 JSON 对象，无围栏、无其它文字：
-   - 策划（含补充后重出）：`{"output":"plan/view.json"}`
-   - 执行终态：`{"output":"exec/view.json"}`
+   - `write_file` → `artifact.json` → **`render_view`**（`artifact`: `artifact.json`，`out`: `view.json`，`template`: `template/exec/view.mustache`）
+2. **对话终稿：** 不要输出 `{"output":...}`，不要贴分文件全文。结算由服务端读 reminder 中的 **view**，并与同目录 **artifact** 对齐落库。
 
-不要在对话里贴分文件全文。结算由服务端读对应 **`plan/view.json`** / **`exec/view.json`**，并与同目录 **`plan/artifact.json`** / **`exec/artifact.json`** 对齐落库。
+`artifact` = 领域实体（策划短字段 + 上架四字段 + `framePrompts`）；`view` = 由 `render_view` 渲染的视图实体。两边同一事实。下方示例按字段拆开展示，**实际只写一对** `artifact.json` / `view.json`。
 
-`artifact` = 领域实体；`view` = 由 `render_view` 渲染的视图实体。两边同一事实。下方示例**按文件分开**给出；**勿**再合并或交付 `final.json`。
-
-本 Skill **一条 Workflow**：策划分文件 + 指针 + `ask_human` → 确认后执行分文件 + 指针。
+本 Skill **一条 Workflow**：一轮写齐并 `render_view`。
 
 Skill 元数据（`SKILL.md` front matter）：
 
 ```yaml
 metadata:
-  output:
-    billing: true
-    persistAs: sku
-    requiresView: true
+  billing: true
+  persistAs: sku
+  requiresView: true
+  output: view.json
 ```
 
-说明：应用层在首次 `ask_human` 前，将解析到的**策划** payload 以 `listing_plan` 落库并结算策划积分；用户确认后的**终态**仍按 `persistAs: sku` 落库。
+说明：应用层按 `persistAs: sku` 落库。
 
 ## Contents
 
@@ -50,7 +44,7 @@ metadata:
 | 假设 | 信息不足时写 `assumptions`；有交接时写入原链与条目 id 摘要 |
 | 交接 | 输入含「原链」或「来源选品条目」时，`picklistItemId` **必填**且与输入一致（黄金路径） |
 | 禁止 | 伪造销量/榜单/资质；**不要**输出 `platformCopies` / `preferredPlatform` |
-| 确认 | 盘上 `plan/artifact.json` + `plan/view.json` 就绪并发出指针后必须 `ask_human`；**禁止**未确认前输出 `framePrompts` 或上架四字段 |
+| 确认 | 一轮写齐分镜、大纲、上架四字段与 `framePrompts`；不调用 `ask_human` |
 
 ## 策划 artifact（领域）
 

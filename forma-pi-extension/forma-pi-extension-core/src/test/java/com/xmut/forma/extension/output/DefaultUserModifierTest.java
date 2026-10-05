@@ -13,7 +13,7 @@ class DefaultUserModifierTest {
 
     @Test
     void apply_delegates_to_prefix_last_user() {
-        String prefix = TurnReminder.prefix("view.json", "artifact.json");
+        String prefix = TurnReminder.of("view.json");
         List<Message> messages = Collections.singletonList(Message.user("hi"));
 
         List<Message> out = new DefaultUserModifier(prefix).apply(messages);

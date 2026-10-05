@@ -257,4 +257,84 @@ describe('Workspace skill send', () => {
     expect(bodies[0]?.skillId).toBe('tech-digest')
     expect(bodies[0]?.text).toBe('速读这个链接 https://example.com')
   })
+
+  it('tech_digest session replay STATUS can open Computer preview', async () => {
+    const digestView = {
+      version: 2,
+      title: '科技速读',
+      format: 'html',
+      content: '<article><p>摘要正文</p></article>',
+    }
+    fetchMock.mockRestore()
+    fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/v1/scenes/') && url.includes('/skills')) {
+        return okScenes(TECH_DIGEST_SKILLS)
+      }
+      if (url.includes('/api/v1/scenes')) return okScenes([TECH_DIGEST])
+      if (url.includes('/api/v1/credits')) return creditsResponse()
+      if (url.includes('/latest-artifact')) {
+        return okScenes({
+          id: 'td-1',
+          artifactType: 'tech_digest',
+          sceneCode: 'tech_digest',
+          title: '科技速读',
+          createdAt: '2026-10-04T12:00:00Z',
+          view: digestView,
+          sessionId: 'sess-td',
+        })
+      }
+      if (url.includes('/messages')) {
+        return okScenes({
+          items: [
+            {
+              runId: 'run-td',
+              userPrompt: '请速读这个链接 https://github.com/xiaoyanw/forma',
+              messages: [
+                {
+                  role: 'user',
+                  content: '请速读这个链接 https://github.com/xiaoyanw/forma',
+                  createdAt: '2026-10-04T12:00:00Z',
+                },
+                {
+                  role: 'assistant',
+                  content:
+                    '```json\n{"artifactType":"tech_digest","view":{"version":2,"title":"科技速读","format":"html","content":"<p>x</p>"},"artifact":{"source":"fetch","sourceUrl":"https://github.com/xiaoyanw/forma","excerpts":[{"heading":"h","quotes":["q"]}]}}\n```',
+                  createdAt: '2026-10-04T12:00:10Z',
+                },
+              ],
+            },
+          ],
+          nextToken: null,
+        })
+      }
+      if (url.includes('/api/v1/sessions')) {
+        return okScenes([
+          {
+            sessionId: 'sess-td',
+            title: '请速读这个链接',
+            sceneCode: 'tech_digest',
+            updatedAt: '2026-10-04T12:00:00Z',
+          },
+        ])
+      }
+      return new Response('not found', { status: 404 })
+    })
+
+    const mounted = await mountWorkspace('tech_digest')
+    unmount = mounted.unmount
+    await flushUi()
+    const item = mounted.root.querySelector('[data-testid="session-item"]') as HTMLButtonElement
+    expect(item).toBeTruthy()
+    item.click()
+    await flushUi()
+    await flushUi()
+
+    const chat = mounted.root.querySelector('.chat-scroll')?.textContent || ''
+    expect(chat).toMatch(/已生成速读摘要/)
+    expect(chat).not.toMatch(/已生成选品成果/)
+    const status = mounted.root.querySelector('.chat-event-status')
+    expect(status?.classList.contains('is-preview')).toBe(true)
+    expect(status?.querySelector('.chat-stream-toggle')?.textContent).toMatch(/查看|关闭/)
+  })
 })

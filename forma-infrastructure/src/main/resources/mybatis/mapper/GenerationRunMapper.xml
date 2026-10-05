@@ -62,7 +62,10 @@
               AND a.artifact_type = #{artifactType}
             </when>
             <otherwise>
-              AND a.artifact_type IN ('picklist', 'sku', 'xhs_topiclist', 'xhs_note', 'xhs_break', 'tech_digest')
+              AND a.artifact_type NOT IN
+              <foreach collection="excludedTypes" item="t" open="(" separator="," close=")">
+                #{t}
+              </foreach>
             </otherwise>
           </choose>
           AND a.created_at &gt;= #{since}

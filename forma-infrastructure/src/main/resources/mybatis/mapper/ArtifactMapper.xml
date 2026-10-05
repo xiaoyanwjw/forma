@@ -58,6 +58,12 @@
                 #{t}
             </foreach>
         </if>
+        <if test="excludeTypes != null and excludeTypes.size() &gt; 0">
+            AND artifact_type NOT IN
+            <foreach collection="excludeTypes" item="t" open="(" separator="," close=")">
+                #{t}
+            </foreach>
+        </if>
         <if test="sceneCode != null and sceneCode != ''">
             AND scene_code = #{sceneCode}
         </if>

@@ -29,7 +29,7 @@ import { useChatConsoleExpand } from '@/composables/workspace/useChatConsoleExpa
 import { useWorkspaceFeedback } from '@/composables/workspace/useWorkspaceFeedback'
 import type { GenerationArtifactPayload } from '@/types/business/agent'
 import { parseComputerDocView, type ComputerDocView } from '@/types/business/computerView'
-import { toReplayBubblesFromTurns, type ReplayArtifactKind } from '@/utils/sessionReplay'
+import { toReplayBubblesFromTurns, type ReplayContext } from '@/utils/sessionReplay'
 import type { HistoryArtifactDetail } from '@/types/business/history'
 import type { WorkspaceChatMessage } from '@/types/business/workspaceChat'
 import { getSceneWorkspaceSpec } from '@/views/business/scene/workspace/registry'
@@ -268,6 +268,9 @@ function paneFromArtifactType(artifactType?: string | null): string | null {
 
 function inferPaneFromView(view: ComputerDocView | undefined): string | null {
   if (!view || !spec.value) return null
+  const mapped = Object.values(spec.value.paneByArtifactType || {})
+  const unique = Array.from(new Set(mapped.filter(Boolean)))
+  if (unique.length === 1) return unique[0]
   const title = view.title || ''
   if (spec.value.sceneCode === 'ecommerce') {
     if (/上架|listing/i.test(title)) return 'listing'
@@ -290,17 +293,39 @@ function preferredLivePane(): string | null {
   return null
 }
 
-function asReplayKind(pane: string | null): ReplayArtifactKind | null {
-  if (
-    pane === 'picks' ||
-    pane === 'listing' ||
-    pane === 'topiclist' ||
-    pane === 'note' ||
-    pane === 'break'
-  ) {
-    return pane
+function replayContext(pane: string | null): ReplayContext {
+  const successByPane: Record<string, string> = {}
+  for (const [key, copy] of Object.entries(PANE_COPY)) {
+    successByPane[key] = copy.success
   }
-  return null
+  return {
+    fallbackPane: pane,
+    typeToPane: spec.value?.paneByArtifactType,
+    successByPane,
+  }
+}
+
+function previewPaneFor(m: ChatMessage): string | null {
+  const tagged = (m.previewPane || '').trim()
+  if (tagged && liveByPane.value[tagged]?.view) return tagged
+  return preferredLivePane()
+}
+
+function canPreviewFromStatus(m: ChatMessage): boolean {
+  if (m.failed) return false
+  if (!/已生成/.test(m.text)) return false
+  const pane = previewPaneFor(m)
+  if (pane) return Boolean(liveByPane.value[pane]?.view)
+  return Object.values(liveByPane.value).some((item) => Boolean(item?.view))
+}
+
+function isLatestPreviewableStatus(m: ChatMessage): boolean {
+  if (!canPreviewFromStatus(m)) return false
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    const cur = messages.value[i]
+    if (cur && canPreviewFromStatus(cur)) return cur.id === m.id
+  }
+  return false
 }
 
 function applySoftCreditHint(reason: string): string {
@@ -333,34 +358,8 @@ function closeComputer() {
   activePane.value = null
 }
 
-function previewPaneFromStatus(text: string): string | null {
-  if (/上架素材|主图位/.test(text)) return 'listing'
-  if (/选品/.test(text)) return 'picks'
-  if (/笔记草稿/.test(text)) return 'note'
-  if (/爆文拆解/.test(text)) return 'break'
-  if (/选题/.test(text)) return 'topiclist'
-  return null
-}
-
-function canPreviewFromStatus(m: ChatMessage): boolean {
-  if (m.failed) return false
-  if (!/已生成/.test(m.text)) return false
-  const pane = previewPaneFromStatus(m.text)
-  if (pane) return Boolean(liveByPane.value[pane]?.view)
-  return Object.values(liveByPane.value).some((item) => Boolean(item?.view))
-}
-
-function isLatestPreviewableStatus(m: ChatMessage): boolean {
-  if (!canPreviewFromStatus(m)) return false
-  for (let i = messages.value.length - 1; i >= 0; i--) {
-    const cur = messages.value[i]
-    if (cur && canPreviewFromStatus(cur)) return cur.id === m.id
-  }
-  return false
-}
-
 function isPreviewOpenFromStatus(m: ChatMessage): boolean {
-  const pane = previewPaneFromStatus(m.text) || activePane.value
+  const pane = previewPaneFor(m) || activePane.value
   return Boolean(pane && canPreviewFromStatus(m) && activePane.value === pane)
 }
 
@@ -369,7 +368,7 @@ function onStatusCardClick(m: ChatMessage) {
     if (isPreviewOpenFromStatus(m)) {
       closeComputer()
     } else {
-      const pane = previewPaneFromStatus(m.text) || preferredLivePane()
+      const pane = previewPaneFor(m)
       if (pane) openComputer(pane)
     }
     return
@@ -439,6 +438,8 @@ async function finishGenerationMessage(opts: {
       role: 'agent',
       text: reply,
       processEvents: opts.processSnapshot,
+      presentation: 'console',
+      previewPane: opts.pane,
     })
   } else {
     const empty = emptyText(opts.pane)
@@ -474,6 +475,8 @@ function finishUnresolved(thinkingId: string) {
       role: 'agent',
       text: '已生成结果，右侧 Computer 可查看。',
       processEvents: snapshot,
+      presentation: 'console',
+      previewPane: preferredLivePane() || undefined,
     })
   } else {
     const empty = '处理已结束，但未收到可用成果，请重试。'
@@ -632,9 +635,9 @@ async function oneClickRetry() {
 
 function replayMessagesFromApi(
   turns: SessionTurn[] | null | undefined,
-  artifactKind: ReplayArtifactKind | null,
+  ctx: ReplayContext,
 ): ChatMessage[] {
-  return toReplayBubblesFromTurns(turns, artifactKind).map((bubble) => {
+  return toReplayBubblesFromTurns(turns, ctx).map((bubble) => {
     if (bubble.role === 'user') {
       return { id: nextMsgId(), role: 'user' as const, text: bubble.content, at: bubble.at }
     }
@@ -646,6 +649,7 @@ function replayMessagesFromApi(
         presentation: 'console' as const,
         at: bubble.at,
         processEvents: bubble.processEvents,
+        previewPane: bubble.pane,
       }
     }
     return {
@@ -682,12 +686,13 @@ function synthesizePreviewableStatus(pane: string | null): ChatMessage | null {
     role: 'agent',
     presentation: 'console',
     text: successText(pane, 1),
+    previewPane: pane,
   }
 }
 
 function paintSessionReplay(pane: string | null) {
   sessionReplayPane.value = pane
-  const replayed = replayMessagesFromApi(sessionRawTurns.value, asReplayKind(pane))
+  const replayed = replayMessagesFromApi(sessionRawTurns.value, replayContext(pane))
   lastBilledPane.value = pane
   lastBilledPrompt.value = pane
     ? lastUserPromptFromReplay(replayed, sessionTitle.value || SESSION_TITLE)

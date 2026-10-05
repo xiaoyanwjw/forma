@@ -49,7 +49,8 @@ class FeedbackApplicationServiceTest {
         service = new FeedbackApplicationService(
                 feedbackRepository,
                 artifactRepository,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                () -> java.util.Arrays.asList("chat", "listing_plan"));
     }
 
     @Test
@@ -178,7 +179,7 @@ class FeedbackApplicationServiceTest {
     @Test
     void submitRejectsChatArtifact() {
         when(artifactRepository.findById(ARTIFACT_ID)).thenReturn(Optional.of(
-                Artifact.create(ARTIFACT_ID, USER, "run-c", ArtifactType.CHAT, "ecommerce",
+                Artifact.create(ARTIFACT_ID, USER, "run-c", ArtifactType.fromCode("chat"), "ecommerce",
                         null, "聊", "{}", NOW)));
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
@@ -194,7 +195,7 @@ class FeedbackApplicationServiceTest {
     @Test
     void submitRejectsListingPlanArtifact() {
         when(artifactRepository.findById(ARTIFACT_ID)).thenReturn(Optional.of(
-                Artifact.create(ARTIFACT_ID, USER, "run-p", ArtifactType.LISTING_PLAN, "ecommerce",
+                Artifact.create(ARTIFACT_ID, USER, "run-p", ArtifactType.fromCode("listing_plan"), "ecommerce",
                         null, "策划", "{}", NOW)));
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
@@ -228,7 +229,7 @@ class FeedbackApplicationServiceTest {
 
     private static Artifact ownedPicklist() {
         return Artifact.create(
-                ARTIFACT_ID, USER, "run-1", ArtifactType.PICKLIST, "ecommerce",
+                ARTIFACT_ID, USER, "run-1", ArtifactType.fromCode("picklist"), "ecommerce",
                 null, "选品", "{}", NOW);
     }
 

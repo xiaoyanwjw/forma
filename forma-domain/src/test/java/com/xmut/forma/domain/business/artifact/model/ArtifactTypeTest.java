@@ -3,43 +3,26 @@ package com.xmut.forma.domain.business.artifact.model;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ArtifactTypeTest {
 
     @Test
-    void codes_are_picklist_and_sku() {
-        assertEquals("picklist", ArtifactType.PICKLIST.getCode());
-        assertEquals("sku", ArtifactType.SKU.getCode());
-        assertEquals(ArtifactType.PICKLIST, ArtifactType.fromCode("picklist"));
-        assertEquals(ArtifactType.SKU, ArtifactType.fromCode("SKU"));
+    void fromCode_internsAndNormalizes() {
+        assertEquals("picklist", ArtifactType.fromCode("picklist").getCode());
+        assertSame(ArtifactType.fromCode("picklist"), ArtifactType.fromCode("PICKLIST"));
+        assertEquals("sku", ArtifactType.fromCode("SKU").getCode());
     }
 
     @Test
-    void codes_include_chat() {
-        assertEquals("chat", ArtifactType.CHAT.getCode());
-        assertEquals(ArtifactType.CHAT, ArtifactType.fromCode("chat"));
-    }
-
-    @Test
-    void codes_include_listing_plan() {
-        assertEquals("listing_plan", ArtifactType.LISTING_PLAN.getCode());
-        assertEquals(ArtifactType.LISTING_PLAN, ArtifactType.fromCode("listing_plan"));
-    }
-
-    @Test
-    void codes_include_xhs_types() {
-        assertEquals("xhs_topiclist", ArtifactType.XHS_TOPICLIST.getCode());
-        assertEquals("xhs_note", ArtifactType.XHS_NOTE.getCode());
-        assertEquals("xhs_break", ArtifactType.XHS_BREAK.getCode());
-        assertEquals(ArtifactType.XHS_TOPICLIST, ArtifactType.fromCode("xhs_topiclist"));
-        assertEquals(ArtifactType.XHS_NOTE, ArtifactType.fromCode("XHS_NOTE"));
-        assertEquals(ArtifactType.XHS_BREAK, ArtifactType.fromCode("xhs_break"));
-    }
-
-    @Test
-    void codes_include_tech_digest() {
-        assertEquals("tech_digest", ArtifactType.TECH_DIGEST.getCode());
-        assertEquals(ArtifactType.TECH_DIGEST, ArtifactType.fromCode("tech_digest"));
-        assertEquals(ArtifactType.TECH_DIGEST, ArtifactType.fromCode("TECH_DIGEST"));
+    void onlyChatIsPlatformInternal() {
+        assertFalse(ArtifactType.fromCode("chat").isSessionHistory());
+        assertTrue(ArtifactType.fromCode("listing_plan").isSessionHistory());
+        assertTrue(ArtifactType.fromCode("tech_digest").isSessionHistory());
+        assertEquals(1, ArtifactType.internalCodes().size());
+        assertTrue(ArtifactType.internalCodes().contains("chat"));
+        assertFalse(ArtifactType.internalCodes().contains("listing_plan"));
     }
 }

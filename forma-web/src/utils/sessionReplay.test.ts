@@ -380,10 +380,9 @@ describe('sessionReplay', () => {
     const body = '用户原文'
     const prefix =
       '<reminder>\n' +
-      '本轮交付槽位（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n' +
-      '- view: view.json\n' +
-      '- artifact: artifact.json\n' +
-      '必须由 write_file / render_view 写入。对话不要输出 {"output":...}。\n' +
+      '本轮交付路径（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n' +
+      '- output: view.json\n' +
+      '必须由 render_view 写入。对话不要输出 {"output":...}。\n' +
       '</reminder>\n\n'
     expect(stripTurnReminder(prefix + body)).toBe(body)
     expect(stripTurnReminder('<reminder>\nX\n</reminder>\n' + body)).toBe(body)

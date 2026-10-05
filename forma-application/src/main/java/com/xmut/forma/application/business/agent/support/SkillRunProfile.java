@@ -4,6 +4,8 @@ import com.xmut.forma.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.common.util.StringUtils;
+import com.xmut.forma.pi.agent.skill.Skill;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
 
 /**
  * Per-run policy for the generic Generation pipeline (not Computer protocol).
@@ -82,14 +84,18 @@ public final class SkillRunProfile {
     }
 
     /**
-     * Resolve profile from API flags.
+     * Resolve profile from API flags + Skill 目录（persistAs 来自 SKILL.md）。
      * <ul>
      *   <li>{@code dryRun} → dry probe</li>
      *   <li>blank {@code skillId} → no-skill markdown path</li>
-     *   <li>known billed skill → settle path</li>
+     *   <li>目录中有 {@code persistAs} 的 Skill → settle 路径</li>
      * </ul>
      */
     public static SkillRunProfile resolve(String skillId, boolean dryRun) {
+        return resolve(null, skillId, dryRun);
+    }
+
+    public static SkillRunProfile resolve(SkillCatalog skillCatalog, String skillId, boolean dryRun) {
         if (dryRun) {
             return dry(skillId);
         }
@@ -97,25 +103,18 @@ public final class SkillRunProfile {
             return noSkill();
         }
         String id = skillId.trim();
-        if (SceneCapabilityPackLoader.SKILL_PICKLIST.equals(id)) {
-            return billedPicklist();
+        if (skillCatalog == null) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "暂不支持该 Skill 计费生成: " + id);
         }
-        if (SceneCapabilityPackLoader.SKILL_SKULIST.equals(id)) {
-            return billedListing();
+        Skill skill = skillCatalog.resolve(id).orElse(null);
+        if (skill == null) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "暂不支持该 Skill 计费生成: " + id);
         }
-        if (SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST.equals(id)) {
-            return billedXhsTopiclist();
+        String persistAs = skill.getPersistAs();
+        if (!StringUtils.hasText(persistAs) || PERSIST_NONE.equalsIgnoreCase(persistAs.trim())) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "该 Skill 未配置成果落库类型: " + id);
         }
-        if (SceneCapabilityPackLoader.SKILL_XHS_NOTE.equals(id)) {
-            return billedXhsNote();
-        }
-        if (SceneCapabilityPackLoader.SKILL_XHS_BREAK.equals(id)) {
-            return billedXhsBreak();
-        }
-        if (SceneCapabilityPackLoader.SKILL_TECH_DIGEST.equals(id)) {
-            return billedTechDigest();
-        }
-        throw new BusinessException(ErrorCode.PARAM_INVALID, "暂不支持该 Skill 计费生成: " + id);
+        return new SkillRunProfile(skill.getId(), true, persistAs.trim(), true, false, true);
     }
 
     public String getSkillId() {

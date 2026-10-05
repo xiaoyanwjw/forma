@@ -5,6 +5,7 @@ import com.xmut.forma.application.business.agent.sse.SseEventName;
 import com.xmut.forma.application.business.agent.sse.SseEvent;
 import com.xmut.forma.application.business.computer.ComputerViewResolver;
 import com.xmut.forma.application.business.computer.ViewProjectContext;
+import com.xmut.forma.application.business.agent.workspace.RunWorkspaceService;
 import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.common.logging.LoggerUtils;
@@ -12,8 +13,9 @@ import com.xmut.forma.common.logging.NameValue;
 import com.xmut.forma.common.output.OutputParseContext;
 import com.xmut.forma.common.output.OutputParser;
 import com.xmut.forma.common.output.ParsedGenerationOutput;
+import com.xmut.forma.common.output.TurnAttachment;
+import com.xmut.forma.common.output.TurnAttachmentProvider;
 import com.xmut.forma.common.util.StringUtils;
-import com.xmut.forma.application.business.agent.workspace.RunWorkspaceService;
 import com.xmut.forma.domain.business.agent.model.GenerationRun;
 import com.xmut.forma.domain.business.agent.repository.GenerationRunRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +47,7 @@ public class SkuHitlInterceptor
     private final GenerationRunRepository generationRunRepository;
     private final Clock clock;
     private final RunWorkspaceService runWorkspaceService;
+    private final TurnAttachmentProvider turnAttachmentProvider;
 
     public SkuHitlInterceptor(CreditHoldSupport creditHoldSupport,
                               OutputParser outputParser,
@@ -52,7 +55,8 @@ public class SkuHitlInterceptor
                               ComputerViewResolver computerViewResolver,
                               GenerationRunRepository generationRunRepository,
                               Clock clock,
-                              RunWorkspaceService runWorkspaceService) {
+                              RunWorkspaceService runWorkspaceService,
+                              TurnAttachmentProvider turnAttachmentProvider) {
         this.creditHoldSupport = creditHoldSupport;
         this.outputParser = outputParser;
         this.artifactPersistPlugin = artifactPersistPlugin;
@@ -60,6 +64,7 @@ public class SkuHitlInterceptor
         this.generationRunRepository = generationRunRepository;
         this.clock = clock;
         this.runWorkspaceService = runWorkspaceService;
+        this.turnAttachmentProvider = turnAttachmentProvider;
     }
 
     @Override
@@ -207,17 +212,19 @@ public class SkuHitlInterceptor
     }
 
     /**
-     * 策划 settle 固定 resumeOptionId 为空，让 skulist parser 走 plan 槽。
+     * 策划 settle 钉 plan 槽（resumeOptionId 为空）。
      */
     private ParsedGenerationOutput parsePlanOutput(BilledRunContext ctx) {
         String echo = ctx.getAssistantTextCandidate();
         if (!StringUtils.hasText(echo)) {
             echo = ctx.getTurnFinalResponse();
         }
+        TurnAttachment att = turnAttachmentProvider.of(ctx.getProfile().getSkillId(), null);
         OutputParseContext parseCtx = OutputParseContext.builder()
                 .skillId(ctx.getProfile().getSkillId())
                 .sceneCode(ctx.getRun().getSceneCode())
                 .resumeOptionId(null)
+                .attachment(att)
                 .finalResponse(echo)
                 .workspaceRoot(runDir(ctx))
                 .build();

@@ -1,5 +1,6 @@
 package com.xmut.forma.pi.agent;
 
+import com.xmut.forma.common.output.TurnAttachment;
 import com.xmut.forma.pi.agent.agent.DefaultAgent;
 import com.xmut.forma.pi.agent.tool.ToolDecision;
 import lombok.Builder;
@@ -69,4 +70,40 @@ public class ResumeRequest {
      * 有值时写入 {@code StateKeys.WORKSPACE_ROOT}，覆盖 checkpoint 中缺失或过期的根。
      */
     String workspaceRoot;
+
+    /** 本轮 Skill id；resume 应从 run 带上，供 BEFORE_AGENT_START 查目录。 */
+    String skillId;
+
+    /** HITL 选项 id（如 confirm_execute）；非 HITL 可空。 */
+    String resumeOptionId;
+
+    /** 本轮交付附件；闲聊可空（null 视为 empty）。 */
+    @Builder.Default
+    TurnAttachment attachment = TurnAttachment.empty();
+
+    ResumeRequest(String runId,
+                  String humanInput,
+                  String toolCallId,
+                  String sessionId,
+                  String traceId,
+                  ToolDecision decision,
+                  Boolean approved,
+                  String confirmId,
+                  String workspaceRoot,
+                  String skillId,
+                  String resumeOptionId,
+                  TurnAttachment attachment) {
+        this.runId = runId;
+        this.humanInput = humanInput;
+        this.toolCallId = toolCallId;
+        this.sessionId = sessionId;
+        this.traceId = traceId;
+        this.decision = decision;
+        this.approved = approved;
+        this.confirmId = confirmId;
+        this.workspaceRoot = workspaceRoot;
+        this.skillId = skillId;
+        this.resumeOptionId = resumeOptionId;
+        this.attachment = attachment == null ? TurnAttachment.empty() : attachment;
+    }
 }

@@ -21,5 +21,6 @@ public interface ArtifactMapper {
     List<ArtifactPO> selectByUserSince(@Param("userId") String userId,
                                        @Param("since") Instant since,
                                        @Param("artifactTypes") List<String> artifactTypes,
+                                       @Param("excludeTypes") List<String> excludeTypes,
                                        @Param("sceneCode") String sceneCode);
 }

@@ -33,28 +33,21 @@ public class Skill {
     String sceneCode;
 
     /**
-     * SKILL.md {@code metadata.output.persistAs}；可 null。
+     * SKILL.md {@code metadata.persistAs}；可 null。
      * 有值且非 {@code none} 时，计费生成按该码落成果。
      */
     String persistAs;
 
     /**
-     * SKILL.md {@code metadata.output.hideFromHistory}：中间稿类型码，不进会话历史。
+     * SKILL.md {@code metadata.hideFromHistory}：中间稿类型码，不进会话历史。
      */
     @Builder.Default
     List<String> hideFromHistory = Collections.emptyList();
 
-    /** SKILL.md {@code metadata.output.viewPath}；可 null。 */
-    String viewPath;
-
-    /** SKILL.md {@code metadata.output.artifactPath}；可 null。 */
-    String artifactPath;
-
-    /** SKILL.md {@code metadata.output.planViewPath}；可 null。 */
-    String planViewPath;
-
-    /** SKILL.md {@code metadata.output.planArtifactPath}；可 null。 */
-    String planArtifactPath;
+    /**
+     * SKILL.md {@code metadata.output}：本轮交付相对路径；可 null。
+     */
+    String output;
 
     Skill(String id,
                   String description,
@@ -63,10 +56,7 @@ public class Skill {
                   String sceneCode,
                   String persistAs,
                   List<String> hideFromHistory,
-                  String viewPath,
-                  String artifactPath,
-                  String planViewPath,
-                  String planArtifactPath) {
+                  String output) {
         this.id = id;
         this.description = description;
         this.promptRef = promptRef;
@@ -78,9 +68,6 @@ public class Skill {
         this.hideFromHistory = hideFromHistory == null
                 ? Collections.<String>emptyList()
                 : Collections.unmodifiableList(new ArrayList<>(hideFromHistory));
-        this.viewPath = viewPath;
-        this.artifactPath = artifactPath;
-        this.planViewPath = planViewPath;
-        this.planArtifactPath = planArtifactPath;
+        this.output = output;
     }
 }

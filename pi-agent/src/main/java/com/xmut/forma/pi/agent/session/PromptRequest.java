@@ -1,5 +1,6 @@
 package com.xmut.forma.pi.agent.session;
 
+import com.xmut.forma.common.output.TurnAttachment;
 import com.xmut.forma.pi.ai.message.Message;
 import lombok.Builder;
 import lombok.Value;
@@ -43,6 +44,10 @@ public class PromptRequest {
     /** 本 run 工作区绝对路径；可空。 */
     String workspaceRoot;
 
+    /** 本轮交付附件；闲聊可空（null 视为 empty）。 */
+    @Builder.Default
+    TurnAttachment attachment = TurnAttachment.empty();
+
     PromptRequest(String runId,
                   String text,
                   List<Message> messages,
@@ -51,7 +56,8 @@ public class PromptRequest {
                   String skillId,
                   String domain,
                   String context,
-                  String workspaceRoot) {
+                  String workspaceRoot,
+                  TurnAttachment attachment) {
         this.runId = runId;
         this.text = text;
         this.messages = messages == null
@@ -63,6 +69,7 @@ public class PromptRequest {
         this.domain = domain;
         this.context = context;
         this.workspaceRoot = workspaceRoot;
+        this.attachment = attachment == null ? TurnAttachment.empty() : attachment;
     }
 
 }

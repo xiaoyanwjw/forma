@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 本轮交付槽位提醒。
+ * 本轮交付路径提醒。
  * 功能描述：拼出贴在最后一条 user 前的固定 reminder，把 prefix 钉到最后一条 user，并能从 content 里剥掉它。
  * 关键设计：字节由测试锁死；路径是否能写进提醒由 {@link #slot(String)} 决定。
  */
@@ -21,12 +21,39 @@ public final class TurnReminder {
     private TurnReminder() {
     }
 
-    public static String prefix(String viewPath, String artifactPath) {
+    /**
+     * 可写入提醒 / 读盘的相对路径。空白、含 {@code ..} 或绝对路径返回 null。
+     */
+    public static String slot(String path) {
+        if (!StringUtils.hasText(path)) {
+            return null;
+        }
+        String value = path.trim();
+        if (value.contains("..")) {
+            return null;
+        }
+        char first = value.charAt(0);
+        if (first == '/' || first == '\\') {
+            return null;
+        }
+        if (value.length() >= 2 && value.charAt(1) == ':' && Character.isLetter(value.charAt(0))) {
+            return null;
+        }
+        try {
+            if (Paths.get(value).isAbsolute()) {
+                return null;
+            }
+        } catch (InvalidPathException ex) {
+            return null;
+        }
+        return value;
+    }
+
+    public static String of(String output) {
         return "<reminder>\n"
-                + "本轮交付槽位（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n"
-                + "- view: " + viewPath + "\n"
-                + "- artifact: " + artifactPath + "\n"
-                + "必须由 write_file / render_view 写入。对话不要输出 {\"output\":...}。\n"
+                + "本轮交付路径（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n"
+                + "- output: " + output + "\n"
+                + "必须由 render_view 写入。对话不要输出 {\"output\":...}。\n"
                 + "</reminder>\n\n";
     }
 
@@ -34,7 +61,7 @@ public final class TurnReminder {
      * 从后往前找第一条 user，把 prefix 接到其 content 前。
      * 空白 prefix、没有 user、或该 content trim 后已以 {@code <reminder>} 开头时原样返回。
      */
-    public static List<Message> prefixLastUser(List<Message> messages, String prefix) {
+    public static List<Message> rewriteLastUser(List<Message> messages, String prefix) {
         if (messages == null || messages.isEmpty() || !StringUtils.hasText(prefix)) {
             return messages;
         }
@@ -69,33 +96,5 @@ public final class TurnReminder {
      */
     public static String strip(String content) {
         return TurnReminderSyntax.strip(content);
-    }
-
-    /**
-     * 可写入提醒的相对路径。空白、含 {@code ..} 或绝对路径返回 null。
-     */
-    public static String slot(String path) {
-        if (!StringUtils.hasText(path)) {
-            return null;
-        }
-        String value = path.trim();
-        if (value.contains("..")) {
-            return null;
-        }
-        char first = value.charAt(0);
-        if (first == '/' || first == '\\') {
-            return null;
-        }
-        if (value.length() >= 2 && value.charAt(1) == ':' && Character.isLetter(value.charAt(0))) {
-            return null;
-        }
-        try {
-            if (Paths.get(value).isAbsolute()) {
-                return null;
-            }
-        } catch (InvalidPathException ex) {
-            return null;
-        }
-        return value;
     }
 }

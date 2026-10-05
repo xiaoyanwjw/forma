@@ -2,10 +2,8 @@ package com.xmut.forma.extension.output;
 
 import com.xmut.forma.common.output.OutputParseContext;
 import com.xmut.forma.common.output.ParsedGenerationOutput;
+import com.xmut.forma.common.output.TurnAttachment;
 import com.xmut.forma.extension.config.ViewToolsConfiguration;
-import com.xmut.forma.pi.agent.skill.InMemorySkillCatalog;
-import com.xmut.forma.pi.agent.skill.Skill;
-import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.annotation.Order;
@@ -13,6 +11,8 @@ import org.springframework.core.annotation.Order;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -33,47 +33,37 @@ class WorkspaceOutputParserTest {
     }
 
     @Test
-    void idle_chat_without_view_path_does_not_apply() {
-        WorkspaceOutputParser parser = parser(skill("demo", null, null, null));
+    void idle_chat_without_paths_does_not_apply() {
+        WorkspaceOutputParser parser = new WorkspaceOutputParser();
 
-        assertFalse(parser.appliesTo(ctx("demo", root)));
-        assertFalse(parser.appliesTo(ctx(null, root)));
-        assertFalse(parser.appliesTo(ctx("  ", root)));
+        assertFalse(parser.appliesTo(ctx(null)));
         assertFalse(parser.appliesTo(null));
     }
 
     @Test
-    void missing_artifact_path_does_not_apply() {
-        WorkspaceOutputParser parser = parser(skill("demo", "view.json", null, null));
-
-        assertFalse(parser.appliesTo(ctx("demo", root)));
-    }
-
-    @Test
-    void plan_view_path_does_not_apply() {
-        WorkspaceOutputParser parser = parser(
-                skill("ecommerce-skulist", "exec/view.json", "exec/artifact.json", "plan/view.json"));
-
-        assertFalse(parser.appliesTo(ctx("ecommerce-skulist", root)));
-    }
-
-    @Test
     void declared_slots_apply_even_when_files_are_missing() {
-        WorkspaceOutputParser parser = parser(skill("demo", "view.json", "artifact.json", null));
+        WorkspaceOutputParser parser = new WorkspaceOutputParser();
 
-        assertTrue(parser.appliesTo(ctx("demo", root)));
+        assertTrue(parser.appliesTo(ctx("view.json")));
+        assertTrue(parser.appliesTo(ctx("plan/view.json")));
     }
 
     @Test
-    void view_json_and_artifact_json_success() throws Exception {
-        Files.write(root.resolve("artifact.json"),
-                "{\"title\":\"选题\",\"items\":[{\"id\":\"tp-1\"}]}".getBytes(StandardCharsets.UTF_8));
+    void unsafe_paths_do_not_apply() {
+        WorkspaceOutputParser parser = new WorkspaceOutputParser();
+
+        assertFalse(parser.appliesTo(ctx("../view.json")));
+        assertFalse(parser.appliesTo(ctx("/tmp/view.json")));
+    }
+
+    @Test
+    void output_json_success() throws Exception {
         Files.write(root.resolve("view.json"),
                 "{\"version\":2,\"title\":\"选题\",\"format\":\"html\",\"content\":\"<p>x</p>\"}"
                         .getBytes(StandardCharsets.UTF_8));
         WorkspaceOutputReader reader = new WorkspaceOutputReader();
 
-        ParsedGenerationOutput out = reader.read(root, "view.json", "artifact.json");
+        ParsedGenerationOutput out = reader.read(root, "view.json");
 
         assertEquals(2, ((Number) out.getRawView().get("version")).intValue());
         assertEquals("html", out.getRawView().get("format"));
@@ -81,16 +71,22 @@ class WorkspaceOutputParserTest {
     }
 
     @Test
-    void missing_sibling_artifact_throws() throws Exception {
+    void sibling_artifact_is_business_payload() throws Exception {
         Files.write(root.resolve("view.json"),
-                "{\"version\":2,\"title\":\"选题\",\"format\":\"html\",\"content\":\"<p>x</p>\"}"
+                "{\"version\":2,\"title\":\"页面标题\",\"format\":\"html\",\"content\":\"<p>x</p>\"}"
+                        .getBytes(StandardCharsets.UTF_8));
+        Files.write(root.resolve("artifact.json"),
+                ("{\"title\":\"摘要标题\",\"source\":\"fetch\",\"excerpts\":"
+                        + "[{\"heading\":\"h\",\"quotes\":[\"q\"]}]}")
                         .getBytes(StandardCharsets.UTF_8));
         WorkspaceOutputReader reader = new WorkspaceOutputReader();
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> reader.read(root, "view.json", "artifact.json"));
+        ParsedGenerationOutput out = reader.read(root, "view.json");
 
-        assertEquals("output file missing: artifact.json", ex.getMessage());
+        assertEquals("html", out.getRawView().get("format"));
+        assertEquals("摘要标题", out.getBusinessPayload().get("title"));
+        assertEquals("fetch", out.getBusinessPayload().get("source"));
+        assertTrue(out.getBusinessPayload().get("excerpts") instanceof java.util.List);
     }
 
     @Test
@@ -98,7 +94,7 @@ class WorkspaceOutputParserTest {
         WorkspaceOutputReader reader = new WorkspaceOutputReader();
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> reader.read(root, "view.json", "artifact.json"));
+                () -> reader.read(root, "view.json"));
 
         assertEquals("output file missing: view.json", ex.getMessage());
     }
@@ -106,11 +102,10 @@ class WorkspaceOutputParserTest {
     @Test
     void empty_view_file_throws() throws Exception {
         Files.write(root.resolve("view.json"), new byte[0]);
-        Files.write(root.resolve("artifact.json"), "{}".getBytes(StandardCharsets.UTF_8));
         WorkspaceOutputReader reader = new WorkspaceOutputReader();
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> reader.read(root, "view.json", "artifact.json"));
+                () -> reader.read(root, "view.json"));
 
         assertEquals("output file missing: view.json", ex.getMessage());
     }
@@ -120,33 +115,32 @@ class WorkspaceOutputParserTest {
         WorkspaceOutputReader reader = new WorkspaceOutputReader();
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> reader.read(root, "../view.json", "artifact.json"));
+                () -> reader.read(root, "../view.json"));
 
         assertTrue(ex.getMessage().contains("path escapes"));
     }
 
     @Test
     void declared_paths_missing_on_disk_do_not_fall_through() {
-        WorkspaceOutputParser parser = parser(skill("demo", "view.json", "artifact.json", null));
+        WorkspaceOutputParser parser = new WorkspaceOutputParser();
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> parser.parse(ctx("demo", root)));
+                () -> parser.parse(ctx("view.json")));
 
         assertEquals("output file missing: view.json", ex.getMessage());
     }
 
     @Test
-    void parser_reads_catalog_paths() throws Exception {
+    void parser_reads_context_paths() throws Exception {
         Files.createDirectories(root.resolve("out"));
         Files.write(root.resolve("out/view.json"),
                 "{\"version\":1,\"title\":\"from-disk\",\"status\":\"ready\",\"blocks\":[]}"
                         .getBytes(StandardCharsets.UTF_8));
-        Files.write(root.resolve("out/artifact.json"),
-                "{\"title\":\"from-disk\"}".getBytes(StandardCharsets.UTF_8));
-        WorkspaceOutputParser parser = parser(skill("demo", "out/view.json", "out/artifact.json", null));
+        WorkspaceOutputParser parser = new WorkspaceOutputParser();
 
         ParsedGenerationOutput out = parser.parse(OutputParseContext.builder()
                 .skillId("demo")
+                .attachment(attachmentOf("out/view.json"))
                 .finalResponse("{\"output\":\"ignored.json\",\"view\":{\"title\":\"from-text\"}}")
                 .workspaceRoot(root)
                 .build());
@@ -157,34 +151,23 @@ class WorkspaceOutputParserTest {
 
     @Test
     void configuration_registers_parser() {
-        WorkspaceOutputParser bean = new ViewToolsConfiguration()
-                .workspaceOutputParser(new InMemorySkillCatalog());
-
-        assertNotNull(bean);
+        assertNotNull(new ViewToolsConfiguration().workspaceOutputParser());
     }
 
-    private static WorkspaceOutputParser parser(Skill skill) {
-        InMemorySkillCatalog catalog = new InMemorySkillCatalog();
-        catalog.registerBootstrap(skill);
-        return new WorkspaceOutputParser(catalog);
-    }
-
-    private static Skill skill(String id, String view, String artifact, String planView) {
-        return Skill.builder()
-                .id(id)
-                .description(id)
-                .promptRef("classpath:" + id + ".md")
-                .viewPath(view)
-                .artifactPath(artifact)
-                .planViewPath(planView)
-                .build();
-    }
-
-    private static OutputParseContext ctx(String skillId, Path workspace) {
+    private OutputParseContext ctx(String output) {
         return OutputParseContext.builder()
-                .skillId(skillId)
-                .workspaceRoot(workspace)
+                .skillId("demo")
+                .attachment(attachmentOf(output))
+                .workspaceRoot(root)
                 .finalResponse("hello")
                 .build();
+    }
+
+    private static TurnAttachment attachmentOf(String output) {
+        Map<String, Object> raw = new HashMap<String, Object>();
+        if (output != null) {
+            raw.put(TurnDeliverableKeys.OUTPUT, output);
+        }
+        return TurnAttachment.of(raw);
     }
 }

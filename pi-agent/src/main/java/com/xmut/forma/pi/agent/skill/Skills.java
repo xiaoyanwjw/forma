@@ -53,10 +53,7 @@ public final class Skills {
                 .sceneCode(sceneCodeFromPath)
                 .persistAs(persistAs)
                 .hideFromHistory(hideFromHistory)
-                .viewPath(readFrontmatterValue(text, "viewPath"))
-                .artifactPath(readFrontmatterValue(text, "artifactPath"))
-                .planViewPath(readFrontmatterValue(text, "planViewPath"))
-                .planArtifactPath(readFrontmatterValue(text, "planArtifactPath"))
+                .output(readFrontmatterValue(text, "output"))
                 .build();
     }
 
@@ -137,7 +134,7 @@ public final class Skills {
     }
 
     /**
-     * 读 frontmatter 任意缩进的 {@code key:}（如 {@code metadata.output.persistAs}）。
+     * 读 frontmatter 任意缩进的 {@code key:}（如 {@code metadata.persistAs}）。
      */
     static String readFrontmatterValue(String text, String key) {
         if (!StringUtils.hasText(text) || !StringUtils.hasText(key)) {
@@ -164,10 +161,13 @@ public final class Skills {
                 continue;
             }
             String value = trimmed.substring(prefix.length()).trim();
+            if (!StringUtils.hasText(value)) {
+                continue;
+            }
             if (isYamlBlockScalarIndicator(value)) {
                 return null;
             }
-            return StringUtils.hasText(value) ? unquote(value) : null;
+            return unquote(value);
         }
         return null;
     }
@@ -198,7 +198,7 @@ public final class Skills {
                 i++;
                 continue;
             }
-            // 嵌套字段（如 metadata.output）跳过，只收顶层 key
+            // 嵌套字段（如 metadata）跳过，只收顶层 key
             if (rawLine.startsWith(" ") || rawLine.startsWith("\t")) {
                 i++;
                 continue;

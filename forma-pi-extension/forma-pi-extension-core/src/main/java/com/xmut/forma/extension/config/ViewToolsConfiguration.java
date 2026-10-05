@@ -1,5 +1,7 @@
 package com.xmut.forma.extension.config;
 
+import com.xmut.forma.common.output.TurnAttachmentProvider;
+import com.xmut.forma.extension.output.CatalogTurnAttachmentProvider;
 import com.xmut.forma.extension.output.TurnReminderExtension;
 import com.xmut.forma.extension.output.WorkspaceOutputParser;
 import com.xmut.forma.extension.tool.view.CatalogSkillTemplateLoader;
@@ -9,6 +11,7 @@ import com.xmut.forma.extension.tool.view.SkillTemplateLoader;
 import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ResourceLoader;
 
 /**
@@ -35,12 +38,18 @@ public class ViewToolsConfiguration {
     }
 
     @Bean
-    public TurnReminderExtension turnReminderExtension(SkillCatalog skillCatalog) {
-        return new TurnReminderExtension(skillCatalog);
+    @Primary
+    public TurnAttachmentProvider turnAttachmentProvider(SkillCatalog skillCatalog) {
+        return new CatalogTurnAttachmentProvider(skillCatalog);
     }
 
     @Bean
-    public WorkspaceOutputParser workspaceOutputParser(SkillCatalog skillCatalog) {
-        return new WorkspaceOutputParser(skillCatalog);
+    public TurnReminderExtension turnReminderExtension() {
+        return new TurnReminderExtension();
+    }
+
+    @Bean
+    public WorkspaceOutputParser workspaceOutputParser() {
+        return new WorkspaceOutputParser();
     }
 }

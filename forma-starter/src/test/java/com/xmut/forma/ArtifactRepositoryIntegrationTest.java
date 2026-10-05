@@ -47,13 +47,13 @@ class ArtifactRepositoryIntegrationTest {
         String runId = UUID.randomUUID().toString();
         String payload = "{\"disclaimer\":\"基于通用知识推断，非实时平台数据\",\"items\":[]}";
         Artifact artifact = Artifact.create(
-                id, "user-1", runId, ArtifactType.PICKLIST, "ecommerce",
+                id, "user-1", runId, ArtifactType.fromCode("picklist"), "ecommerce",
                 "domestic-generic-default", "选品清单", payload, now);
         artifactRepository.save(artifact);
 
         Optional<Artifact> loaded = artifactRepository.findById(id);
         assertTrue(loaded.isPresent());
-        assertEquals(ArtifactType.PICKLIST, loaded.get().getType());
+        assertEquals(ArtifactType.fromCode("picklist"), loaded.get().getType());
         assertEquals("ecommerce", loaded.get().getSceneCode());
         assertEquals(payload, loaded.get().getPayloadJson());
         assertEquals(id, artifactRepository.findByRunId(runId).get().getId());
@@ -64,27 +64,48 @@ class ArtifactRepositoryIntegrationTest {
         Instant now = Instant.parse("2026-09-28T12:00:00Z");
         artifactRepository.save(Artifact.create(
                 UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
-                ArtifactType.PICKLIST, "ecommerce", null, "近", "{}", now.minus(1, ChronoUnit.DAYS)));
+                ArtifactType.fromCode("picklist"), "ecommerce", null, "近", "{}", now.minus(1, ChronoUnit.DAYS)));
         artifactRepository.save(Artifact.create(
                 UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
-                ArtifactType.SKU, "ecommerce", null, "sku", "{}", now.minus(2, ChronoUnit.DAYS)));
+                ArtifactType.fromCode("sku"), "ecommerce", null, "sku", "{}", now.minus(2, ChronoUnit.DAYS)));
         artifactRepository.save(Artifact.create(
                 UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
-                ArtifactType.CHAT, "ecommerce", null, "chat", "{}", now.minus(1, ChronoUnit.HOURS)));
+                ArtifactType.fromCode("chat"), "ecommerce", null, "chat", "{}", now.minus(1, ChronoUnit.HOURS)));
         artifactRepository.save(Artifact.create(
                 UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
-                ArtifactType.PICKLIST, "ecommerce", null, "旧", "{}", now.minus(70, ChronoUnit.DAYS)));
+                ArtifactType.fromCode("picklist"), "ecommerce", null, "旧", "{}", now.minus(70, ChronoUnit.DAYS)));
         artifactRepository.save(Artifact.create(
                 UUID.randomUUID().toString(), "user-2", UUID.randomUUID().toString(),
-                ArtifactType.PICKLIST, "ecommerce", null, "他人", "{}", now));
+                ArtifactType.fromCode("picklist"), "ecommerce", null, "他人", "{}", now));
 
         List<Artifact> rows = artifactRepository.listByUserSince(
                 "user-1",
                 now.minus(60, ChronoUnit.DAYS),
-                Arrays.asList(ArtifactType.PICKLIST, ArtifactType.SKU),
+                Arrays.asList(ArtifactType.fromCode("picklist"), ArtifactType.fromCode("sku")),
                 "ecommerce");
         assertEquals(2, rows.size());
         assertEquals("近", rows.get(0).getTitle());
         assertEquals("sku", rows.get(1).getTitle());
+    }
+
+    @Test
+    void listByUserSinceNullTypesExcludesInternalAndKeepsOpenCodes() {
+        Instant now = Instant.parse("2026-09-28T12:00:00Z");
+        artifactRepository.save(Artifact.create(
+                UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
+                ArtifactType.fromCode("future_digest"), "future", null, "开类型", "{}",
+                now.minus(1, ChronoUnit.DAYS)));
+        artifactRepository.save(Artifact.create(
+                UUID.randomUUID().toString(), "user-1", UUID.randomUUID().toString(),
+                ArtifactType.fromCode("chat"), "future", null, "chat", "{}", now.minus(1, ChronoUnit.HOURS)));
+
+        List<Artifact> rows = artifactRepository.listByUserSince(
+                "user-1",
+                now.minus(60, ChronoUnit.DAYS),
+                null,
+                null);
+        assertEquals(1, rows.size());
+        assertEquals("future_digest", rows.get(0).getType().getCode());
+        assertEquals("开类型", rows.get(0).getTitle());
     }
 }

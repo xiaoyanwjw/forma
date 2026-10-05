@@ -64,7 +64,7 @@ class ArtifactPersistPluginTest {
         assertNotNull(out.getArtifactRef());
         ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
         verify(artifactRepository).save(cap.capture());
-        assertEquals(ArtifactType.CHAT, cap.getValue().getType());
+        assertEquals(ArtifactType.fromCode("chat"), cap.getValue().getType());
         Map<?, ?> payload = objectMapper.readValue(cap.getValue().getPayloadJson(), Map.class);
         assertTrue(payload.containsKey("view"));
         assertEquals("草稿", ((Map<?, ?>) payload.get("data")).get("text"));
@@ -83,7 +83,7 @@ class ArtifactPersistPluginTest {
                 listViewMap(), usableSkuPayload());
         ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
         verify(artifactRepository).save(cap.capture());
-        assertEquals(ArtifactType.SKU, cap.getValue().getType());
+        assertEquals(ArtifactType.fromCode("sku"), cap.getValue().getType());
     }
 
     @Test
@@ -153,7 +153,7 @@ class ArtifactPersistPluginTest {
         assertNotNull(out.getArtifactRef());
         ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
         verify(artifactRepository).save(cap.capture());
-        assertEquals(ArtifactType.XHS_TOPICLIST, cap.getValue().getType());
+        assertEquals(ArtifactType.fromCode("xhs_topiclist"), cap.getValue().getType());
     }
 
     @Test
@@ -177,6 +177,17 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
+    void persist_openPersistAs_mapsWithoutAllowlist() {
+        PersistedGenerationArtifact out = plugin.persist(
+                "u1", "r1", "future", "future_digest",
+                listViewMap(), Collections.singletonMap("ok", true));
+        ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
+        verify(artifactRepository).save(cap.capture());
+        assertEquals("future_digest", cap.getValue().getType().getCode());
+        assertNotNull(out.getArtifactRef());
+    }
+
+    @Test
     void persist_techDigest_mapsType() {
         PersistedGenerationArtifact out = plugin.persist(
                 "u1", "r1", "tech_digest", SkillRunProfile.PERSIST_TECH_DIGEST,
@@ -184,7 +195,7 @@ class ArtifactPersistPluginTest {
         assertNotNull(out.getArtifactRef());
         ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
         verify(artifactRepository).save(cap.capture());
-        assertEquals(ArtifactType.TECH_DIGEST, cap.getValue().getType());
+        assertEquals(ArtifactType.fromCode("tech_digest"), cap.getValue().getType());
     }
 
     @Test
@@ -205,13 +216,13 @@ class ArtifactPersistPluginTest {
         assertNotNull(out.getArtifactRef());
         ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
         verify(artifactRepository).save(cap.capture());
-        assertEquals(ArtifactType.LISTING_PLAN, cap.getValue().getType());
+        assertEquals(ArtifactType.fromCode("listing_plan"), cap.getValue().getType());
     }
 
     @Test
     void persist_sameRun_listingPlanThenSku_updatesExistingRow() {
         Artifact existing = Artifact.create(
-                "art-plan-1", "u1", "r1", ArtifactType.LISTING_PLAN, "ecommerce",
+                "art-plan-1", "u1", "r1", ArtifactType.fromCode("listing_plan"), "ecommerce",
                 null, "策划分镜", "{\"view\":{},\"data\":{}}", NOW);
         when(artifactRepository.findByRunId("r1")).thenReturn(Optional.of(existing));
 
@@ -222,7 +233,7 @@ class ArtifactPersistPluginTest {
         verify(artifactRepository, never()).save(any(Artifact.class));
         ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
         verify(artifactRepository).update(cap.capture());
-        assertEquals(ArtifactType.SKU, cap.getValue().getType());
+        assertEquals(ArtifactType.fromCode("sku"), cap.getValue().getType());
         assertEquals("art-plan-1", cap.getValue().getId());
     }
 

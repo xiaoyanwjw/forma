@@ -52,7 +52,7 @@ public class ArtifactPersistPlugin {
     }
 
     /**
-     * @param persistAs {@link SkillRunProfile#getPersistAs()}; none → {@link ArtifactType#CHAT}
+     * @param persistAs {@link SkillRunProfile#getPersistAs()}; none → chat
      */
     public PersistedGenerationArtifact persist(String userId,
                                                String runId,
@@ -64,13 +64,14 @@ public class ArtifactPersistPlugin {
         Map<String, Object> data = businessPayload != null
                 ? businessPayload
                 : Collections.<String, Object>emptyMap();
-        if (type == ArtifactType.LISTING_PLAN) {
+        String code = type.getCode();
+        if (SkillRunProfile.PERSIST_LISTING_PLAN.equals(code)) {
             requireUsableSkuPlanPayload(data);
-        } else if (type == ArtifactType.SKU) {
+        } else if (SkillRunProfile.PERSIST_SKU.equals(code)) {
             requireUsableSkuPayload(data);
-        } else if (isXhsType(type)) {
+        } else if (isXhsType(code)) {
             requireUsableXhsPayload(projectedView, data);
-        } else if (isTechDigestType(type)) {
+        } else if (SkillRunProfile.PERSIST_TECH_DIGEST.equals(code)) {
             requireUsableTechDigestPayload(projectedView, data);
         }
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
@@ -101,47 +102,22 @@ public class ArtifactPersistPlugin {
     }
 
     static ArtifactType resolveType(String persistAs) {
-        if (SkillRunProfile.PERSIST_NONE.equals(persistAs)) {
-            return ArtifactType.CHAT;
+        if (!StringUtils.hasText(persistAs) || SkillRunProfile.PERSIST_NONE.equals(persistAs.trim())) {
+            return ArtifactType.fromCode(ArtifactType.CODE_CHAT);
         }
-        if (SkillRunProfile.PERSIST_PICKLIST.equals(persistAs)) {
-            return ArtifactType.PICKLIST;
-        }
-        if (SkillRunProfile.PERSIST_SKU.equals(persistAs)) {
-            return ArtifactType.SKU;
-        }
-        if (SkillRunProfile.PERSIST_LISTING_PLAN.equals(persistAs)) {
-            return ArtifactType.LISTING_PLAN;
-        }
-        if (SkillRunProfile.PERSIST_XHS_TOPICLIST.equals(persistAs)) {
-            return ArtifactType.XHS_TOPICLIST;
-        }
-        if (SkillRunProfile.PERSIST_XHS_NOTE.equals(persistAs)) {
-            return ArtifactType.XHS_NOTE;
-        }
-        if (SkillRunProfile.PERSIST_XHS_BREAK.equals(persistAs)) {
-            return ArtifactType.XHS_BREAK;
-        }
-        if (SkillRunProfile.PERSIST_TECH_DIGEST.equals(persistAs)) {
-            return ArtifactType.TECH_DIGEST;
-        }
-        throw new BusinessException(ErrorCode.PARAM_INVALID, "未支持的成果类型: " + persistAs);
+        return ArtifactType.fromCode(persistAs);
     }
 
-    private static boolean isXhsType(ArtifactType type) {
-        return type == ArtifactType.XHS_TOPICLIST
-                || type == ArtifactType.XHS_NOTE
-                || type == ArtifactType.XHS_BREAK;
+    private static boolean isXhsType(String code) {
+        return SkillRunProfile.PERSIST_XHS_TOPICLIST.equals(code)
+                || SkillRunProfile.PERSIST_XHS_NOTE.equals(code)
+                || SkillRunProfile.PERSIST_XHS_BREAK.equals(code);
     }
 
     static void requireUsableXhsPayload(Map<String, Object> view, Map<String, Object> data) {
         if (view == null || view.isEmpty() || data == null || data.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_XHS_UNUSABLE);
         }
-    }
-
-    private static boolean isTechDigestType(ArtifactType type) {
-        return type == ArtifactType.TECH_DIGEST;
     }
 
     /**

@@ -242,10 +242,9 @@ class SessionQueryServiceTest {
     @Test
     void listStripsReminderBeforeUsingUserTextAsTitle() {
         String prefix = "<reminder>\n"
-                + "本轮交付槽位（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n"
-                + "- view: view.json\n"
-                + "- artifact: artifact.json\n"
-                + "必须由 write_file / render_view 写入。对话不要输出 {\"output\":...}。\n"
+                + "本轮交付路径（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n"
+                + "- output: view.json\n"
+                + "必须由 render_view 写入。对话不要输出 {\"output\":...}。\n"
                 + "</reminder>\n\n";
         String body = repeat('啊', 45);
         when(piSessionQueryRepository.selectByUserSince(eq(USER), any(Instant.class), eq("ecommerce"), eq(50)))

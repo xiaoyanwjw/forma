@@ -143,13 +143,13 @@ public final class DefaultAgent implements Agent {
         input.put(StateKeys.SYSTEM_PROMPT, in.format());
 
         // prepare messages / sessionId：user 链改写后再丢掉 system role
-        List<Message> formatted = UserPromptInput.builder()
+        List<Message> messages = UserPromptInput.builder()
                 .messages(turnInput.getMessages())
                 .apply(modifier)
                 .build()
                 .format();
         List<Message> history = new ArrayList<>();
-        for (Message m : formatted) {
+        for (Message m : messages) {
             if (m == null) {
                 continue;
             }

@@ -31,9 +31,13 @@ public final class DefaultAgentSession implements AgentSession {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultAgentSession.class);
 
-    /** append 幂等键后缀：HITL 挂起阶段。 */
+    /**
+     * append 幂等键后缀：HITL 挂起阶段。
+     */
     static final String APPEND_KEY_SUSPEND = ":suspend";
-    /** append 幂等键后缀：HITL resume 完成阶段。 */
+    /**
+     * append 幂等键后缀：HITL resume 完成阶段。
+     */
     static final String APPEND_KEY_RESUME = ":resume";
 
     private final Agent agent;
@@ -68,9 +72,7 @@ public final class DefaultAgentSession implements AgentSession {
      */
     @Override
     public TurnResult prompt(PromptRequest request) {
-        if (request == null) {
-            return onAgentEnd(TurnResult.failed(null, "PromptRequest required"));
-        }
+
         // 1. 解析 sessionId / runId（空则建会话；缺 runId 发 UUID）
         String sessionId = request.getSessionId();
         String runId = getRunId(request);
@@ -103,6 +105,8 @@ public final class DefaultAgentSession implements AgentSession {
                     .workspaceRoot(request.getWorkspaceRoot())
                     .userText(expanded.text)
                     .pageContext(context)
+                    .resumeOptionId(null)
+                    .attachment(request.getAttachment())
                     .build());
         } catch (Exception ex) {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "before_agent_start failed")));
@@ -154,7 +158,9 @@ public final class DefaultAgentSession implements AgentSession {
         return onAgentEnd(result);
     }
 
-    /** COMMAND 扩展：有人返回 TurnResult 则吞掉本轮；异常/无人处理 → null 继续主路径。 */
+    /**
+     * COMMAND 扩展：有人返回 TurnResult 则吞掉本轮；异常/无人处理 → null 继续主路径。
+     */
     private TurnResult command(PromptRequest request) {
         try {
             return eventBus.emit(PiEvent.of(PiEventType.COMMAND, request), TurnResult.class);
@@ -163,23 +169,28 @@ public final class DefaultAgentSession implements AgentSession {
         }
     }
 
-    /** 跑模型前的上下文改写钩子；emit 失败降级为空 modifier，不阻断主路径。 */
+    /**
+     * 跑模型前的上下文改写钩子；emit 失败降级为空 modifier，不阻断主路径。
+     */
     private ContextModifier beforeAgentStart(BeforeAgentStartEvent event) {
-        String runId = event != null ? event.getRunId() : null;
-        String text = event != null ? event.getUserText() : null;
-        String context = event != null ? event.getPageContext() : null;
+        Objects.requireNonNull(event, "event");
+
+        String runId = event.getRunId();
+        String text = event.getUserText();
+        String context = event.getPageContext();
+
         try {
-            ContextModifier result = eventBus.emit(
-                    PiEvent.of(PiEventType.BEFORE_AGENT_START, event),
-                    ContextModifier.class);
-            return result != null ? result : ContextModifier.empty();
+            ContextModifier result = eventBus.emit(PiEvent.of(PiEventType.BEFORE_AGENT_START, event), ContextModifier.class);
+            return Optional.ofNullable(result).orElse(ContextModifier.empty());
         } catch (RuntimeException e) {
             log.warn("before_agent_start failed for runId={} text={} context={}: {}", runId, text, context, e.toString());
             return ContextModifier.empty();
         }
     }
 
-    /** 通知订阅方「模型回合开始」；emit 失败只打日志。 */
+    /**
+     * 通知订阅方「模型回合开始」；emit 失败只打日志。
+     */
     private void onAgentStart(String sessionId) {
         try {
             eventBus.emit(PiEvent.of(PiEventType.AGENT_START, sessionId));
@@ -237,10 +248,12 @@ public final class DefaultAgentSession implements AgentSession {
             if (StringUtils.hasText(human)) {
                 ContextModifier modifier = beforeAgentStart(BeforeAgentStartEvent.builder()
                         .runId(runId)
-                        .skillId(null)
+                        .skillId(request.getSkillId())
                         .workspaceRoot(request.getWorkspaceRoot())
                         .userText(human)
                         .pageContext(null)
+                        .resumeOptionId(request.getResumeOptionId())
+                        .attachment(request.getAttachment())
                         .build());
                 List<Message> formatted = UserPromptInput.builder()
                         .messages(Collections.singletonList(Message.user(human)))

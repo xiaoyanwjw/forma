@@ -11,14 +11,14 @@ import java.util.List;
  */
 public final class DefaultUserModifier implements UserModifier {
 
-    private final String prefix;
+    private final String modifiedString;
 
-    public DefaultUserModifier(String prefix) {
-        this.prefix = prefix;
+    public DefaultUserModifier(String modifiedString) {
+        this.modifiedString = modifiedString;
     }
 
     @Override
     public List<Message> apply(List<Message> messages) {
-        return TurnReminder.prefixLastUser(messages, prefix);
+        return TurnReminder.rewriteLastUser(messages, modifiedString);
     }
 }

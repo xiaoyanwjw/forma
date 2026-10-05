@@ -29,6 +29,8 @@ import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
 import com.xmut.forma.common.output.OutputParseContext;
 import com.xmut.forma.common.output.ParsedGenerationOutput;
+import com.xmut.forma.common.output.TurnAttachment;
+import com.xmut.forma.common.output.TurnAttachmentProvider;
 import com.xmut.forma.common.util.ObjectUtils;
 import com.xmut.forma.common.util.StringUtils;
 import com.xmut.forma.domain.business.agent.constant.GenerationRunStatus;
@@ -42,6 +44,7 @@ import com.xmut.forma.domain.business.scene.repository.SceneRepository;
 import com.xmut.forma.pi.agent.ResumeRequest;
 import com.xmut.forma.pi.agent.event.PiEvent;
 import com.xmut.forma.pi.agent.graph.checkpoint.Checkpointer;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import com.xmut.forma.pi.agent.session.AgentSession;
 import com.xmut.forma.pi.agent.session.PromptRequest;
 import com.xmut.forma.pi.agent.session.TurnResult;
@@ -99,6 +102,7 @@ public class AgentApplicationService {
     private final PiSessionSceneRepository piSessionSceneRepository;
     private final SceneRepository sceneRepository;
     private final SceneCapabilityPackLoader sceneCapabilityPackLoader;
+    private final SkillCatalog skillCatalog;
     private final AgentSession agentSession;
     private final OutputParserComposite outputParserComposite;
     private final ArtifactPersistPlugin artifactPersistPlugin;
@@ -109,6 +113,7 @@ public class AgentApplicationService {
     private final Checkpointer checkpointer;
     private final Clock clock;
     private final RunWorkspaceService runWorkspaceService;
+    private final TurnAttachmentProvider turnAttachmentProvider;
 
     /**
      * 首跑同步门闩：场景绑定 + 预占 + 落 GenerationRun；随后由 Controller 开 SSE 调 {@link #streamGenerationRun}。
@@ -117,7 +122,7 @@ public class AgentApplicationService {
     public GenerationRunContext prepareGenerationRun(StartGenerationRunCommand command) {
         ObjectUtils.requireNonNull(command, "生成命令不能为空");
         String userId = StringUtils.requireHasText(command.getUserId(), "用户 ID 不能为空");
-        SkillRunProfile profile = SkillRunProfile.resolve(command.getSkillId(), command.isDryRun());
+        SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, command.getSkillId(), command.isDryRun());
         String promptText;
         if (profile.isRequireUserText()) {
             promptText = StringUtils.requireHasText(command.getText(), MSG_PROMPT_REQUIRED).trim();
@@ -389,8 +394,8 @@ public class AgentApplicationService {
             });
 
             // 5. 调用 AgentSession.prompt
-            Path runDir = ensureRunWorkspace(context.getSessionId(), context.getRunId());
-            TurnResult result = agentSession.prompt(promptRequest(context, profile, runDir));
+            Path runWorkspace = ensureRunWorkspace(context.getSessionId(), context.getRunId());
+            TurnResult result = agentSession.prompt(promptRequest(context, profile, runWorkspace));
 
             loggingAgentUsage(context, result);
 
@@ -424,7 +429,7 @@ public class AgentApplicationService {
                 emit(sink, SseEvent.of(SseEventName.MESSAGE_DELTA, delta));
             }
 
-            ParsedGenerationOutput parsed = parseFinalOutput(context, runContext, finalResponse, runDir);
+            ParsedGenerationOutput parsed = parseFinalOutput(context, runContext, finalResponse, runWorkspace);
             Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                     .skillBound(profile.isSkillBound())
                     .finalResponse(finalResponse)
@@ -487,7 +492,7 @@ public class AgentApplicationService {
     }
 
     private GenerationRunContext rebuildContextFromRun(GenerationRun run) {
-        SkillRunProfile profile = SkillRunProfile.resolve(run.getSkillId(), false);
+        SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, run.getSkillId(), false);
         GenerationRunContext context = new GenerationRunContext(
                 run.getId(),
                 run.getUserId(),
@@ -568,14 +573,18 @@ public class AgentApplicationService {
             });
 
             // 5. 确保同 run 工作区仍在，再调用 AgentSession.resume
-            Path runDir = ensureRunWorkspace(context.getSessionId(), context.getRunId());
+            Path runWorkspace = ensureRunWorkspace(context.getSessionId(), context.getRunId());
+            TurnAttachment att = turnAttachmentProvider.of(profile.getSkillId(), optionId);
             TurnResult result = agentSession.resume(ResumeRequest.builder()
                     .runId(runId)
                     .sessionId(context.getSessionId())
                     .toolCallId(toolCallId)
                     .humanInput(humanInput)
                     .confirmId(command.getConfirmId())
-                    .workspaceRoot(runDir.toAbsolutePath().toString())
+                    .workspaceRoot(runWorkspace.toAbsolutePath().toString())
+                    .skillId(profile.getSkillId())
+                    .resumeOptionId(optionId)
+                    .attachment(att)
                     .build());
 
             loggingAgentUsage(context, result);
@@ -609,7 +618,7 @@ public class AgentApplicationService {
                 delta.put("text", finalResponse);
                 emit(sink, SseEvent.of(SseEventName.MESSAGE_DELTA, delta));
             }
-            ParsedGenerationOutput parsed = parseFinalOutput(context, runContext, finalResponse, runDir);
+            ParsedGenerationOutput parsed = parseFinalOutput(context, runContext, finalResponse, runWorkspace);
             Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                     .skillBound(profile.isSkillBound())
                     .finalResponse(finalResponse)
@@ -791,13 +800,15 @@ public class AgentApplicationService {
         }
     }
 
-    private static PromptRequest promptRequest(GenerationRunContext context, SkillRunProfile profile, Path runDir) {
+    private PromptRequest promptRequest(GenerationRunContext context, SkillRunProfile profile, Path runWorkspace) {
+        TurnAttachment att = turnAttachmentProvider.of(profile.getSkillId(), null);
         return PromptRequest.builder()
                 .runId(context.getRunId())
                 .sessionId(context.getSessionId())
                 .text(context.getPromptText())
                 .skillId(profile.getSkillId())
-                .workspaceRoot(runDir.toAbsolutePath().toString())
+                .workspaceRoot(runWorkspace.toAbsolutePath().toString())
+                .attachment(att)
                 .build();
     }
 
@@ -806,10 +817,13 @@ public class AgentApplicationService {
                                                     String finalResponse,
                                                     Path runDir) {
         try {
+            TurnAttachment att = turnAttachmentProvider.of(
+                    context.getProfile().getSkillId(), runContext.getResumeOptionId());
             OutputParseContext ctx = OutputParseContext.builder()
                     .skillId(context.getProfile().getSkillId())
                     .sceneCode(context.getSceneCode())
                     .resumeOptionId(runContext.getResumeOptionId())
+                    .attachment(att)
                     .finalResponse(finalResponse)
                     .workspaceRoot(runDir)
                     .build();

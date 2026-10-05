@@ -10,7 +10,7 @@ class TurnReminderSyntaxTest {
     @Test
     void strip_removes_leading_reminder_and_at_most_two_newlines() {
         String body = "用户原文";
-        assertEquals(body, TurnReminderSyntax.strip(prefix("view.json", "artifact.json") + body));
+        assertEquals(body, TurnReminderSyntax.strip(prefix("view.json") + body));
         assertEquals(body, TurnReminderSyntax.strip("<reminder>\nX\n</reminder>\n" + body));
         assertEquals(body, TurnReminderSyntax.strip("<reminder>\nX\n</reminder>" + body));
     }
@@ -52,12 +52,11 @@ class TurnReminderSyntaxTest {
         assertEquals("   ", TurnReminderSyntax.strip("   "));
     }
 
-    private static String prefix(String viewPath, String artifactPath) {
+    private static String prefix(String output) {
         return "<reminder>\n"
-                + "本轮交付槽位（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n"
-                + "- view: " + viewPath + "\n"
-                + "- artifact: " + artifactPath + "\n"
-                + "必须由 write_file / render_view 写入。对话不要输出 {\"output\":...}。\n"
+                + "本轮交付路径（相对本轮工作区；禁止改名；禁止复用上一轮路径）：\n"
+                + "- output: " + output + "\n"
+                + "必须由 render_view 写入。对话不要输出 {\"output\":...}。\n"
                 + "</reminder>\n\n";
     }
 }

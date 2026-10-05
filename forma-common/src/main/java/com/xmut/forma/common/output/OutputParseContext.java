@@ -19,4 +19,21 @@ public class OutputParseContext {
     String resumeOptionId;
     String finalResponse;
     Path workspaceRoot;
+    /** 本轮交付附件；闲聊可空（null 视为 empty）。 */
+    @Builder.Default
+    TurnAttachment attachment = TurnAttachment.empty();
+
+    public OutputParseContext(String skillId,
+                              String sceneCode,
+                              String resumeOptionId,
+                              String finalResponse,
+                              Path workspaceRoot,
+                              TurnAttachment attachment) {
+        this.skillId = skillId;
+        this.sceneCode = sceneCode;
+        this.resumeOptionId = resumeOptionId;
+        this.finalResponse = finalResponse;
+        this.workspaceRoot = workspaceRoot;
+        this.attachment = attachment == null ? TurnAttachment.empty() : attachment;
+    }
 }

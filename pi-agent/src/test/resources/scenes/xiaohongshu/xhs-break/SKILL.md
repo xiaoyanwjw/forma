@@ -5,12 +5,10 @@ description: >-
   在用户提到拆解爆文、仿写结构、按爆文改写成自己的商品时使用。
 allowed-tools: read_skill fetch_xhs_note write_file read_file render_view
 metadata:
-  output:
-    billing: true
-    persistAs: xhs_break
-    requiresView: true
-    viewPath: view.json
-    artifactPath: artifact.json
+  billing: true
+  persistAs: xhs_break
+  requiresView: true
+  output: view.json
 ---
 
 # 爆文拆解
@@ -38,7 +36,7 @@ metadata:
 
 5. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`，模板 `template/view.mustache`）。模板文末含「按骨架写笔记」手递按钮；`handoffPrompt` 由工具注入，合同见 [output.md §手递](references/output.md#手递按钮与-prompt-合同)。勿手写 HTML `view.content`。
 
-6. **交付路径与成功标准。** 本轮 view / artifact 相对路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **view** 与 **artifact** 两文件。不要在对话里输出 `{"output":...}` 或粘贴整包 JSON。
+6. **交付路径与成功标准。** 本轮交付路径以 user 消息开头的 `<reminder>` 为准（禁止改名、禁止复用上一轮路径）。**成功** = 盘上已有 reminder 中的 **output**（通常 `view.json`）。不要在对话里输出 `{"output":...}` 或粘贴整包 JSON。
 
 7. **过 Verification。** 全部勾上再结束本轮；任一不满足 → Fail 或改盘后重跑 `render_view`。
 
@@ -64,7 +62,7 @@ metadata:
 
 ## Output
 
-成功终态：**盘上** reminder 指定的 **view** + **artifact** 两文件（通常 `view.json` + `artifact.json`）。完整字段与示例 → [output.md](references/output.md)。
+成功终态：**盘上** reminder 指定的 **output**（通常 `view.json`）。完整字段与示例 → [output.md](references/output.md)。
 
 速记：
 
@@ -82,7 +80,7 @@ metadata:
 - [ ] `source=apify` 时 `sourceTitle` / `sourceBody` 来自工具，未编造
 - [ ] `source=paste` 时正文来自用户粘贴，未用假链冒充拉取成功
 - [ ] 已写 `artifact.json`，且已成功调用 **`render_view`** 写出 **`view.json`**
-- [ ] `<reminder>` 中的 view / artifact 两路径均已写盘；**未**输出 `{"output":...}`
+- [ ] `<reminder>` 中的 output 已写盘；**未**输出 `{"output":...}`
 - [ ] `structure` / `skeleton` / `rewrite` 均非空，且拆解可对照原文
 - [ ] `view.version` = **`2`**；`view.format` = **`html`**；`view.content` 上为拆解要点、下为骨架+改写
 - [ ] 文末含手递按钮：标签「按骨架写笔记」，`data-forma-skill-id="xhs-note"`，`data-forma-prompt` 符合 output 合同

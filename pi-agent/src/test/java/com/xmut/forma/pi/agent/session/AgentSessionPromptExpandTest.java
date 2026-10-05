@@ -1,5 +1,6 @@
 package com.xmut.forma.pi.agent.session;
 
+import com.xmut.forma.common.output.TurnAttachment;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.ConversationResult;
 import com.xmut.forma.pi.agent.ResumeRequest;
@@ -40,7 +41,9 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -331,13 +334,18 @@ class AgentSessionPromptExpandTest {
         List<PiEvent> events = new ArrayList<PiEvent>();
         session.subscribe(events::add);
 
-        session.prompt(PromptRequest.builder()
+        Map<String, Object> plan = new HashMap<String, Object>();
+        plan.put("viewPath", "plan/view.json");
+        plan.put("artifactPath", "plan/artifact.json");
+        PromptRequest request = PromptRequest.builder()
                 .sessionId("s-rem")
                 .text("原文")
                 .context("PAGE")
                 .skillId("ecommerce-skulist")
                 .workspaceRoot("/tmp/ws")
-                .build());
+                .attachment(TurnAttachment.of(plan))
+                .build();
+        session.prompt(request);
 
         ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
         verify(conversationLoop).run(cap.capture(), any());
@@ -348,6 +356,7 @@ class AgentSessionPromptExpandTest {
         assertThat(seen.get().getWorkspaceRoot()).isEqualTo("/tmp/ws");
         assertThat(seen.get().getUserText()).isEqualTo("原文");
         assertThat(seen.get().getPageContext()).isEqualTo("PAGE");
+        assertThat(seen.get().getAttachment()).isEqualTo(request.getAttachment());
 
         List<Message> stored = sessionStore.load("s-rem");
         assertThat(stored.get(0).getContent()).isEqualTo("kept");
@@ -383,18 +392,28 @@ class AgentSessionPromptExpandTest {
         List<PiEvent> events = new ArrayList<PiEvent>();
         session.subscribe(events::add);
 
-        session.resume(ResumeRequest.builder()
+        Map<String, Object> exec = new HashMap<String, Object>();
+        exec.put("viewPath", "exec/view.json");
+        exec.put("artifactPath", "exec/artifact.json");
+        ResumeRequest request = ResumeRequest.builder()
                 .runId("r-res")
                 .sessionId("s-res")
                 .workspaceRoot("/tmp/ws")
+                .skillId("ecommerce-skulist")
+                .resumeOptionId("confirm_execute")
+                .attachment(TurnAttachment.of(exec))
                 .humanInput("confirm_execute go")
                 .decision(com.xmut.forma.pi.agent.tool.ToolDecision.APPROVE)
-                .build());
+                .build();
+        session.resume(request);
 
         ArgumentCaptor<ResumeRequest> cap = ArgumentCaptor.forClass(ResumeRequest.class);
         verify(conversationLoop).resume(cap.capture(), any());
         assertThat(cap.getValue().getHumanInput()).isEqualTo(prefix + "confirm_execute go");
-        assertThat(seen.get().getSkillId()).isNull();
+        assertThat(seen.get().getSkillId()).isEqualTo("ecommerce-skulist");
+        assertThat(seen.get().getResumeOptionId()).isEqualTo("confirm_execute");
+        assertThat(seen.get().getAttachment()).isEqualTo(request.getAttachment());
+        assertThat(seen.get().getAttachment().get("viewPath")).isEqualTo("exec/view.json");
         assertThat(seen.get().getWorkspaceRoot()).isEqualTo("/tmp/ws");
         assertThat(seen.get().getUserText()).isEqualTo("confirm_execute go");
         assertThat(seen.get().getPageContext()).isNull();
