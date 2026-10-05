@@ -2,7 +2,6 @@ package com.xmut.forma.pi.agent.event;
 
 import com.xmut.forma.pi.agent.extension.BeforeAgentStartEvent;
 import com.xmut.forma.pi.agent.extension.ContextModifier;
-import com.xmut.forma.pi.agent.extension.ModelRequestModifier;
 import com.xmut.forma.pi.agent.extension.UserModifier;
 import com.xmut.forma.pi.ai.tool.ToolResult;
 import org.junit.jupiter.api.Test;
@@ -242,34 +241,6 @@ class DefaultPiEventBusTest {
                 ContextModifier.class);
         assertThat(r.getAppend()).isNull();
         assertThat(r.getUser()).isNull();
-    }
-
-    @Test
-    void before_model_request_skips_null_then_takes_first_non_null() {
-        PiEventBus bus = new DefaultPiEventBus();
-        bus.register(PiEventType.BEFORE_MODEL_REQUEST, e -> null);
-        bus.register(PiEventType.BEFORE_MODEL_REQUEST, e -> new ModelRequestModifier("second"));
-        ModelRequestModifier r = bus.emit(
-                PiEvent.of(PiEventType.BEFORE_MODEL_REQUEST),
-                ModelRequestModifier.class);
-        assertThat(r).isNotNull();
-        assertThat(r.getLastUserPrefix()).isEqualTo("second");
-    }
-
-    @Test
-    void before_model_request_stops_after_first_non_null() {
-        PiEventBus bus = new DefaultPiEventBus();
-        AtomicInteger later = new AtomicInteger();
-        bus.register(PiEventType.BEFORE_MODEL_REQUEST, e -> new ModelRequestModifier("first"));
-        bus.register(PiEventType.BEFORE_MODEL_REQUEST, e -> {
-            later.incrementAndGet();
-            return new ModelRequestModifier("second");
-        });
-        ModelRequestModifier r = bus.emit(
-                PiEvent.of(PiEventType.BEFORE_MODEL_REQUEST),
-                ModelRequestModifier.class);
-        assertThat(r.getLastUserPrefix()).isEqualTo("first");
-        assertThat(later.get()).isZero();
     }
 
     @Test

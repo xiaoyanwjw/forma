@@ -364,7 +364,6 @@ class AgentSessionPromptExpandTest {
         List<Message> second = cap.getValue().getMessages();
         assertThat(firstUser(second).getContent()).isEqualTo("原文");
         assertThat(lastUser(second).getContent()).isEqualTo("下一句");
-        assertThat(events).extracting(PiEvent::getType).doesNotContain(PiEventType.BEFORE_MODEL_REQUEST);
     }
 
     @Test
@@ -401,7 +400,6 @@ class AgentSessionPromptExpandTest {
         assertThat(seen.get().getPageContext()).isNull();
         assertThat(sessionStore.load("s-res")).extracting(Message::getContent).containsExactly("historical");
         assertThat(events).extracting(PiEvent::getType).contains(PiEventType.BEFORE_AGENT_START);
-        assertThat(events).extracting(PiEvent::getType).doesNotContain(PiEventType.BEFORE_MODEL_REQUEST);
     }
 
     private static UserModifier prefixLastUser(final String prefix) {

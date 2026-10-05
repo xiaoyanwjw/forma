@@ -3,7 +3,7 @@ package com.xmut.forma.pi.agent.event;
 /**
  * 生命周期事件类型枚举。
  * 功能描述：定义经 PiEventBus 发出的事件名。
- * 关键设计：仅 COMMAND / BEFORE_AGENT_START / BEFORE_TOOL_CALL / AFTER_TOOL_CALL / BEFORE_MODEL_REQUEST 可 on 归约。
+ * 关键设计：仅 COMMAND / BEFORE_AGENT_START / BEFORE_TOOL_CALL / AFTER_TOOL_CALL 可 on 归约。
  */
 public enum PiEventType {
     AGENT_START,
@@ -20,6 +20,5 @@ public enum PiEventType {
     COMMAND,
     BEFORE_AGENT_START,
     BEFORE_TOOL_CALL,
-    AFTER_TOOL_CALL,
-    BEFORE_MODEL_REQUEST
+    AFTER_TOOL_CALL
 }
