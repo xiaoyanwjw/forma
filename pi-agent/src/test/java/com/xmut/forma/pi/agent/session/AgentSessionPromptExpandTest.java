@@ -3,11 +3,12 @@ package com.xmut.forma.pi.agent.session;
 import com.xmut.forma.pi.agent.TurnInput;
 import com.xmut.forma.pi.agent.ConversationResult;
 import com.xmut.forma.pi.agent.ResumeRequest;
-import com.xmut.forma.pi.agent.extension.BeforeModelRequestEvent;
-import com.xmut.forma.pi.agent.extension.ContextModifier;
+import com.xmut.forma.pi.agent.event.PiEvent;
+import com.xmut.forma.pi.agent.event.PiEventType;
+import com.xmut.forma.pi.agent.extension.BeforeAgentStartEvent;
 import com.xmut.forma.pi.agent.extension.ExtensionRunner;
-import com.xmut.forma.pi.agent.extension.ModelRequestModifier;
 import com.xmut.forma.pi.agent.extension.PiExtension;
+import com.xmut.forma.pi.agent.extension.UserModifier;
 import com.xmut.forma.pi.agent.extension.SlashCommand;
 import com.xmut.forma.pi.agent.extension.ToolPolicyExtension;
 import com.xmut.forma.pi.agent.graph.checkpoint.InMemoryCheckpointer;
@@ -36,6 +37,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -310,12 +312,12 @@ class AgentSessionPromptExpandTest {
     }
 
     @Test
-    void before_model_request_prefixes_last_user_and_does_not_restack_on_next_prompt() {
-        String prefix = "<reminder>\nX\n</reminder>\n\n";
-        AtomicReference<BeforeModelRequestEvent> seen = new AtomicReference<BeforeModelRequestEvent>();
-        PiExtension ext = bus -> bus.register(com.xmut.forma.pi.agent.event.PiEventType.BEFORE_MODEL_REQUEST, e -> {
-            seen.set((BeforeModelRequestEvent) e.getPayload());
-            return new ModelRequestModifier(prefix);
+    void before_agent_start_leaves_turn_messages_unprefixed_and_skips_before_model_request() {
+        String prefix = "R\n";
+        AtomicReference<BeforeAgentStartEvent> seen = new AtomicReference<BeforeAgentStartEvent>();
+        PiExtension ext = bus -> bus.register(PiEventType.BEFORE_AGENT_START, (mod, e) -> {
+            seen.set((BeforeAgentStartEvent) e.getPayload());
+            mod.setUser(prefixLastUser(prefix));
         });
         when(conversationLoop.run(any(TurnInput.class), any())).thenAnswer(invocation -> {
             TurnInput in = invocation.getArgument(0);
@@ -326,10 +328,13 @@ class AgentSessionPromptExpandTest {
         sessionStore.append("s-rem", "seed",
                 Collections.singletonList(Message.assistant("kept", Collections.emptyList())));
         DefaultAgentSession session = sessionWith(runner(ext), testLoader());
+        List<PiEvent> events = new ArrayList<PiEvent>();
+        session.subscribe(events::add);
 
         session.prompt(PromptRequest.builder()
                 .sessionId("s-rem")
                 .text("原文")
+                .context("PAGE")
                 .skillId("ecommerce-skulist")
                 .workspaceRoot("/tmp/ws")
                 .build());
@@ -337,18 +342,17 @@ class AgentSessionPromptExpandTest {
         ArgumentCaptor<TurnInput> cap = ArgumentCaptor.forClass(TurnInput.class);
         verify(conversationLoop).run(cap.capture(), any());
         List<Message> sent = cap.getValue().getMessages();
-        Message lastUser = lastUser(sent);
-        assertThat(lastUser.getContent()).startsWith(prefix);
-        assertThat(lastUser.getContent()).contains("原文");
-        assertThat(lastUser.getContent()).isEqualTo(prefix + "原文");
+        assertThat(lastUser(sent).getContent()).isEqualTo("原文");
         assertThat(sent.get(0).getContent()).isEqualTo("kept");
         assertThat(seen.get().getSkillId()).isEqualTo("ecommerce-skulist");
         assertThat(seen.get().getWorkspaceRoot()).isEqualTo("/tmp/ws");
-        assertThat(seen.get().getThisTurnText()).isEqualTo("原文");
+        assertThat(seen.get().getUserText()).isEqualTo("原文");
+        assertThat(seen.get().getPageContext()).isEqualTo("PAGE");
 
         List<Message> stored = sessionStore.load("s-rem");
         assertThat(stored.get(0).getContent()).isEqualTo("kept");
-        assertThat(stored).extracting(Message::getContent).contains(prefix + "原文");
+        assertThat(stored).extracting(Message::getContent).contains("原文");
+        assertThat(stored).extracting(Message::getContent).doesNotContain(prefix + "原文");
 
         session.prompt(PromptRequest.builder()
                 .sessionId("s-rem")
@@ -358,18 +362,18 @@ class AgentSessionPromptExpandTest {
 
         verify(conversationLoop, times(2)).run(cap.capture(), any());
         List<Message> second = cap.getValue().getMessages();
-        assertThat(firstUser(second).getContent()).isEqualTo(prefix + "原文");
-        assertThat(firstUser(second).getContent()).doesNotContain(prefix + prefix);
-        assertThat(lastUser(second).getContent()).isEqualTo(prefix + "下一句");
+        assertThat(firstUser(second).getContent()).isEqualTo("原文");
+        assertThat(lastUser(second).getContent()).isEqualTo("下一句");
+        assertThat(events).extracting(PiEvent::getType).doesNotContain(PiEventType.BEFORE_MODEL_REQUEST);
     }
 
     @Test
-    void resume_prefixes_human_input_and_leaves_stored_history() {
-        String prefix = "<reminder>\nX\n</reminder>\n\n";
-        AtomicReference<BeforeModelRequestEvent> seen = new AtomicReference<BeforeModelRequestEvent>();
-        PiExtension ext = bus -> bus.register(com.xmut.forma.pi.agent.event.PiEventType.BEFORE_MODEL_REQUEST, e -> {
-            seen.set((BeforeModelRequestEvent) e.getPayload());
-            return new ModelRequestModifier(prefix);
+    void resume_rewrites_human_input_via_user_prompt_and_leaves_stored_history() {
+        String prefix = "R\n";
+        AtomicReference<BeforeAgentStartEvent> seen = new AtomicReference<BeforeAgentStartEvent>();
+        PiExtension ext = bus -> bus.register(PiEventType.BEFORE_AGENT_START, (mod, e) -> {
+            seen.set((BeforeAgentStartEvent) e.getPayload());
+            mod.setUser(prefixLastUser(prefix));
         });
         List<Message> history = Collections.singletonList(Message.user("historical"));
         sessionStore.getOrCreate(Session.Meta.builder().sessionId("s-res").source("api").build());
@@ -377,6 +381,8 @@ class AgentSessionPromptExpandTest {
         when(conversationLoop.resume(any(ResumeRequest.class), any()))
                 .thenReturn(ConversationResult.ok("r-res", "ok", history));
         DefaultAgentSession session = sessionWith(runner(ext), testLoader());
+        List<PiEvent> events = new ArrayList<PiEvent>();
+        session.subscribe(events::add);
 
         session.resume(ResumeRequest.builder()
                 .runId("r-res")
@@ -390,8 +396,32 @@ class AgentSessionPromptExpandTest {
         verify(conversationLoop).resume(cap.capture(), any());
         assertThat(cap.getValue().getHumanInput()).isEqualTo(prefix + "confirm_execute go");
         assertThat(seen.get().getSkillId()).isNull();
-        assertThat(seen.get().getThisTurnText()).isEqualTo("confirm_execute go");
+        assertThat(seen.get().getWorkspaceRoot()).isEqualTo("/tmp/ws");
+        assertThat(seen.get().getUserText()).isEqualTo("confirm_execute go");
+        assertThat(seen.get().getPageContext()).isNull();
         assertThat(sessionStore.load("s-res")).extracting(Message::getContent).containsExactly("historical");
+        assertThat(events).extracting(PiEvent::getType).contains(PiEventType.BEFORE_AGENT_START);
+        assertThat(events).extracting(PiEvent::getType).doesNotContain(PiEventType.BEFORE_MODEL_REQUEST);
+    }
+
+    private static UserModifier prefixLastUser(final String prefix) {
+        return new UserModifier() {
+            @Override
+            public List<Message> apply(List<Message> messages) {
+                if (messages == null || messages.isEmpty()) {
+                    return messages;
+                }
+                for (int i = messages.size() - 1; i >= 0; i--) {
+                    Message message = messages.get(i);
+                    if (message != null && "user".equalsIgnoreCase(message.getRole())) {
+                        List<Message> out = new ArrayList<Message>(messages);
+                        out.set(i, Message.user(prefix + message.getContent()));
+                        return out;
+                    }
+                }
+                return messages;
+            }
+        };
     }
 
     private static Message firstUser(List<Message> messages) {

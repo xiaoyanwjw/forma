@@ -8,10 +8,9 @@ import com.xmut.forma.pi.agent.event.PiEvent;
 import com.xmut.forma.pi.agent.event.PiEventBus;
 import com.xmut.forma.pi.agent.event.PiEventType;
 import com.xmut.forma.pi.agent.extension.BeforeAgentStartEvent;
-import com.xmut.forma.pi.agent.extension.BeforeModelRequestEvent;
 import com.xmut.forma.pi.agent.extension.ContextModifier;
-import com.xmut.forma.pi.agent.extension.ModelRequestModifier;
 import com.xmut.forma.pi.agent.agent.Agent;
+import com.xmut.forma.pi.agent.agent.UserPromptInput;
 import com.xmut.forma.pi.ai.message.Message;
 import com.xmut.forma.pi.agent.resource.PiResourceLoader;
 import com.xmut.forma.pi.agent.resource.SlashExpansion;
@@ -95,17 +94,19 @@ public final class DefaultAgentSession implements AgentSession {
         List<Message> user = Session.resolveThisTurnUser(request, expanded.text);
         List<Message> messages = Session.merge(existing, user);
 
-        // 4. before_agent_start：可改写 system/上下文；抛错则本轮失败
+        // 4. before_agent_start：只挂 ContextModifier；user 改写留到 prepare
         ContextModifier overwrite;
         try {
-            overwrite = beforeAgentStart(runId, expanded.text, context);
+            overwrite = beforeAgentStart(BeforeAgentStartEvent.builder()
+                    .runId(runId)
+                    .skillId(request.getSkillId())
+                    .workspaceRoot(request.getWorkspaceRoot())
+                    .userText(expanded.text)
+                    .pageContext(context)
+                    .build());
         } catch (Exception ex) {
             return onAgentEnd(TurnResult.failed(runId, messageOr(ex, "before_agent_start failed")));
         }
-
-        List<Message> forModel = beforeModelRequest(
-                runId, request.getSkillId(), request.getWorkspaceRoot(), expanded.text, messages);
-        messages = forModel;
 
         final TurnInput input = TurnInput.builder()
                 .sessionId(sessionId)
@@ -163,37 +164,18 @@ public final class DefaultAgentSession implements AgentSession {
     }
 
     /** 跑模型前的上下文改写钩子；emit 失败降级为空 modifier，不阻断主路径。 */
-    private ContextModifier beforeAgentStart(String runId, String text, String context) {
+    private ContextModifier beforeAgentStart(BeforeAgentStartEvent event) {
+        String runId = event != null ? event.getRunId() : null;
+        String text = event != null ? event.getUserText() : null;
+        String context = event != null ? event.getPageContext() : null;
         try {
-            final PiEvent piEvent = PiEvent.of(PiEventType.BEFORE_AGENT_START, BeforeAgentStartEvent.builder()
-                    .runId(runId)
-                    .userText(text)
-                    .pageContext(context)
-                    .build());
-            ContextModifier result = eventBus.emit(piEvent, ContextModifier.class);
-
+            ContextModifier result = eventBus.emit(
+                    PiEvent.of(PiEventType.BEFORE_AGENT_START, event),
+                    ContextModifier.class);
             return result != null ? result : ContextModifier.empty();
         } catch (RuntimeException e) {
             log.warn("before_agent_start failed for runId={} text={} context={}: {}", runId, text, context, e.toString());
             return ContextModifier.empty();
-        }
-    }
-
-    /**
-     * 进模型前改最后一条 user。extension 返回 null 则原样。
-     * 异常只打日志，不阻断本轮。
-     */
-    private List<Message> beforeModelRequest(String runId, String skillId, String workspaceRoot,
-            String thisTurnText, List<Message> messages) {
-        try {
-            ModelRequestModifier mod = eventBus.emit(
-                    PiEvent.of(PiEventType.BEFORE_MODEL_REQUEST,
-                            new BeforeModelRequestEvent(runId, skillId, workspaceRoot, thisTurnText, messages)),
-                    ModelRequestModifier.class);
-            return (mod == null ? ModelRequestModifier.empty() : mod).apply(messages);
-        } catch (RuntimeException e) {
-            log.warn("before_model_request failed runId={}: {}", runId, e.toString());
-            return messages;
         }
     }
 
@@ -253,9 +235,21 @@ public final class DefaultAgentSession implements AgentSession {
 
             String human = request.getHumanInput();
             if (StringUtils.hasText(human)) {
-                List<Message> one = Collections.singletonList(Message.user(human));
-                one = beforeModelRequest(runId, null, request.getWorkspaceRoot(), human, one);
-                request = request.toBuilder().humanInput(one.get(0).getContent()).build();
+                ContextModifier modifier = beforeAgentStart(BeforeAgentStartEvent.builder()
+                        .runId(runId)
+                        .skillId(null)
+                        .workspaceRoot(request.getWorkspaceRoot())
+                        .userText(human)
+                        .pageContext(null)
+                        .build());
+                List<Message> formatted = UserPromptInput.builder()
+                        .messages(Collections.singletonList(Message.user(human)))
+                        .apply(modifier)
+                        .build()
+                        .format();
+                if (!formatted.isEmpty() && formatted.get(0) != null) {
+                    request = request.toBuilder().humanInput(formatted.get(0).getContent()).build();
+                }
             }
 
             // 3. 调用 Agent.resume
