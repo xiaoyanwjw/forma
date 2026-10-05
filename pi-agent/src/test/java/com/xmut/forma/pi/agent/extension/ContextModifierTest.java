@@ -54,4 +54,38 @@ class ContextModifierTest {
         SystemPromptInput applied = base.apply(ContextModifier.empty());
         assertThat(applied.formatStable()).isEqualTo(base.formatStable());
     }
+
+    @Test
+    void appendVariable_factory_sets_append_variable() {
+        ContextModifier modifier = ContextModifier.appendVariable("VOL-1");
+        assertThat(modifier.getAppend()).isNotNull();
+        assertThat(modifier.getAppend().getVariable()).isEqualTo("VOL-1");
+    }
+
+    @Test
+    void system_append_merges_variable_with_double_newline() {
+        ContextModifier modifier = ContextModifier.empty();
+        modifier.getSystem().append("S1", null, "V1");
+        modifier.getSystem().append(null, null, "V2");
+        assertThat(modifier.getAppend().getVariable()).isEqualTo("V1\n\nV2");
+    }
+
+    @Test
+    void getOverwrite_and_getAppend_delegate_to_system() {
+        ContextModifier modifier = ContextModifier.empty();
+        modifier.getSystem().overwrite("OW-S", null, null);
+        modifier.getSystem().append(null, "AP-C", null);
+        assertThat(modifier.getOverwrite().getStable()).isEqualTo("OW-S");
+        assertThat(modifier.getAppend().getContext()).isEqualTo("AP-C");
+    }
+
+    @Test
+    void setUser_first_wins() {
+        ContextModifier modifier = ContextModifier.empty();
+        UserModifier first = messages -> messages;
+        UserModifier second = messages -> messages;
+        modifier.setUser(first);
+        modifier.setUser(second);
+        assertThat(modifier.getUser()).isSameAs(first);
+    }
 }
