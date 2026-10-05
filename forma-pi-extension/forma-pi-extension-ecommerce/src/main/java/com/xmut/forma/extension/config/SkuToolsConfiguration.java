@@ -2,8 +2,8 @@ package com.xmut.forma.extension.config;
 
 import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
+import com.xmut.forma.extension.ecommerce.EcommerceSkuTurnReminderExtension;
 import com.xmut.forma.extension.ecommerce.SkulistOutputParser;
-import com.xmut.forma.extension.ecommerce.SkulistTurnReminderExtension;
 import com.xmut.forma.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.forma.extension.tool.sku.client.ApifyTaobaoSkuSearchClient;
 import com.xmut.forma.extension.tool.sku.client.FallbackSkuSearchClient;
@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registers SKU search Handler and Port/Searcher, plus the skulist turn-slot reminder.
+ * Registers SKU search Handler and Port/Searcher, plus the ecommerce sku turn-slot reminder.
  * Schema comes from {@code tools/sku/*.tool.json}.
  */
 @Configuration
@@ -78,8 +78,8 @@ public class SkuToolsConfiguration {
     }
 
     @Bean
-    public SkulistTurnReminderExtension skulistTurnReminderExtension(SkillCatalog skillCatalog) {
-        return new SkulistTurnReminderExtension(skillCatalog);
+    public EcommerceSkuTurnReminderExtension ecommerceSkuTurnReminderExtension(SkillCatalog skillCatalog) {
+        return new EcommerceSkuTurnReminderExtension(skillCatalog);
     }
 
     @Bean
