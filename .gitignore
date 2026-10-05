@@ -43,6 +43,7 @@ _bmad/
 docs/
 .agents/
 .claude/
+.artifacts/plan/
 
 # Local editor history
 .history/
