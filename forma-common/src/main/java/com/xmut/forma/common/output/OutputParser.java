@@ -7,7 +7,7 @@ package com.xmut.forma.common.output;
  */
 public interface OutputParser {
 
-    boolean appliesTo(OutputParseContext ctx);
+    boolean supports(OutputParseContext ctx);
 
     ParsedGenerationOutput parse(OutputParseContext ctx);
 }

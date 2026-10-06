@@ -59,7 +59,6 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -67,8 +66,8 @@ import java.util.function.Consumer;
 /**
  * Agent 运行时应用服务：预占积分、驱动 {@link AgentSession}、经 AD-4 SSE 回传事件并结算。
  *
- * <p>入口分两条：首跑 {@link #prepareGenerationRun} + {@link #streamGenerationRun}；
- * 续跑 {@link #prepareResumeGenerationRun} + {@link #resumeBilledRun}。
+ * <p>入口分两条：首跑 {@link #prepareGenerationRun} + {@link #streamBilledRun}；
+ * 续跑 {@link #prepareResumeRun} + {@link #resumeBilledRun}。
  * 业务差异经 Interceptor / Listener / SuspendedHandler 扩展，勿在计费主路径写 profile 分支。
  * 空跑只 reserve+release，永不 settle；计费须绑定 AVAILABLE 场景（AD-15）。
  */
@@ -92,7 +91,6 @@ public class AgentApplicationService {
     static final String MSG_SCENE_REQUIRED = "请先选择场景";
     static final String MSG_SCENE_NOT_FOUND = "场景不存在";
     static final String MSG_SCENE_NOT_OPEN = "该场景尚未开放";
-    static final String MSG_SCENE_MISMATCH = "场景编号与场景码不一致";
     static final String MSG_SESSION_SCENE_MISMATCH = "当前会话已绑定其他场景";
     static final String MSG_PROMPT_REQUIRED = "请先输入内容";
 
@@ -115,31 +113,27 @@ public class AgentApplicationService {
     private final RunAttachProvider runAttachProvider;
 
     /**
-     * 首跑同步门闩：场景绑定 + 预占 + 落 GenerationRun；随后由 Controller 开 SSE 调 {@link #streamGenerationRun}。
+     * 首跑同步门闩：场景绑定 + 预占 + 落 GenerationRun；随后由 Controller 开 SSE 调 {@link #streamBilledRun}。
      */
     @Transactional(rollbackFor = Exception.class)
     public GenerationRunContext prepareGenerationRun(StartGenerationRunCommand command) {
         ObjectUtils.requireNonNull(command, "生成命令不能为空");
-        String userId = StringUtils.requireHasText(command.getUserId(), "用户 ID 不能为空");
-        SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, command.getSkillId(), command.isDryRun());
-        String promptText;
-        if (profile.isRequireUserText()) {
-            promptText = StringUtils.requireHasText(command.getText(), MSG_PROMPT_REQUIRED).trim();
-        } else if (StringUtils.hasText(command.getText())) {
-            promptText = command.getText().trim();
-        } else {
-            promptText = "empty-run";
-        }
 
-        Scene scene = resolveAvailableScene(command.getSceneId(), command.getSceneCode());
-        String sessionId = StringUtils.hasText(command.getSessionId())
-                ? command.getSessionId().trim()
-                : UUID.randomUUID().toString();
+        final String sessionId = StringUtils.hasText(command.getSessionId()) ? command.getSessionId() : UUID.randomUUID().toString();
+        final String runId = UUID.randomUUID().toString();
+        final String userId = command.getUserId();
+        final String skillId = command.getSkillId();
+
+        Scene scene = resolveAvailableScene(command.getSceneId());
+        SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, skillId, command.isDryRun());
+        String promptText = command.getText() == null ? "" : command.getText().trim();
+        if (profile.isRequireUserText() && !StringUtils.hasText(promptText)) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_PROMPT_REQUIRED);
+        }
         binding(sessionId, scene, userId);
 
         String holdId = reserveOne(userId);
         Instant now = Instant.now(clock);
-        String runId = UUID.randomUUID().toString();
         GenerationRun run = GenerationRun.start(
                 runId, userId, holdId, sessionId, scene.getId(), scene.getSceneCode(),
                 profile.getSkillId(), now);
@@ -159,37 +153,13 @@ public class AgentApplicationService {
     }
 
     /**
-     * 解析 sceneId / sceneCode → AVAILABLE 场景；缺省/未知/冲突/灰卡拒绝。
+     * 按 sceneId 解析 AVAILABLE 场景；缺省/未知/灰卡拒绝。
      */
-    Scene resolveAvailableScene(String sceneId, String sceneCode) {
-        boolean hasId = StringUtils.hasText(sceneId);
-        boolean hasCode = StringUtils.hasText(sceneCode);
-        if (!hasId && !hasCode) {
+    Scene resolveAvailableScene(String sceneId) {
+        if (!StringUtils.hasText(sceneId)) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_REQUIRED);
         }
-
-        if (hasId && hasCode) {
-            Optional<Scene> byId = sceneRepository.findByBizId(sceneId.trim());
-            Optional<Scene> byCode = sceneRepository.findBySceneCode(sceneCode.trim());
-            if (!byId.isPresent() || !byCode.isPresent()) {
-                throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_NOT_FOUND);
-            }
-            Scene left = byId.get();
-            Scene right = byCode.get();
-            if (!left.getId().equals(right.getId())
-                    || !left.getSceneCode().equals(right.getSceneCode())) {
-                throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_MISMATCH);
-            }
-            return requireAvailable(left);
-        }
-
-        if (hasId) {
-            Scene scene = sceneRepository.findByBizId(sceneId.trim())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_NOT_FOUND));
-            return requireAvailable(scene);
-        }
-
-        Scene scene = sceneRepository.findBySceneCode(sceneCode.trim())
+        Scene scene = sceneRepository.findByBizId(sceneId.trim())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_NOT_FOUND));
         return requireAvailable(scene);
     }
@@ -202,38 +172,30 @@ public class AgentApplicationService {
     }
 
     private void binding(String sessionId, Scene scene, String userId) {
-        Optional<SessionSceneBinding> existing = piSessionSceneRepository.findBySessionId(sessionId);
-        if (existing.isPresent()) {
-            SessionSceneBinding bound = existing.get();
-            if (StringUtils.hasText(bound.getUserId()) && !userId.equals(bound.getUserId().trim())) {
-                throw new BusinessException(ErrorCode.FORBIDDEN, SessionQueryService.MSG_UNAVAILABLE);
-            }
-            if (bound.hasScene()
-                    && (!scene.getId().equals(bound.getSceneId())
-                    || !scene.getSceneCode().equals(bound.getSceneCode()))) {
-                throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SESSION_SCENE_MISMATCH);
-            }
-        }
+        piSessionSceneRepository.findBySessionId(sessionId)
+                .ifPresent(new Consumer<SessionSceneBinding>() {
+                    @Override
+                    public void accept(SessionSceneBinding bound) {
+                        if (StringUtils.hasText(bound.getUserId()) && !userId.equals(bound.getUserId().trim())) {
+                            throw new BusinessException(ErrorCode.FORBIDDEN, SessionQueryService.MSG_UNAVAILABLE);
+                        }
+                        if (bound.hasScene()
+                                && (!scene.getId().equals(bound.getSceneId())
+                                || !scene.getSceneCode().equals(bound.getSceneCode()))) {
+                            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SESSION_SCENE_MISMATCH);
+                        }
+                    }
+                });
+
         try {
-            piSessionSceneRepository.ensureBound(sessionId, scene.getId(), scene.getSceneCode(), userId);
-        } catch (IllegalStateException ex) {
+            piSessionSceneRepository.updateSceneIfNeed(sessionId, scene.getId(), scene.getSceneCode(), userId);
+        } catch (Exception ex) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SESSION_SCENE_MISMATCH);
         }
     }
 
     private String reserveOne(String userId) {
         return creditHoldSupport.reserveOne(userId);
-    }
-
-    /**
-     * 通用 Generation SSE：dry → run_failed；否则 billed 路径（含无 Skill）。
-     */
-    public void streamGenerationRun(GenerationRunContext context, Consumer<SseEvent> sink) {
-        ObjectUtils.requireNonNull(context, "生成上下文不能为空");
-        ObjectUtils.requireNonNull(sink, "SSE sink 不能为空");
-        ObjectUtils.requireNonNull(context.getProfile(), "SkillRunProfile 不能为空");
-
-        streamBilledRun(context, sink);
     }
 
     /**
@@ -247,13 +209,18 @@ public class AgentApplicationService {
      * @param context 已预占并绑定场景的运行上下文
      * @param sink    SSE 事件消费者
      */
-    private void streamBilledRun(GenerationRunContext context, Consumer<SseEvent> sink) {
+    public void streamBilledRun(GenerationRunContext context, Consumer<SseEvent> sink) {
+        ObjectUtils.requireNonNull(context, "生成上下文不能为空");
+        ObjectUtils.requireNonNull(sink, "SSE sink 不能为空");
+
         AtomicBoolean aborted = new AtomicBoolean(false);
         AutoCloseable subscription = null;
 
         final SkillRunProfile profile = context.getProfile();
         final String sessionId = context.getSessionId();
         final String runId = context.getRunId();
+        final String holdId = context.getHoldId();
+        final String promptText = context.getPromptText();
         BilledRunContext runContext = new BilledRunContext(context);
 
         try {
@@ -261,8 +228,7 @@ public class AgentApplicationService {
             beforeBilledRun(runContext);
 
             // 2. 发布 RUN_STARTED 事件
-            emit(sink, SseEvent.of(SseEventName.RUN_STARTED, toRunStarted(context.getRunId(),
-                    context.getSessionId(), context.getHoldId())));
+            emit(sink, SseEvent.of(SseEventName.RUN_STARTED, toRunStarted(sessionId, runId, holdId)));
 
             // 3. 校验场景能力包
             SceneCapabilityPack pack = sceneCapabilityPackLoader.load(context.getSceneCode());
@@ -298,10 +264,10 @@ public class AgentApplicationService {
             // 5. 调用 AgentSession.prompt
             final Path runWorkspace = runWorkspaceService.ensureRunDir(sessionId, runId);
             final TurnAttachment runAttach = runAttachProvider.of(profile.getSkillId(), null);
-            TurnResult result = agentSession.prompt(PromptRequest.builder()
-                    .sessionId(runContext.getRun().getSessionId())
-                    .runId(runContext.getRun().getRunId())
-                    .text(runContext.getRun().getPromptText())
+            final TurnResult result = agentSession.prompt(PromptRequest.builder()
+                    .sessionId(sessionId)
+                    .runId(runId)
+                    .text(promptText)
                     .skillId(profile.getSkillId())
                     .attachment(runAttach)
                     .build());
@@ -338,38 +304,44 @@ public class AgentApplicationService {
                 emit(sink, SseEvent.of(SseEventName.MESSAGE_DELTA, delta));
             }
 
-            ParsedGenerationOutput parsed = parseFinalOutput(runContext, finalResponse, runWorkspace, runAttach);
+            ParsedGenerationOutput output = outputParserComposite.parse(OutputParseContext.builder()
+                    .skillId(runContext.getRun().getProfile().getSkillId())
+                    .sceneCode(runContext.getRun().getSceneCode())
+                    .resumeOptionId(runContext.getResumeOptionId())
+                    .attachment(runAttach)
+                    .finalResponse(finalResponse)
+                    .runWorkspace(runWorkspace)
+                    .build());
+
             Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                     .skillBound(profile.isSkillBound())
                     .finalResponse(finalResponse)
-                    .rawView(parsed.getRawView())
-                    .artifact(parsed.getBusinessPayload())
+                    .rawView(output.getRawView())
+                    .artifact(output.getBusinessPayload())
                     .build());
 
             runContext.setProjectedView(projectedView);
-            runContext.setBusinessPayload(parsed.getBusinessPayload());
+            runContext.setBusinessPayload(output.getBusinessPayload());
 
             // 8. BilledRun 后置处理
             afterBilledRun(runContext);
 
             // 9. BilledRun 落库并结算
-            settleBilledRun(context, sink, runContext.getPersistAs(), runContext.getProjectedView(), runContext.getBusinessPayload());
+            settleBilledRun(runContext, sink);
         } catch (BusinessException ex) {
-            if (isRunSettled(context.getRunId())) {
+            if (isRunSettled(runId)) {
                 return;
             }
             releaseOpenHolds(context);
-            markRunFailed(context.getRunId());
+            markRunFailed(runId);
             emitRunFailed(sink, ex.getMessage(), false);
         } catch (RuntimeException ex) {
-            LoggerUtils.error(log, AgentApplicationService.class, "streamGenerationRun",
-                    ex.getMessage() != null ? ex.getMessage() : "stream failed",
-                    NameValue.create("runId", context.getRunId()));
-            if (isRunSettled(context.getRunId())) {
+            LoggerUtils.error(log, AgentApplicationService.class, "streamBilledRun", ex.getMessage(), ex, NameValue.create("runId", runId));
+            if (isRunSettled(runId)) {
                 return;
             }
             releaseOpenHolds(context);
-            markRunFailed(context.getRunId());
+            markRunFailed(runId);
             emitRunFailed(sink, ex.getMessage(), false);
         } finally {
             closeQuietly(subscription);
@@ -379,7 +351,7 @@ public class AgentApplicationService {
     /**
      * Resume 同步门闩：归属 / RUNNING / Checkpoint 存在（挂起真源）；非法时抛业务错（勿开 SSE）。
      */
-    public GenerationRunContext prepareResumeGenerationRun(ResumeGenerationRunCommand command) {
+    public GenerationRunContext prepareResumeRun(ResumeGenerationRunCommand command) {
         ObjectUtils.requireNonNull(command, "续跑命令不能为空");
         String userId = StringUtils.requireHasText(command.getUserId(), "用户 ID 不能为空");
         String runId = StringUtils.requireHasText(command.getRunId(), "runId 不能为空");
@@ -397,10 +369,7 @@ public class AgentApplicationService {
         if (!checkpointer.loadLatest(runId).isPresent()) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_RESUME_NOT_AWAITING);
         }
-        return rebuildContextFromRun(run);
-    }
 
-    private GenerationRunContext rebuildContextFromRun(GenerationRun run) {
         SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, run.getSkillId(), false);
         GenerationRunContext context = new GenerationRunContext(
                 run.getId(),
@@ -433,14 +402,14 @@ public class AgentApplicationService {
      * @param sink    SSE 事件消费者，不可为空
      */
     public void resumeBilledRun(ResumeGenerationRunCommand command, Consumer<SseEvent> sink) {
-        ObjectUtils.requireNonNull(sink, "SSE sink 不能为空");
 
         // 1. 校验续跑门闩（归属 / RUNNING / Checkpoint）
-        GenerationRunContext context = prepareResumeGenerationRun(command);
+        GenerationRunContext context = prepareResumeRun(command);
 
         final SkillRunProfile profile = context.getProfile();
         final String sessionId = context.getSessionId();
         final String runId = context.getRunId();
+        final String holdId = context.getHoldId();
         final String toolCallId = command.getToolCallId();
         final String optionId = resolveResumeOptionId(command.getOptionId(), command.getFreeText());
         final String humanInput = toAskHumanInput(optionId, command.getFreeText());
@@ -456,8 +425,7 @@ public class AgentApplicationService {
             beforeBilledRun(runContext);
 
             // 3. 发布 RUN_STARTED 事件
-            emit(sink, SseEvent.of(SseEventName.RUN_STARTED, toRunStarted(context.getRunId(),
-                    context.getSessionId(), context.getHoldId())));
+            emit(sink, SseEvent.of(SseEventName.RUN_STARTED, toRunStarted(sessionId, runId, holdId)));
 
             // 4. 订阅 PiEvent 并转发为 AD-4 SSE
             subscription = agentSession.subscribe(new Consumer<PiEvent>() {
@@ -528,21 +496,29 @@ public class AgentApplicationService {
                 delta.put("text", finalResponse);
                 emit(sink, SseEvent.of(SseEventName.MESSAGE_DELTA, delta));
             }
-            ParsedGenerationOutput parsed = parseFinalOutput(runContext, finalResponse, runWorkspace, runAttach);
+
+            ParsedGenerationOutput output = outputParserComposite.parse(OutputParseContext.builder()
+                    .skillId(runContext.getRun().getProfile().getSkillId())
+                    .sceneCode(runContext.getRun().getSceneCode())
+                    .resumeOptionId(runContext.getResumeOptionId())
+                    .attachment(runAttach)
+                    .finalResponse(finalResponse)
+                    .runWorkspace(runWorkspace)
+                    .build());
+
             Map<String, Object> projectedView = computerViewResolver.resolve(ViewProjectContext.builder()
                     .skillBound(profile.isSkillBound())
                     .finalResponse(finalResponse)
-                    .rawView(parsed.getRawView())
-                    .artifact(parsed.getBusinessPayload())
+                    .rawView(output.getRawView())
+                    .artifact(output.getBusinessPayload())
                     .build());
             runContext.setProjectedView(projectedView);
-            runContext.setBusinessPayload(parsed.getBusinessPayload());
+            runContext.setBusinessPayload(output.getBusinessPayload());
 
             // 8. BilledRun 后置处理，落库并结算
             afterBilledRun(runContext);
 
-            settleBilledRun(context, sink, runContext.getPersistAs(),
-                    runContext.getProjectedView(), runContext.getBusinessPayload());
+            settleBilledRun(runContext, sink);
         } catch (BusinessException ex) {
             if (isRunSettled(context.getRunId())) {
                 return;
@@ -637,11 +613,14 @@ public class AgentApplicationService {
     }
 
     /** persist → settle → artifact_ready + run_settled；失败在方法内收尾，不向外抛。 */
-    private void settleBilledRun(GenerationRunContext context,
-                                 Consumer<SseEvent> sink,
-                                 String persistAs,
-                                 Map<String, Object> projectedView,
-                                 Map<String, Object> businessPayload) {
+    private void settleBilledRun(BilledRunContext runContext,
+                                 Consumer<SseEvent> sink) {
+
+        final GenerationRunContext context = runContext.getRun();
+        final String persistAs = runContext.getPersistAs();
+        final Map<String, Object> projectedView = runContext.getProjectedView();
+        final Map<String, Object> businessPayload = runContext.getBusinessPayload();
+
         SkillRunProfile profile = context.getProfile();
         final PersistedGenerationArtifact persisted;
         try {
@@ -659,10 +638,7 @@ public class AgentApplicationService {
         try {
             creditHoldSupport.settle(context.getUserId(), settleHoldId);
         } catch (BusinessException ex) {
-            LoggerUtils.error(log, AgentApplicationService.class, "persistAndSettleBilledRun",
-                    ex.getMessage() != null ? ex.getMessage() : "settle failed",
-                    NameValue.create("runId", context.getRunId()),
-                    NameValue.create("holdId", settleHoldId));
+            LoggerUtils.error(log, AgentApplicationService.class, "settleBilledRun", ex.getMessage(), ex, NameValue.create("runId", context.getRunId()), NameValue.create("holdId", settleHoldId));
             markRunFailed(context.getRunId());
             emitRunFailed(sink, SETTLE_FAILED, false);
             return;
@@ -684,41 +660,18 @@ public class AgentApplicationService {
                     toArtifactReady(persisted, projectedView)));
             emit(sink, SseEvent.of(SseEventName.RUN_SETTLED,
                     toRunSettled(context, settleHoldId, persisted.getArtifactRef())));
-        } catch (RuntimeException emitEx) {
-            LoggerUtils.error(log, AgentApplicationService.class, "persistAndSettleBilledRun",
-                    emitEx.getMessage() != null ? emitEx.getMessage() : "SSE emit after settle failed",
-                    NameValue.create("runId", context.getRunId()),
-                    NameValue.create("artifactRef", persisted.getArtifactRef()));
+        } catch (Exception ex) {
+            LoggerUtils.error(log, AgentApplicationService.class, "settleBilledRun", ex.getMessage(), ex, NameValue.create("runId", context.getRunId()), NameValue.create("artifactRef", persisted.getArtifactRef()));
         }
 
         runWorkspaceService.deleteRunDirQuietly(context.getSessionId(), context.getRunId());
 
-        LoggerUtils.success(log, AgentApplicationService.class, "streamGenerationRun",
+        LoggerUtils.success(log, AgentApplicationService.class, "streamBilledRun",
                 NameValue.create("userId", context.getUserId()),
                 NameValue.create("runId", context.getRunId()),
                 NameValue.create("artifactRef", persisted.getArtifactRef()),
                 NameValue.create("skillId", profile.getSkillId()),
                 NameValue.create("skillBound", profile.isSkillBound()));
-    }
-
-    private ParsedGenerationOutput parseFinalOutput(BilledRunContext runContext,
-                                                    String finalResponse,
-                                                    Path runWorkspace,
-                                                    TurnAttachment runAttach) {
-        try {
-            OutputParseContext ctx = OutputParseContext.builder()
-                    .skillId(runContext.getRun().getProfile().getSkillId())
-                    .sceneCode(runContext.getRun().getSceneCode())
-                    .resumeOptionId(runContext.getResumeOptionId())
-                    .attachment(runAttach)
-                    .finalResponse(finalResponse)
-                    .runWorkspace(runWorkspace)
-                    .build();
-            return outputParserComposite.parse(ctx);
-        } catch (IllegalArgumentException ex) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID,
-                    StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "成果文件无效");
-        }
     }
 
     private static String resolveResumeOptionId(String optionId, String freeText) {
@@ -805,10 +758,10 @@ public class AgentApplicationService {
         generationRunRepository.update(run);
     }
 
-    private static Map<String, Object> toRunStarted(String runId, String sessionId, String holdId) {
+    private static Map<String, Object> toRunStarted(String sessionId, String runId, String holdId) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
-        data.put("runId", runId);
         data.put("sessionId", sessionId);
+        data.put("runId", runId);
         data.put("holdId", holdId);
         return data;
     }

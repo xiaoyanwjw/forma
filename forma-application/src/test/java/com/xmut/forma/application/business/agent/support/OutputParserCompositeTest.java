@@ -60,7 +60,7 @@ class OutputParserCompositeTest {
     void applyingParserExceptionIsNotSwallowed() {
         OutputParser missingFile = new OutputParser() {
             @Override
-            public boolean appliesTo(OutputParseContext ctx) {
+            public boolean supports(OutputParseContext ctx) {
                 return true;
             }
 
@@ -85,7 +85,7 @@ class OutputParserCompositeTest {
     void whenNoParserApplies_fallsBackToText() {
         OutputParser never = new OutputParser() {
             @Override
-            public boolean appliesTo(OutputParseContext ctx) {
+            public boolean supports(OutputParseContext ctx) {
                 return false;
             }
 
@@ -163,7 +163,7 @@ class OutputParserCompositeTest {
         }
 
         @Override
-        public boolean appliesTo(OutputParseContext ctx) {
+        public boolean supports(OutputParseContext ctx) {
             return applies;
         }
 

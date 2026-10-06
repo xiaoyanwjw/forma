@@ -20,7 +20,7 @@ import java.util.Collections;
 public class GenerationOutputParser implements OutputParser {
 
     @Override
-    public boolean appliesTo(OutputParseContext ctx) {
+    public boolean supports(OutputParseContext ctx) {
         return true;
     }
 

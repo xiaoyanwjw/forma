@@ -26,7 +26,7 @@ public final class WorkspaceOutputParser implements OutputParser {
     }
 
     @Override
-    public boolean appliesTo(OutputParseContext ctx) {
+    public boolean supports(OutputParseContext ctx) {
         if (ctx == null) {
             return false;
         }

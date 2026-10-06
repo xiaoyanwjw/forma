@@ -82,7 +82,7 @@ public class AgentController {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         sseExecutor.execute(() -> {
             try {
-                agentService.streamGenerationRun(context, event -> sendEvent(emitter, event));
+                agentService.streamBilledRun(context, event -> sendEvent(emitter, event));
                 emitter.complete();
             } catch (Exception ex) {
                 log.warn("generation run sse failed runId={}: {}", context.getRunId(), ex.toString());
@@ -167,7 +167,7 @@ public class AgentController {
                 .build();
 
         try {
-            agentService.prepareResumeGenerationRun(command);
+            agentService.prepareResumeRun(command);
         } catch (BusinessException ex) {
             int status = ex.getErrorCode().getHttpStatus();
             return ResponseEntity.status(status)

@@ -37,34 +37,34 @@ class PiSessionSceneRepositoryImplTest {
     }
 
     @Test
-    void ensureBoundSkipsUpdateSceneWhenAlreadyMatchedAndOnlyFillsUserId() {
+    void updateSceneIfNeedSkipsUpdateSceneWhenAlreadyMatchedAndOnlyFillsUserId() {
         PiSessionPO existing = row(SESSION, null, SCENE_ID, SCENE_CODE);
         when(sessionMapper.selectById(SESSION)).thenReturn(existing);
 
-        repository.ensureBound(SESSION, SCENE_ID, SCENE_CODE, USER);
+        repository.updateSceneIfNeed(SESSION, SCENE_ID, SCENE_CODE, USER);
 
         verify(sessionMapper, never()).updateScene(anyString(), anyString(), anyString(), any(Instant.class));
         verify(sessionMapper).updateUserIdIfNull(SESSION, USER);
     }
 
     @Test
-    void ensureBoundWritesSceneWhenUnboundThenFillsUserId() {
+    void updateSceneIfNeedWritesSceneWhenUnboundThenFillsUserId() {
         PiSessionPO existing = row(SESSION, null, null, null);
         when(sessionMapper.selectById(SESSION)).thenReturn(existing);
 
-        repository.ensureBound(SESSION, SCENE_ID, SCENE_CODE, USER);
+        repository.updateSceneIfNeed(SESSION, SCENE_ID, SCENE_CODE, USER);
 
         verify(sessionMapper).updateScene(eq(SESSION), eq(SCENE_ID), eq(SCENE_CODE), any(Instant.class));
         verify(sessionMapper).updateUserIdIfNull(SESSION, USER);
     }
 
     @Test
-    void ensureBoundRejectsDifferentSceneWithoutRewrite() {
+    void updateSceneIfNeedRejectsDifferentSceneWithoutRewrite() {
         PiSessionPO existing = row(SESSION, USER, "other-scene-id", "short_video");
         when(sessionMapper.selectById(SESSION)).thenReturn(existing);
 
         assertThrows(IllegalStateException.class,
-                () -> repository.ensureBound(SESSION, SCENE_ID, SCENE_CODE, USER));
+                () -> repository.updateSceneIfNeed(SESSION, SCENE_ID, SCENE_CODE, USER));
         verify(sessionMapper, never()).updateScene(anyString(), anyString(), anyString(), any(Instant.class));
         verify(sessionMapper, never()).updateUserIdIfNull(anyString(), anyString());
     }

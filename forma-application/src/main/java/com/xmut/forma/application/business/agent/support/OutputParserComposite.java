@@ -37,14 +37,14 @@ public class OutputParserComposite implements OutputParser {
     }
 
     @Override
-    public boolean appliesTo(OutputParseContext ctx) {
+    public boolean supports(OutputParseContext ctx) {
         return true;
     }
 
     @Override
     public ParsedGenerationOutput parse(OutputParseContext ctx) {
         for (OutputParser p : parsers) {
-            if (p != null && p != this && p.appliesTo(ctx)) {
+            if (p.supports(ctx)) {
                 return p.parse(ctx);
             }
         }

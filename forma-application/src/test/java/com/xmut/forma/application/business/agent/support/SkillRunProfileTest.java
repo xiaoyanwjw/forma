@@ -1,13 +1,15 @@
 package com.xmut.forma.application.business.agent.support;
 
-import com.xmut.forma.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.pi.agent.skill.InMemorySkillCatalog;
 import com.xmut.forma.pi.agent.skill.Skill;
 import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import com.xmut.forma.pi.agent.skill.SkillCatalogProperties;
+import com.xmut.forma.pi.agent.skill.Skills;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.ClassPathResource;
 
+import java.io.IOException;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SkillRunProfileTest {
 
     @Test
-    void blankSkillIdResolvesToNoSkill() {
+    void blankSkillIdResolvesToNoSkill() throws Exception {
         SkillRunProfile profile = SkillRunProfile.resolve(catalog(), null, false);
         assertFalse(profile.isSkillBound());
         assertTrue(profile.isSettleEnabled());
@@ -30,7 +32,7 @@ class SkillRunProfileTest {
     }
 
     @Test
-    void dryRunStillBindsDefaultSkill() {
+    void dryRunStillBindsDefaultSkill() throws Exception {
         SkillRunProfile profile = SkillRunProfile.resolve(catalog(), null, true);
         assertTrue(profile.isDryRun());
         assertTrue(profile.isSkillBound());
@@ -38,26 +40,28 @@ class SkillRunProfileTest {
     }
 
     @Test
-    void skulistResolvesToBilledListing() {
-        SkillRunProfile profile = SkillRunProfile.resolve(
-                catalog(), SceneCapabilityPackLoader.SKILL_SKULIST, false);
-        assertTrue(profile.isBilledSku());
-        assertFalse(profile.isBilledPicklist());
-        assertEquals(SkillRunProfile.PERSIST_SKU, profile.getPersistAs());
-        assertEquals(SceneCapabilityPackLoader.SKILL_SKULIST, profile.getSkillId());
+    void persistAsComesFromSkillMd() throws Exception {
+        Skill skill = Skills.parse(
+                new ClassPathResource("scenes/ecommerce/ecommerce-skulist/SKILL.md"), "ecommerce");
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
+        skills.register(skill);
+        SkillRunProfile profile = SkillRunProfile.resolve(skills, skill.getId(), false);
+        assertEquals("sku", profile.getPersistAs());
+        assertEquals("ecommerce-skulist", profile.getSkillId());
         assertTrue(profile.isSettleEnabled());
         assertTrue(profile.isRequireUserText());
+        assertEquals(skill.getPersistAs(), SkillRunProfile.billed(skill.getId(), skill.getPersistAs()).getPersistAs());
     }
 
     @Test
-    void billedListingFactoryMatchesResolve() {
-        SkillRunProfile profile = SkillRunProfile.billedListing();
-        assertEquals(SkillRunProfile.PERSIST_SKU, profile.getPersistAs());
-        assertTrue(profile.isBilledSku());
+    void picklistPersistAsComesFromSkillMd() throws Exception {
+        SkillRunProfile profile = SkillRunProfile.resolve(catalogFromMd(), "ecommerce-picklist", false);
+        assertEquals("picklist", profile.getPersistAs());
+        assertEquals("ecommerce-picklist", profile.getSkillId());
     }
 
     @Test
-    void unknownSkillStillRejected() {
+    void unknownSkillStillRejected() throws Exception {
         assertThrows(BusinessException.class,
                 () -> SkillRunProfile.resolve(catalog(), "unknown-skill", false));
     }
@@ -73,57 +77,28 @@ class SkillRunProfileTest {
     }
 
     @Test
-    void xhsTopiclistResolvesToPersistXhsTopiclist() {
-        SkillRunProfile profile = SkillRunProfile.resolve(
-                catalog(), SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST, false);
-        assertEquals(SkillRunProfile.PERSIST_XHS_TOPICLIST, profile.getPersistAs());
-        assertEquals(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST, profile.getSkillId());
-        assertTrue(profile.isSettleEnabled());
-        assertTrue(profile.isRequireUserText());
-        assertTrue(profile.isBilledXhsTopiclist());
-        assertEquals(SkillRunProfile.billedXhsTopiclist().getPersistAs(), profile.getPersistAs());
-    }
-
-    @Test
-    void xhsNoteResolvesToPersistXhsNote() {
-        SkillRunProfile profile = SkillRunProfile.resolve(
-                catalog(), SceneCapabilityPackLoader.SKILL_XHS_NOTE, false);
-        assertEquals(SkillRunProfile.PERSIST_XHS_NOTE, profile.getPersistAs());
-        assertEquals(SceneCapabilityPackLoader.SKILL_XHS_NOTE, profile.getSkillId());
-        assertTrue(profile.isBilledXhsNote());
-        assertEquals(SkillRunProfile.billedXhsNote().getPersistAs(), profile.getPersistAs());
-    }
-
-    @Test
-    void xhsBreakResolvesToPersistXhsBreak() {
-        SkillRunProfile profile = SkillRunProfile.resolve(
-                catalog(), SceneCapabilityPackLoader.SKILL_XHS_BREAK, false);
-        assertEquals(SkillRunProfile.PERSIST_XHS_BREAK, profile.getPersistAs());
-        assertEquals(SceneCapabilityPackLoader.SKILL_XHS_BREAK, profile.getSkillId());
-        assertTrue(profile.isBilledXhsBreak());
-        assertEquals(SkillRunProfile.billedXhsBreak().getPersistAs(), profile.getPersistAs());
-    }
-
-    @Test
-    void techDigestResolvesToPersistTechDigest() {
-        SkillRunProfile profile = SkillRunProfile.resolve(catalog(), "tech-digest", false);
-        assertEquals("tech_digest", profile.getPersistAs());
-        assertEquals(SkillRunProfile.PERSIST_TECH_DIGEST, profile.getPersistAs());
-        assertEquals(SceneCapabilityPackLoader.SKILL_TECH_DIGEST, profile.getSkillId());
-        assertTrue(profile.isSettleEnabled());
-        assertTrue(profile.isRequireUserText());
-        assertTrue(profile.isBilledTechDigest());
-        assertEquals(SkillRunProfile.billedTechDigest().getPersistAs(), profile.getPersistAs());
-    }
-
-    private static SkillCatalog catalog() {
+    void missingPersistAsRejected() {
         InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
-        skills.register(billedSkill(SceneCapabilityPackLoader.SKILL_PICKLIST, SkillRunProfile.PERSIST_PICKLIST));
-        skills.register(billedSkill(SceneCapabilityPackLoader.SKILL_SKULIST, SkillRunProfile.PERSIST_SKU));
-        skills.register(billedSkill(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST, SkillRunProfile.PERSIST_XHS_TOPICLIST));
-        skills.register(billedSkill(SceneCapabilityPackLoader.SKILL_XHS_NOTE, SkillRunProfile.PERSIST_XHS_NOTE));
-        skills.register(billedSkill(SceneCapabilityPackLoader.SKILL_XHS_BREAK, SkillRunProfile.PERSIST_XHS_BREAK));
-        skills.register(billedSkill(SceneCapabilityPackLoader.SKILL_TECH_DIGEST, SkillRunProfile.PERSIST_TECH_DIGEST));
+        skills.register(billedSkill("chatty", null));
+        assertThrows(BusinessException.class, () -> SkillRunProfile.resolve(skills, "chatty", false));
+    }
+
+    private static SkillCatalog catalog() throws IOException {
+        return catalogFromMd();
+    }
+
+    private static SkillCatalog catalogFromMd() throws IOException {
+        InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
+        skills.register(Skills.parse(
+                new ClassPathResource("scenes/ecommerce/ecommerce-picklist/SKILL.md"), "ecommerce"));
+        skills.register(Skills.parse(
+                new ClassPathResource("scenes/ecommerce/ecommerce-skulist/SKILL.md"), "ecommerce"));
+        skills.register(Skills.parse(
+                new ClassPathResource("scenes/xiaohongshu/xhs-topiclist/SKILL.md"), "xiaohongshu"));
+        skills.register(Skills.parse(
+                new ClassPathResource("scenes/xiaohongshu/xhs-note/SKILL.md"), "xiaohongshu"));
+        skills.register(Skills.parse(
+                new ClassPathResource("scenes/xiaohongshu/xhs-break/SKILL.md"), "xiaohongshu"));
         return skills;
     }
 

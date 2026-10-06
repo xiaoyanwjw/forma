@@ -61,7 +61,7 @@ class OutputParserSpiTest {
     void parserAppliesThenParses() {
         OutputParser parser = new OutputParser() {
             @Override
-            public boolean appliesTo(OutputParseContext ctx) {
+            public boolean supports(OutputParseContext ctx) {
                 return ctx != null && "chat".equals(ctx.getSkillId());
             }
 
@@ -77,8 +77,8 @@ class OutputParserSpiTest {
                 .build();
         OutputParseContext miss = OutputParseContext.builder().skillId("other").build();
 
-        assertTrue(parser.appliesTo(hit));
-        assertFalse(parser.appliesTo(miss));
+        assertTrue(parser.supports(hit));
+        assertFalse(parser.supports(miss));
         ParsedGenerationOutput out = parser.parse(hit);
         assertNull(out.getRawView());
         assertEquals("hi", out.getBusinessPayload().get("text"));

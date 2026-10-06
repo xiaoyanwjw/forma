@@ -65,13 +65,13 @@ public class ArtifactPersistPlugin {
                 ? businessPayload
                 : Collections.<String, Object>emptyMap();
         String code = type.getCode();
-        if (SkillRunProfile.PERSIST_LISTING_PLAN.equals(code)) {
+        if ("listing_plan".equals(code)) {
             requireUsableSkuPlanPayload(data);
-        } else if (SkillRunProfile.PERSIST_SKU.equals(code)) {
+        } else if ("sku".equals(code)) {
             requireUsableSkuPayload(data);
         } else if (isXhsType(code)) {
             requireUsableXhsPayload(projectedView, data);
-        } else if (SkillRunProfile.PERSIST_TECH_DIGEST.equals(code)) {
+        } else if ("tech_digest".equals(code)) {
             requireUsableTechDigestPayload(projectedView, data);
         }
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
@@ -108,10 +108,9 @@ public class ArtifactPersistPlugin {
         return ArtifactType.fromCode(persistAs);
     }
 
+    /** SKILL.md persistAs 以 {@code xhs_} 开头的小红书成果。 */
     private static boolean isXhsType(String code) {
-        return SkillRunProfile.PERSIST_XHS_TOPICLIST.equals(code)
-                || SkillRunProfile.PERSIST_XHS_NOTE.equals(code)
-                || SkillRunProfile.PERSIST_XHS_BREAK.equals(code);
+        return code != null && code.startsWith("xhs_");
     }
 
     static void requireUsableXhsPayload(Map<String, Object> view, Map<String, Object> data) {

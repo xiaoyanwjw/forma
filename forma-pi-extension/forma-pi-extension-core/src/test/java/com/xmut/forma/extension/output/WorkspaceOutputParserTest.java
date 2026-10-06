@@ -36,24 +36,24 @@ class WorkspaceOutputParserTest {
     void idle_chat_without_paths_does_not_apply() {
         WorkspaceOutputParser parser = new WorkspaceOutputParser();
 
-        assertFalse(parser.appliesTo(ctx(null)));
-        assertFalse(parser.appliesTo(null));
+        assertFalse(parser.supports(ctx(null)));
+        assertFalse(parser.supports(null));
     }
 
     @Test
     void declared_slots_apply_even_when_files_are_missing() {
         WorkspaceOutputParser parser = new WorkspaceOutputParser();
 
-        assertTrue(parser.appliesTo(ctx("view.json")));
-        assertTrue(parser.appliesTo(ctx("plan/view.json")));
+        assertTrue(parser.supports(ctx("view.json")));
+        assertTrue(parser.supports(ctx("plan/view.json")));
     }
 
     @Test
     void unsafe_paths_do_not_apply() {
         WorkspaceOutputParser parser = new WorkspaceOutputParser();
 
-        assertFalse(parser.appliesTo(ctx("../view.json")));
-        assertFalse(parser.appliesTo(ctx("/tmp/view.json")));
+        assertFalse(parser.supports(ctx("../view.json")));
+        assertFalse(parser.supports(ctx("/tmp/view.json")));
     }
 
     @Test

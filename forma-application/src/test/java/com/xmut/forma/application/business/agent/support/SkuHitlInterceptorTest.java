@@ -41,7 +41,7 @@ class SkuHitlInterceptorTest {
         final OutputParseContext[] seen = new OutputParseContext[1];
         OutputParser parser = new OutputParser() {
             @Override
-            public boolean appliesTo(OutputParseContext ctx) {
+            public boolean supports(OutputParseContext ctx) {
                 seen[0] = ctx;
                 return true;
             }
@@ -85,7 +85,7 @@ class SkuHitlInterceptorTest {
         payload.put("modules", Arrays.asList("甲", "乙", "丙"));
         OutputParser parser = new OutputParser() {
             @Override
-            public boolean appliesTo(OutputParseContext ctx) {
+            public boolean supports(OutputParseContext ctx) {
                 return ctx != null && ctx.getResumeOptionId() == null;
             }
 
@@ -105,7 +105,7 @@ class SkuHitlInterceptorTest {
         interceptor.onSuspended(billed, events::add);
 
         verify(persist).persist(eq("user-1"), eq("run-1"), eq("ecommerce"),
-                eq(SkillRunProfile.PERSIST_LISTING_PLAN), anyMap(), eq(payload));
+                eq("listing_plan"), anyMap(), eq(payload));
     }
 
     private static SkuHitlInterceptor interceptor(OutputParser parser) {
@@ -131,7 +131,7 @@ class SkuHitlInterceptorTest {
     private static BilledRunContext listingContext() {
         GenerationRunContext run = new GenerationRunContext(
                 "run-1", "user-1", "hold-1", "session-1", "ecommerce",
-                "上架", SkillRunProfile.billedListing());
+                "上架", SkillRunProfile.billed("ecommerce-skulist", "sku"));
         return new BilledRunContext(run);
     }
 }

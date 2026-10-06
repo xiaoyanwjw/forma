@@ -35,7 +35,7 @@ public class PiSessionSceneRepositoryImpl implements PiSessionSceneRepository {
     }
 
     @Override
-    public void ensureBound(String sessionId, String sceneId, String sceneCode, String userId) {
+    public void updateSceneIfNeed(String sessionId, String sceneId, String sceneCode, String userId) {
         if (!StringUtils.hasText(sessionId)) {
             throw new IllegalArgumentException("sessionId required");
         }

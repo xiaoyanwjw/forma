@@ -9,17 +9,12 @@ import com.xmut.forma.pi.agent.skill.SkillCatalog;
 
 /**
  * Per-run policy for the generic Generation pipeline (not Computer protocol).
+ * persistAs 来自 SKILL.md {@code metadata.persistAs}，不按场景写死。
  */
 public final class SkillRunProfile {
 
+    /** 无 Skill / dry：不按目录落业务成果。 */
     public static final String PERSIST_NONE = "none";
-    public static final String PERSIST_PICKLIST = "picklist";
-    public static final String PERSIST_SKU = "sku";
-    public static final String PERSIST_LISTING_PLAN = "listing_plan";
-    public static final String PERSIST_XHS_TOPICLIST = "xhs_topiclist";
-    public static final String PERSIST_XHS_NOTE = "xhs_note";
-    public static final String PERSIST_XHS_BREAK = "xhs_break";
-    public static final String PERSIST_TECH_DIGEST = "tech_digest";
 
     private final String skillId;
     private final boolean settleEnabled;
@@ -53,34 +48,15 @@ public final class SkillRunProfile {
         return new SkillRunProfile(null, true, PERSIST_NONE, true, false, false);
     }
 
-    public static SkillRunProfile billedPicklist() {
-        return new SkillRunProfile(
-                SceneCapabilityPackLoader.SKILL_PICKLIST, true, PERSIST_PICKLIST, true, false, true);
-    }
-
-    public static SkillRunProfile billedListing() {
-        return new SkillRunProfile(
-                SceneCapabilityPackLoader.SKILL_SKULIST, true, PERSIST_SKU, true, false, true);
-    }
-
-    public static SkillRunProfile billedXhsTopiclist() {
-        return new SkillRunProfile(
-                SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST, true, PERSIST_XHS_TOPICLIST, true, false, true);
-    }
-
-    public static SkillRunProfile billedXhsNote() {
-        return new SkillRunProfile(
-                SceneCapabilityPackLoader.SKILL_XHS_NOTE, true, PERSIST_XHS_NOTE, true, false, true);
-    }
-
-    public static SkillRunProfile billedXhsBreak() {
-        return new SkillRunProfile(
-                SceneCapabilityPackLoader.SKILL_XHS_BREAK, true, PERSIST_XHS_BREAK, true, false, true);
-    }
-
-    public static SkillRunProfile billedTechDigest() {
-        return new SkillRunProfile(
-                SceneCapabilityPackLoader.SKILL_TECH_DIGEST, true, PERSIST_TECH_DIGEST, true, false, true);
+    /**
+     * 已绑定计费 Skill（persistAs 须与 SKILL.md 一致；单测/夹具用）。
+     */
+    public static SkillRunProfile billed(String skillId, String persistAs) {
+        if (!StringUtils.hasText(skillId) || !StringUtils.hasText(persistAs)
+                || PERSIST_NONE.equalsIgnoreCase(persistAs.trim())) {
+            throw new IllegalArgumentException("billed profile needs skillId and persistAs from SKILL.md");
+        }
+        return new SkillRunProfile(skillId.trim(), true, persistAs.trim(), true, false, true);
     }
 
     /**
@@ -114,7 +90,7 @@ public final class SkillRunProfile {
         if (!StringUtils.hasText(persistAs) || PERSIST_NONE.equalsIgnoreCase(persistAs.trim())) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "该 Skill 未配置成果落库类型: " + id);
         }
-        return new SkillRunProfile(skill.getId(), true, persistAs.trim(), true, false, true);
+        return billed(skill.getId(), persistAs);
     }
 
     public String getSkillId() {
@@ -141,29 +117,8 @@ public final class SkillRunProfile {
         return skillBound;
     }
 
-    /** Billed picklist: persist picklist artifact（search_sku 为 skill 软约束，非本方法门禁）. */
-    public boolean isBilledPicklist() {
-        return settleEnabled && PERSIST_PICKLIST.equals(persistAs);
-    }
-
-    /** Billed Listing：persist sku；系统挂载占位主图后再 settle. */
-    public boolean isBilledSku() {
-        return settleEnabled && PERSIST_SKU.equals(persistAs);
-    }
-
-    public boolean isBilledXhsTopiclist() {
-        return settleEnabled && PERSIST_XHS_TOPICLIST.equals(persistAs);
-    }
-
-    public boolean isBilledXhsNote() {
-        return settleEnabled && PERSIST_XHS_NOTE.equals(persistAs);
-    }
-
-    public boolean isBilledXhsBreak() {
-        return settleEnabled && PERSIST_XHS_BREAK.equals(persistAs);
-    }
-
-    public boolean isBilledTechDigest() {
-        return settleEnabled && PERSIST_TECH_DIGEST.equals(persistAs);
+    /** 计费且 persistAs 与 SKILL.md 码一致。 */
+    public boolean persistsAs(String persistAs) {
+        return settleEnabled && StringUtils.hasText(persistAs) && persistAs.equals(this.persistAs);
     }
 }

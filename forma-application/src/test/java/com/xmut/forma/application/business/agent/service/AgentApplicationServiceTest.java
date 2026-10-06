@@ -185,14 +185,14 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunReservesAndPersistsRunWithSceneByCode() {
-        stubEcommerceByCode();
+    void prepareDryGenerationRunReservesAndPersistsRunWithSceneId() {
+        stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
 
         GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
-                .sceneCode(ECOM_SCENE_CODE)
+                .sceneId(ECOM_SCENE_ID)
                 .build());
 
         assertEquals(HOLD_ID, ctx.getHoldId());
@@ -206,44 +206,7 @@ class AgentApplicationServiceTest {
         assertEquals(null, saved.getArtifactRef());
         assertEquals(ECOM_SCENE_ID, saved.getSceneId());
         assertEquals(ECOM_SCENE_CODE, saved.getSceneCode());
-        verify(piSessionSceneRepository).ensureBound(eq(ctx.getSessionId()), eq(ECOM_SCENE_ID), eq(ECOM_SCENE_CODE), eq(USER_ID));
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void prepareDryGenerationRunSucceedsWithSceneIdOnly() {
-        stubEcommerceById();
-        when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
-        when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
-
-        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
-                .userId(USER_ID)
-                .sceneId(ECOM_SCENE_ID)
-                .build());
-
-        ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
-        verify(generationRunRepository).save(captor.capture());
-        assertEquals(ECOM_SCENE_ID, captor.getValue().getSceneId());
-        assertEquals(ECOM_SCENE_CODE, captor.getValue().getSceneCode());
-        verify(piSessionSceneRepository).ensureBound(eq(ctx.getSessionId()), eq(ECOM_SCENE_ID), eq(ECOM_SCENE_CODE), eq(USER_ID));
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void prepareDryGenerationRunSucceedsWhenSceneIdAndCodeConsistent() {
-        Scene ecommerce = ecommerceScene();
-        when(sceneRepository.findByBizId(ECOM_SCENE_ID)).thenReturn(Optional.of(ecommerce));
-        when(sceneRepository.findBySceneCode(ECOM_SCENE_CODE)).thenReturn(Optional.of(ecommerce));
-        when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
-        when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
-
-        service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
-                .userId(USER_ID)
-                .sceneId(ECOM_SCENE_ID)
-                .sceneCode(ECOM_SCENE_CODE)
-                .build());
-
-        verify(generationRunRepository).save(any(GenerationRun.class));
+        verify(piSessionSceneRepository).updateSceneIfNeed(eq(ctx.getSessionId()), eq(ECOM_SCENE_ID), eq(ECOM_SCENE_CODE), eq(USER_ID));
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
 
@@ -255,22 +218,8 @@ class AgentApplicationServiceTest {
         assertEquals(AgentApplicationService.MSG_SCENE_REQUIRED, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
         verify(generationRunRepository, never()).save(any(GenerationRun.class));
-        verify(piSessionSceneRepository, never()).ensureBound(anyString(), anyString(), anyString(), anyString());
+        verify(piSessionSceneRepository, never()).updateSceneIfNeed(anyString(), anyString(), anyString(), anyString());
         verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void prepareDryGenerationRunRejectsUnknownSceneCode() {
-        when(sceneRepository.findBySceneCode("unknown")).thenReturn(Optional.empty());
-
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
-                        .userId(USER_ID)
-                        .sceneCode("unknown")
-                        .build()));
-        assertEquals(AgentApplicationService.MSG_SCENE_NOT_FOUND, ex.getMessage());
-        verify(creditApplicationService, never()).reserveOne(anyString());
-        verify(generationRunRepository, never()).save(any(GenerationRun.class));
     }
 
     @Test
@@ -288,29 +237,13 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunRejectsConflictingSceneIdAndCode() {
-        when(sceneRepository.findByBizId(ECOM_SCENE_ID)).thenReturn(Optional.of(ecommerceScene()));
-        when(sceneRepository.findBySceneCode(GRAY_SCENE_CODE)).thenReturn(Optional.of(grayScene()));
-
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
-                        .userId(USER_ID)
-                        .sceneId(ECOM_SCENE_ID)
-                        .sceneCode(GRAY_SCENE_CODE)
-                        .build()));
-        assertEquals(AgentApplicationService.MSG_SCENE_MISMATCH, ex.getMessage());
-        verify(creditApplicationService, never()).reserveOne(anyString());
-        verify(generationRunRepository, never()).save(any(GenerationRun.class));
-    }
-
-    @Test
     void prepareDryGenerationRunRejectsComingSoonScene() {
-        when(sceneRepository.findBySceneCode(GRAY_SCENE_CODE)).thenReturn(Optional.of(grayScene()));
+        when(sceneRepository.findByBizId(GRAY_SCENE_ID)).thenReturn(Optional.of(grayScene()));
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
-                        .sceneCode(GRAY_SCENE_CODE)
+                        .sceneId(GRAY_SCENE_ID)
                         .build()));
         assertEquals(AgentApplicationService.MSG_SCENE_NOT_OPEN, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
@@ -319,7 +252,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void prepareDryGenerationRunRejectsSessionBoundToOtherScene() {
-        stubEcommerceByCode();
+        stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId("fixed-session"))
                 .thenReturn(Optional.of(new SessionSceneBinding(
                         "fixed-session", GRAY_SCENE_ID, GRAY_SCENE_CODE)));
@@ -328,17 +261,17 @@ class AgentApplicationServiceTest {
                 () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
                         .sessionId("fixed-session")
-                        .sceneCode(ECOM_SCENE_CODE)
+                        .sceneId(ECOM_SCENE_ID)
                         .build()));
         assertEquals(AgentApplicationService.MSG_SESSION_SCENE_MISMATCH, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
         verify(generationRunRepository, never()).save(any(GenerationRun.class));
-        verify(piSessionSceneRepository, never()).ensureBound(anyString(), anyString(), anyString(), anyString());
+        verify(piSessionSceneRepository, never()).updateSceneIfNeed(anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
     void prepareDryGenerationRunWritesSceneWhenSessionHasNoneYet() {
-        stubEcommerceByCode();
+        stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId("legacy-session"))
                 .thenReturn(Optional.of(new SessionSceneBinding("legacy-session", null, null)));
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
@@ -346,15 +279,15 @@ class AgentApplicationServiceTest {
         service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sessionId("legacy-session")
-                .sceneCode(ECOM_SCENE_CODE)
+                .sceneId(ECOM_SCENE_ID)
                 .build());
 
-        verify(piSessionSceneRepository).ensureBound("legacy-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID);
+        verify(piSessionSceneRepository).updateSceneIfNeed("legacy-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID);
     }
 
     @Test
     void prepareGenerationRunForbiddenWhenSessionOwnedByOtherUser() {
-        stubEcommerceByCode();
+        stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId("foreign-session"))
                 .thenReturn(Optional.of(new SessionSceneBinding(
                         "foreign-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, "other-user")));
@@ -363,18 +296,18 @@ class AgentApplicationServiceTest {
                 () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
                         .sessionId("foreign-session")
-                        .sceneCode(ECOM_SCENE_CODE)
+                        .sceneId(ECOM_SCENE_ID)
                         .build()));
         assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
         assertEquals(SessionQueryService.MSG_UNAVAILABLE, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
         verify(generationRunRepository, never()).save(any(GenerationRun.class));
-        verify(piSessionSceneRepository, never()).ensureBound(anyString(), anyString(), anyString(), anyString());
+        verify(piSessionSceneRepository, never()).updateSceneIfNeed(anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
     void prepareGenerationRunAllowsOwnSessionAndStillEnsureBound() {
-        stubEcommerceByCode();
+        stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId("own-session"))
                 .thenReturn(Optional.of(new SessionSceneBinding(
                         "own-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID)));
@@ -383,17 +316,17 @@ class AgentApplicationServiceTest {
         GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sessionId("own-session")
-                .sceneCode(ECOM_SCENE_CODE)
+                .sceneId(ECOM_SCENE_ID)
                 .build());
 
         assertEquals("own-session", ctx.getSessionId());
-        verify(piSessionSceneRepository).ensureBound("own-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID);
+        verify(piSessionSceneRepository).updateSceneIfNeed("own-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID);
         verify(creditApplicationService).reserveOne(USER_ID);
     }
 
     @Test
     void prepareDryGenerationRunStoresFixedSessionIdAndNewHoldEachTime() {
-        stubEcommerceByCode();
+        stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId("fixed-session-id"))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(new SessionSceneBinding(
@@ -404,12 +337,12 @@ class AgentApplicationServiceTest {
         GenerationRunContext first = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sessionId(sessionId)
-                .sceneCode(ECOM_SCENE_CODE)
+                .sceneId(ECOM_SCENE_ID)
                 .build());
         GenerationRunContext second = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                 .userId(USER_ID)
                 .sessionId(sessionId)
-                .sceneCode(ECOM_SCENE_CODE)
+                .sceneId(ECOM_SCENE_ID)
                 .build());
 
         assertEquals(sessionId, first.getSessionId());
@@ -429,7 +362,7 @@ class AgentApplicationServiceTest {
 
     @Test
     void prepareDryGenerationRunDoesNotCreateRunWhenInsufficient() {
-        stubEcommerceByCode();
+        stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
         when(creditApplicationService.reserveOne(USER_ID))
                 .thenThrow(new BusinessException(ErrorCode.CREDIT_INSUFFICIENT));
@@ -437,7 +370,7 @@ class AgentApplicationServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
                         .userId(USER_ID)
-                        .sceneCode(ECOM_SCENE_CODE)
+                        .sceneId(ECOM_SCENE_ID)
                         .build()));
         assertEquals(ErrorCode.CREDIT_INSUFFICIENT, ex.getErrorCode());
         verify(generationRunRepository, never()).save(any(GenerationRun.class));
@@ -465,7 +398,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent started = events.get(0);
         assertEquals(SseEventName.RUN_STARTED, started.getName());
@@ -503,7 +436,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.MESSAGE_DELTA));
         SseEvent failed = events.get(events.size() - 1);
@@ -525,7 +458,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
         assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
@@ -549,7 +482,7 @@ class AgentApplicationServiceTest {
                 .when(creditApplicationService).release(USER_ID, HOLD_ID);
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -580,7 +513,7 @@ class AgentApplicationServiceTest {
 
         AtomicInteger accepts = new AtomicInteger();
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, event -> {
+        service.streamBilledRun(ctx, event -> {
             int n = accepts.incrementAndGet();
             if (n == 2) {
                 throw new IllegalStateException("sse broken");
@@ -606,7 +539,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
         SseEvent failed = events.get(events.size() - 1);
@@ -631,7 +564,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -656,7 +589,7 @@ class AgentApplicationServiceTest {
                 .when(creditApplicationService).release(USER_ID, HOLD_ID);
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -668,25 +601,27 @@ class AgentApplicationServiceTest {
 
     @Test
     void prepareGenerationRunNoSkillRejectsBlankText() {
-        assertThrows(BusinessException.class, () -> service.prepareGenerationRun(
+        stubEcommerceById();
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.prepareGenerationRun(
                 StartGenerationRunCommand.builder()
                         .userId(USER_ID)
-                        .sceneCode(ECOM_SCENE_CODE)
+                        .sceneId(ECOM_SCENE_ID)
                         .text("  ")
                         .dryRun(false)
                         .build()));
+        assertEquals(AgentApplicationService.MSG_PROMPT_REQUIRED, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
     }
 
     @Test
     void prepareGenerationRunBlankSkillIdUsesNoSkillProfile() {
-        stubEcommerceByCode();
+        stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
 
         GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder()
                 .userId(USER_ID)
-                .sceneCode(ECOM_SCENE_CODE)
+                .sceneId(ECOM_SCENE_ID)
                 .text("随便聊聊")
                 .dryRun(false)
                 .build());
@@ -714,7 +649,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
         SseEvent ready = events.stream()
@@ -765,7 +700,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        gated.streamGenerationRun(ctx, events::add);
+        gated.streamBilledRun(ctx, events::add);
 
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
@@ -794,7 +729,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -820,7 +755,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -846,13 +781,13 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertEquals(SseEventName.RUN_SETTLED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
         verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-nosearch"), eq(ECOM_SCENE_CODE),
-                eq(SkillRunProfile.PERSIST_PICKLIST), anyMap(), anyMap());
+                eq("picklist"), anyMap(), anyMap());
         verify(runWorkspaceService).deleteRunDirQuietly("session-pl-nosearch", "run-pl-nosearch");
     }
 
@@ -869,7 +804,7 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ws", USER_ID, HOLD_ID, "session-ws",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        service.streamGenerationRun(ctx, new ArrayList<SseEvent>()::add);
+        service.streamBilledRun(ctx, new ArrayList<SseEvent>()::add);
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
@@ -889,7 +824,7 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ws-dry", USER_ID, HOLD_ID, "session-ws-dry",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        service.streamGenerationRun(ctx, new ArrayList<SseEvent>()::add);
+        service.streamBilledRun(ctx, new ArrayList<SseEvent>()::add);
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
@@ -910,7 +845,7 @@ class AgentApplicationServiceTest {
                 GenerationRun.start("run-ws-listing", USER_ID, HOLD_ID, "session-ws-listing",
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
-        service.streamGenerationRun(ctx, new ArrayList<SseEvent>()::add);
+        service.streamBilledRun(ctx, new ArrayList<SseEvent>()::add);
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
@@ -935,7 +870,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -961,7 +896,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertEquals(SseEventName.RUN_SETTLED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
@@ -984,7 +919,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -1004,13 +939,13 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertEquals(SseEventName.RUN_SETTLED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).release(anyString(), anyString());
         verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-searchok"), eq(ECOM_SCENE_CODE),
-                eq(SkillRunProfile.PERSIST_PICKLIST), anyMap(), anyMap());
+                eq("picklist"), anyMap(), anyMap());
     }
 
     @Test
@@ -1023,7 +958,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
         SseEvent ready = events.stream()
@@ -1049,7 +984,7 @@ class AgentApplicationServiceTest {
         assertEquals(SceneCapabilityPackLoader.SKILL_PICKLIST, promptCaptor.getValue().getSkillId());
         assertEquals("帮我选品", promptCaptor.getValue().getText());
         verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-ok"), eq(ECOM_SCENE_CODE),
-                eq(SkillRunProfile.PERSIST_PICKLIST), anyMap(), anyMap());
+                eq("picklist"), anyMap(), anyMap());
     }
 
     @Test
@@ -1063,7 +998,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent ready = events.stream()
                 .filter(e -> e.getName() == SseEventName.ARTIFACT_READY)
@@ -1092,7 +1027,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        gated.streamGenerationRun(ctx, events::add);
+        gated.streamBilledRun(ctx, events::add);
 
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
@@ -1115,7 +1050,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -1139,7 +1074,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, event -> {
+        service.streamBilledRun(ctx, event -> {
             if (SseEventName.ARTIFACT_READY.equals(event.getName())) {
                 throw new IllegalStateException("sse broken after settle");
             }
@@ -1170,7 +1105,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        gated.streamGenerationRun(ctx, events::add);
+        gated.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -1195,7 +1130,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -1220,7 +1155,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
@@ -1243,14 +1178,14 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(artifactPersistPlugin).persist(
                 eq(USER_ID), eq("run-listing-ok"), eq(ECOM_SCENE_CODE),
-                eq(SkillRunProfile.PERSIST_SKU), anyMap(), anyMap());
+                eq("sku"), anyMap(), anyMap());
     }
 
     @Test
@@ -1269,7 +1204,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
@@ -1292,7 +1227,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
@@ -1316,7 +1251,7 @@ class AgentApplicationServiceTest {
                         ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
 
         List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamGenerationRun(ctx, events::add);
+        service.streamBilledRun(ctx, events::add);
 
         assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
@@ -1334,7 +1269,7 @@ class AgentApplicationServiceTest {
         when(checkpointer.loadLatest("run-no-cp")).thenReturn(Optional.empty());
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                service.prepareResumeGenerationRun(ResumeGenerationRunCommand.builder()
+                service.prepareResumeRun(ResumeGenerationRunCommand.builder()
                         .userId(USER_ID)
                         .runId("run-no-cp")
                         .toolCallId(ASK_CALL_ID)
@@ -1369,13 +1304,13 @@ class AgentApplicationServiceTest {
 
     private GenerationRunContext picklistCtx(String runId, String sessionId) {
         return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
-                "帮我选品", SkillRunProfile.billedPicklist());
+                "帮我选品", SkillRunProfile.billed("ecommerce-picklist", "picklist"));
     }
 
     private GenerationRunContext listingCtx(String runId, String sessionId) {
         writeEnvelope("view.json", "artifact.json", VALID_LISTING_JSON);
         return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
-                "请为 Mac Mini 拓展坞生成上架素材", SkillRunProfile.billedListing());
+                "请为 Mac Mini 拓展坞生成上架素材", SkillRunProfile.billed("ecommerce-skulist", "sku"));
     }
 
     private GenerationRunContext emptyCtx(String runId, String sessionId) {
@@ -1409,21 +1344,21 @@ class AgentApplicationServiceTest {
 
     private static String persistAsForSkill(String id) {
         if (SceneCapabilityPackLoader.SKILL_SKULIST.equals(id)) {
-            return SkillRunProfile.PERSIST_SKU;
+            return "sku";
         }
         if (SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST.equals(id)) {
-            return SkillRunProfile.PERSIST_XHS_TOPICLIST;
+            return "xhs_topiclist";
         }
         if (SceneCapabilityPackLoader.SKILL_XHS_NOTE.equals(id)) {
-            return SkillRunProfile.PERSIST_XHS_NOTE;
+            return "xhs_note";
         }
         if (SceneCapabilityPackLoader.SKILL_XHS_BREAK.equals(id)) {
-            return SkillRunProfile.PERSIST_XHS_BREAK;
+            return "xhs_break";
         }
         if (SceneCapabilityPackLoader.SKILL_TECH_DIGEST.equals(id)) {
-            return SkillRunProfile.PERSIST_TECH_DIGEST;
+            return "tech_digest";
         }
-        return SkillRunProfile.PERSIST_PICKLIST;
+        return "picklist";
     }
 
     private static SceneCapabilityPack ecommercePack() {
@@ -1441,10 +1376,6 @@ class AgentApplicationServiceTest {
                 .promptRef(promptRef)
                 .allowedTools(Collections.singletonList("read_skill"))
                 .build();
-    }
-
-    private void stubEcommerceByCode() {
-        when(sceneRepository.findBySceneCode(ECOM_SCENE_CODE)).thenReturn(Optional.of(ecommerceScene()));
     }
 
     private void stubEcommerceById() {

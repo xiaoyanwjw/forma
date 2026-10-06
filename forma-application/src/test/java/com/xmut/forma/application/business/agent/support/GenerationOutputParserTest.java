@@ -27,10 +27,10 @@ class GenerationOutputParserTest {
     }
 
     @Test
-    void appliesToAlwaysTrue() {
-        assertTrue(parser.appliesTo(null));
-        assertTrue(parser.appliesTo(OutputParseContext.builder().build()));
-        assertTrue(parser.appliesTo(OutputParseContext.builder()
+    void supportsAlwaysTrue() {
+        assertTrue(parser.supports(null));
+        assertTrue(parser.supports(OutputParseContext.builder().build()));
+        assertTrue(parser.supports(OutputParseContext.builder()
                 .skillId("ecommerce-picklist")
                 .finalResponse("x")
                 .build()));

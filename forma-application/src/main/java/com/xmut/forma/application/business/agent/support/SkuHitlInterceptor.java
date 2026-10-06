@@ -70,7 +70,7 @@ public class SkuHitlInterceptor
 
     @Override
     public void onBefore(BilledRunContext ctx) {
-        if (!ctx.getProfile().isBilledSku()) {
+        if (!ctx.getProfile().persistsAs("sku")) {
             return;
         }
         if (!HitlOptions.CONFIRM_EXECUTE.equals(ctx.getResumeOptionId())) {
@@ -87,7 +87,7 @@ public class SkuHitlInterceptor
 
     @Override
     public void onAfter(BilledRunContext ctx) {
-        if (!ctx.getProfile().isBilledSku()) {
+        if (!ctx.getProfile().persistsAs("sku")) {
             return;
         }
         if (!StringUtils.hasText(ctx.getResumeOptionId())) {
@@ -96,12 +96,12 @@ public class SkuHitlInterceptor
         if (!HitlOptions.CONFIRM_EXECUTE.equals(ctx.getResumeOptionId())) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_MODEL_FAILED);
         }
-        ctx.setPersistAs(SkillRunProfile.PERSIST_SKU);
+        ctx.setPersistAs("sku");
     }
 
     @Override
     public void onEvent(BilledRunContext ctx, SseEvent event) {
-        if (!ctx.getProfile().isBilledSku()) {
+        if (!ctx.getProfile().persistsAs("sku")) {
             return;
         }
         if (event == null || event.getName() != SseEventName.MESSAGE_DELTA) {
@@ -118,7 +118,7 @@ public class SkuHitlInterceptor
 
     @Override
     public boolean onSuspended(BilledRunContext ctx, Consumer<SseEvent> sink) {
-        if (!ctx.getProfile().isBilledSku()) {
+        if (!ctx.getProfile().persistsAs("sku")) {
             return false;
         }
         seedPlanCandidateFromTurn(ctx);
@@ -166,7 +166,7 @@ public class SkuHitlInterceptor
         boolean firstPlanSettle = !context.isSettledOnSuspended();
         PersistedGenerationArtifact persisted = artifactPersistPlugin.persist(
                 context.getUserId(), context.getRunId(), context.getSceneCode(),
-                SkillRunProfile.PERSIST_LISTING_PLAN, projectedView, parsed.getBusinessPayload());
+                "listing_plan", projectedView, parsed.getBusinessPayload());
         context.setArtifactRef(persisted.getArtifactRef());
         if (firstPlanSettle) {
             billedCtx.setPendingSettleOnSuspend(true);
@@ -229,7 +229,7 @@ public class SkuHitlInterceptor
                 .finalResponse(echo)
                 .runWorkspace(runDir(ctx))
                 .build();
-        if (!outputParser.appliesTo(parseCtx)) {
+        if (!outputParser.supports(parseCtx)) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
         }
         try {

@@ -4,10 +4,7 @@ import com.xmut.forma.common.exception.BusinessException;
 import com.xmut.forma.common.exception.ErrorCode;
 import com.xmut.forma.common.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Resolves a Computer {@code view}: ordered strategy chain (first {@code supports} wins), fail closed.
@@ -29,9 +26,7 @@ public class ComputerViewResolver {
      * @throws BusinessException when no strategy produces a view
      */
     public Map<String, Object> resolve(ViewProjectContext context) {
-        if (context == null) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_VIEW_UNAVAILABLE);
-        }
+        Optional.ofNullable(context).orElseThrow(() -> new BusinessException(ErrorCode.PARAM_INVALID, MSG_VIEW_UNAVAILABLE));
         for (ComputerViewProjector projector : projectors) {
             if (projector.supports(context)) {
                 Map<String, Object> view = projector.project(context);
