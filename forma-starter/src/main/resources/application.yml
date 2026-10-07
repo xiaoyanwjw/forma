@@ -42,6 +42,12 @@ auth:
     max-attempts: ${AUTH_RATE_LIMIT_MAX:20}
     window-ms: ${AUTH_RATE_LIMIT_WINDOW_MS:60000}
 
+# Agent 生成/续跑 SSE：按用户滑动窗口（默认 10 次 / 60s）
+agent:
+  rate-limit:
+    max-attempts: ${AGENT_RATE_LIMIT_MAX:10}
+    window-ms: ${AGENT_RATE_LIMIT_WINDOW_MS:60000}
+
 # 手工改档白名单（逗号分隔用户 UUID；空=全部拒绝）
 credit:
   admin:

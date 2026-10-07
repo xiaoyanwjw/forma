@@ -7,6 +7,7 @@ import com.xmut.forma.application.business.session.query.SessionQueryService;
 import com.xmut.forma.domain.business.artifact.model.Artifact;
 import com.xmut.forma.domain.business.artifact.model.ArtifactType;
 import com.xmut.forma.domain.business.artifact.repository.ArtifactRepository;
+import com.xmut.forma.interfaces.ratelimit.AgentRateLimitInterceptor;
 import com.xmut.forma.interfaces.ratelimit.AuthRateLimitInterceptor;
 import com.xmut.forma.pi.ai.message.Message;
 import com.xmut.forma.pi.agent.session.SessionStore;
@@ -55,6 +56,9 @@ class SessionQueryIntegrationTest {
     private AuthRateLimitInterceptor authRateLimitInterceptor;
 
     @Autowired
+    private AgentRateLimitInterceptor agentRateLimitInterceptor;
+
+    @Autowired
     private SessionStore sessionStore;
 
     @Autowired
@@ -66,6 +70,7 @@ class SessionQueryIntegrationTest {
     @BeforeEach
     void clean() {
         authRateLimitInterceptor.reset();
+        agentRateLimitInterceptor.reset();
         jdbcTemplate.update("DELETE FROM pi_session_entry");
         jdbcTemplate.update("DELETE FROM pi_session");
         jdbcTemplate.update("DELETE FROM forma_artifact");

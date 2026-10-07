@@ -2,6 +2,7 @@ package com.xmut.forma;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xmut.forma.interfaces.ratelimit.AgentRateLimitInterceptor;
 import com.xmut.forma.interfaces.ratelimit.AuthRateLimitInterceptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,9 +39,13 @@ class AgentListingRunIntegrationTest {
     @Autowired
     private AuthRateLimitInterceptor authRateLimitInterceptor;
 
+    @Autowired
+    private AgentRateLimitInterceptor agentRateLimitInterceptor;
+
     @BeforeEach
     void clean() {
         authRateLimitInterceptor.reset();
+        agentRateLimitInterceptor.reset();
         jdbcTemplate.update("DELETE FROM forma_artifact");
         jdbcTemplate.update("DELETE FROM forma_media_object");
         jdbcTemplate.update("DELETE FROM forma_generation_run");
