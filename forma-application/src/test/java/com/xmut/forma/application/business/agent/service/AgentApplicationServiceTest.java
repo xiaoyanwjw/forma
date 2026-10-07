@@ -33,6 +33,7 @@ import com.xmut.forma.domain.business.agent.repository.PiSessionSceneRepository;
 import com.xmut.forma.domain.business.scene.constant.SceneStatus;
 import com.xmut.forma.domain.business.scene.model.Scene;
 import com.xmut.forma.domain.business.scene.repository.SceneRepository;
+import com.xmut.forma.pi.agent.ResumeRequest;
 import com.xmut.forma.pi.agent.event.PiEvent;
 import com.xmut.forma.pi.agent.event.PiEventType;
 import com.xmut.forma.pi.agent.graph.checkpoint.Checkpoint;
@@ -576,6 +577,53 @@ class AgentApplicationServiceTest {
         verify(creditApplicationService, never()).settle(anyString(), anyString());
         verify(artifactPersistPlugin, never()).persist(
                 anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
+    }
+
+    @Test
+    void resumeBilledRunAbortWithLeftoverArtifactRefReleasesOpenExecHold() {
+        String runId = "run-abort-hitl";
+        String sessionId = "session-abort-hitl";
+        String execHoldId = "33333333-3333-3333-3333-333333333333";
+        GenerationRun run = GenerationRun.start(runId, USER_ID, null, sessionId,
+                ECOM_SCENE_ID, ECOM_SCENE_CODE, SceneCapabilityPackLoader.SKILL_SKULIST, NOW);
+        run.markSettledOnSuspended("art-prior-hitl", NOW);
+        when(generationRunRepository.findById(runId)).thenReturn(Optional.of(run));
+        when(creditApplicationService.reserveOne(USER_ID)).thenReturn(execHoldId);
+        AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
+        when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
+            subscriber.set(invocation.getArgument(0));
+            return () -> {
+            };
+        });
+        when(agentSession.resume(any(ResumeRequest.class))).thenAnswer(invocation -> {
+            subscriber.get().accept(PiEvent.of(PiEventType.AGENT_START, null));
+            return TurnResult.ok(runId, sessionId, "partial",
+                    Collections.<com.xmut.forma.pi.ai.message.Message>emptyList());
+        });
+
+        service.resumeBilledRun(ResumeGenerationRunCommand.builder()
+                .userId(USER_ID)
+                .runId(runId)
+                .toolCallId(ASK_CALL_ID)
+                .optionId(HitlOptions.CONFIRM_EXECUTE)
+                .build(), event -> {
+            if (event.getName() == SseEventName.AGENT_STARTED) {
+                throw new IllegalStateException("sse broken before this-turn persist");
+            }
+        });
+
+        verify(agentSession).cancel(eq(runId), anyString());
+        verify(creditApplicationService).release(USER_ID, execHoldId);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
+        ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
+        verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
+        assertTrue(captor.getAllValues().stream()
+                .anyMatch(r -> r.getStatus() == GenerationRunStatus.FAILED));
+        assertTrue(captor.getAllValues().stream()
+                .noneMatch(r -> r.getStatus() == GenerationRunStatus.SETTLED
+                        || r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE));
     }
 
     @Test

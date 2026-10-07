@@ -720,16 +720,26 @@ public class AgentApplicationService {
         return status == GenerationRunStatus.SETTLED || status == GenerationRunStatus.NEEDS_RECONCILE;
     }
 
-    /** sink abort：无成果则 cancel 已发生，释放并 FAILED；已有 artifactRef 则交给 settle 路径。 */
+    /**
+     * sink abort：只看本轮信号。挂起待 settle 则 settle；否则有未关 hold 则 FAILED+释放。
+     * 禁止仅因复用的 leftover {@code artifactRef}（Listing HITL 续跑）跳过释放。
+     */
     private void finishAfterAbort(BilledRunContext runContext, Consumer<SseEvent> sink) {
         GenerationRunContext context = runContext.getRun();
-        if (StringUtils.hasText(context.getArtifactRef())) {
-            if (runContext.isPendingSettleOnSuspend()) {
-                settleOnSuspended(runContext, sink);
-            }
+        if (runContext.isPendingSettleOnSuspend()) {
+            settleOnSuspended(runContext, sink);
             return;
         }
-        finishAsFailed(context, sink, SSE_SEND_FAILED_RELEASED);
+        if (hasOpenCredit(context)) {
+            finishAsFailed(context, sink, SSE_SEND_FAILED_RELEASED);
+            return;
+        }
+    }
+
+    /** 本轮仍有未关闭预占（含 Listing 确认执行的 execHold）。 */
+    private static boolean hasOpenCredit(GenerationRunContext context) {
+        return StringUtils.hasText(context.getHoldId())
+                || StringUtils.hasText(context.getExecHoldId());
     }
 
     /** release / FAILED 最多一次；SETTLED / NEEDS_RECONCILE 不再二次释放。 */
@@ -767,10 +777,13 @@ public class AgentApplicationService {
                 NameValue.create("responseChars", responseChars));
     }
 
-    /** 仅释放当前未关闭的活跃预占。 */
+    /** 仅释放当前未关闭的活跃预占（holdId 优先；否则 execHoldId）。 */
     private void releaseOpenHolds(GenerationRunContext context) {
-        if (StringUtils.hasText(context.getHoldId())) {
-            creditHoldSupport.release(context.getUserId(), context.getHoldId(), context.getRunId());
+        String holdId = StringUtils.hasText(context.getHoldId())
+                ? context.getHoldId()
+                : context.getExecHoldId();
+        if (StringUtils.hasText(holdId)) {
+            creditHoldSupport.release(context.getUserId(), holdId, context.getRunId());
         }
     }
 
