@@ -1,5 +1,6 @@
 package com.xmut.forma;
 
+import com.xmut.forma.application.business.scene.pack.ClasspathSceneMetaCatalog;
 import com.xmut.forma.application.business.scene.pack.SceneCapabilityPackLoader;
 import com.xmut.forma.pi.agent.skill.InMemorySkillCatalog;
 import com.xmut.forma.pi.agent.skill.SkillCatalog;
@@ -18,32 +19,32 @@ class SceneCapabilityPackBootstrapTest {
     void starterEcommerceSkillsRegisterIntoSkillCatalog() {
         SkillCatalog skills = loadStarterSkills();
 
-        assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_PICKLIST).isPresent());
-        assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_SKULIST).isPresent());
+        assertTrue(skills.resolve("ecommerce-picklist").isPresent());
+        assertTrue(skills.resolve("ecommerce-skulist").isPresent());
     }
 
     @Test
     void starterEcommercePackLoadsViaLoader() {
         SceneCapabilityPackLoader loader = newLoader(loadStarterSkills());
-        assertTrue(loader.load("ecommerce").hasSkill(SceneCapabilityPackLoader.SKILL_PICKLIST));
-        assertTrue(loader.load("ecommerce").hasSkill(SceneCapabilityPackLoader.SKILL_SKULIST));
+        assertTrue(loader.load("ecommerce").hasSkill("ecommerce-picklist"));
+        assertTrue(loader.load("ecommerce").hasSkill("ecommerce-skulist"));
     }
 
     @Test
     void starterXiaohongshuSkillsRegisterAndPackLoads() {
         SkillCatalog skills = loadStarterSkills();
-        assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST).isPresent());
-        assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_XHS_NOTE).isPresent());
-        assertTrue(skills.resolve(SceneCapabilityPackLoader.SKILL_XHS_BREAK).isPresent());
+        assertTrue(skills.resolve("xhs-topiclist").isPresent());
+        assertTrue(skills.resolve("xhs-note").isPresent());
+        assertTrue(skills.resolve("xhs-break").isPresent());
 
         SceneCapabilityPackLoader loader = newLoader(skills);
-        assertTrue(loader.load("xiaohongshu").hasSkill(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST));
-        assertTrue(loader.load("xiaohongshu").hasSkill(SceneCapabilityPackLoader.SKILL_XHS_NOTE));
-        assertTrue(loader.load("xiaohongshu").hasSkill(SceneCapabilityPackLoader.SKILL_XHS_BREAK));
+        assertTrue(loader.load("xiaohongshu").hasSkill("xhs-topiclist"));
+        assertTrue(loader.load("xiaohongshu").hasSkill("xhs-note"));
+        assertTrue(loader.load("xiaohongshu").hasSkill("xhs-break"));
     }
 
     private static SceneCapabilityPackLoader newLoader(SkillCatalog skills) {
-        return new SceneCapabilityPackLoader(skills);
+        return new SceneCapabilityPackLoader(skills, new ClasspathSceneMetaCatalog());
     }
 
     private static SkillCatalog loadStarterSkills() {

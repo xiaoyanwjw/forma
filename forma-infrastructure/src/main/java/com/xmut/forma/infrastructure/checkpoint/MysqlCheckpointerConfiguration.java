@@ -24,7 +24,7 @@ public class MysqlCheckpointerConfiguration {
     @Primary
     public MysqlCheckpointer mysqlCheckpointer(
             PiGraphCheckpointMapper mapper,
-            @Value("${lims.pi.checkpoint.ttl-seconds:7200}") int ttlSeconds) {
+            @Value("${forma.pi.checkpoint.ttl-seconds:7200}") int ttlSeconds) {
         return new MysqlCheckpointer(mapper, ttlSeconds);
     }
 }

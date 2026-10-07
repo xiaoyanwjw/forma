@@ -38,7 +38,7 @@ class PiAutoConfigurationTest {
     private ApplicationContextRunner contextRunnerWithSqlite() {
         Path db = tempDir.resolve("pi-session-test.db");
         return contextRunner()
-                .withPropertyValues("lims.pi.session.sqlite-path=" + db.toAbsolutePath());
+                .withPropertyValues("forma.pi.session.sqlite-path=" + db.toAbsolutePath());
     }
 
     @Test
@@ -92,7 +92,7 @@ class PiAutoConfigurationTest {
     @Test
     void write_approval_enabled_property_wires_tool_policy() {
         contextRunner()
-                .withPropertyValues("lims.pi.tool.write-approval.enabled=true")
+                .withPropertyValues("forma.pi.tool.write-approval.enabled=true")
                 .run(context -> assertThat(
                         context.getBean(com.xmut.forma.pi.agent.extension.ToolPolicyExtension.class)
                                 .isWriteApprovalEnabled()).isTrue());

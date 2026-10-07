@@ -104,7 +104,7 @@ context:
 - `medium` — load 成功不保证同进程 SkillConfig.resolve(skillId)。verified：Loader 与 EbusSkillConfiguration 分路径扫描。→ defer
 - `high` — 电商仅一 skill 时 validatePack 无测。pre-verified。→ patch（已补 Loader 单测）
 - `high` — pack 有但缺 DEFAULT picklist 时 streamEmptyRun 分支无测。pre-verified。→ patch（已补）
-- `false` — DEFAULT_EMPTY_RUN_SKILL_ID 硬编码 ecommerce.picklist。evidence：冻结 Decisions 明确空跑默认 picklist。
+- `false` — DEFAULT_EMPTY_RUN_SKILL_ID 硬编码 ecommerce.picklist。evidence：冻结 Decisions 明确空跑默认 picklist。**后改：** 空跑默认改读 `scenes/{sceneCode}/pack.yaml` 的 `defaultSkill`，Java 不再写死电商。
 - `low` — API 禁提示词仅反射锁参。rejected：任务允许扫 Controller；ContractTest 已锁三参，加 MVC 超范围。
 - `medium` — AgentEmptyRunIntegrationTest 未断言装包/缺包。verified：IT 仍只看 AD-4/release。→ defer
 - `low` — sceneCode 拼入 Ant glob 可注入。rejected：EmptyRunContext.sceneCode 仅来自 Catalog 解析的 AVAILABLE 码，日常不可达；加 sanitize 超最小补丁。

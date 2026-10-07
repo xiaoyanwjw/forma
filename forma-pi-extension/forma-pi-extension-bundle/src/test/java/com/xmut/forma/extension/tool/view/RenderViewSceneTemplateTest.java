@@ -26,6 +26,17 @@ class RenderViewSceneTemplateTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    private static ViewEnricherComposite sceneRegistry() {
+        return ViewEnricherComposite.of(
+                new XhsTopiclistViewEnricher(),
+                new EcommercePicklistViewEnricher(),
+                new XhsBreakViewEnricher(),
+                new XhsNoteViewEnricher(),
+                new EcommerceSkulistViewEnricher(),
+                new TechDigestViewEnricher());
+    }
+
+
     @Test
     void handle_xhs_note_defaults_to_html_format() throws Exception {
         InMemorySkillCatalog catalog = new InMemorySkillCatalog();
@@ -37,7 +48,8 @@ class RenderViewSceneTemplateTest {
                 .build());
         RenderViewToolHandler handler = new RenderViewToolHandler(
                 new CatalogSkillTemplateLoader(catalog, new DefaultResourceLoader()),
-                new MustacheViewRenderer());
+                new MustacheViewRenderer(),
+                sceneRegistry());
         Path run = Files.createTempDirectory("render-view-note-");
         String artifact = "{"
                 + "\"title\":\"笔记\","
@@ -72,7 +84,8 @@ class RenderViewSceneTemplateTest {
                 .build());
         RenderViewToolHandler handler = new RenderViewToolHandler(
                 new CatalogSkillTemplateLoader(catalog, new DefaultResourceLoader()),
-                new MustacheViewRenderer());
+                new MustacheViewRenderer(),
+                sceneRegistry());
         Path run = Files.createTempDirectory("render-view-break-");
         String artifact = "{"
                 + "\"title\":\"拆解\","
@@ -105,7 +118,8 @@ class RenderViewSceneTemplateTest {
                 .build());
         RenderViewToolHandler handler = new RenderViewToolHandler(
                 new CatalogSkillTemplateLoader(catalog, new DefaultResourceLoader()),
-                new MustacheViewRenderer());
+                new MustacheViewRenderer(),
+                sceneRegistry());
         Path run = Files.createTempDirectory("render-view-tech-digest-");
         Files.write(run.resolve("artifact.json"),
                 "{\"title\":\"科技速读\",\"oneLiner\":\"\",\"forWhom\":\"\"}"
@@ -133,7 +147,8 @@ class RenderViewSceneTemplateTest {
                 .build());
         RenderViewToolHandler handler = new RenderViewToolHandler(
                 new CatalogSkillTemplateLoader(catalog, new DefaultResourceLoader()),
-                new MustacheViewRenderer());
+                new MustacheViewRenderer(),
+                sceneRegistry());
         Path run = Files.createTempDirectory("render-view-topiclist-");
         String artifact = "{"
                 + "\"title\":\"选题清单\","

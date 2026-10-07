@@ -50,7 +50,7 @@ class PiRedisCheckpointAutoConfigurationTest {
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(PiCheckpointAutoConfiguration.class))
                 .withUserConfiguration(JedisPoolPresentConfig.class, AgentConfiguration.class)
-                .withPropertyValues("lims.pi.checkpoint.redis.enabled=true")
+                .withPropertyValues("forma.pi.checkpoint.redis.enabled=true")
                 .run(context -> {
                     assertThat(context.getBean(Checkpointer.class))
                             .isInstanceOf(RedisCheckpointer.class);
@@ -65,7 +65,7 @@ class PiRedisCheckpointAutoConfigurationTest {
         new ApplicationContextRunner()
                 .withUserConfiguration(JedisPoolPresentConfig.class, AgentConfiguration.class)
                 .withConfiguration(AutoConfigurations.of(PiCheckpointAutoConfiguration.class))
-                .withPropertyValues("lims.pi.checkpoint.redis.enabled=true")
+                .withPropertyValues("forma.pi.checkpoint.redis.enabled=true")
                 .run(context -> {
                     assertThat(context.getBean(Checkpointer.class))
                             .isInstanceOf(RedisCheckpointer.class);

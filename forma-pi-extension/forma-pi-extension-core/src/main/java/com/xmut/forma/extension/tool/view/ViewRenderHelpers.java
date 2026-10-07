@@ -8,220 +8,35 @@ import java.util.Map;
 import org.springframework.util.StringUtils;
 
 /**
- * In-memory display fields for skill templates (not persisted to artifact.json).
+ * Shared in-memory display helpers for skill view enrichers (not persisted to artifact.json).
+ *
+ * <p>Skill 分发见 {@link ViewEnricherComposite}；场景实现 {@link ViewEnricher}。
  */
 public final class ViewRenderHelpers {
 
-    private static final String PRIORITY_TOPIC = "【优先发】";
-    private static final String PRIORITY_PICK = "【优先试】";
-    private static final int BREAK_STRUCTURE_MAX = 240;
-    private static final int BREAK_TEXT_MAX = 400;
+    static final String PRIORITY_TOPIC = "【优先发】";
+    static final String PRIORITY_PICK = "【优先试】";
+    static final int BREAK_STRUCTURE_MAX = 240;
+    static final int BREAK_TEXT_MAX = 400;
 
     private ViewRenderHelpers() {
     }
 
-    public static Map<String, Object> enrich(String skillId, Map<String, Object> artifact) {
-        Map<String, Object> source = artifact == null
-                ? new LinkedHashMap<String, Object>()
-                : artifact;
-        if (!StringUtils.hasText(skillId)) {
-            return source;
-        }
-        if ("xhs-topiclist".equals(skillId)) {
-            return enrichTopicList(deepCopy(source));
-        }
-        if ("ecommerce-picklist".equals(skillId)) {
-            return enrichPickList(deepCopy(source));
-        }
-        if ("xhs-break".equals(skillId)) {
-            return enrichBreak(deepCopy(source));
-        }
-        if ("xhs-note".equals(skillId)) {
-            return enrichNote(deepCopy(source));
-        }
-        if ("ecommerce-skulist".equals(skillId)) {
-            return enrichSkulist(deepCopy(source));
-        }
-        if ("tech-digest".equals(skillId)) {
-            return enrichTechDigest(deepCopy(source));
-        }
-        return source;
-    }
-
-    private static Map<String, Object> enrichTopicList(Map<String, Object> artifact) {
-        enrichItems(artifact, ViewRenderHelpers::topicItemHelpers);
-        putItemCount(artifact);
-        return artifact;
-    }
-
-    private static Map<String, Object> enrichPickList(Map<String, Object> artifact) {
-        enrichItems(artifact, ViewRenderHelpers::pickItemHelpers);
-        putItemCount(artifact);
-        return artifact;
-    }
-
-    private static Map<String, Object> enrichTechDigest(Map<String, Object> artifact) {
-        putDefaultEmptyList(artifact, "points");
-        putDefaultEmptyList(artifact, "excerpts");
-        putDefaultEmptyList(artifact, "uncertainties");
-        List<?> points = (List<?>) artifact.get("points");
-        List<Map<String, Object>> pointItems = new ArrayList<Map<String, Object>>(points.size());
-        for (int i = 0; i < points.size(); i++) {
-            String text = trimString(points.get(i));
-            if (!StringUtils.hasText(text)) {
-                continue;
-            }
-            Map<String, Object> row = new LinkedHashMap<String, Object>();
-            row.put("indexLabel", padIndex(pointItems.size() + 1));
-            row.put("text", text);
-            pointItems.add(row);
-        }
-        artifact.put("pointItems", pointItems);
-        artifact.put("pointCount", String.valueOf(pointItems.size()));
-
-        List<?> excerptsRaw = (List<?>) artifact.get("excerpts");
-        List<Map<String, Object>> excerpts = new ArrayList<Map<String, Object>>();
-        int quoteTotal = 0;
-        for (int i = 0; i < excerptsRaw.size(); i++) {
-            Object entry = excerptsRaw.get(i);
-            if (!(entry instanceof Map)) {
-                continue;
-            }
-            @SuppressWarnings("unchecked")
-            Map<String, Object> excerpt = deepCopy((Map<String, Object>) entry);
-            Object quotesRaw = excerpt.get("quotes");
-            int quoteCount = quotesRaw instanceof List ? ((List<?>) quotesRaw).size() : 0;
-            quoteTotal += quoteCount;
-            excerpt.put("quoteCount", String.valueOf(quoteCount));
-            if (excerpts.isEmpty()) {
-                excerpt.put("detailsOpen", Boolean.TRUE);
-            }
-            excerpts.add(excerpt);
-        }
-        artifact.put("excerpts", excerpts);
-        artifact.put("excerptCount", String.valueOf(excerpts.size()));
-        artifact.put("quoteCount", String.valueOf(quoteTotal));
-
-        List<?> uncertainties = (List<?>) artifact.get("uncertainties");
-        if (!uncertainties.isEmpty()) {
-            artifact.put("hasUncertainties", Boolean.TRUE);
-            artifact.put("uncertaintyCount", String.valueOf(uncertainties.size()));
-        }
-
-        String source = trimString(artifact.get("source"));
-        if ("paste".equalsIgnoreCase(source)) {
-            artifact.put("sourceLabel", "粘贴正文");
-            artifact.put("sourceClass", "gray");
-        } else if ("fetch".equalsIgnoreCase(source)) {
-            artifact.put("sourceLabel", "公开链接");
-            artifact.put("sourceClass", "info");
-        } else {
-            artifact.put("sourceLabel", "原文");
-            artifact.put("sourceClass", "gray");
-        }
-        if (StringUtils.hasText(trimString(artifact.get("sourceUrl")))) {
-            artifact.put("hasSourceUrl", Boolean.TRUE);
-        }
-        if (StringUtils.hasText(trimString(artifact.get("concern")))) {
-            artifact.put("hasConcern", Boolean.TRUE);
-        }
-        return artifact;
-    }
-
-    private static void putDefaultEmptyList(Map<String, Object> artifact, String key) {
+    static void putDefaultEmptyList(Map<String, Object> artifact, String key) {
         Object raw = artifact.get(key);
         if (!(raw instanceof List)) {
             artifact.put(key, new ArrayList<Object>());
         }
     }
 
-    private static Map<String, Object> enrichBreak(Map<String, Object> artifact) {
-        String handoff = buildXhsBreakNoteHandoffText(
-                trimString(artifact.get("targetProduct")),
-                trimString(artifact.get("structure")),
-                trimString(artifact.get("skeleton")),
-                trimString(artifact.get("rewrite")));
-        if (handoff != null) {
-            artifact.put("handoffPrompt", handoff);
-        }
-        String rewrite = trimString(artifact.get("rewrite"));
-        if (StringUtils.hasText(rewrite)) {
-            artifact.put("rewriteParagraphs", splitParagraphs(rewrite));
-        }
-        return artifact;
-    }
-
-    private static Map<String, Object> enrichNote(Map<String, Object> artifact) {
-        putNumberedLines(artifact, "titleOptions", "titleOptionsNumbered");
-        putNumberedLines(artifact, "imageHints", "imageHintsNumbered");
-        Object tags = artifact.get("tags");
-        if (tags instanceof List) {
-            List<?> list = (List<?>) tags;
-            List<String> parts = new ArrayList<String>(list.size());
-            List<String> tagItems = new ArrayList<String>(list.size());
-            for (Object entry : list) {
-                String trimmed = trimString(entry);
-                if (!StringUtils.hasText(trimmed)) {
-                    continue;
-                }
-                String bare = trimmed.startsWith("#") ? trimmed.substring(1).trim() : trimmed;
-                if (!StringUtils.hasText(bare)) {
-                    continue;
-                }
-                parts.add(bare);
-                tagItems.add(bare);
-            }
-            if (!parts.isEmpty()) {
-                artifact.put("tagsDisplay", joinWithMiddleDot(parts));
-                artifact.put("tagItems", tagItems);
-                artifact.put("hasTags", Boolean.TRUE);
-            }
-        }
-        String body = trimString(artifact.get("body"));
-        if (StringUtils.hasText(body)) {
-            artifact.put("bodyParagraphs", splitParagraphs(body));
-        }
-        Object imageHints = artifact.get("imageHints");
-        if (imageHints instanceof List && !((List<?>) imageHints).isEmpty()) {
-            artifact.put("hasImageHints", Boolean.TRUE);
-        }
-        Object titleOptions = artifact.get("titleOptions");
-        if (titleOptions instanceof List && !((List<?>) titleOptions).isEmpty()) {
-            artifact.put("hasTitleOptions", Boolean.TRUE);
-        }
-        return artifact;
-    }
-
-    private static Map<String, Object> enrichSkulist(Map<String, Object> artifact) {
-        String detailBody = trimString(artifact.get("detailBody"));
-        if (StringUtils.hasText(detailBody)) {
-            List<String> paragraphs = splitParagraphs(detailBody);
-            artifact.put("detailParagraphs", paragraphs);
-            if (!paragraphs.isEmpty()) {
-                artifact.put("hasDetailParagraphs", Boolean.TRUE);
-            }
-        }
-        zipFramePrompts(artifact);
-        Object frameEntries = artifact.get("frameEntries");
-        if (frameEntries instanceof List && !((List<?>) frameEntries).isEmpty()) {
-            artifact.put("frameCount", Integer.valueOf(((List<?>) frameEntries).size()));
-            artifact.put("hasFrames", Boolean.TRUE);
-        }
-        Object modules = artifact.get("modules");
-        if (modules instanceof List && !((List<?>) modules).isEmpty()) {
-            artifact.put("hasModules", Boolean.TRUE);
-        }
-        return artifact;
-    }
-
-    private static void putItemCount(Map<String, Object> artifact) {
+    static void putItemCount(Map<String, Object> artifact) {
         Object rawItems = artifact.get("items");
         if (rawItems instanceof List) {
             artifact.put("itemCount", Integer.valueOf(((List<?>) rawItems).size()));
         }
     }
 
-    private static void putNumberedLines(
+    static void putNumberedLines(
             Map<String, Object> artifact,
             String sourceKey,
             String targetKey) {
@@ -245,7 +60,7 @@ public final class ViewRenderHelpers {
         }
     }
 
-    private static void zipFramePrompts(Map<String, Object> artifact) {
+    static void zipFramePrompts(Map<String, Object> artifact) {
         Object rawFrames = artifact.get("frames");
         if (!(rawFrames instanceof List)) {
             return;
@@ -286,7 +101,7 @@ public final class ViewRenderHelpers {
         }
     }
 
-    private static List<String> splitParagraphs(String body) {
+    static List<String> splitParagraphs(String body) {
         String normalized = body.replace("\r\n", "\n").trim();
         if (normalized.isEmpty()) {
             return new ArrayList<String>();
@@ -302,7 +117,7 @@ public final class ViewRenderHelpers {
         return paragraphs;
     }
 
-    private static String joinWithMiddleDot(List<String> parts) {
+    static String joinWithMiddleDot(List<String> parts) {
         StringBuilder sb = new StringBuilder();
         for (String part : parts) {
             if (sb.length() > 0) {
@@ -313,7 +128,7 @@ public final class ViewRenderHelpers {
         return sb.toString();
     }
 
-    private static void enrichItems(Map<String, Object> artifact, ItemEnricher enricher) {
+    static void enrichItems(Map<String, Object> artifact, ItemEnricher enricher) {
         Object rawItems = artifact.get("items");
         if (!(rawItems instanceof List)) {
             return;
@@ -337,7 +152,7 @@ public final class ViewRenderHelpers {
         artifact.put("items", enriched);
     }
 
-    private static void topicItemHelpers(Map<String, Object> item) {
+    static void topicItemHelpers(Map<String, Object> item) {
         String rawTitle = trimString(item.get("title"));
         boolean priority = StringUtils.hasText(rawTitle) && rawTitle.contains(PRIORITY_TOPIC);
         String title = stripPrefix(rawTitle, PRIORITY_TOPIC);
@@ -364,7 +179,7 @@ public final class ViewRenderHelpers {
         }
     }
 
-    private static void pickItemHelpers(Map<String, Object> item) {
+    static void pickItemHelpers(Map<String, Object> item) {
         String rawTitle = trimString(item.get("title"));
         boolean priority = StringUtils.hasText(rawTitle) && rawTitle.contains(PRIORITY_PICK);
         String title = stripAll(rawTitle, PRIORITY_PICK);
@@ -390,7 +205,7 @@ public final class ViewRenderHelpers {
         }
     }
 
-    private static void putToneField(
+    static void putToneField(
             Map<String, Object> item,
             String sourceKey,
             String labelKey,
@@ -447,7 +262,7 @@ public final class ViewRenderHelpers {
         return "mid";
     }
 
-    private static boolean containsAny(String haystack, String... needles) {
+    static boolean containsAny(String haystack, String... needles) {
         for (String needle : needles) {
             if (haystack.contains(needle)) {
                 return true;
@@ -456,7 +271,7 @@ public final class ViewRenderHelpers {
         return false;
     }
 
-    private static int indexOfPipe(String value) {
+    static int indexOfPipe(String value) {
         int full = value.indexOf('｜');
         int half = value.indexOf('|');
         if (full < 0) {
@@ -468,7 +283,7 @@ public final class ViewRenderHelpers {
         return Math.min(full, half);
     }
 
-    private static String padIndex(int index) {
+    static String padIndex(int index) {
         return index < 10 ? "0" + index : String.valueOf(index);
     }
 
@@ -555,7 +370,7 @@ public final class ViewRenderHelpers {
         return joinLines(lines);
     }
 
-    private static String joinLines(List<String> lines) {
+    static String joinLines(List<String> lines) {
         StringBuilder sb = new StringBuilder();
         for (String line : lines) {
             if (sb.length() > 0) {
@@ -566,7 +381,7 @@ public final class ViewRenderHelpers {
         return sb.toString();
     }
 
-    private static String firstHttpsUrl(Object... candidates) {
+    static String firstHttpsUrl(Object... candidates) {
         for (Object candidate : candidates) {
             String trimmed = trimString(candidate);
             if (StringUtils.hasText(trimmed) && trimmed.toLowerCase().startsWith("https://")) {
@@ -576,7 +391,7 @@ public final class ViewRenderHelpers {
         return null;
     }
 
-    private static String stripPrefix(String value, String prefix) {
+    static String stripPrefix(String value, String prefix) {
         if (!StringUtils.hasText(value)) {
             return value;
         }
@@ -587,14 +402,14 @@ public final class ViewRenderHelpers {
         return trimmed;
     }
 
-    private static String stripAll(String value, String mark) {
+    static String stripAll(String value, String mark) {
         if (!StringUtils.hasText(value)) {
             return value;
         }
         return value.replace(mark, "").trim();
     }
 
-    private static String truncate(String value, int maxChars) {
+    static String truncate(String value, int maxChars) {
         if (!StringUtils.hasText(value)) {
             return value;
         }
@@ -605,7 +420,7 @@ public final class ViewRenderHelpers {
         return trimmed.substring(0, maxChars) + "…";
     }
 
-    private static String trimString(Object value) {
+    static String trimString(Object value) {
         if (!(value instanceof String)) {
             return null;
         }
@@ -614,7 +429,7 @@ public final class ViewRenderHelpers {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> deepCopy(Map<String, Object> source) {
+    public static Map<String, Object> deepCopy(Map<String, Object> source) {
         if (source == null) {
             return new LinkedHashMap<String, Object>();
         }
@@ -643,7 +458,7 @@ public final class ViewRenderHelpers {
     }
 
     @FunctionalInterface
-    private interface ItemEnricher {
+    interface ItemEnricher {
         void apply(Map<String, Object> item);
     }
 }

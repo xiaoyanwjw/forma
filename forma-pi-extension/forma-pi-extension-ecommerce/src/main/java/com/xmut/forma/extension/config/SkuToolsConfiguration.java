@@ -2,6 +2,9 @@ package com.xmut.forma.extension.config;
 
 import com.xmut.forma.common.logging.LoggerUtils;
 import com.xmut.forma.common.logging.NameValue;
+import com.xmut.forma.extension.tool.view.EcommercePicklistViewEnricher;
+import com.xmut.forma.extension.tool.view.EcommerceSkulistViewEnricher;
+import com.xmut.forma.extension.tool.view.ViewEnricher;
 import com.xmut.forma.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.forma.extension.tool.sku.client.ApifyTaobaoSkuSearchClient;
 import com.xmut.forma.extension.tool.sku.client.FallbackSkuSearchClient;
@@ -72,5 +75,15 @@ public class SkuToolsConfiguration {
     @Bean
     public SearchSkuToolHandler searchSkuToolHandler(SkuSearcher skuSearcher) {
         return new SearchSkuToolHandler(skuSearcher);
+    }
+
+    @Bean
+    public ViewEnricher ecommercePicklistViewEnricher() {
+        return new EcommercePicklistViewEnricher();
+    }
+
+    @Bean
+    public ViewEnricher ecommerceSkulistViewEnricher() {
+        return new EcommerceSkulistViewEnricher();
     }
 }

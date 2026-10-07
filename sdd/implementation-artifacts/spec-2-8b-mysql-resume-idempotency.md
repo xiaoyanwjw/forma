@@ -37,7 +37,7 @@ context:
 **Never:**
 - ask_human / SSE UI / 积分（→ 2.9）
 - 改 `ResumeIdempotencyStore` 方法签名；改 Checkpointer / SessionStore 语义
-- 批量重命名 `lims.pi.*` → 其他前缀（另故事）
+- 批量重命名 `lims.pi.*` → `forma.pi.*`（另故事；**已完成**，以代码与 `pi-agent/README.md` 为准）
 - 把幂等摘要塞进 `pi_graph_checkpoint` 同行
 - 砍掉 claim/complete/abandon 状态机，或改「失败一律 abandon / 再挂起也 complete」等语义
 

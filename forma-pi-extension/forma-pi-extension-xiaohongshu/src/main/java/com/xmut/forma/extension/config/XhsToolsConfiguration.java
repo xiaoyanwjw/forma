@@ -1,6 +1,10 @@
 package com.xmut.forma.extension.config;
 
 import com.xmut.forma.extension.common.ApifyOkHttpTransport;
+import com.xmut.forma.extension.tool.view.ViewEnricher;
+import com.xmut.forma.extension.tool.view.XhsBreakViewEnricher;
+import com.xmut.forma.extension.tool.view.XhsNoteViewEnricher;
+import com.xmut.forma.extension.tool.view.XhsTopiclistViewEnricher;
 import com.xmut.forma.extension.tool.xhs.FetchXhsNoteToolHandler;
 import com.xmut.forma.extension.tool.xhs.SearchXhsNoteToolHandler;
 import com.xmut.forma.extension.tool.xhs.client.ApifyXhsNoteFetchClient;
@@ -65,5 +69,20 @@ public class XhsToolsConfiguration {
     @Bean
     public FetchXhsNoteToolHandler fetchXhsNoteToolHandler(XhsNoteFetchPort xhsNoteFetchPort) {
         return new FetchXhsNoteToolHandler(xhsNoteFetchPort);
+    }
+
+    @Bean
+    public ViewEnricher xhsTopiclistViewEnricher() {
+        return new XhsTopiclistViewEnricher();
+    }
+
+    @Bean
+    public ViewEnricher xhsNoteViewEnricher() {
+        return new XhsNoteViewEnricher();
+    }
+
+    @Bean
+    public ViewEnricher xhsBreakViewEnricher() {
+        return new XhsBreakViewEnricher();
     }
 }

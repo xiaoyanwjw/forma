@@ -1,12 +1,13 @@
 package com.xmut.forma.application.business.scene.pack;
 
 import com.xmut.forma.common.exception.BusinessException;
-import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import com.xmut.forma.pi.agent.skill.Skill;
+import com.xmut.forma.pi.agent.skill.SkillCatalog;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -19,7 +20,7 @@ class SceneCapabilityPackLoaderTest {
     void loadEcommerceRequiresBothSkillsFromSkillCatalog() {
         SkillCatalog skills = mock(SkillCatalog.class);
         when(skills.listByScene("ecommerce")).thenReturn(Arrays.asList(picklist(), skulist()));
-        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+        SceneCapabilityPackLoader loader = newLoader(skills, ecommerceMeta());
 
         SceneCapabilityPack pack = loader.load("ecommerce");
 
@@ -36,7 +37,7 @@ class SceneCapabilityPackLoaderTest {
     void loadFailsWhenPicklistMissing() {
         SkillCatalog skills = mock(SkillCatalog.class);
         when(skills.listByScene("ecommerce")).thenReturn(Collections.singletonList(skulist()));
-        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+        SceneCapabilityPackLoader loader = newLoader(skills, ecommerceMeta());
 
         assertThatThrownBy(() -> loader.load("ecommerce"))
                 .isInstanceOf(BusinessException.class)
@@ -47,9 +48,24 @@ class SceneCapabilityPackLoaderTest {
     void loadUnknownSceneCodeFailsWithHumanMessage() {
         SkillCatalog skills = mock(SkillCatalog.class);
         when(skills.listByScene("no_such_scene")).thenReturn(Collections.emptyList());
-        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+        SceneMetaCatalog metas = mock(SceneMetaCatalog.class);
+        when(metas.find("no_such_scene")).thenReturn(Optional.empty());
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills, metas);
 
         assertThatThrownBy(() -> loader.load("no_such_scene"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
+    }
+
+    @Test
+    void loadFailsWhenPackYamlMissingEvenIfSkillsExist() {
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("ecommerce")).thenReturn(Arrays.asList(picklist(), skulist()));
+        SceneMetaCatalog metas = mock(SceneMetaCatalog.class);
+        when(metas.find("ecommerce")).thenReturn(Optional.empty());
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills, metas);
+
+        assertThatThrownBy(() -> loader.load("ecommerce"))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
     }
@@ -59,14 +75,14 @@ class SceneCapabilityPackLoaderTest {
         SkillCatalog skills = mock(SkillCatalog.class);
         when(skills.listByScene("xiaohongshu")).thenReturn(Arrays.asList(
                 xhsSkill("xhs-topiclist"), xhsSkill("xhs-note"), xhsSkill("xhs-break")));
-        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+        SceneCapabilityPackLoader loader = newLoader(skills, xhsMeta());
 
         SceneCapabilityPack pack = loader.load("xiaohongshu");
 
         assertThat(pack.getSceneCode()).isEqualTo("xiaohongshu");
-        assertThat(pack.hasSkill(SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST)).isTrue();
-        assertThat(pack.hasSkill(SceneCapabilityPackLoader.SKILL_XHS_NOTE)).isTrue();
-        assertThat(pack.hasSkill(SceneCapabilityPackLoader.SKILL_XHS_BREAK)).isTrue();
+        assertThat(pack.hasSkill("xhs-topiclist")).isTrue();
+        assertThat(pack.hasSkill("xhs-note")).isTrue();
+        assertThat(pack.hasSkill("xhs-break")).isTrue();
     }
 
     @Test
@@ -74,7 +90,7 @@ class SceneCapabilityPackLoaderTest {
         SkillCatalog skills = mock(SkillCatalog.class);
         when(skills.listByScene("xiaohongshu")).thenReturn(Arrays.asList(
                 xhsSkill("xhs-topiclist"), xhsSkill("xhs-break")));
-        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+        SceneCapabilityPackLoader loader = newLoader(skills, xhsMeta());
 
         assertThatThrownBy(() -> loader.load("xiaohongshu"))
                 .isInstanceOf(BusinessException.class)
@@ -89,8 +105,8 @@ class SceneCapabilityPackLoaderTest {
                         .promptRef("classpath:scenes/tech_digest/tech-digest/SKILL.md")
                         .allowedTools(Collections.singletonList("read_skill"))
                         .sceneCode("tech_digest").build()));
-        SceneCapabilityPack pack = new SceneCapabilityPackLoader(skills).load("tech_digest");
-        assertThat(pack.hasSkill(SceneCapabilityPackLoader.SKILL_TECH_DIGEST)).isTrue();
+        SceneCapabilityPack pack = newLoader(skills, techMeta()).load("tech_digest");
+        assertThat(pack.hasSkill("tech-digest")).isTrue();
     }
 
     @Test
@@ -101,18 +117,43 @@ class SceneCapabilityPackLoaderTest {
                         .promptRef("classpath:scenes/tech_digest/other/SKILL.md")
                         .allowedTools(Collections.singletonList("read_skill"))
                         .sceneCode("tech_digest").build()));
-        assertThatThrownBy(() -> new SceneCapabilityPackLoader(skills).load("tech_digest"))
+        assertThatThrownBy(() -> newLoader(skills, techMeta()).load("tech_digest"))
                 .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void loadBlankSceneCodeFailsWithHumanMessage() {
         SkillCatalog skills = mock(SkillCatalog.class);
-        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills);
+        SceneMetaCatalog metas = mock(SceneMetaCatalog.class);
+        SceneCapabilityPackLoader loader = new SceneCapabilityPackLoader(skills, metas);
 
         assertThatThrownBy(() -> loader.load("  "))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
+    }
+
+    private static SceneCapabilityPackLoader newLoader(SkillCatalog skills, SceneMeta meta) {
+        SceneMetaCatalog metas = mock(SceneMetaCatalog.class);
+        when(metas.find(meta.getSceneCode())).thenReturn(Optional.of(meta));
+        return new SceneCapabilityPackLoader(skills, metas);
+    }
+
+    private static SceneMeta ecommerceMeta() {
+        return new SceneMeta("ecommerce",
+                Arrays.asList("ecommerce-picklist", "ecommerce-skulist"),
+                "ecommerce-picklist");
+    }
+
+    private static SceneMeta xhsMeta() {
+        return new SceneMeta("xiaohongshu",
+                Arrays.asList("xhs-topiclist", "xhs-note", "xhs-break"),
+                "xhs-topiclist");
+    }
+
+    private static SceneMeta techMeta() {
+        return new SceneMeta("tech_digest",
+                Collections.singletonList("tech-digest"),
+                "tech-digest");
     }
 
     private static Skill picklist() {

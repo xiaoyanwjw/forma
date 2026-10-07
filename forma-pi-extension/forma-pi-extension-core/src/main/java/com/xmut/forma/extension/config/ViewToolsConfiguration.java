@@ -8,7 +8,10 @@ import com.xmut.forma.extension.tool.view.CatalogSkillTemplateLoader;
 import com.xmut.forma.extension.tool.view.MustacheViewRenderer;
 import com.xmut.forma.extension.tool.view.RenderViewToolHandler;
 import com.xmut.forma.extension.tool.view.SkillTemplateLoader;
+import com.xmut.forma.extension.tool.view.ViewEnricher;
+import com.xmut.forma.extension.tool.view.ViewEnricherComposite;
 import com.xmut.forma.pi.agent.skill.SkillCatalog;
+import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -32,9 +35,15 @@ public class ViewToolsConfiguration {
     }
 
     @Bean
+    public ViewEnricherComposite viewEnricherComposite(List<ViewEnricher> enrichers) {
+        return new ViewEnricherComposite(enrichers);
+    }
+
+    @Bean
     public RenderViewToolHandler renderViewToolHandler(SkillTemplateLoader skillTemplateLoader,
-                                                       MustacheViewRenderer mustacheViewRenderer) {
-        return new RenderViewToolHandler(skillTemplateLoader, mustacheViewRenderer);
+                                                       MustacheViewRenderer mustacheViewRenderer,
+                                                       ViewEnricherComposite viewEnricherComposite) {
+        return new RenderViewToolHandler(skillTemplateLoader, mustacheViewRenderer, viewEnricherComposite);
     }
 
     @Bean

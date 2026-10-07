@@ -2,6 +2,8 @@ package com.xmut.forma.extension.config;
 
 import com.xmut.forma.extension.tool.tech.ExcerptChunksToolHandler;
 import com.xmut.forma.extension.tool.tech.ModelChunkExcerpter;
+import com.xmut.forma.extension.tool.view.TechDigestViewEnricher;
+import com.xmut.forma.extension.tool.view.ViewEnricher;
 import com.xmut.forma.pi.ai.model.ModelProvider;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
@@ -19,5 +21,10 @@ public class TechExcerptToolsConfiguration {
         ModelProvider modelProvider = models.getIfAvailable();
         ModelChunkExcerpter excerpter = modelProvider == null ? null : new ModelChunkExcerpter(modelProvider);
         return new ExcerptChunksToolHandler(excerpter);
+    }
+
+    @Bean
+    public ViewEnricher techDigestViewEnricher() {
+        return new TechDigestViewEnricher();
     }
 }

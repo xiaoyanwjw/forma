@@ -69,7 +69,7 @@ flowchart TB
 - **Rule:**
   - **Adam 启用** `ask_human` 工具中断 + `resume`（AD-S12 / AD-S13）；与 LIMS **WRITE 人工批准**分离——后者默认 **关**。
   - API 保留：`resume`、Checkpointer、ResumeIdempotency；可选 Redis CP 实现可留树内。
-  - Adam **默认 Checkpointer** = **MySQL** 实现（表 `pi_graph_checkpoint`，见 AD-S13）；**不是** No-Op。Redis CP 仅当 `lims.pi.checkpoint.redis.enabled=true` 才可抢 `@Primary`。
+  - Adam **默认 Checkpointer** = **MySQL** 实现（表 `pi_graph_checkpoint`，见 AD-S13）；**不是** No-Op。Redis CP 仅当 `forma.pi.checkpoint.redis.enabled=true` 才可抢 `@Primary`。
   - 计费选品 / Listing：**允许**在成果出现前经历一次或多次 `ask_human`→`resume`；**禁止**把「仅 SSE 流结束 / AGENT_END」当结算；settle 仍仅在可用成果落库后（父 AD-5）。
   - 会话历史真相仍是 Session transcript（AD-S3）；Checkpointer **只**服务挂起 run 的图状态，不作 FR12 历史源。
 

@@ -211,13 +211,13 @@ public class AgentConfiguration {
     /**
      * MissingBean → {@link InMemorySessionStore}（过渡默认，非生产真相）。
      *
-     * <p>仅当 {@code lims.pi.session.sqlite-path} 非空时显式 opt-in {@link SqliteSessionStore}。
+     * <p>仅当 {@code forma.pi.session.sqlite-path} 非空时显式 opt-in {@link SqliteSessionStore}。
      * 空路径<b>不得</b>静默创建 {@code {cwd}/.lippi-pi/state.db}（AD-S8）。
      * Adam 生产默认：ebus-infrastructure {@code MysqlSessionStore} {@code @Primary}。
      */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(SessionStore.class)
-    public SessionStore sessionStore(@Value("${lims.pi.session.sqlite-path:}") String sqlitePath) {
+    public SessionStore sessionStore(@Value("${forma.pi.session.sqlite-path:}") String sqlitePath) {
         if (StringUtils.hasText(sqlitePath)) {
             return new SqliteSessionStore(SqliteSessionStore.resolveSqlitePath(sqlitePath));
         }
@@ -244,12 +244,12 @@ public class AgentConfiguration {
     /**
      * 必装工具策略闸门；作为 {@link PiExtension} 进入 Runner。
      *
-     * <p>WRITE 审批默认关（AD-S2）；{@code lims.pi.tool.write-approval.enabled=true} 可开。
+     * <p>WRITE 审批默认关（AD-S2）；{@code forma.pi.tool.write-approval.enabled=true} 可开。
      */
     @Bean
     public ToolPolicyExtension toolPolicyExtension(
             ToolCatalog toolConfig,
-            @Value("${lims.pi.tool.write-approval.enabled:false}") boolean writeApprovalEnabled) {
+            @Value("${forma.pi.tool.write-approval.enabled:false}") boolean writeApprovalEnabled) {
         return new ToolPolicyExtension(toolConfig, writeApprovalEnabled);
     }
 

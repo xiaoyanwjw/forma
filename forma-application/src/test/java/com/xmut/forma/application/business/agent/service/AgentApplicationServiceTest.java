@@ -646,7 +646,7 @@ class AgentApplicationServiceTest {
         String sessionId = "session-abort-hitl";
         String execHoldId = "33333333-3333-3333-3333-333333333333";
         GenerationRun run = GenerationRun.start(runId, USER_ID, null, sessionId,
-                ECOM_SCENE_ID, ECOM_SCENE_CODE, SceneCapabilityPackLoader.SKILL_SKULIST, NOW);
+                ECOM_SCENE_ID, ECOM_SCENE_CODE, "ecommerce-skulist", NOW);
         run.markSettledOnSuspended("art-prior-hitl", NOW);
         when(generationRunRepository.findById(runId)).thenReturn(Optional.of(run));
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(execHoldId);
@@ -761,7 +761,7 @@ class AgentApplicationServiceTest {
 
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
-        assertEquals(SceneCapabilityPackLoader.SKILL_SKULIST, promptCaptor.getValue().getSkillId());
+        assertEquals("ecommerce-skulist", promptCaptor.getValue().getSkillId());
         assertEquals("view.json",
                 promptCaptor.getValue().getAttachment().get(TurnDeliverableKeys.OUTPUT));
         verify(runWorkspaceService).ensureRunDir("session-ws-listing", "run-ws-listing");
@@ -893,7 +893,7 @@ class AgentApplicationServiceTest {
         assertEquals("art-1", captor.getValue().getArtifactRef());
         ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
         verify(agentSession).prompt(promptCaptor.capture());
-        assertEquals(SceneCapabilityPackLoader.SKILL_PICKLIST, promptCaptor.getValue().getSkillId());
+        assertEquals("ecommerce-picklist", promptCaptor.getValue().getSkillId());
         assertEquals("帮我选品", promptCaptor.getValue().getText());
         verify(artifactPersistPlugin).persist(eq(USER_ID), eq("run-pl-ok"), eq(ECOM_SCENE_CODE),
                 eq("picklist"), anyMap(), anyMap());
@@ -1226,7 +1226,7 @@ class AgentApplicationServiceTest {
     void prepareResume_withoutCheckpoint_rejects() {
         GenerationRun run = GenerationRun.start("run-no-cp", USER_ID, HOLD_ID,
                 "session-no-cp", ECOM_SCENE_ID, ECOM_SCENE_CODE,
-                SceneCapabilityPackLoader.SKILL_SKULIST, NOW);
+                "ecommerce-skulist", NOW);
         when(generationRunRepository.findById("run-no-cp")).thenReturn(Optional.of(run));
         when(checkpointer.loadLatest("run-no-cp")).thenReturn(Optional.empty());
 
@@ -1299,19 +1299,19 @@ class AgentApplicationServiceTest {
     }
 
     private static String persistAsForSkill(String id) {
-        if (SceneCapabilityPackLoader.SKILL_SKULIST.equals(id)) {
+        if ("ecommerce-skulist".equals(id)) {
             return "sku";
         }
-        if (SceneCapabilityPackLoader.SKILL_XHS_TOPICLIST.equals(id)) {
+        if ("xhs-topiclist".equals(id)) {
             return "xhs_topiclist";
         }
-        if (SceneCapabilityPackLoader.SKILL_XHS_NOTE.equals(id)) {
+        if ("xhs-note".equals(id)) {
             return "xhs_note";
         }
-        if (SceneCapabilityPackLoader.SKILL_XHS_BREAK.equals(id)) {
+        if ("xhs-break".equals(id)) {
             return "xhs_break";
         }
-        if (SceneCapabilityPackLoader.SKILL_TECH_DIGEST.equals(id)) {
+        if ("tech-digest".equals(id)) {
             return "tech_digest";
         }
         return "picklist";
@@ -1319,9 +1319,9 @@ class AgentApplicationServiceTest {
 
     private static SceneCapabilityPack ecommercePack() {
         return new SceneCapabilityPack(ECOM_SCENE_CODE, Arrays.asList(
-                skill(SceneCapabilityPackLoader.SKILL_PICKLIST,
+                skill("ecommerce-picklist",
                         "classpath:scenes/ecommerce/ecommerce-picklist/SKILL.md"),
-                skill(SceneCapabilityPackLoader.SKILL_SKULIST,
+                skill("ecommerce-skulist",
                         "classpath:scenes/ecommerce/ecommerce-skulist/SKILL.md")));
     }
 

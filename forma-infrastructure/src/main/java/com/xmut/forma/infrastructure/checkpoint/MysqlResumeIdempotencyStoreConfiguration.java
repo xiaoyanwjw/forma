@@ -24,7 +24,7 @@ public class MysqlResumeIdempotencyStoreConfiguration {
     @Primary
     public MysqlResumeIdempotencyStore mysqlResumeIdempotencyStore(
             PiResumeIdempotencyMapper mapper,
-            @Value("${lims.pi.resume-idem.ttl-seconds:86400}") int ttlSeconds) {
+            @Value("${forma.pi.resume-idem.ttl-seconds:86400}") int ttlSeconds) {
         return new MysqlResumeIdempotencyStore(mapper, ttlSeconds);
     }
 }

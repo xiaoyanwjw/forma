@@ -42,16 +42,24 @@ public final class RenderViewToolHandler implements ToolHandler {
 
     private final SkillTemplateLoader templateLoader;
     private final MustacheViewRenderer renderer;
+    private final ViewEnricherComposite enricherComposite;
     private final ObjectMapper objectMapper;
 
     public RenderViewToolHandler(SkillTemplateLoader templateLoader, MustacheViewRenderer renderer) {
-        this(templateLoader, renderer, new ObjectMapper());
+        this(templateLoader, renderer, ViewEnricherComposite.empty(), new ObjectMapper());
+    }
+
+    public RenderViewToolHandler(SkillTemplateLoader templateLoader,
+                                 MustacheViewRenderer renderer,
+                                 ViewEnricherComposite enricherComposite) {
+        this(templateLoader, renderer, enricherComposite, new ObjectMapper());
     }
 
     RenderViewToolHandler(SkillTemplateLoader templateLoader, MustacheViewRenderer renderer,
-                          ObjectMapper objectMapper) {
+                          ViewEnricherComposite enricherComposite, ObjectMapper objectMapper) {
         this.templateLoader = Objects.requireNonNull(templateLoader, "templateLoader");
         this.renderer = Objects.requireNonNull(renderer, "renderer");
+        this.enricherComposite = Objects.requireNonNull(enricherComposite, "enricherComposite");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
     }
 
@@ -80,7 +88,7 @@ public final class RenderViewToolHandler implements ToolHandler {
                 throw new IllegalArgumentException("artifact file missing: " + artifactPath.getFileName());
             }
             Map<String, Object> data = readArtifactObject(artifactPath);
-            data = ViewRenderHelpers.enrich(ctx.getActiveSkillId(), data);
+            data = enricherComposite.enrich(ctx.getActiveSkillId(), data);
             String content = renderer.render(templateLoader.load(ctx.getActiveSkillId(), templateRel), data);
             String title = data.get("title") instanceof String ? (String) data.get("title") : "draft";
             String format = "markdown".equalsIgnoreCase(formatResolved) ? "markdown" : "html";

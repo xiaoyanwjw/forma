@@ -132,16 +132,17 @@ public final class DefaultAgent implements Agent {
         bindings.applyTo(input);
 
         ContextModifier modifier = turnInput.getContextModifier();
-        final SystemPromptInput in = SystemPromptInput.builder()
+        final String system = SystemPromptInput.builder()
                 .stable(SystemPromptInput.mapOf(
                         SystemPromptInput.SKILLS, textOrNull(bindings.getSkillsText()),
                         SystemPromptInput.TOOLS, textOrNull(bindings.getToolsText())))
                 .context(SystemPromptInput.mapOf(
                         SystemPromptInput.CONTEXT, textOrNull(turnInput.getContext())))
                 .apply(modifier)
-                .build();
+                .build()
+                .format();
 
-        input.put(StateKeys.SYSTEM_PROMPT, in.format());
+        input.put(StateKeys.SYSTEM_PROMPT, system);
 
         // prepare messages / sessionId：user 链改写后再丢掉 system role
         List<Message> messages = UserPromptInput.builder()
@@ -435,26 +436,22 @@ public final class DefaultAgent implements Agent {
         return ConversationResult.ok(runId, response, messages);
     }
 
+    /**
+     * 从图终态取本轮对外终稿：只认 transcript / LLM 原文，不解释业务 JSON 形状。
+     * Computer {@code view} 等成果由业务层读工作区或投影，不得渗进 Pi。
+     */
     @SuppressWarnings("unchecked")
     static String resolveResponse(GraphState state) {
+        if (state == null) {
+            return null;
+        }
         Object raw = state.get(StateKeys.MESSAGES);
         if (raw instanceof List) {
             List<Message> messages = (List<Message>) raw;
-            // 优先：最后一条带 view 的助手正文（终态 JSON），避免 LLM_RESPONSE 停在中间轮叙述
             for (int i = messages.size() - 1; i >= 0; i--) {
                 Message m = messages.get(i);
-                if (m != null && "assistant".equalsIgnoreCase(m.getRole()) && m.getContent() != null
-                        && m.getContent().contains("\"view\"")) {
-                    return m.getContent();
-                }
-            }
-            for (int i = messages.size() - 1; i >= 0; i--) {
-                Message m = messages.get(i);
-                if (m != null && "assistant".equalsIgnoreCase(m.getRole()) && m.getContent() != null) {
-                    Object llm = state.get(StateKeys.LLM_RESPONSE);
-                    if (llm instanceof String && StringUtils.hasText((String) llm)) {
-                        return (String) llm;
-                    }
+                if (m != null && "assistant".equalsIgnoreCase(m.getRole())
+                        && StringUtils.hasText(m.getContent())) {
                     return m.getContent();
                 }
             }

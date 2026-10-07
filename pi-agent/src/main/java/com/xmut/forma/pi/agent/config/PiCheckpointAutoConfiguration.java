@@ -24,7 +24,7 @@ import redis.clients.jedis.JedisPool;
 @AutoConfiguration
 @ConditionalOnClass(JedisPool.class)
 @ConditionalOnBean(JedisPool.class)
-@ConditionalOnProperty(prefix = "lims.pi.checkpoint.redis", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "forma.pi.checkpoint.redis", name = "enabled", havingValue = "true")
 @AutoConfigureBefore(PiAutoConfiguration.class)
 public class PiCheckpointAutoConfiguration {
 
@@ -38,7 +38,7 @@ public class PiCheckpointAutoConfiguration {
     @Primary
     public RedisCheckpointer piRedisCheckpointer(
             PiRedisCommands redis,
-            @Value("${lims.pi.checkpoint.ttl-seconds:7200}") int checkpointTtlSeconds) {
+            @Value("${forma.pi.checkpoint.ttl-seconds:7200}") int checkpointTtlSeconds) {
         return new RedisCheckpointer(redis, new CheckpointCodec(), checkpointTtlSeconds);
     }
 
@@ -46,7 +46,7 @@ public class PiCheckpointAutoConfiguration {
     @Primary
     public RedisResumeIdempotencyStore piRedisResumeIdempotencyStore(
             PiRedisCommands redis,
-            @Value("${lims.pi.resume-idem.ttl-seconds:86400}") int idemTtlSeconds) {
+            @Value("${forma.pi.resume-idem.ttl-seconds:86400}") int idemTtlSeconds) {
         return new RedisResumeIdempotencyStore(redis, idemTtlSeconds);
     }
 }
