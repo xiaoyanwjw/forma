@@ -734,6 +734,9 @@ class AgentApplicationServiceTest {
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
+        assertEquals(AgentApplicationService.SETTLE_FAILED, failed.getData().get("reason"));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
@@ -1058,6 +1061,9 @@ class AgentApplicationServiceTest {
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
+        assertEquals(AgentApplicationService.SETTLE_FAILED, failed.getData().get("reason"));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
@@ -1235,6 +1241,9 @@ class AgentApplicationServiceTest {
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
         assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
+        assertEquals(AgentApplicationService.SETTLE_FAILED, failed.getData().get("reason"));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);

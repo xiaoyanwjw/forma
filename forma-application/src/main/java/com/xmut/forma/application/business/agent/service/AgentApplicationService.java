@@ -82,8 +82,10 @@ public class AgentApplicationService {
     static final String SSE_SEND_FAILED_RELEASE_FAILED = "SSE 下发失败且预占释放失败";
     /** 计费管线通用：模型回合失败。 */
     static final String MODEL_FAILED = "生成失败，请稍后重试";
-    /** 计费管线通用：成果已落库但 settle 失败。 */
+    /** 计费管线：persist 成功但 settle 失败（NEEDS_RECONCILE，预占已释放）。 */
     static final String SETTLE_FAILED = "结算异常，预占已释放，待对账";
+    /** stream 挂起收尾 settle 失败（非对账态）。 */
+    static final String SETTLE_ON_SUSPEND_FAILED = "成果已生成但结算失败，请联系支持";
 
     public static final String MSG_RESUME_NOT_AWAITING = "当前回合未在等待确认，无法续跑";
     public static final String MSG_RESUME_TOOL_CALL_REQUIRED = "请提供 toolCallId";
@@ -586,7 +588,7 @@ public class AgentApplicationService {
                     ex.getMessage() != null ? ex.getMessage() : "settle failed",
                     NameValue.create("runId", context.getRunId()),
                     NameValue.create("holdId", holdId));
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, SETTLE_FAILED);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, SETTLE_ON_SUSPEND_FAILED);
         }
         String artifactRef = context.getArtifactRef();
         context.markSettledOnSuspended(artifactRef);
