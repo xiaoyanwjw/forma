@@ -26,9 +26,6 @@ public class SceneCapabilityPackLoader {
 
     public static final String MSG_PACK_UNAVAILABLE = "场景能力暂不可用";
 
-    /** 空跑默认注入的 skill（3.4/3.6 再按意图选）。 */
-    public static final String DEFAULT_EMPTY_RUN_SKILL_ID = "ecommerce-picklist";
-
     public static final String SKILL_PICKLIST = "ecommerce-picklist";
     public static final String SKILL_SKULIST = "ecommerce-skulist";
     public static final String SKILL_XHS_TOPICLIST = "xhs-topiclist";

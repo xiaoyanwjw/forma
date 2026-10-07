@@ -21,14 +21,6 @@ export interface Ad4SseEvent {
   data: Record<string, unknown>
 }
 
-/** 空跑请求：sceneId / sceneCode 至少一项 */
-export interface StreamEmptyRunOptions {
-  sceneId?: string
-  sceneCode?: string
-  sessionId?: string
-  signal?: AbortSignal
-}
-
 /** 计费选品请求 */
 export interface StreamPicklistRunOptions {
   text: string
@@ -54,7 +46,6 @@ export interface StreamAgentRunOptions {
   sceneCode?: string
   sessionId?: string
   skillId?: string
-  dryRun?: boolean
   signal?: AbortSignal
 }
 

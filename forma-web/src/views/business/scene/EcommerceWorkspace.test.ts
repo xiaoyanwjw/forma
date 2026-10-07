@@ -277,7 +277,7 @@ function mockCatalogAndCredits(opts?: {
         { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
       )
     }
-    if (url.includes('/api/v1/agent/runs') && !url.includes('/runs/empty')) {
+    if (url.includes('/api/v1/agent/runs') && !url.includes('/resume')) {
       const body = typeof init?.body === 'string' ? init.body : ''
       if (body.includes('ecommerce-skulist')) {
         if (opts?.onListing) {
@@ -310,9 +310,6 @@ function mockCatalogAndCredits(opts?: {
         { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
       )
     }
-    if (url.includes('/api/v1/agent/runs/empty') || (url.includes('/api/v1/agent/runs') && false)) {
-      return new Response('should not empty', { status: 500 })
-    }
     void init
     return new Response('not found', { status: 404 })
   })
@@ -330,11 +327,10 @@ type FetchSpy = { mock: { calls: ReadonlyArray<unknown[]> } }
 function billedRunApiHits(fetchMock: FetchSpy, skillId?: string) {
   return fetchMock.mock.calls.filter(([input, init]) => {
     const u = String(input)
-    if (!u.includes('/api/v1/agent/runs') || u.includes('/runs/empty')) {
+    if (!u.includes('/api/v1/agent/runs') || u.includes('/resume')) {
       return false
     }
     const body = typeof (init as RequestInit | undefined)?.body === 'string' ? String((init as RequestInit).body) : ''
-    if (body.includes('"dryRun":true')) return false
     if (skillId) return body.includes(`"skillId":"${skillId}"`)
     return true
   })
@@ -350,17 +346,6 @@ function listingApiHits(fetchMock: FetchSpy) {
 
 function resumeApiHits(fetchMock: FetchSpy) {
   return fetchMock.mock.calls.filter(([input]) => String(input).includes('/resume'))
-}
-
-function emptyRunApiHits(fetchMock: FetchSpy) {
-  return fetchMock.mock.calls.filter(([input, init]) => {
-    const u = String(input)
-    if (!u.includes('/api/v1/agent/runs')) {
-      return false
-    }
-    const body = typeof (init as RequestInit | undefined)?.body === 'string' ? String((init as RequestInit).body) : ''
-    return body.includes('"dryRun":true') || u.includes('/runs/empty')
-  })
 }
 
 describe('Workspace ecommerce default session shell', () => {
@@ -597,7 +582,6 @@ describe('Workspace ecommerce session shell', () => {
       const body = JSON.parse(String(init.body)) as { text?: string; sceneCode?: string }
       expect(body.text).toBe('帮我做家居选品')
       expect(body.sceneCode).toBe('ecommerce')
-      expect(emptyRunApiHits(fetchMock)).toHaveLength(0)
       expect(mounted.root.querySelector('.workspace')?.classList.contains('split')).toBe(true)
       const computer = mounted.root.querySelector('.computer')
       expect(computer?.textContent).toContain("Forma's Computer")

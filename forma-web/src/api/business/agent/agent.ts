@@ -5,7 +5,6 @@ import type {
   Ad4SseEvent,
   ResumeGenerationRunOptions,
   StreamAgentRunOptions,
-  StreamEmptyRunOptions,
   StreamListingRunOptions,
   StreamPicklistRunOptions,
 } from '@/types/business/agent'
@@ -14,7 +13,7 @@ import { isAd4EventName } from '@/types/business/agent'
 const AGENT_RUN_PATH = '/api/v1/agent/runs'
 
 /**
- * 通用 Generation Run SSE：dry / 计费 Skill 共用入口。
+ * 通用 Generation Run SSE（计费 Skill / 无 skill 对话）。
  */
 export async function* streamAgentRun(
   options: StreamAgentRunOptions,
@@ -24,11 +23,9 @@ export async function* streamAgentRun(
   if (!sceneId && !sceneCode) {
     throw new ApiError(400, '请先选择场景')
   }
-  if (!options.dryRun) {
-    const text = options.text?.trim()
-    if (!text) {
-      throw new ApiError(400, '请先描述需求')
-    }
+  const text = options.text?.trim()
+  if (!text) {
+    throw new ApiError(400, '请先描述需求')
   }
 
   const token = getToken()
@@ -44,12 +41,11 @@ export async function* streamAgentRun(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      text: options.text?.trim() || undefined,
+      text,
       sessionId: options.sessionId?.trim() || undefined,
       sceneId: sceneId || undefined,
       sceneCode: sceneCode || undefined,
       skillId: options.skillId?.trim() || undefined,
-      dryRun: Boolean(options.dryRun),
     }),
     signal: options.signal,
   })
@@ -65,15 +61,6 @@ export async function* streamAgentRun(
 }
 
 /**
- * 空跑：走通用 /runs（dryRun）。
- */
-export async function* streamEmptyRun(
-  options: StreamEmptyRunOptions = {},
-): AsyncGenerator<Ad4SseEvent, void, undefined> {
-  yield* streamAgentRun({ ...options, dryRun: true })
-}
-
-/**
  * 计费选品：走通用 /runs（ecommerce-picklist）。
  */
 export async function* streamPicklistRun(
@@ -82,7 +69,6 @@ export async function* streamPicklistRun(
   yield* streamAgentRun({
     ...options,
     skillId: 'ecommerce-picklist',
-    dryRun: false,
   })
 }
 
@@ -95,7 +81,6 @@ export async function* streamListingRun(
   yield* streamAgentRun({
     ...options,
     skillId: 'ecommerce-skulist',
-    dryRun: false,
   })
 }
 

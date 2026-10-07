@@ -69,15 +69,13 @@ import java.util.function.Consumer;
  * <p>入口分两条：首跑 {@link #prepareGenerationRun} + {@link #streamBilledRun}；
  * 续跑 {@link #prepareResumeRun} + {@link #resumeBilledRun}。
  * 业务差异经 Interceptor / Listener / SuspendedHandler 扩展，勿在计费主路径写 profile 分支。
- * 空跑只 reserve+release，永不 settle；计费须绑定 AVAILABLE 场景（AD-15）。
+ * 计费须绑定 AVAILABLE 场景（AD-15）。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentApplicationService {
 
-    static final String EMPTY_RUN_FAIL_REASON = "空跑无可用成果，预占已释放";
-    static final String RELEASE_FAILED_REASON = "空跑结束但预占释放失败";
     static final String SSE_SEND_FAILED_RELEASED = "SSE 下发失败，预占已释放";
     static final String SSE_SEND_FAILED_RELEASE_FAILED = "SSE 下发失败且预占释放失败";
     /** 计费管线通用：模型回合失败。 */
@@ -127,7 +125,7 @@ public class AgentApplicationService {
         final String skillId = command.getSkillId();
 
         Scene scene = resolveAvailableScene(command.getSceneId());
-        SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, skillId, command.isDryRun());
+        SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, skillId);
         String promptText = command.getText() == null ? "" : command.getText().trim();
         if (profile.isRequireUserText() && !StringUtils.hasText(promptText)) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_PROMPT_REQUIRED);
@@ -149,8 +147,7 @@ public class AgentApplicationService {
                 NameValue.create("sceneId", scene.getId()),
                 NameValue.create("sceneCode", scene.getSceneCode()),
                 NameValue.create("skillId", profile.getSkillId()),
-                NameValue.create("skillBound", profile.isSkillBound()),
-                NameValue.create("dryRun", profile.isDryRun()));
+                NameValue.create("skillBound", profile.isSkillBound()));
         return new GenerationRunContext(runId, userId, holdId, sessionId, scene.getSceneCode(), promptText, profile);
     }
 
@@ -336,7 +333,7 @@ public class AgentApplicationService {
             }
             releaseOpenHolds(context);
             markRunFailed(runId);
-            emitRunFailed(sink, ex.getMessage(), false);
+            emitRunFailed(sink, ex.getMessage());
         } catch (RuntimeException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "streamBilledRun", ex.getMessage(), ex, NameValue.create("runId", runId));
             if (isRunSettled(runId)) {
@@ -344,7 +341,7 @@ public class AgentApplicationService {
             }
             releaseOpenHolds(context);
             markRunFailed(runId);
-            emitRunFailed(sink, ex.getMessage(), false);
+            emitRunFailed(sink, ex.getMessage());
         } finally {
             closeQuietly(subscription);
         }
@@ -372,7 +369,7 @@ public class AgentApplicationService {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_RESUME_NOT_AWAITING);
         }
 
-        SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, run.getSkillId(), false);
+        SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, run.getSkillId());
         GenerationRunContext context = new GenerationRunContext(
                 run.getId(),
                 run.getUserId(),
@@ -528,7 +525,7 @@ public class AgentApplicationService {
 
             releaseOpenHolds(context);
             markRunFailed(context.getRunId());
-            emitRunFailed(sink, ex.getMessage(), false);
+            emitRunFailed(sink, ex.getMessage());
         } catch (RuntimeException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "resumeBilledRun",
                     ex.getMessage() != null ? ex.getMessage() : "resume failed",
@@ -539,7 +536,7 @@ public class AgentApplicationService {
 
             releaseOpenHolds(context);
             markRunFailed(context.getRunId());
-            emitRunFailed(sink, ex.getMessage(), false);
+            emitRunFailed(sink, ex.getMessage());
         } finally {
             closeQuietly(subscription);
         }
@@ -632,7 +629,7 @@ public class AgentApplicationService {
         } catch (BusinessException ex) {
             releaseOpenHolds(context);
             markRunFailed(context.getRunId());
-            emitRunFailed(sink, ex.getMessage(), false);
+            emitRunFailed(sink, ex.getMessage());
             return;
         }
 
@@ -655,7 +652,7 @@ public class AgentApplicationService {
             } catch (Exception ignore) {
                 // best effort
             }
-            emitRunFailed(sink, SETTLE_FAILED, false);
+            emitRunFailed(sink, SETTLE_FAILED);
             return;
         }
 
@@ -790,12 +787,9 @@ public class AgentApplicationService {
         return data;
     }
 
-    private static Map<String, Object> toRunFailed(String reason, boolean emptyRun) {
+    private static Map<String, Object> toRunFailed(String reason) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         data.put("reason", reason);
-        if (emptyRun) {
-            data.put("emptyRun", true);
-        }
         return data;
     }
 
@@ -827,9 +821,9 @@ public class AgentApplicationService {
         sink.accept(event);
     }
 
-    private static void emitRunFailed(Consumer<SseEvent> sink, String reason, boolean emptyRun) {
+    private static void emitRunFailed(Consumer<SseEvent> sink, String reason) {
         try {
-            emit(sink, SseEvent.of(SseEventName.RUN_FAILED, toRunFailed(reason, emptyRun)));
+            emit(sink, SseEvent.of(SseEventName.RUN_FAILED, toRunFailed(reason)));
         } catch (RuntimeException ignored) {
             // 第二次抛错不应抹掉失败收尾尝试
         }

@@ -22,21 +22,12 @@ class SkillRunProfileTest {
 
     @Test
     void blankSkillIdResolvesToNoSkill() throws Exception {
-        SkillRunProfile profile = SkillRunProfile.resolve(catalog(), null, false);
+        SkillRunProfile profile = SkillRunProfile.resolve(catalog(), null);
         assertFalse(profile.isSkillBound());
         assertTrue(profile.isSettleEnabled());
-        assertFalse(profile.isDryRun());
         assertNull(profile.getSkillId());
         assertEquals(SkillRunProfile.PERSIST_NONE, profile.getPersistAs());
         assertTrue(profile.isRequireUserText());
-    }
-
-    @Test
-    void dryRunStillBindsDefaultSkill() throws Exception {
-        SkillRunProfile profile = SkillRunProfile.resolve(catalog(), null, true);
-        assertTrue(profile.isDryRun());
-        assertTrue(profile.isSkillBound());
-        assertEquals("ecommerce-picklist", profile.getSkillId());
     }
 
     @Test
@@ -45,7 +36,7 @@ class SkillRunProfileTest {
                 new ClassPathResource("scenes/ecommerce/ecommerce-skulist/SKILL.md"), "ecommerce");
         InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
         skills.register(skill);
-        SkillRunProfile profile = SkillRunProfile.resolve(skills, skill.getId(), false);
+        SkillRunProfile profile = SkillRunProfile.resolve(skills, skill.getId());
         assertEquals("sku", profile.getPersistAs());
         assertEquals("ecommerce-skulist", profile.getSkillId());
         assertTrue(profile.isSettleEnabled());
@@ -55,7 +46,7 @@ class SkillRunProfileTest {
 
     @Test
     void picklistPersistAsComesFromSkillMd() throws Exception {
-        SkillRunProfile profile = SkillRunProfile.resolve(catalogFromMd(), "ecommerce-picklist", false);
+        SkillRunProfile profile = SkillRunProfile.resolve(catalogFromMd(), "ecommerce-picklist");
         assertEquals("picklist", profile.getPersistAs());
         assertEquals("ecommerce-picklist", profile.getSkillId());
     }
@@ -63,14 +54,14 @@ class SkillRunProfileTest {
     @Test
     void unknownSkillStillRejected() throws Exception {
         assertThrows(BusinessException.class,
-                () -> SkillRunProfile.resolve(catalog(), "unknown-skill", false));
+                () -> SkillRunProfile.resolve(catalog(), "unknown-skill"));
     }
 
     @Test
     void catalogPersistAsDrivesNewSceneWithoutHardcode() {
         InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
         skills.register(billedSkill("future-digest", "future_digest"));
-        SkillRunProfile profile = SkillRunProfile.resolve(skills, "future-digest", false);
+        SkillRunProfile profile = SkillRunProfile.resolve(skills, "future-digest");
         assertEquals("future_digest", profile.getPersistAs());
         assertTrue(profile.isSettleEnabled());
         assertTrue(profile.isSkillBound());
@@ -80,7 +71,7 @@ class SkillRunProfileTest {
     void missingPersistAsRejected() {
         InMemorySkillCatalog skills = new InMemorySkillCatalog(SkillCatalogProperties.allowMutation());
         skills.register(billedSkill("chatty", null));
-        assertThrows(BusinessException.class, () -> SkillRunProfile.resolve(skills, "chatty", false));
+        assertThrows(BusinessException.class, () -> SkillRunProfile.resolve(skills, "chatty"));
     }
 
     private static SkillCatalog catalog() throws IOException {

@@ -187,10 +187,12 @@ class SessionQueryIntegrationTest {
         String sessionId = "sess-foreign-" + shortId();
         insertSession(sessionId, ownerId, Instant.now());
 
-        mockMvc.perform(post("/api/v1/agent/runs/empty")
-                        .param("sessionId", sessionId)
-                        .param("sceneCode", "ecommerce")
-                        .header("Authorization", "Bearer " + otherToken))
+        mockMvc.perform(post("/api/v1/agent/runs")
+                        .header("Authorization", "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"text\":\"选品\",\"sessionId\":\"" + sessionId
+                                + "\",\"sceneCode\":\"ecommerce\",\"skillId\":\"ecommerce-picklist\"}")
+                        .accept(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("会话不存在或无权查看"));
 

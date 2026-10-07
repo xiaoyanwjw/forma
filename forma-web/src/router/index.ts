@@ -47,11 +47,6 @@ const router = createRouter({
       name: 'history',
       component: () => import('@/views/business/history/HistoryView.vue'),
     },
-    {
-      path: '/agent/dry-run',
-      name: 'agent-dry-run',
-      component: () => import('@/views/agent/AgentDryRun.vue'),
-    },
   ],
 })
 

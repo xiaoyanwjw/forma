@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -32,7 +31,7 @@ import java.util.concurrent.Executors;
  * Agent 计费生成 SSE：JWT 鉴权后直接返回 {@code text/event-stream}。
  * <p>
  * 预占失败（如积分不足）在打开流之前以 JSON 业务错误返回，避免 SSE produces 干扰统一异常出口。
- * 通用入口 {@code POST /runs}；{@code /runs/empty}、{@code /runs/picklist}、{@code /runs/listing} 为兼容别名。
+ * 通用入口 {@code POST /runs}；{@code /runs/picklist}、{@code /runs/listing} 为兼容别名。
  */
 @Slf4j
 @RestController
@@ -51,8 +50,7 @@ public class AgentController {
     });
 
     /**
-     * 通用 Generation Run：dryRun=true 永不 settle；blank skillId → 无 Skill markdown；
-     * 已知 skillId → 计费（ecommerce-picklist / ecommerce-skulist）。
+     * 通用 Generation Run：blank skillId → 无 Skill markdown；已知 skillId → 计费。
      */
     @PostMapping(value = "/runs")
     public Object streamGenerationRun(@RequestBody(required = false) StartGenerationRunRequest request) {
@@ -66,7 +64,6 @@ public class AgentController {
                 .sceneId(body.getSceneId())
                 .sceneCode(body.getSceneCode())
                 .skillId(body.getSkillId())
-                .dryRun(body.isDryRun())
                 .build();
 
         final GenerationRunContext context;
@@ -97,25 +94,6 @@ public class AgentController {
     }
 
     /**
-     * 空跑别名：预占失败返回 JSON 业务错误；成功则打开 SSE。永不 settle。
-     *
-     * @param sessionId 可选，复用同一聊天 session（每次仍新 hold）
-     * @param sceneId   场景业务 UUID；与 sceneCode 至少一项
-     * @param sceneCode 稳定场景码；与 sceneId 至少一项
-     */
-    @PostMapping(value = "/runs/empty")
-    public Object startEmptyRun(@RequestParam(value = "sessionId", required = false) String sessionId,
-                                @RequestParam(value = "sceneId", required = false) String sceneId,
-                                @RequestParam(value = "sceneCode", required = false) String sceneCode) {
-        StartGenerationRunRequest body = new StartGenerationRunRequest();
-        body.setSessionId(sessionId);
-        body.setSceneId(sceneId);
-        body.setSceneCode(sceneCode);
-        body.setDryRun(true);
-        return streamGenerationRun(body);
-    }
-
-    /**
      * 计费选品别名：预占失败返回 JSON；成功则 SSE（artifact_ready / run_settled 或 run_failed）。
      */
     @PostMapping(value = "/runs/picklist")
@@ -127,7 +105,6 @@ public class AgentController {
         body.setSceneId(src.getSceneId());
         body.setSceneCode(src.getSceneCode());
         body.setSkillId("ecommerce-picklist");
-        body.setDryRun(false);
         return streamGenerationRun(body);
     }
 
@@ -143,7 +120,6 @@ public class AgentController {
         body.setSceneId(src.getSceneId());
         body.setSceneCode(src.getSceneCode());
         body.setSkillId("ecommerce-skulist");
-        body.setDryRun(false);
         return streamGenerationRun(body);
     }
 

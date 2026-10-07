@@ -198,14 +198,13 @@ type FetchSpy = { mock: { calls: ReadonlyArray<unknown[]> } }
 function billedRunApiHits(fetchMock: FetchSpy, skillId?: string) {
   return fetchMock.mock.calls.filter(([input, init]) => {
     const u = String(input)
-    if (!u.includes('/api/v1/agent/runs') || u.includes('/runs/empty')) {
+    if (!u.includes('/api/v1/agent/runs') || u.includes('/resume')) {
       return false
     }
     const body =
       typeof (init as RequestInit | undefined)?.body === 'string'
         ? String((init as RequestInit).body)
         : ''
-    if (body.includes('"dryRun":true')) return false
     if (skillId) return body.includes(`"skillId":"${skillId}"`)
     return true
   })

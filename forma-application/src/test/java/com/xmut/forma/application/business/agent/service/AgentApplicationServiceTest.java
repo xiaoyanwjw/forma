@@ -64,7 +64,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -77,7 +76,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -185,12 +183,12 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunReservesAndPersistsRunWithSceneId() {
+    void prepareGenerationRunReservesAndPersistsRunWithSceneId() {
         stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
 
-        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                 .userId(USER_ID)
                 .sceneId(ECOM_SCENE_ID)
                 .build());
@@ -211,9 +209,9 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunRejectsMissingSceneWithoutReserveOrSave() {
+    void prepareGenerationRunRejectsMissingSceneWithoutReserveOrSave() {
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true).userId(USER_ID).build()));
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊").userId(USER_ID).build()));
         assertEquals(ErrorCode.PARAM_INVALID, ex.getErrorCode());
         assertEquals(AgentApplicationService.MSG_SCENE_REQUIRED, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
@@ -223,11 +221,11 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunRejectsUnknownSceneId() {
+    void prepareGenerationRunRejectsUnknownSceneId() {
         when(sceneRepository.findByBizId("missing-id")).thenReturn(Optional.empty());
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                         .userId(USER_ID)
                         .sceneId("missing-id")
                         .build()));
@@ -237,11 +235,11 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunRejectsComingSoonScene() {
+    void prepareGenerationRunRejectsComingSoonScene() {
         when(sceneRepository.findByBizId(GRAY_SCENE_ID)).thenReturn(Optional.of(grayScene()));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                         .userId(USER_ID)
                         .sceneId(GRAY_SCENE_ID)
                         .build()));
@@ -251,14 +249,14 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunRejectsSessionBoundToOtherScene() {
+    void prepareGenerationRunRejectsSessionBoundToOtherScene() {
         stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId("fixed-session"))
                 .thenReturn(Optional.of(new SessionSceneBinding(
                         "fixed-session", GRAY_SCENE_ID, GRAY_SCENE_CODE)));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                         .userId(USER_ID)
                         .sessionId("fixed-session")
                         .sceneId(ECOM_SCENE_ID)
@@ -270,13 +268,13 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunWritesSceneWhenSessionHasNoneYet() {
+    void prepareGenerationRunWritesSceneWhenSessionHasNoneYet() {
         stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId("legacy-session"))
                 .thenReturn(Optional.of(new SessionSceneBinding("legacy-session", null, null)));
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
 
-        service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+        service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                 .userId(USER_ID)
                 .sessionId("legacy-session")
                 .sceneId(ECOM_SCENE_ID)
@@ -293,7 +291,7 @@ class AgentApplicationServiceTest {
                         "foreign-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, "other-user")));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                         .userId(USER_ID)
                         .sessionId("foreign-session")
                         .sceneId(ECOM_SCENE_ID)
@@ -313,7 +311,7 @@ class AgentApplicationServiceTest {
                         "own-session", ECOM_SCENE_ID, ECOM_SCENE_CODE, USER_ID)));
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
 
-        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                 .userId(USER_ID)
                 .sessionId("own-session")
                 .sceneId(ECOM_SCENE_ID)
@@ -325,7 +323,7 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunStoresFixedSessionIdAndNewHoldEachTime() {
+    void prepareGenerationRunStoresFixedSessionIdAndNewHoldEachTime() {
         stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId("fixed-session-id"))
                 .thenReturn(Optional.empty())
@@ -334,12 +332,12 @@ class AgentApplicationServiceTest {
         when(creditApplicationService.reserveOne(USER_ID)).thenReturn("hold-a", "hold-b");
         String sessionId = "fixed-session-id";
 
-        GenerationRunContext first = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+        GenerationRunContext first = service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                 .userId(USER_ID)
                 .sessionId(sessionId)
                 .sceneId(ECOM_SCENE_ID)
                 .build());
-        GenerationRunContext second = service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+        GenerationRunContext second = service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                 .userId(USER_ID)
                 .sessionId(sessionId)
                 .sceneId(ECOM_SCENE_ID)
@@ -361,14 +359,14 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void prepareDryGenerationRunDoesNotCreateRunWhenInsufficient() {
+    void prepareGenerationRunDoesNotCreateRunWhenInsufficient() {
         stubEcommerceById();
         when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
         when(creditApplicationService.reserveOne(USER_ID))
                 .thenThrow(new BusinessException(ErrorCode.CREDIT_INSUFFICIENT));
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().dryRun(true)
+                () -> service.prepareGenerationRun(StartGenerationRunCommand.builder().text("随便聊聊")
                         .userId(USER_ID)
                         .sceneId(ECOM_SCENE_ID)
                         .build()));
@@ -376,229 +374,6 @@ class AgentApplicationServiceTest {
         verify(generationRunRepository, never()).save(any(GenerationRun.class));
         verify(creditApplicationService, never()).settle(anyString(), anyString());
     }
-
-    @Test
-    void streamEmptyRunEmitsStartedDeltaToRunFailedAndReleasesWithoutSettle() {
-        GenerationRunContext ctx = emptyCtx("run-1", "session-1");
-        stubEcommercePack();
-        AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
-        when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
-            subscriber.set(invocation.getArgument(0));
-            return () -> {
-            };
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenAnswer(invocation -> {
-            Consumer<PiEvent> handler = subscriber.get();
-            handler.accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, "hi"));
-            return TurnResult.ok("run-1", "session-1", "hi",
-                    Collections.<com.xmut.forma.pi.ai.message.Message>emptyList());
-        });
-        when(generationRunRepository.findById("run-1")).thenReturn(Optional.of(
-                GenerationRun.start("run-1", USER_ID, HOLD_ID, "session-1",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-
-        List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamBilledRun(ctx, events::add);
-
-        SseEvent started = events.get(0);
-        assertEquals(SseEventName.RUN_STARTED, started.getName());
-        assertEquals("run-1", started.getData().get("runId"));
-        assertEquals(HOLD_ID, started.getData().get("holdId"));
-        assertEquals("session-1", started.getData().get("sessionId"));
-
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
-        assertEquals(AgentApplicationService.EMPTY_RUN_FAIL_REASON, failed.getData().get("reason"));
-
-        ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
-        verify(agentSession).prompt(promptCaptor.capture());
-        assertEquals("ecommerce-picklist", SceneCapabilityPackLoader.DEFAULT_EMPTY_RUN_SKILL_ID);
-        assertEquals("ecommerce-picklist", promptCaptor.getValue().getSkillId());
-        verify(agentSession).prompt(argThat(req ->
-                "ecommerce-picklist".equals(req.getSkillId())));
-
-        verify(creditApplicationService).release(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void streamEmptyRunEndsFailedWithoutSynthesizingMessageDelta() {
-        GenerationRunContext ctx = emptyCtx("run-3", "session-3");
-        stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-3", "session-3", "stub-final",
-                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
-        when(generationRunRepository.findById("run-3")).thenReturn(Optional.of(
-                GenerationRun.start("run-3", USER_ID, HOLD_ID, "session-3",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-
-        List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamBilledRun(ctx, events::add);
-
-        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.MESSAGE_DELTA));
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
-        assertEquals(AgentApplicationService.EMPTY_RUN_FAIL_REASON, failed.getData().get("reason"));
-    }
-
-    @Test
-    void streamEmptyRunReleasesOnAgentFailureAndStillDoesNotSettle() {
-        GenerationRunContext ctx = emptyCtx("run-2", "session-2");
-        stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class)))
-                .thenThrow(new RuntimeException("agent boom"));
-        when(generationRunRepository.findById("run-2")).thenReturn(Optional.of(
-                GenerationRun.start("run-2", USER_ID, HOLD_ID, "session-2",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-
-        List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamBilledRun(ctx, events::add);
-
-        assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
-        assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
-        verify(creditApplicationService).release(eq(USER_ID), eq(HOLD_ID));
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void streamEmptyRunReportsReleaseFailureReasonAndDoesNotClaimReleased() {
-        GenerationRunContext ctx = emptyCtx("run-4", "session-4");
-        stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-4", "session-4", "ok",
-                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
-        when(generationRunRepository.findById("run-4")).thenReturn(Optional.of(
-                GenerationRun.start("run-4", USER_ID, HOLD_ID, "session-4",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID))
-                .when(creditApplicationService).release(USER_ID, HOLD_ID);
-
-        List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamBilledRun(ctx, events::add);
-
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
-        assertEquals(AgentApplicationService.RELEASE_FAILED_REASON, failed.getData().get("reason"));
-        assertFalse(String.valueOf(failed.getData().get("reason")).contains("预占已释放"));
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void streamEmptyRunAbortsOnSinkFailureThenReleasesAndEmitsRunToRunFailed() {
-        GenerationRunContext ctx = emptyCtx("run-5", "session-5");
-        stubEcommercePack();
-        AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
-        when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
-            subscriber.set(invocation.getArgument(0));
-            return () -> {
-            };
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenAnswer(invocation -> {
-            subscriber.get().accept(PiEvent.of(PiEventType.MESSAGE_UPDATE, "chunk"));
-            return TurnResult.ok("run-5", "session-5", "ok",
-                    Collections.<com.xmut.forma.pi.ai.message.Message>emptyList());
-        });
-        when(generationRunRepository.findById("run-5")).thenReturn(Optional.of(
-                GenerationRun.start("run-5", USER_ID, HOLD_ID, "session-5",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-
-        AtomicInteger accepts = new AtomicInteger();
-        List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamBilledRun(ctx, event -> {
-            int n = accepts.incrementAndGet();
-            if (n == 2) {
-                throw new IllegalStateException("sse broken");
-            }
-            events.add(event);
-        });
-
-        verify(creditApplicationService).release(USER_ID, HOLD_ID);
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(AgentApplicationService.SSE_SEND_FAILED_RELEASED, failed.getData().get("reason"));
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void streamEmptyRunFailsHumanWithoutPromptWhenPackMissing() {
-        GenerationRunContext ctx = emptyCtx("run-pack-miss", "session-pack-miss");
-        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE))
-                .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID,
-                        SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE));
-        when(generationRunRepository.findById("run-pack-miss")).thenReturn(Optional.of(
-                GenerationRun.start("run-pack-miss", USER_ID, HOLD_ID, "session-pack-miss",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-
-        List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamBilledRun(ctx, events::add);
-
-        assertEquals(SseEventName.RUN_STARTED, events.get(0).getName());
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE, failed.getData().get("reason"));
-        assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
-        verify(agentSession, never()).prompt(any(PromptRequest.class));
-        verify(agentSession, never()).subscribe(any());
-        verify(creditApplicationService).release(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void streamEmptyRunFailsHumanWithoutPromptWhenDefaultSkillMissing() {
-        GenerationRunContext ctx = emptyCtx("run-default-miss", "session-default-miss");
-        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(
-                new SceneCapabilityPack(ECOM_SCENE_CODE, Collections.singletonList(
-                        skill(SceneCapabilityPackLoader.SKILL_SKULIST,
-                                "classpath:scenes/ecommerce/ecommerce-skulist/SKILL.md"))));
-        when(generationRunRepository.findById("run-default-miss")).thenReturn(Optional.of(
-                GenerationRun.start("run-default-miss", USER_ID, HOLD_ID, "session-default-miss",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-
-        List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamBilledRun(ctx, events::add);
-
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE, failed.getData().get("reason"));
-        assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
-        verify(agentSession, never()).prompt(any(PromptRequest.class));
-        verify(agentSession, never()).subscribe(any());
-        verify(creditApplicationService).release(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
-    @Test
-    void streamEmptyRunReportsReleaseFailureWhenPackMissing() {
-        GenerationRunContext ctx = emptyCtx("run-pack-miss-release", "session-pack-miss-release");
-        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE))
-                .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID,
-                        SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE));
-        when(generationRunRepository.findById("run-pack-miss-release")).thenReturn(Optional.of(
-                GenerationRun.start("run-pack-miss-release", USER_ID, HOLD_ID, "session-pack-miss-release",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID))
-                .when(creditApplicationService).release(USER_ID, HOLD_ID);
-
-        List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamBilledRun(ctx, events::add);
-
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(AgentApplicationService.RELEASE_FAILED_REASON, failed.getData().get("reason"));
-        assertEquals(Boolean.TRUE, failed.getData().get("emptyRun"));
-        verify(agentSession, never()).prompt(any(PromptRequest.class));
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
     @Test
     void prepareGenerationRunNoSkillRejectsBlankText() {
         stubEcommerceById();
@@ -607,7 +382,6 @@ class AgentApplicationServiceTest {
                         .userId(USER_ID)
                         .sceneId(ECOM_SCENE_ID)
                         .text("  ")
-                        .dryRun(false)
                         .build()));
         assertEquals(AgentApplicationService.MSG_PROMPT_REQUIRED, ex.getMessage());
         verify(creditApplicationService, never()).reserveOne(anyString());
@@ -623,11 +397,9 @@ class AgentApplicationServiceTest {
                 .userId(USER_ID)
                 .sceneId(ECOM_SCENE_ID)
                 .text("随便聊聊")
-                .dryRun(false)
                 .build());
 
         assertFalse(ctx.getProfile().isSkillBound());
-        assertFalse(ctx.getProfile().isDryRun());
         assertEquals("随便聊聊", ctx.getPromptText());
         verify(creditApplicationService).reserveOne(USER_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
@@ -816,28 +588,6 @@ class AgentApplicationServiceTest {
         verify(agentSession).prompt(promptCaptor.capture());
         verify(runWorkspaceService).ensureRunDir("session-ws", "run-ws");
     }
-
-    @Test
-    void dryPromptReceivesWorkspaceRoot() throws Exception {
-        GenerationRunContext ctx = emptyCtx("run-ws-dry", "session-ws-dry");
-        stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-ws-dry", "session-ws-dry", "stub",
-                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
-        when(generationRunRepository.findById("run-ws-dry")).thenReturn(Optional.of(
-                GenerationRun.start("run-ws-dry", USER_ID, HOLD_ID, "session-ws-dry",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-
-        service.streamBilledRun(ctx, new ArrayList<SseEvent>()::add);
-
-        ArgumentCaptor<PromptRequest> promptCaptor = ArgumentCaptor.forClass(PromptRequest.class);
-        verify(agentSession).prompt(promptCaptor.capture());
-        verify(runWorkspaceService).ensureRunDir("session-ws-dry", "run-ws-dry");
-        verify(runWorkspaceService, never()).deleteRunDirQuietly(anyString(), anyString());
-    }
-
     @Test
     void listingPromptReceivesWorkspaceRootAndAttachment() throws Exception {
         GenerationRunContext ctx = listingCtx("run-ws-listing", "session-ws-listing");
@@ -1119,7 +869,6 @@ class AgentApplicationServiceTest {
         SseEvent failed = events.get(events.size() - 1);
         assertEquals(SseEventName.RUN_FAILED, failed.getName());
         assertEquals(ComputerViewResolver.MSG_VIEW_UNAVAILABLE, failed.getData().get("reason"));
-        assertFalse(Boolean.TRUE.equals(failed.getData().get("emptyRun")));
         verify(creditApplicationService).release(USER_ID, HOLD_ID);
         verify(creditApplicationService, never()).settle(anyString(), anyString());
         verify(artifactPersistPlugin, never()).persist(
@@ -1149,30 +898,6 @@ class AgentApplicationServiceTest {
         verify(artifactPersistPlugin, never()).persist(
                 anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
     }
-
-    @Test
-    void streamEmptyRunStillNeverSettles() {
-        GenerationRunContext ctx = emptyCtx("run-empty-no-settle", "session-empty-no-settle");
-        stubEcommercePack();
-        when(agentSession.subscribe(any())).thenReturn(() -> {
-        });
-        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
-                TurnResult.ok("run-empty-no-settle", "session-empty-no-settle", "stub",
-                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
-        when(generationRunRepository.findById("run-empty-no-settle")).thenReturn(Optional.of(
-                GenerationRun.start("run-empty-no-settle", USER_ID, HOLD_ID, "session-empty-no-settle",
-                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
-
-        List<SseEvent> events = new ArrayList<SseEvent>();
-        service.streamBilledRun(ctx, events::add);
-
-        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
-        assertEquals(SseEventName.RUN_FAILED, events.get(events.size() - 1).getName());
-        verify(creditApplicationService).release(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).settle(anyString(), anyString());
-    }
-
     @Test
     void streamListingRunSettlesWithoutMediaObjectId() {
         GenerationRunContext ctx = listingCtx("run-listing-ok", "session-listing-ok");
@@ -1327,12 +1052,6 @@ class AgentApplicationServiceTest {
         return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
                 "请为 Mac Mini 拓展坞生成上架素材", SkillRunProfile.billed("ecommerce-skulist", "sku"));
     }
-
-    private GenerationRunContext emptyCtx(String runId, String sessionId) {
-        return new GenerationRunContext(runId, USER_ID, HOLD_ID, sessionId, ECOM_SCENE_CODE,
-                "empty-run", SkillRunProfile.dry(null));
-    }
-
     private void stubSubscribeEmittingSearchSkuOk(String runId, String sessionId, String finalText) {
         stubSubscribeEmittingSearchSkuEnd(runId, sessionId, finalText,
                 ToolResult.ok("call-sku", "search_sku", "[{}]"));

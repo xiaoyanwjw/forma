@@ -10,7 +10,6 @@ public class StartGenerationRunRequest {
     private String sceneId;
     private String sceneCode;
     private String skillId;
-    private boolean dryRun;
 
     public String getText() {
         return text;
@@ -50,13 +49,5 @@ public class StartGenerationRunRequest {
 
     public void setSkillId(String skillId) {
         this.skillId = skillId;
-    }
-
-    public boolean isDryRun() {
-        return dryRun;
-    }
-
-    public void setDryRun(boolean dryRun) {
-        this.dryRun = dryRun;
     }
 }

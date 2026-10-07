@@ -134,7 +134,6 @@ describe('useAgentSkillRun HITL', () => {
         text: '随便聊聊',
         sceneCode: 'ecommerce',
         skillId: undefined,
-        dryRun: false,
       }),
     )
     expect(mounted.result.pendingHuman.value).toBeNull()

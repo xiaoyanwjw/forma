@@ -162,7 +162,6 @@ export function useAgentSkillRun() {
           ...options,
           text,
           skillId,
-          dryRun: false,
           sessionId: options.sessionId ?? sessionId.value ?? undefined,
           signal,
         }),

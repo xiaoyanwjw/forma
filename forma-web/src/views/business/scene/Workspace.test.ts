@@ -162,10 +162,7 @@ function billedRunBodies(fetchMock: FetchSpy) {
     .filter(([input, init]) => {
       const url = String(input)
       if (!url.includes('/api/v1/agent/runs')) return false
-      const body = typeof (init as RequestInit | undefined)?.body === 'string'
-        ? String((init as RequestInit).body)
-        : ''
-      return !body.includes('"dryRun":true')
+      return true
     })
     .map(([, init]) => JSON.parse(String((init as RequestInit).body)) as {
       skillId?: string
