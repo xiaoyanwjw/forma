@@ -3,6 +3,8 @@ package com.xmut.forma.application.business.agent.dto;
 import com.xmut.forma.application.business.agent.support.SkillRunProfile;
 import com.xmut.forma.common.util.StringUtils;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
  * Unified GenerationRun context for SSE streaming (dry / no-skill / billed).
  * <p>
@@ -21,6 +23,7 @@ public final class GenerationRunContext {
     private String artifactRef;
     private String execHoldId;
     private String pendingToolCallId;
+    private final AtomicReference<String> terminal = new AtomicReference<String>();
 
     public GenerationRunContext(String runId,
                                 String userId,
@@ -108,5 +111,16 @@ public final class GenerationRunContext {
 
     public void setPendingToolCallId(String pendingToolCallId) {
         this.pendingToolCallId = pendingToolCallId;
+    }
+
+    /**
+     * 抢占本 run 的积分终态（SETTLED / FAILED / RECONCILE）；已有终态则 false。
+     */
+    public boolean claimTerminal(String outcome) {
+        return terminal.compareAndSet(null, outcome);
+    }
+
+    public boolean hasTerminal() {
+        return terminal.get() != null;
     }
 }

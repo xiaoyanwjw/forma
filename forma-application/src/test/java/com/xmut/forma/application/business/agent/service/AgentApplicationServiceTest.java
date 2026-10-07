@@ -545,6 +545,53 @@ class AgentApplicationServiceTest {
     }
 
     @Test
+    void streamBilledRunAbortBeforePersistCancelsAndReleases() {
+        GenerationRunContext ctx = new GenerationRunContext(
+                "run-abort", USER_ID, HOLD_ID, "session-abort", ECOM_SCENE_CODE,
+                "你好", SkillRunProfile.noSkill());
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(ecommercePack());
+        AtomicReference<Consumer<PiEvent>> subscriber = new AtomicReference<Consumer<PiEvent>>();
+        when(agentSession.subscribe(any())).thenAnswer((Answer<AutoCloseable>) invocation -> {
+            subscriber.set(invocation.getArgument(0));
+            return () -> {
+            };
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenAnswer(invocation -> {
+            subscriber.get().accept(PiEvent.of(PiEventType.AGENT_START, null));
+            return TurnResult.ok("run-abort", "session-abort", "草稿",
+                    Collections.<com.xmut.forma.pi.ai.message.Message>emptyList());
+        });
+        when(generationRunRepository.findById("run-abort")).thenReturn(Optional.of(
+                GenerationRun.start("run-abort", USER_ID, HOLD_ID, "session-abort",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        service.streamBilledRun(ctx, event -> {
+            if (event.getName() == SseEventName.AGENT_STARTED) {
+                throw new IllegalStateException("sse broken before persist");
+            }
+        });
+
+        verify(agentSession).cancel(eq("run-abort"), anyString());
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        verify(creditApplicationService, never()).settle(anyString(), anyString());
+        verify(artifactPersistPlugin, never()).persist(
+                anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap());
+    }
+
+    @Test
+    void cancelRunDelegatesToAgentSession() {
+        service.cancelRun("run-1", "sse_timeout");
+        verify(agentSession).cancel("run-1", "sse_timeout");
+    }
+
+    @Test
+    void cancelRunBlankRunIdIsSilent() {
+        service.cancelRun("  ", "x");
+        service.cancelRun(null, "x");
+        verify(agentSession, never()).cancel(anyString(), anyString());
+    }
+
+    @Test
     void streamPicklistRunSettlesWithoutSearchSkuToolEvent_skillSoftConstraintOnly() {
         // App layer no longer hard-gates ≥1 search_sku; Skill soft rules remain in SKILL.md.
         GenerationRunContext ctx = picklistCtx("run-pl-nosearch", "session-pl-nosearch");

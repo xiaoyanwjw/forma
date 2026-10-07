@@ -198,6 +198,16 @@ public class AgentApplicationService {
     }
 
     /**
+     * 停止 Pi 回合（客户端断流 / SSE 超时 / 发送失败）。不在此处结算或释放。
+     */
+    public void cancelRun(String runId, String reason) {
+        if (!StringUtils.hasText(runId)) {
+            return;
+        }
+        agentSession.cancel(runId.trim(), reason != null ? reason : "client_disconnected");
+    }
+
+    /**
      * 执行一次计费首跑，并向 {@code sink} 推送 AD-4 SSE。
      *
      * <p>与 {@link #resumeBilledRun} 步骤对齐：前置钩子、订阅 PiEvent、调用
@@ -252,6 +262,7 @@ public class AgentApplicationService {
                             emit(sink, mapped);
                         } catch (RuntimeException ex) {
                             aborted.set(true);
+                            agentSession.cancel(runId, "sse_send_failed");
                             LoggerUtils.error(log, AgentApplicationService.class, "accept",
                                     ex.getMessage() != null ? ex.getMessage() : "SSE send failed",
                                     NameValue.create("runId", runId));
@@ -274,7 +285,8 @@ public class AgentApplicationService {
             loggingAgentUsage(context, result);
 
             if (aborted.get()) {
-                throw new BusinessException(ErrorCode.SYSTEM_ERROR, SSE_SEND_FAILED_RELEASED);
+                finishAfterAbort(runContext, sink);
+                return;
             }
 
             // 6a. SUSPENDED：挂上 Turn 结果 → handler 业务副作用 → 结算当前 hold
@@ -328,20 +340,10 @@ public class AgentApplicationService {
             // 9. BilledRun 落库并结算
             settleBilledRun(runContext, sink);
         } catch (BusinessException ex) {
-            if (isRunSettled(runId)) {
-                return;
-            }
-            releaseOpenHolds(context);
-            markRunFailed(runId);
-            emitRunFailed(sink, ex.getMessage());
+            finishAsFailed(context, sink, ex.getMessage());
         } catch (RuntimeException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "streamBilledRun", ex.getMessage(), ex, NameValue.create("runId", runId));
-            if (isRunSettled(runId)) {
-                return;
-            }
-            releaseOpenHolds(context);
-            markRunFailed(runId);
-            emitRunFailed(sink, ex.getMessage());
+            finishAsFailed(context, sink, ex.getMessage());
         } finally {
             closeQuietly(subscription);
         }
@@ -442,6 +444,7 @@ public class AgentApplicationService {
                             emit(sink, mapped);
                         } catch (RuntimeException ex) {
                             aborted.set(true);
+                            agentSession.cancel(runId, "sse_send_failed");
                             LoggerUtils.error(log, AgentApplicationService.class, "accept",
                                     ex.getMessage() != null ? ex.getMessage() : "SSE send failed",
                                     NameValue.create("runId", runId));
@@ -467,7 +470,8 @@ public class AgentApplicationService {
             loggingAgentUsage(context, result);
 
             if (aborted.get()) {
-                throw new BusinessException(ErrorCode.SYSTEM_ERROR, SSE_SEND_FAILED_RELEASED);
+                finishAfterAbort(runContext, sink);
+                return;
             }
 
             // 6a. SUSPENDED：挂上 Turn 结果 → handler 业务副作用 → 释放不该留下的 hold
@@ -519,24 +523,12 @@ public class AgentApplicationService {
 
             settleBilledRun(runContext, sink);
         } catch (BusinessException ex) {
-            if (isRunSettled(context.getRunId())) {
-                return;
-            }
-
-            releaseOpenHolds(context);
-            markRunFailed(context.getRunId());
-            emitRunFailed(sink, ex.getMessage());
+            finishAsFailed(context, sink, ex.getMessage());
         } catch (RuntimeException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "resumeBilledRun",
                     ex.getMessage() != null ? ex.getMessage() : "resume failed",
                     NameValue.create("runId", runId));
-            if (isRunSettled(context.getRunId())) {
-                return;
-            }
-
-            releaseOpenHolds(context);
-            markRunFailed(context.getRunId());
-            emitRunFailed(sink, ex.getMessage());
+            finishAsFailed(context, sink, ex.getMessage());
         } finally {
             closeQuietly(subscription);
         }
@@ -594,6 +586,7 @@ public class AgentApplicationService {
             run.markSettledOnSuspended(artifactRef, Instant.now(clock));
             generationRunRepository.update(run);
         }
+        context.claimTerminal("SETTLED");
         runContext.setPendingSettleOnSuspend(false);
     }
 
@@ -627,9 +620,7 @@ public class AgentApplicationService {
                     context.getUserId(), context.getRunId(), context.getSceneCode(),
                     persistAs, projectedView, businessPayload);
         } catch (BusinessException ex) {
-            releaseOpenHolds(context);
-            markRunFailed(context.getRunId());
-            emitRunFailed(sink, ex.getMessage());
+            finishAsFailed(context, sink, ex.getMessage());
             return;
         }
 
@@ -638,6 +629,7 @@ public class AgentApplicationService {
             creditHoldSupport.settle(context.getUserId(), settleHoldId);
         } catch (BusinessException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "settleBilledRun", ex.getMessage(), ex, NameValue.create("runId", context.getRunId()), NameValue.create("holdId", settleHoldId));
+            context.claimTerminal("RECONCILE");
             try {
                 creditHoldSupport.release(context.getUserId(), settleHoldId, context.getRunId());
             } catch (Exception releaseEx) {
@@ -657,6 +649,7 @@ public class AgentApplicationService {
         }
 
         markRunSettled(context.getRunId(), persisted.getArtifactRef());
+        context.claimTerminal("SETTLED");
         context.setArtifactRef(persisted.getArtifactRef());
         if (StringUtils.hasText(context.getExecHoldId())) {
             context.clearExecHold();
@@ -718,9 +711,38 @@ public class AgentApplicationService {
         return raw.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
-    private boolean isRunSettled(String runId) {
+    private boolean isRunCreditClosed(String runId) {
         GenerationRun run = generationRunRepository.findById(runId).orElse(null);
-        return run != null && run.getStatus() == GenerationRunStatus.SETTLED;
+        if (run == null) {
+            return false;
+        }
+        GenerationRunStatus status = run.getStatus();
+        return status == GenerationRunStatus.SETTLED || status == GenerationRunStatus.NEEDS_RECONCILE;
+    }
+
+    /** sink abort：无成果则 cancel 已发生，释放并 FAILED；已有 artifactRef 则交给 settle 路径。 */
+    private void finishAfterAbort(BilledRunContext runContext, Consumer<SseEvent> sink) {
+        GenerationRunContext context = runContext.getRun();
+        if (StringUtils.hasText(context.getArtifactRef())) {
+            if (runContext.isPendingSettleOnSuspend()) {
+                settleOnSuspended(runContext, sink);
+            }
+            return;
+        }
+        finishAsFailed(context, sink, SSE_SEND_FAILED_RELEASED);
+    }
+
+    /** release / FAILED 最多一次；SETTLED / NEEDS_RECONCILE 不再二次释放。 */
+    private void finishAsFailed(GenerationRunContext context, Consumer<SseEvent> sink, String reason) {
+        if (context.hasTerminal() || isRunCreditClosed(context.getRunId())) {
+            return;
+        }
+        if (!context.claimTerminal("FAILED")) {
+            return;
+        }
+        releaseOpenHolds(context);
+        markRunFailed(context.getRunId());
+        emitRunFailed(sink, reason);
     }
 
     /**

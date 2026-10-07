@@ -26,6 +26,8 @@ import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
  * Agent 计费生成 SSE：JWT 鉴权后直接返回 {@code text/event-stream}。
@@ -76,21 +78,8 @@ public class AgentController {
                     .body(ApiResponse.error(status, ex.getMessage()));
         }
 
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
-        sseExecutor.execute(() -> {
-            try {
-                agentService.streamBilledRun(context, event -> sendEvent(emitter, event));
-                emitter.complete();
-            } catch (Exception ex) {
-                log.warn("generation run sse failed runId={}: {}", context.getRunId(), ex.toString());
-                try {
-                    emitter.completeWithError(ex);
-                } catch (Exception ignored) {
-                    // already completed
-                }
-            }
-        });
-        return emitter;
+        return openRunEmitter(context.getRunId(), emitter ->
+                agentService.streamBilledRun(context, event -> sendEvent(emitter, event)));
     }
 
     /**
@@ -151,13 +140,32 @@ public class AgentController {
                     .body(ApiResponse.error(status, ex.getMessage()));
         }
 
+        return openRunEmitter(runId, emitter ->
+                agentService.resumeBilledRun(command, event -> sendEvent(emitter, event)));
+    }
+
+    @PreDestroy
+    void shutdownSseExecutor() {
+        sseExecutor.shutdown();
+    }
+
+    private SseEmitter openRunEmitter(String runId, Consumer<SseEmitter> stream) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
+        final AtomicBoolean finishedNormally = new AtomicBoolean(false);
+        emitter.onTimeout(() -> agentService.cancelRun(runId, "sse_timeout"));
+        emitter.onError(ex -> agentService.cancelRun(runId, "sse_error"));
+        emitter.onCompletion(() -> {
+            if (!finishedNormally.get()) {
+                agentService.cancelRun(runId, "sse_completed_early");
+            }
+        });
         sseExecutor.execute(() -> {
             try {
-                agentService.resumeBilledRun(command, event -> sendEvent(emitter, event));
+                stream.accept(emitter);
+                finishedNormally.set(true);
                 emitter.complete();
             } catch (Exception ex) {
-                log.warn("resume run sse failed runId={}: {}", runId, ex.toString());
+                log.warn("generation run sse failed runId={}: {}", runId, ex.toString());
                 try {
                     emitter.completeWithError(ex);
                 } catch (Exception ignored) {
@@ -166,11 +174,6 @@ public class AgentController {
             }
         });
         return emitter;
-    }
-
-    @PreDestroy
-    void shutdownSseExecutor() {
-        sseExecutor.shutdown();
     }
 
     private static void sendEvent(SseEmitter emitter, SseEvent event) {
