@@ -10,7 +10,6 @@ import com.xmut.forma.common.response.ApiResponse;
 import com.xmut.forma.interfaces.security.SecuritySupport;
 import com.xmut.forma.interfaces.vo.business.agent.ResumeGenerationRunRequest;
 import com.xmut.forma.interfaces.vo.business.agent.StartGenerationRunRequest;
-import com.xmut.forma.interfaces.vo.business.agent.StartPicklistRunRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -27,13 +26,12 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 /**
  * Agent 计费生成 SSE：JWT 鉴权后直接返回 {@code text/event-stream}。
  * <p>
  * 预占失败（如积分不足）在打开流之前以 JSON 业务错误返回，避免 SSE produces 干扰统一异常出口。
- * 新客户端只用 {@code POST /runs}；{@code /runs/picklist}、{@code /runs/listing} 为兼容别名，勿再扩。
+ * 入口：{@code POST /runs}（blank skillId → 无 Skill；已知 skillId → 计费）与 {@code POST /runs/{runId}/resume}。
  */
 @Slf4j
 @RestController
@@ -78,38 +76,31 @@ public class AgentController {
                     .body(ApiResponse.error(status, ex.getMessage()));
         }
 
-        return openRunEmitter(context.getRunId(), emitter ->
-                agentService.streamBilledRun(context, event -> sendEvent(emitter, event)));
-    }
-
-    /**
-     * 兼容别名：固定 skillId=ecommerce-picklist，等价 {@code POST /runs}。新客户端请走通用入口。
-     */
-    @PostMapping(value = "/runs/picklist")
-    public Object startPicklistRun(@RequestBody StartPicklistRunRequest request) {
-        StartPicklistRunRequest src = request != null ? request : new StartPicklistRunRequest();
-        StartGenerationRunRequest body = new StartGenerationRunRequest();
-        body.setText(src.getText());
-        body.setSessionId(src.getSessionId());
-        body.setSceneId(src.getSceneId());
-        body.setSceneCode(src.getSceneCode());
-        body.setSkillId("ecommerce-picklist");
-        return streamGenerationRun(body);
-    }
-
-    /**
-     * 兼容别名：固定 skillId=ecommerce-skulist，等价 {@code POST /runs}。新客户端请走通用入口。
-     */
-    @PostMapping(value = "/runs/listing")
-    public Object startListingRun(@RequestBody StartPicklistRunRequest request) {
-        StartPicklistRunRequest src = request != null ? request : new StartPicklistRunRequest();
-        StartGenerationRunRequest body = new StartGenerationRunRequest();
-        body.setText(src.getText());
-        body.setSessionId(src.getSessionId());
-        body.setSceneId(src.getSceneId());
-        body.setSceneCode(src.getSceneCode());
-        body.setSkillId("ecommerce-skulist");
-        return streamGenerationRun(body);
+        final String runId = context.getRunId();
+        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
+        final AtomicBoolean finishedNormally = new AtomicBoolean(false);
+        emitter.onTimeout(() -> agentService.cancelRun(runId, "sse_timeout"));
+        emitter.onError(ex -> agentService.cancelRun(runId, "sse_error"));
+        emitter.onCompletion(() -> {
+            if (!finishedNormally.get()) {
+                agentService.cancelRun(runId, "sse_completed_early");
+            }
+        });
+        sseExecutor.execute(() -> {
+            try {
+                agentService.streamBilledRun(context, event -> sendEvent(emitter, event));
+                finishedNormally.set(true);
+                emitter.complete();
+            } catch (Exception ex) {
+                log.warn("generation run sse failed runId={}: {}", runId, ex.toString());
+                try {
+                    emitter.completeWithError(ex);
+                } catch (Exception ignored) {
+                    // already completed
+                }
+            }
+        });
+        return emitter;
     }
 
     /**
@@ -140,16 +131,6 @@ public class AgentController {
                     .body(ApiResponse.error(status, ex.getMessage()));
         }
 
-        return openRunEmitter(runId, emitter ->
-                agentService.resumeBilledRun(command, event -> sendEvent(emitter, event)));
-    }
-
-    @PreDestroy
-    void shutdownSseExecutor() {
-        sseExecutor.shutdown();
-    }
-
-    private SseEmitter openRunEmitter(String runId, Consumer<SseEmitter> stream) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         final AtomicBoolean finishedNormally = new AtomicBoolean(false);
         emitter.onTimeout(() -> agentService.cancelRun(runId, "sse_timeout"));
@@ -161,7 +142,7 @@ public class AgentController {
         });
         sseExecutor.execute(() -> {
             try {
-                stream.accept(emitter);
+                agentService.resumeBilledRun(command, event -> sendEvent(emitter, event));
                 finishedNormally.set(true);
                 emitter.complete();
             } catch (Exception ex) {
@@ -174,6 +155,11 @@ public class AgentController {
             }
         });
         return emitter;
+    }
+
+    @PreDestroy
+    void shutdownSseExecutor() {
+        sseExecutor.shutdown();
     }
 
     private static void sendEvent(SseEmitter emitter, SseEvent event) {

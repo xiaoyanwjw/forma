@@ -21,8 +21,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(agentRateLimitInterceptor)
                 .addPathPatterns(
                         "/api/v1/agent/runs",
-                        "/api/v1/agent/runs/picklist",
-                        "/api/v1/agent/runs/listing",
                         "/api/v1/agent/runs/*/resume");
     }
 }

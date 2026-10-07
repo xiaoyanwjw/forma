@@ -57,9 +57,9 @@ class AgentListingRunIntegrationTest {
 
     @Test
     void listingRunWithoutTokenUnauthorized() throws Exception {
-        mockMvc.perform(post("/api/v1/agent/runs/listing")
+        mockMvc.perform(post("/api/v1/agent/runs")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"text\":\"帮我写上架素材\",\"sceneCode\":\"ecommerce\"}")
+                        .content("{\"text\":\"帮我写上架素材\",\"sceneCode\":\"ecommerce\",\"skillId\":\"ecommerce-skulist\"}")
                         .accept(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(status().isUnauthorized());
         Integer runCount = jdbcTemplate.queryForObject(
@@ -75,10 +75,10 @@ class AgentListingRunIntegrationTest {
                 "SELECT biz_id FROM forma_user WHERE username = ?", String.class, username);
         jdbcTemplate.update("UPDATE forma_credit_account SET balance = 0, reserved = 0 WHERE user_id = ?", userId);
 
-        mockMvc.perform(post("/api/v1/agent/runs/listing")
+        mockMvc.perform(post("/api/v1/agent/runs")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"text\":\"帮我写上架素材\",\"sceneCode\":\"ecommerce\"}")
+                        .content("{\"text\":\"帮我写上架素材\",\"sceneCode\":\"ecommerce\",\"skillId\":\"ecommerce-skulist\"}")
                         .accept(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(status().isPaymentRequired())
                 .andExpect(jsonPath("$.message").exists());
