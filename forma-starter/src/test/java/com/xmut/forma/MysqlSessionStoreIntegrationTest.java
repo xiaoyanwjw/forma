@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Story 2.7：覆盖 MysqlSessionStore I/O 矩阵与生产 Primary 装配。
+ * <p>本类跑在 H2（MODE=MySQL）替身上，不是真 MySQL；真库门禁见 {@link PiSessionMysqlContainerIT}。
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -65,7 +66,7 @@ class MysqlSessionStoreIntegrationTest {
         Map<String, SessionStore> stores = applicationContext.getBeansOfType(SessionStore.class);
         assertThat(stores.values()).hasSize(1);
         assertThat(stores.values()).noneMatch(b -> b instanceof SqliteSessionStore);
-        assertThat(applicationContext.getEnvironment().getProperty("lims.pi.session.sqlite-path", ""))
+        assertThat(applicationContext.getEnvironment().getProperty("forma.pi.session.sqlite-path", ""))
                 .isBlank();
         assertThat(Files.notExists(
                 Paths.get(System.getProperty("user.dir"), ".lippi-pi", "state.db"))).isTrue();

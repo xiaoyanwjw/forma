@@ -1,0 +1,7 @@
+# Overrides application-test.yml H2 stand-in. JDBC URL comes from Testcontainers.
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: never

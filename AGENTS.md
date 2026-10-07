@@ -39,6 +39,7 @@ docker compose -f APP-META/docker-config/docker-compose.yml down
 
 - 改动处补测；提交前相关测试应绿。
 - 后端：`mvn -pl forma-starter -am test`（先单模块再全 reactor）。Pi 扩展全量：`mvn -pl forma-pi-extension/bundle -am test`；单场景：`mvn -pl forma-pi-extension/tech -am test`（`tech` 可换成 `ecommerce` / `xiaohongshu` / `core`）。
+- 真 MySQL IT（`CreditReserveMysqlContainerIT` / `PiSessionMysqlContainerIT`）需本机 Docker；无 Docker 时 skip，不红。
 - 前端：`cd forma-web && npm run lint`；构建 `npm run build`。
 - Compose 冒烟：`docker compose -f APP-META/docker-config/docker-compose.yml config`，再 `up -d` 确认 mysql + starter。
 

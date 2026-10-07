@@ -255,6 +255,7 @@ forma/
 # 后端
 mvn -pl forma-starter -am -DskipTests compile
 mvn -pl forma-starter -am test
+# 真 MySQL IT 需 Docker；无则 skip
 
 # 前端
 cd forma-web && npm run lint && npm run build

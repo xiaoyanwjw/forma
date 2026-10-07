@@ -48,6 +48,7 @@ import static org.assertj.core.api.Assertions.within;
 
 /**
  * Story 2.8：MysqlCheckpointer 落盘矩阵与 Adam Primary 装配。
+ * <p>本类跑在 H2（MODE=MySQL）替身上，不是真 MySQL。
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -79,7 +80,7 @@ class MysqlCheckpointerIntegrationTest {
         assertThat(beans.values()).noneMatch(b -> b instanceof RedisCheckpointer);
         assertThat(beans.values()).noneMatch(b -> b instanceof InMemoryCheckpointer);
         assertThat(applicationContext.getEnvironment()
-                .getProperty("lims.pi.checkpoint.redis.enabled", "false"))
+                .getProperty("forma.pi.checkpoint.redis.enabled", "false"))
                 .isEqualTo("false");
     }
 

@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.within;
 
 /**
  * Story 2.8b：MysqlResumeIdempotencyStore 矩阵与 Adam Primary 装配。
+ * <p>本类跑在 H2（MODE=MySQL）替身上，不是真 MySQL。
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -56,7 +57,7 @@ class MysqlResumeIdempotencyStoreIntegrationTest {
         assertThat(beans.values()).noneMatch(b -> b instanceof RedisResumeIdempotencyStore);
         assertThat(beans.values()).noneMatch(b -> b instanceof InMemoryResumeIdempotencyStore);
         assertThat(applicationContext.getEnvironment()
-                .getProperty("lims.pi.checkpoint.redis.enabled", "false"))
+                .getProperty("forma.pi.checkpoint.redis.enabled", "false"))
                 .isEqualTo("false");
     }
 
