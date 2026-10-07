@@ -64,10 +64,6 @@
   summary: Pi TOOL_EXECUTION_UPDATE 未映射到 AD-4（无对等细粒度事件名）。
   evidence: AD-4 闭合七名无 mid-tool 进度；本故事骨架只映射 start/end。
 
-- source_spec: `sdd/implementation-artifacts/spec-2-1-generationrun-与-sse-事件骨架.md`
-  summary: `startEmptyRun` 便利方法自调用可能绕过 prepareEmptyRun 的事务代理（Controller 主路径无此问题）。
-  evidence: 生产入口为 prepareEmptyRun+streamEmptyRun；startEmptyRun 主要用于单测。
-
 - source_spec: `sdd/implementation-artifacts/spec-2-6-pi-运行时默认装配与噪音清理-重构先行.md`
   summary: 切到 InMemory 默认后，若 cwd 仍残留旧 `.lippi-pi/state.db`，无告警提示历史被弃用。
   evidence: MissingBean→InMemory 是 Decision B；加启动 warn 属过渡运维体验，非本故事最小补丁。
@@ -117,12 +113,8 @@
   evidence: verification-gap：改 media 规则或保留 `1fr` 子串仍可能绿；需浏览器级检查才能闭合。
 
 - source_spec: `sdd/implementation-artifacts/spec-3-1-generationrun-sse-与会话必绑场景.md`
-  summary: AgentDryRun / useAgentEmptyRun 无组件级单测，场景必传仅靠 api.flow 锁定。
-  evidence: verification-gap：改 DryRun 去掉 sceneCode 时 agent.flow 仍绿；窄调试页，API 契约已覆盖。
-
-- source_spec: `sdd/implementation-artifacts/spec-3-1-generationrun-sse-与会话必绑场景.md`
   summary: 空跑可复用任意 sessionId，无「会话归属当前用户」校验。
-  evidence: 2.1 起即接受客户端传入 sessionId；本故事只加场景绑定，未引入归属检查。
+  evidence: 2.1 起即接受客户端传入 sessionId；本故事只加场景绑定，未引入归属检查。空跑入口已删除；会话归属仍待 Generation 路径补齐。
 
 - source_spec: `sdd/implementation-artifacts/spec-3-1-generationrun-sse-与会话必绑场景.md`
   summary: pi_session 场景绑定时仍可能 userId=null（与 MysqlSessionStore 建行一致）。
@@ -139,10 +131,6 @@
 - source_spec: `sdd/implementation-artifacts/spec-3-2-电商场景能力包按-scenecode-加载.md`
   summary: Loader.load 成功未与同进程 SkillConfig.resolve(默认 skillId) 联检，注册失败时可能用人话以外的错误进 prompt。
   evidence: EbusSkillConfiguration 与 Loader 分路径扫描；补联检需注入 SkillConfig，超出本轮最小补丁。
-
-- source_spec: `sdd/implementation-artifacts/spec-3-2-电商场景能力包按-scenecode-加载.md`
-  summary: AgentEmptyRunIntegrationTest 未覆盖装包成功注入 skillId / 缺包人话 run_failed。
-  evidence: IT 仍只断言 AD-4 事件与 release；单元测已覆盖主路径，IT 加强后置。
 
 - source_spec: `sdd/implementation-artifacts/spec-3-2-电商场景能力包按-scenecode-加载.md`
   summary: Loader 未在装包时校验各 skill promptRef 指向的 md 是否存在。

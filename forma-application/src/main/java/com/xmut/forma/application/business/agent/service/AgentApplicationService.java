@@ -124,7 +124,7 @@ public class AgentApplicationService {
         final String userId = command.getUserId();
         final String skillId = command.getSkillId();
 
-        Scene scene = resolveAvailableScene(command.getSceneId());
+        Scene scene = resolveAvailableScene(command.getSceneId(), command.getSceneCode());
         SkillRunProfile profile = SkillRunProfile.resolve(skillCatalog, skillId);
         String promptText = command.getText() == null ? "" : command.getText().trim();
         if (profile.isRequireUserText() && !StringUtils.hasText(promptText)) {
@@ -152,15 +152,20 @@ public class AgentApplicationService {
     }
 
     /**
-     * 按 sceneId 解析 AVAILABLE 场景；缺省/未知/灰卡拒绝。
+     * 按 sceneId 或 sceneCode 解析 AVAILABLE 场景；有 id 优先，都不传拒绝。不做双传一致性校验。
      */
-    Scene resolveAvailableScene(String sceneId) {
-        if (!StringUtils.hasText(sceneId)) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_REQUIRED);
+    Scene resolveAvailableScene(String sceneId, String sceneCode) {
+        if (StringUtils.hasText(sceneId)) {
+            Scene scene = sceneRepository.findByBizId(sceneId.trim())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_NOT_FOUND));
+            return requireAvailable(scene);
         }
-        Scene scene = sceneRepository.findByBizId(sceneId.trim())
-                .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_NOT_FOUND));
-        return requireAvailable(scene);
+        if (StringUtils.hasText(sceneCode)) {
+            Scene scene = sceneRepository.findBySceneCode(sceneCode.trim())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_NOT_FOUND));
+            return requireAvailable(scene);
+        }
+        throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_SCENE_REQUIRED);
     }
 
     private static Scene requireAvailable(Scene scene) {

@@ -88,6 +88,7 @@ describe('useAgentSkillRun HITL', () => {
         runId: 'r-l1',
         toolCallId: 'ask-1',
         optionId: 'confirm_execute',
+        confirmId: expect.any(String),
       }),
     )
   })
@@ -149,10 +150,10 @@ describe('useAgentSkillRun HITL', () => {
         sse('artifact_ready', {
           artifactRef: 'plan-1',
           view: {
-            version: 1,
+            version: 2,
             title: '硅胶沥水垫 · 策划分镜',
-            status: 'ready',
-            blocks: [{ type: 'markdown', text: '## 成交方向' }],
+            format: 'markdown',
+            content: '## 成交方向',
           },
         }),
         sse('human_input_required', {
@@ -167,10 +168,10 @@ describe('useAgentSkillRun HITL', () => {
         sse('artifact_ready', {
           artifactRef: 'plan-2',
           view: {
-            version: 1,
+            version: 2,
             title: '硅胶沥水垫 · 改策划',
-            status: 'ready',
-            blocks: [{ type: 'markdown', text: '## 补充后分镜' }],
+            format: 'markdown',
+            content: '## 补充后分镜',
           },
         }),
         sse('human_input_required', {

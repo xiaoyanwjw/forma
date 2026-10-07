@@ -11,6 +11,7 @@ import java.util.Optional;
 
 /**
  * 场景能力包：按 sceneCode 绑定的已注册 skill 快照（正文由 Pi ResourceLoader 加载，本类不解析）。
+ * <p>pack.yaml 的 {@code defaultSkill} 是推荐入口 Skill，不在 prepare 时自动注入。
  */
 public final class SceneCapabilityPack {
 

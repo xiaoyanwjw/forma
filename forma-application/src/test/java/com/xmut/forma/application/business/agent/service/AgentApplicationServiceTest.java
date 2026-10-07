@@ -236,6 +236,24 @@ class AgentApplicationServiceTest {
     }
 
     @Test
+    void prepareGenerationRunResolvesSceneByCode() {
+        when(sceneRepository.findBySceneCode(ECOM_SCENE_CODE)).thenReturn(Optional.of(ecommerceScene()));
+        when(piSessionSceneRepository.findBySessionId(anyString())).thenReturn(Optional.empty());
+        when(creditApplicationService.reserveOne(USER_ID)).thenReturn(HOLD_ID);
+
+        GenerationRunContext ctx = service.prepareGenerationRun(StartGenerationRunCommand.builder()
+                .userId(USER_ID)
+                .text("选品")
+                .skillId("ecommerce-picklist")
+                .sceneCode(ECOM_SCENE_CODE)
+                .build());
+
+        assertEquals(ECOM_SCENE_CODE, ctx.getSceneCode());
+        verify(sceneRepository).findBySceneCode(ECOM_SCENE_CODE);
+        verify(sceneRepository, never()).findByBizId(anyString());
+    }
+
+    @Test
     void prepareGenerationRunRejectsComingSoonScene() {
         when(sceneRepository.findByBizId(GRAY_SCENE_ID)).thenReturn(Optional.of(grayScene()));
 

@@ -196,6 +196,11 @@ export function useAgentSkillRun() {
     error.value = ''
     pendingHuman.value = null
 
+    const confirmId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `c-${Date.now()}-${Math.random().toString(16).slice(2)}`
+
     try {
       await consumeStream(
         resumeGenerationRun({
@@ -203,6 +208,7 @@ export function useAgentSkillRun() {
           toolCallId,
           optionId: options.optionId,
           freeText: options.freeText,
+          confirmId,
           signal,
         }),
         generation,

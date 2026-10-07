@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  * Agent 计费生成 SSE：JWT 鉴权后直接返回 {@code text/event-stream}。
  * <p>
  * 预占失败（如积分不足）在打开流之前以 JSON 业务错误返回，避免 SSE produces 干扰统一异常出口。
- * 通用入口 {@code POST /runs}；{@code /runs/picklist}、{@code /runs/listing} 为兼容别名。
+ * 新客户端只用 {@code POST /runs}；{@code /runs/picklist}、{@code /runs/listing} 为兼容别名，勿再扩。
  */
 @Slf4j
 @RestController
@@ -83,7 +83,7 @@ public class AgentController {
     }
 
     /**
-     * 计费选品别名：预占失败返回 JSON；成功则 SSE（artifact_ready / run_settled 或 run_failed）。
+     * 兼容别名：固定 skillId=ecommerce-picklist，等价 {@code POST /runs}。新客户端请走通用入口。
      */
     @PostMapping(value = "/runs/picklist")
     public Object startPicklistRun(@RequestBody StartPicklistRunRequest request) {
@@ -98,7 +98,7 @@ public class AgentController {
     }
 
     /**
-     * 计费 Listing 别名：预占失败返回 JSON；成功则 SSE（artifact_ready / run_settled 或 run_failed）。
+     * 兼容别名：固定 skillId=ecommerce-skulist，等价 {@code POST /runs}。新客户端请走通用入口。
      */
     @PostMapping(value = "/runs/listing")
     public Object startListingRun(@RequestBody StartPicklistRunRequest request) {
@@ -114,7 +114,7 @@ public class AgentController {
 
     /**
      * ask_human 续跑：返回新 SSE 续流（首段流在 {@code human_input_required} 后由 FE 停读）。
-     * Body: {@code toolCallId} + {@code optionId}({@code confirm_execute}|{@code supplement}) + 可选 {@code freeText}。
+     * Body: {@code toolCallId} + {@code optionId}({@code confirm_execute}|{@code supplement}) + 可选 {@code freeText}；FE 应带 {@code confirmId}。
      */
     @PostMapping(value = "/runs/{runId}/resume")
     public Object resumeGenerationRun(@PathVariable("runId") String runId,
