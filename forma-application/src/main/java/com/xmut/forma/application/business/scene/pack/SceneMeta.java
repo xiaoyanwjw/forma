@@ -8,7 +8,7 @@ import java.util.Set;
 
 /**
  * 场景元数据（{@code scenes/{sceneCode}/pack.yaml}）。
- * 功能描述：声明必选 Skill 与空跑默认 Skill，供 Loader 校验，避免 Java 按 scene 写死。
+ * 功能描述：声明必选 Skill 与推荐入口 Skill（{@code defaultSkill}），供 Loader 校验，避免 Java 按 scene 写死。
  */
 public final class SceneMeta {
 

@@ -58,7 +58,7 @@
 
 - source_spec: `sdd/implementation-artifacts/spec-2-1-generationrun-与-sse-事件骨架.md`
   summary: SSE 超时或客户端断开时，若 AgentSession.prompt 仍阻塞，可能延迟/遗漏 release，需 cancel+补偿释放。
-  evidence: review maybe-false；SseEmitter 有 timeout，但 Pi prompt 挂死时 onTimeout 与 release 编排未钉死；应用 AgentSession.cancel。
+  evidence: **已落地** `docs/superpowers/specs/2026-10-07-agent-reliability-ops-design.md` §4（断流 cancel + 终态门闩）；Pi prompt 挂死时 cancel 是否即时打断仍属 pi-agent 边界。
 
 - source_spec: `sdd/implementation-artifacts/spec-2-1-generationrun-与-sse-事件骨架.md`
   summary: Pi TOOL_EXECUTION_UPDATE 未映射到 AD-4（无对等细粒度事件名）。
@@ -154,15 +154,15 @@
 
 - source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
   summary: 客户端取消/SSE 断流时服务端无法中断 AgentSession.prompt，仍可能跑完并 settle。
-  evidence: 评审确认与 empty-run 同构；近端无 AgentSession 取消端口；FE 已 abort 本地流并忽略迟到成果。
+  evidence: **已落地** agent-reliability-ops §4：`AgentSession.cancel` + 断流 release；persist 后仍 settle/reconcile。模型 turn 能否被 cancel 即时打断仍属 pi-agent。
 
 - source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
   summary: mid-stream SSE 发送失败只设 aborted，不取消正在进行的模型 turn。
-  evidence: 与 empty-run 同构限制；补取消需打断 prompt，超出本故事最小补丁。
+  evidence: **已落地** agent-reliability-ops §4：sink 失败路径补 `cancel`；prompt 打断深度同 pi-agent。
 
 - source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
   summary: settle 失败（成果已落库）不自动 release，需运维/补偿路径处理卡住的 hold 与孤儿清单。
-  evidence: 释放会导致白嫖；当前人话「联系支持」；完整补偿后置。
+  evidence: **已落地** agent-reliability-ops §5：`NEEDS_RECONCILE` + release + `artifact_ready`/`run_failed`；自动补扣 Worker 仍 defer（见下）。
 
 - source_spec: `sdd/implementation-artifacts/spec-3-4-生成选品清单并结算-1-积分.md`
   summary: modelUsage 日志仍为 token/成本占位，真实 promptTokens/totalTokens 待 TurnResult 贯通。
@@ -178,7 +178,15 @@
 
 - source_spec: `sdd/implementation-artifacts/spec-3-6-生成-listing-套装并结算-1-积分.md`
   summary: 客户端取消/SSE 断流时服务端 Listing 仍可能跑完并 settle（与 3.4 同构）。
-  evidence: FE abort 只停本地流；AgentSession.prompt 无中断端口。
+  evidence: **已落地** agent-reliability-ops §4（共用计费 run 管线）；Listing 无单独分支。
+
+- source_spec: `docs/superpowers/specs/2026-10-07-agent-reliability-ops-design.md`
+  summary: `NEEDS_RECONCILE` 无自动补扣 Worker / 管理台对账按钮。
+  evidence: 设计 §2 明确不做；运维可按 `GenerationRun.status = NEEDS_RECONCILE` 查询；后续对账故事。
+
+- source_spec: `docs/superpowers/specs/2026-10-07-agent-reliability-ops-design.md`
+  summary: Agent 生成限流仅进程内 SlidingWindow，无 Redis 跨实例共享配额。
+  evidence: 设计 §2/§7；多 Pod 各算各的；后续故事可换 Redis 限流。
 
 - source_spec: `sdd/implementation-artifacts/spec-3-8-重试-质量差-反馈与近-60-天历史.md`
   summary: 历史列表缺少分页/硬 LIMIT，重度用户近 60 天可能一次拉回过大结果集。

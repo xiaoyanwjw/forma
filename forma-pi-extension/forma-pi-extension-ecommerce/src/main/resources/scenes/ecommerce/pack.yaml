@@ -1,4 +1,4 @@
-# Scene pack descriptor — required / empty-run default skills (no Java hardcode).
+# Scene pack descriptor — required skills and recommended entry skill (no Java hardcode).
 requiredSkills:
   - ecommerce-picklist
   - ecommerce-skulist

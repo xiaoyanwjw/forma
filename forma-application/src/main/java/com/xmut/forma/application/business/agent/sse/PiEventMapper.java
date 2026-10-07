@@ -17,7 +17,7 @@ import java.util.Optional;
 /**
  * Pi 内部事件 → AD-4 闭合事件名。
  * <p>
- * 声明全集（本类 + {@link SseEventName}）；空跑路径不发出 {@code artifact_ready}/{@code run_settled}。
+ * 声明全集（本类 + {@link SseEventName}）；未走落库→结算的路径不发出 {@code artifact_ready}/{@code run_settled}。
  * {@code run_started}/{@code run_failed}/{@code run_settled} 由编排层显式发送。
  * <p>
  * 进度 payload：{@code agent_started}/{@code agent_ended} 带展示用 {@code label}；
