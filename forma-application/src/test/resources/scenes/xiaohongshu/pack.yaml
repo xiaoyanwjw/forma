@@ -1,0 +1,5 @@
+requiredSkills:
+  - xhs-topiclist
+  - xhs-note
+  - xhs-break
+defaultSkill: xhs-topiclist
