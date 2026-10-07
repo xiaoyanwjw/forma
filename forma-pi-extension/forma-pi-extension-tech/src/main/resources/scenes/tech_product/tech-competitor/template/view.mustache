@@ -1,0 +1,100 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<div class="forma-deck">
+<span class="forma-sh"><span class="k">类型</span><span class="v info">竞品分析</span></span>
+<span class="forma-sh"><span class="k">来源</span><span class="v {{sourceClass}}">{{sourceLabel}}</span></span>
+<span class="forma-sh"><span class="k">对手</span><span class="v gray">{{rivalCount}}</span></span>
+{{#hasUncertainties}}<span class="forma-sh"><span class="k">核实</span><span class="v warn">{{uncertaintyCount}}</span></span>{{/hasUncertainties}}
+</div>
+{{#oneLiner}}
+<div class="forma-callout">
+<div class="t">一句话</div>
+{{oneLiner}}
+</div>
+{{/oneLiner}}
+<p class="forma-lede">AI 拆解，请对照原文核实。字段标 Found / 推断 / 未公开。{{#hasConcern}} 你关心：{{concern}}{{/hasConcern}}</p>
+
+<h2>产品快照</h2>
+<table class="forma-kv">
+<tbody>
+<tr><th>定位 <span class="forma-sh"><span class="k">状态</span><span class="v {{snapshot.positioning.statusClass}}">{{snapshot.positioning.statusLabel}}</span></span></th><td>{{snapshot.positioning.value}}</td></tr>
+<tr><th>人群 <span class="forma-sh"><span class="k">状态</span><span class="v {{snapshot.audience.statusClass}}">{{snapshot.audience.statusLabel}}</span></span></th><td>{{snapshot.audience.value}}</td></tr>
+<tr><th>定价信号 <span class="forma-sh"><span class="k">状态</span><span class="v {{snapshot.pricingSignal.statusClass}}">{{snapshot.pricingSignal.statusLabel}}</span></span></th><td>{{snapshot.pricingSignal.valueDisplay}}</td></tr>
+</tbody>
+</table>
+
+<h2>为何有人付费 / 差异点 <span class="forma-sh"><span class="k">状态</span><span class="v {{whyPay.statusClass}}">{{whyPay.statusLabel}}</span></span></h2>
+{{#whyPay.hasBullets}}
+<ul>
+{{#whyPay.bullets}}<li>{{.}}</li>{{/whyPay.bullets}}
+</ul>
+{{/whyPay.hasBullets}}
+{{^whyPay.hasBullets}}
+<p>{{whyPay.emptyNote}}</p>
+{{/whyPay.hasBullets}}
+
+<h2>商业与套餐信号 <span class="forma-sh"><span class="k">状态</span><span class="v {{packaging.statusClass}}">{{packaging.statusLabel}}</span></span></h2>
+<p>{{packaging.valueDisplay}}</p>
+
+{{#growthSignals.showSection}}
+<h2>增长 / 公开信号 <span class="forma-sh"><span class="k">状态</span><span class="v {{growthSignals.statusClass}}">{{growthSignals.statusLabel}}</span></span></h2>
+{{#growthSignals.hasItems}}
+<ul>
+{{#growthSignals.items}}<li>{{.}}</li>{{/growthSignals.items}}
+</ul>
+{{/growthSignals.hasItems}}
+{{^growthSignals.hasItems}}
+<p>{{growthSignals.emptyNote}}</p>
+{{/growthSignals.hasItems}}
+{{/growthSignals.showSection}}
+
+<h2>同类对手速览 <span class="forma-sh"><span class="k">状态</span><span class="v {{rivals.statusClass}}">{{rivals.statusLabel}}</span></span></h2>
+{{#rivals.hasReason}}<p class="forma-lede">{{rivals.reason}}</p>{{/rivals.hasReason}}
+{{#rivals.hasItems}}
+<table class="forma-mx">
+<thead>
+<tr><th>#</th><th>对手</th><th>备注</th></tr>
+</thead>
+<tbody>
+{{#rivals.items}}
+<tr>
+<td class="n">{{indexLabel}}</td>
+<td>{{name}}</td>
+<td>{{note}}</td>
+</tr>
+{{/rivals.items}}
+</tbody>
+</table>
+{{/rivals.hasItems}}
+{{^rivals.hasItems}}
+<p>未列出同类对手。</p>
+{{/rivals.hasItems}}
+
+{{#hasExcerpts}}
+<h2>原文摘录</h2>
+{{#excerpts}}
+<details class="forma-blk"{{#detailsOpen}} open{{/detailsOpen}}>
+<summary>
+{{heading}}
+<span class="forma-sh"><span class="k">句数</span><span class="v gray">{{quoteCount}}</span></span>
+</summary>
+<div class="body">
+{{#quotes}}
+<div class="forma-quote">{{.}}</div>
+{{/quotes}}
+</div>
+</details>
+{{/excerpts}}
+{{/hasExcerpts}}
+
+{{#hasUncertainties}}
+<h2>需核实</h2>
+<div class="forma-callout hot">
+<div class="t">材料没说清</div>
+<ul>
+{{#uncertainties}}<li>{{.}}</li>{{/uncertainties}}
+</ul>
+</div>
+{{/hasUncertainties}}
+{{#hasSourceUrl}}<p>原文：<a href="{{sourceUrl}}">{{sourceUrl}}</a></p>{{/hasSourceUrl}}
+</article>

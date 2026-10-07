@@ -68,6 +68,11 @@ const PANE_COPY: Record<string, { thinking: string; success: string; empty: stri
     success: '已生成速读摘要，右侧 Computer 可查看。',
     empty: '速读已结束，但未收到可用摘要，请重试。',
   },
+  competitor: {
+    thinking: '正在拆解产品官网…',
+    success: '已生成竞品分析，右侧 Computer 可查看。',
+    empty: '拆解已结束，但未收到可用报告，请重试。',
+  },
 }
 
 const FILE_BY_PANE: Record<string, string> = {
@@ -77,9 +82,18 @@ const FILE_BY_PANE: Record<string, string> = {
   note: 'note.md',
   break: 'break.md',
   digest: 'digest.md',
+  competitor: 'competitor.md',
 }
 
-const REPLAY_PANE_PREFERENCE = ['digest', 'listing', 'note', 'break', 'picks', 'topiclist']
+const REPLAY_PANE_PREFERENCE = [
+  'competitor',
+  'digest',
+  'listing',
+  'note',
+  'break',
+  'picks',
+  'topiclist',
+]
 
 type ChatMessage = WorkspaceChatMessage
 type SessionArtifactType = Parameters<typeof getLatestSessionArtifact>[1]

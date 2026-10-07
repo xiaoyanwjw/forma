@@ -33,9 +33,9 @@
 | 场景 | 状态意图 | 近端 Skill |
 |------|----------|------------|
 | **科技前沿**（`tech_digest`） | 已亮 → 展示名改为科技前沿 | **链接速读**（现有 tech-digest） |
-| **产品雷达**（`tech_product`） | 补卡 | **产品早报**、**竞品分析** |
+| **产品雷达**（`tech_product`） | 补卡 | **产品早报**、**竞品分析**（对齐 Urlcomp：单 URL 拆解） |
 
-补充 Skill 候选项见 [`tech-scene-taxonomy-2026-10-07.md`](./tech-scene-taxonomy-2026-10-07.md)。  
+补充 Skill / 竞品 Urlcomp 约定见 [`tech-scene-taxonomy-2026-10-07.md`](./tech-scene-taxonomy-2026-10-07.md) §7。  
 实现切片：[`tech-scene-plan-2026-10-04.md`](./tech-scene-plan-2026-10-04.md)（展示名以 taxonomy 为准）。
 
 ### 电商

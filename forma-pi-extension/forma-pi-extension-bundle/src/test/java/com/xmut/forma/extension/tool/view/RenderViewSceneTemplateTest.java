@@ -33,7 +33,8 @@ class RenderViewSceneTemplateTest {
                 new XhsBreakViewEnricher(),
                 new XhsNoteViewEnricher(),
                 new EcommerceSkulistViewEnricher(),
-                new TechDigestViewEnricher());
+                new TechDigestViewEnricher(),
+                new TechCompetitorViewEnricher());
     }
 
 
@@ -134,6 +135,53 @@ class RenderViewSceneTemplateTest {
         String content = view.get("content").asText();
         assertTrue(content.contains("科技速读"));
         assertTrue(content.contains("AI 摘要，请对照原文"));
+    }
+
+    @Test
+    void handle_techCompetitor_skill_template_renders_statusAndRivals() throws Exception {
+        InMemorySkillCatalog catalog = new InMemorySkillCatalog();
+        catalog.registerBootstrap(Skill.builder()
+                .id("tech-competitor")
+                .description("competitor")
+                .promptRef("classpath:scenes/tech_product/tech-competitor/SKILL.md")
+                .allowedTools(Collections.<String>emptyList())
+                .build());
+        RenderViewToolHandler handler = new RenderViewToolHandler(
+                new CatalogSkillTemplateLoader(catalog, new DefaultResourceLoader()),
+                new MustacheViewRenderer(),
+                sceneRegistry());
+        Path run = Files.createTempDirectory("render-view-tech-competitor-");
+        String artifact = "{"
+                + "\"title\":\"Notion\","
+                + "\"oneLiner\":\"一体化协作空间\","
+                + "\"source\":\"fetch\","
+                + "\"sourceUrl\":\"https://www.notion.so\","
+                + "\"excerpts\":[{\"heading\":\"Hero\",\"quotes\":[\"All-in-one workspace\"]}],"
+                + "\"snapshot\":{"
+                + "\"positioning\":{\"status\":\"found\",\"value\":\"All-in-one workspace\",\"quotes\":[\"All-in-one workspace\"]},"
+                + "\"audience\":{\"status\":\"not_public\",\"value\":\"\"},"
+                + "\"pricingSignal\":{\"status\":\"not_public\",\"value\":\"\"}"
+                + "},"
+                + "\"whyPay\":{\"status\":\"found\",\"bullets\":[\"笔记与文档同区\"],\"quotes\":[\"All-in-one workspace\"]},"
+                + "\"packaging\":{\"status\":\"not_public\",\"value\":\"\",\"reason\":\"未见价档\"},"
+                + "\"growthSignals\":{\"status\":\"not_public\",\"items\":[]},"
+                + "\"rivals\":{\"status\":\"inferred\",\"reason\":\"由定位推断\",\"items\":[{\"name\":\"Coda\",\"note\":\"协作文档\"}]},"
+                + "\"uncertainties\":[\"需打开 Pricing\"]"
+                + "}";
+        Files.write(run.resolve("artifact.json"), artifact.getBytes(StandardCharsets.UTF_8));
+
+        ToolResult result = handler.handle(
+                call(JsonNodeFactory.instance.objectNode()),
+                new ToolContext("r1", "t1", "tech-competitor", run.toString()));
+
+        assertTrue(result.isSuccess());
+        JsonNode view = MAPPER.readTree(Files.readAllBytes(run.resolve("view.json")));
+        String content = view.get("content").asText();
+        assertTrue(content.contains("竞品分析"), content);
+        assertTrue(content.contains("Found"), content);
+        assertTrue(content.contains("推断"), content);
+        assertTrue(content.contains("Coda"), content);
+        assertTrue(content.contains("请对照原文核实"), content);
     }
 
     @Test

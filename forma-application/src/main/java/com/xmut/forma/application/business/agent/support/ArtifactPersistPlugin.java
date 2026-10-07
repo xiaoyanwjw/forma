@@ -38,6 +38,8 @@ public class ArtifactPersistPlugin {
     public static final String MSG_XHS_UNUSABLE = "小红书成果不合格：需含非空 view 与 artifact";
     public static final String MSG_TECH_DIGEST_UNUSABLE =
             "科技速读成果不合格：需含非空 view、非空 title、source 为 fetch 或 paste、以及非空 excerpts";
+    public static final String MSG_TECH_COMPETITOR_UNUSABLE =
+            "竞品分析成果不合格：需含非空 view、非空 title、source 为 fetch 或 paste、非空 excerpts，以及 snapshot.positioning";
 
     private final ArtifactRepository artifactRepository;
     private final ObjectMapper objectMapper;
@@ -73,6 +75,8 @@ public class ArtifactPersistPlugin {
             requireUsableXhsPayload(projectedView, data);
         } else if ("tech_digest".equals(code)) {
             requireUsableTechDigestPayload(projectedView, data);
+        } else if ("tech_competitor".equals(code)) {
+            requireUsableTechCompetitorPayload(projectedView, data);
         }
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         Map<String, Object> view = projectedView != null ? projectedView : Collections.<String, Object>emptyMap();
@@ -136,6 +140,37 @@ public class ArtifactPersistPlugin {
         Object excerpts = data.get("excerpts");
         if (!(excerpts instanceof List) || ((List<?>) excerpts).isEmpty()) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_DIGEST_UNUSABLE);
+        }
+    }
+
+    /**
+     * 可用竞品分析：非空 view；title；source fetch|paste；excerpts 非空；snapshot.positioning 存在。
+     */
+    static void requireUsableTechCompetitorPayload(Map<String, Object> view, Map<String, Object> data) {
+        if (view == null || view.isEmpty() || data == null) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_COMPETITOR_UNUSABLE);
+        }
+        if (!StringUtils.hasText(text(data.get("title")))) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_COMPETITOR_UNUSABLE);
+        }
+        if (!StringUtils.hasText(text(data.get("oneLiner")))) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_COMPETITOR_UNUSABLE);
+        }
+        String source = text(data.get("source"));
+        if (!"fetch".equals(source) && !"paste".equals(source)) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_COMPETITOR_UNUSABLE);
+        }
+        Object excerpts = data.get("excerpts");
+        if (!(excerpts instanceof List) || ((List<?>) excerpts).isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_COMPETITOR_UNUSABLE);
+        }
+        Object snapshot = data.get("snapshot");
+        if (!(snapshot instanceof Map) || ((Map<?, ?>) snapshot).isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_COMPETITOR_UNUSABLE);
+        }
+        Object positioning = ((Map<?, ?>) snapshot).get("positioning");
+        if (!(positioning instanceof Map) || ((Map<?, ?>) positioning).isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_COMPETITOR_UNUSABLE);
         }
     }
 

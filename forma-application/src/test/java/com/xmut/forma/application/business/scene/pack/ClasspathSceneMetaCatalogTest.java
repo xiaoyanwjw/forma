@@ -20,5 +20,10 @@ class ClasspathSceneMetaCatalogTest {
         assertThat(xhs).isNotNull();
         assertThat(xhs.getDefaultSkill()).isEqualTo("xhs-topiclist");
         assertThat(xhs.getRequiredSkills()).contains("xhs-note");
+
+        SceneMeta product = catalog.find("tech_product").orElse(null);
+        assertThat(product).isNotNull();
+        assertThat(product.getDefaultSkill()).isEqualTo("tech-competitor");
+        assertThat(product.getRequiredSkills()).containsExactly("tech-competitor");
     }
 }

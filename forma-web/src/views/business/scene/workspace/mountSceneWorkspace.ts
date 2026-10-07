@@ -10,7 +10,7 @@ export async function flushUi() {
 
 /** Mount unified Workspace on `/scenes/:sceneCode`. */
 export async function mountSceneWorkspace(
-  sceneCode: 'ecommerce' | 'xiaohongshu' | 'tech_digest',
+  sceneCode: 'ecommerce' | 'xiaohongshu' | 'tech_digest' | 'tech_product',
 ) {
   const root = document.createElement('div')
   document.body.appendChild(root)

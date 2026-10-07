@@ -280,7 +280,7 @@ cd forma-web && npm test -- --run
 
 ## 现状
 
-**已可用（本地 / 近端）：** 登录注册、积分、场景画廊、电商 + 小红书 + 科技速读工作台、计费 Agent 运行、Computer DocPreview（Forma 视图协议）、历史、账户设置、Compose 引导。
+**已可用（本地 / 近端）：** 登录注册、积分、场景画廊、电商 + 小红书 + 科技前沿 + 产品雷达（竞品分析）工作台、计费 Agent 运行、Computer DocPreview（Forma 视图协议）、历史、账户设置、Compose 引导。
 
 **延期 / 灰卡：** 装备选购对比（体育）、短视频带货、周末行程（生活=出行）等 `COMING_SOON`，待包与门禁开放。场景路线图见 `sdd/planning-artifacts/scene-product-plan-2026-10-04.md`。
 

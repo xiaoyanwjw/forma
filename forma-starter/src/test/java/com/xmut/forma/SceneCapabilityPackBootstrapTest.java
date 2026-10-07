@@ -43,6 +43,15 @@ class SceneCapabilityPackBootstrapTest {
         assertTrue(loader.load("xiaohongshu").hasSkill("xhs-break"));
     }
 
+    @Test
+    void starterTechProductCompetitorRegistersAndPackLoads() {
+        SkillCatalog skills = loadStarterSkills();
+        assertTrue(skills.resolve("tech-competitor").isPresent());
+
+        SceneCapabilityPackLoader loader = newLoader(skills);
+        assertTrue(loader.load("tech_product").hasSkill("tech-competitor"));
+    }
+
     private static SceneCapabilityPackLoader newLoader(SkillCatalog skills) {
         return new SceneCapabilityPackLoader(skills, new ClasspathSceneMetaCatalog());
     }

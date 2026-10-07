@@ -122,6 +122,31 @@ class SceneCapabilityPackLoaderTest {
     }
 
     @Test
+    void loadTechProductRequiresCompetitorSkillFromCatalog() {
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("tech_product")).thenReturn(Collections.singletonList(
+                Skill.builder().id("tech-competitor").description("d")
+                        .promptRef("classpath:scenes/tech_product/tech-competitor/SKILL.md")
+                        .allowedTools(Collections.singletonList("read_skill"))
+                        .sceneCode("tech_product").build()));
+        SceneCapabilityPack pack = newLoader(skills, techProductMeta()).load("tech_product");
+        assertThat(pack.hasSkill("tech-competitor")).isTrue();
+    }
+
+    @Test
+    void loadTechProductFailsWhenCompetitorSkillMissing() {
+        SkillCatalog skills = mock(SkillCatalog.class);
+        when(skills.listByScene("tech_product")).thenReturn(Collections.singletonList(
+                Skill.builder().id("other").description("d")
+                        .promptRef("classpath:scenes/tech_product/other/SKILL.md")
+                        .allowedTools(Collections.singletonList("read_skill"))
+                        .sceneCode("tech_product").build()));
+        assertThatThrownBy(() -> newLoader(skills, techProductMeta()).load("tech_product"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(SceneCapabilityPackLoader.MSG_PACK_UNAVAILABLE);
+    }
+
+    @Test
     void loadBlankSceneCodeFailsWithHumanMessage() {
         SkillCatalog skills = mock(SkillCatalog.class);
         SceneMetaCatalog metas = mock(SceneMetaCatalog.class);
@@ -154,6 +179,12 @@ class SceneCapabilityPackLoaderTest {
         return new SceneMeta("tech_digest",
                 Collections.singletonList("tech-digest"),
                 "tech-digest");
+    }
+
+    private static SceneMeta techProductMeta() {
+        return new SceneMeta("tech_product",
+                Collections.singletonList("tech-competitor"),
+                "tech-competitor");
     }
 
     private static Skill picklist() {

@@ -10,14 +10,32 @@ async function flushUi() {
   await nextTick()
 }
 
-const SIX_SCENES = [
+const SEVEN_SCENES = [
+  {
+    bizId: 'a1000001-0001-4000-8000-000000000007',
+    sceneCode: 'tech_product',
+    displayName: '产品雷达',
+    category: 'tech',
+    status: 'AVAILABLE',
+    sortOrder: 1,
+    summary: '贴一个产品官网：分层拆解定位、卖点与公开套餐信号，字段可核对。',
+  },
+  {
+    bizId: 'a1000001-0001-4000-8000-000000000005',
+    sceneCode: 'tech_digest',
+    displayName: '科技前沿',
+    category: 'tech',
+    status: 'AVAILABLE',
+    sortOrder: 2,
+    summary: '丢产品页、AI 文章或技术文档链接：解析正文，一页摘要带走。',
+  },
   {
     bizId: 'a1000001-0001-4000-8000-000000000001',
     sceneCode: 'ecommerce',
     displayName: '电商开店',
     category: 'ecommerce',
     status: 'AVAILABLE',
-    sortOrder: 1,
+    sortOrder: 3,
     summary: '选品与上架素材：带理由的候选清单，以及可直接用的主图和详情。',
   },
   {
@@ -26,7 +44,7 @@ const SIX_SCENES = [
     displayName: '小红书种草',
     category: 'content',
     status: 'AVAILABLE',
-    sortOrder: 2,
+    sortOrder: 4,
     summary: '笔记结构与种草表达：帮你写标题、正文与更像真人分享的草稿。',
   },
   {
@@ -35,17 +53,8 @@ const SIX_SCENES = [
     displayName: '短视频带货',
     category: 'content',
     status: 'COMING_SOON',
-    sortOrder: 3,
+    sortOrder: 5,
     summary: '脚本、镜头与带货选品：帮你定拍什么、怎么讲、带哪款货。',
-  },
-  {
-    bizId: 'a1000001-0001-4000-8000-000000000005',
-    sceneCode: 'tech_digest',
-    displayName: '科技速读',
-    category: 'tech',
-    status: 'AVAILABLE',
-    sortOrder: 1,
-    summary: '丢产品页、AI 文章或技术文档链接：解析正文，一页摘要带走。',
   },
   {
     bizId: 'a1000001-0001-4000-8000-000000000006',
@@ -53,7 +62,7 @@ const SIX_SCENES = [
     displayName: '装备选购对比',
     category: 'sports',
     status: 'COMING_SOON',
-    sortOrder: 5,
+    sortOrder: 6,
     summary: '跑鞋、球拍怎么选：对比表 + 一句话推荐，帮你少踩坑。',
   },
   {
@@ -62,7 +71,7 @@ const SIX_SCENES = [
     displayName: '周末行程',
     category: 'life',
     status: 'COMING_SOON',
-    sortOrder: 6,
+    sortOrder: 7,
     summary: '半天到一天怎么玩：路线、时段和吃饭点，一页带走。',
   },
 ]
@@ -124,15 +133,16 @@ describe('SceneGallery', () => {
     unmount = undefined
   })
 
-  it('renders 3 live + 3 soon cards in category-tab order; header scenes is current', async () => {
+  it('renders 4 live + 3 soon cards in category-tab order; header scenes is current', async () => {
     setToken('jwt')
     const shuffled = [
-      SIX_SCENES[2],
-      SIX_SCENES[0],
-      SIX_SCENES[5],
-      SIX_SCENES[1],
-      SIX_SCENES[4],
-      SIX_SCENES[3],
+      SEVEN_SCENES[2],
+      SEVEN_SCENES[0],
+      SEVEN_SCENES[5],
+      SEVEN_SCENES[1],
+      SEVEN_SCENES[4],
+      SEVEN_SCENES[3],
+      SEVEN_SCENES[6],
     ]
     vi.stubGlobal(
       'fetch',
@@ -172,7 +182,8 @@ describe('SceneGallery', () => {
 
     const gridCards = Array.from(mounted.root.querySelectorAll('.scene-grid > .scene-card'))
     expect(gridCards.map((c) => c.querySelector('h2')?.textContent?.trim())).toEqual([
-      '科技速读',
+      '产品雷达',
+      '科技前沿',
       '电商开店',
       '小红书种草',
       '短视频带货',
@@ -182,9 +193,9 @@ describe('SceneGallery', () => {
 
     const live = mounted.root.querySelectorAll('.scene-card.live')
     const soon = mounted.root.querySelectorAll('.scene-card.soon')
-    expect(live.length).toBe(3)
+    expect(live.length).toBe(4)
     expect(soon.length).toBe(3)
-    expect(live[0]?.textContent).toMatch(/科技速读/)
+    expect(live[0]?.textContent).toMatch(/产品雷达/)
     expect(live[0]?.textContent).toMatch(/可用/)
     expect(live[0]?.textContent).not.toMatch(/开始使用/)
     soon.forEach((card) => {
@@ -194,18 +205,18 @@ describe('SceneGallery', () => {
     expect(mounted.root.querySelectorAll('a.scene-card.soon').length).toBe(0)
 
     const tech = live[0] as HTMLAnchorElement
-    expect(tech.getAttribute('href')).toBe('/scenes/tech_digest')
+    expect(tech.getAttribute('href')).toBe('/scenes/tech_product')
     tech.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
     await flushUi()
     expect(mounted.router.currentRoute.value.name).toBe('scene-workspace')
-    expect(mounted.router.currentRoute.value.params.sceneCode).toBe('tech_digest')
+    expect(mounted.router.currentRoute.value.params.sceneCode).toBe('tech_product')
     expect(mounted.root.querySelector('.toast.show')).toBeNull()
 
     const firstSoon = soon[0] as HTMLButtonElement
     expect(firstSoon.textContent).toMatch(/短视频带货/)
     firstSoon.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
     await flushUi()
-    expect(mounted.router.currentRoute.value.params.sceneCode).toBe('tech_digest')
+    expect(mounted.router.currentRoute.value.params.sceneCode).toBe('tech_product')
 
     const toast = mounted.root.querySelector('.toast.show')
     expect(toast).toBeTruthy()
@@ -230,7 +241,7 @@ describe('SceneGallery', () => {
       'fetch',
       vi.fn().mockImplementation((url: string) => {
         if (String(url).includes('/api/v1/scenes')) {
-          return Promise.resolve(okScenes(SIX_SCENES))
+          return Promise.resolve(okScenes(SEVEN_SCENES))
         }
         return Promise.resolve(
           okScenes({
@@ -257,9 +268,12 @@ describe('SceneGallery', () => {
 
     expect(techTab.classList.contains('on')).toBe(true)
     const techCards = Array.from(mounted.root.querySelectorAll('.scene-grid > .scene-card'))
-    expect(techCards.map((c) => c.querySelector('h2')?.textContent?.trim())).toEqual(['科技速读'])
+    expect(techCards.map((c) => c.querySelector('h2')?.textContent?.trim())).toEqual([
+      '产品雷达',
+      '科技前沿',
+    ])
     expect(techCards[0]?.classList.contains('live')).toBe(true)
-    expect((techCards[0] as HTMLAnchorElement).getAttribute('href')).toBe('/scenes/tech_digest')
+    expect((techCards[0] as HTMLAnchorElement).getAttribute('href')).toBe('/scenes/tech_product')
 
     const contentTab = Array.from(mounted.root.querySelectorAll('.category-tab')).find(
       (t) => t.textContent?.trim() === '内容',
@@ -279,7 +293,7 @@ describe('SceneGallery', () => {
       'fetch',
       vi.fn().mockImplementation((url: string) => {
         if (String(url).includes('/api/v1/scenes')) {
-          return Promise.resolve(okScenes(SIX_SCENES))
+          return Promise.resolve(okScenes(SEVEN_SCENES))
         }
         return Promise.resolve(
           okScenes({
@@ -332,7 +346,7 @@ describe('SceneGallery', () => {
       'fetch',
       vi.fn().mockImplementation((url: string) => {
         if (String(url).includes('/api/v1/scenes')) {
-          return Promise.resolve(okScenes(SIX_SCENES))
+          return Promise.resolve(okScenes(SEVEN_SCENES))
         }
         return Promise.resolve(
           okScenes({
@@ -366,7 +380,7 @@ describe('SceneGallery', () => {
       'fetch',
       vi.fn().mockImplementation((url: string) => {
         if (String(url).includes('/api/v1/scenes')) {
-          return Promise.resolve(okScenes(SIX_SCENES))
+          return Promise.resolve(okScenes(SEVEN_SCENES))
         }
         return Promise.resolve(
           okScenes({
@@ -475,7 +489,7 @@ describe('SceneGallery', () => {
     setToken('jwt')
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(() => Promise.resolve(okScenes(SIX_SCENES))),
+      vi.fn().mockImplementation(() => Promise.resolve(okScenes(SEVEN_SCENES))),
     )
     const mounted = await mountGallery()
     unmount = mounted.unmount

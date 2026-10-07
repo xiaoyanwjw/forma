@@ -210,6 +210,37 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
+    void persist_techCompetitor_mapsType() {
+        PersistedGenerationArtifact out = plugin.persist(
+                "u1", "r1", "tech_product", "tech_competitor",
+                listViewMap(), usableTechCompetitorPayload());
+        assertNotNull(out.getArtifactRef());
+        ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
+        verify(artifactRepository).save(cap.capture());
+        assertEquals(ArtifactType.fromCode("tech_competitor"), cap.getValue().getType());
+    }
+
+    @Test
+    void persist_techCompetitor_rejectsMissingSnapshot() {
+        Map<String, Object> artifact = usableTechCompetitorPayload();
+        artifact.remove("snapshot");
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "tech_product", "tech_competitor",
+                        listViewMap(), artifact));
+        assertEquals(ArtifactPersistPlugin.MSG_TECH_COMPETITOR_UNUSABLE, ex.getMessage());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_techCompetitor_rejectsEmptyView() {
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "tech_product", "tech_competitor",
+                        Collections.<String, Object>emptyMap(), usableTechCompetitorPayload()));
+        assertEquals(ArtifactPersistPlugin.MSG_TECH_COMPETITOR_UNUSABLE, ex.getMessage());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
     void persist_listingPlan_acceptsMinimalPlan() {
         PersistedGenerationArtifact out = plugin.persist(
                 "u1", "r1", "ecommerce", "listing_plan", planView(), usablePlanPayload());
@@ -245,6 +276,24 @@ class ArtifactPersistPluginTest {
         excerpt.put("heading", "引言");
         excerpt.put("quotes", Collections.singletonList("原文一句"));
         payload.put("excerpts", Collections.singletonList(excerpt));
+        return payload;
+    }
+
+    private static Map<String, Object> usableTechCompetitorPayload() {
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("title", "Notion");
+        payload.put("oneLiner", "一体化协作空间");
+        payload.put("source", "fetch");
+        Map<String, Object> excerpt = new LinkedHashMap<String, Object>();
+        excerpt.put("heading", "Hero");
+        excerpt.put("quotes", Collections.singletonList("All-in-one workspace"));
+        payload.put("excerpts", Collections.singletonList(excerpt));
+        Map<String, Object> positioning = new LinkedHashMap<String, Object>();
+        positioning.put("status", "found");
+        positioning.put("value", "All-in-one workspace");
+        Map<String, Object> snapshot = new LinkedHashMap<String, Object>();
+        snapshot.put("positioning", positioning);
+        payload.put("snapshot", snapshot);
         return payload;
     }
 

@@ -38,8 +38,20 @@ class SceneSkillCapsuleLoaderTest {
 
         assertThat(items).hasSize(1);
         assertThat(items.get(0).getSkillId()).isEqualTo("tech-digest");
-        assertThat(items.get(0).getLabel()).isEqualTo("科技速读");
+        assertThat(items.get(0).getLabel()).isEqualTo("链接速读");
         assertThat(items.get(0).getExamplePrompt()).contains("example.com/product");
+        assertThat(items.get(0).getSortOrder()).isEqualTo(1);
+    }
+
+    @Test
+    void loadForReadsTechCompetitorLaunchJson() {
+        List<SceneSkillCapsuleItemDTO> items = loader.loadFor(Collections.singletonList(
+                skill("tech-competitor", "classpath:scenes/tech_product/tech-competitor/SKILL.md")));
+
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).getSkillId()).isEqualTo("tech-competitor");
+        assertThat(items.get(0).getLabel()).isEqualTo("竞品分析");
+        assertThat(items.get(0).getExamplePrompt()).contains("notion.so");
         assertThat(items.get(0).getSortOrder()).isEqualTo(1);
     }
 

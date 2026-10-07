@@ -32,11 +32,21 @@ const XHS = {
 const TECH_DIGEST = {
   bizId: 'a1000001-0001-4000-8000-000000000005',
   sceneCode: 'tech_digest',
-  displayName: '科技速读',
+  displayName: '科技前沿',
   category: 'tech',
-  status: 'COMING_SOON',
-  sortOrder: 1,
+  status: 'AVAILABLE',
+  sortOrder: 2,
   summary: '丢产品页、AI 文章或技术文档链接：解析正文，一页摘要带走。',
+}
+
+const TECH_PRODUCT = {
+  bizId: 'a1000001-0001-4000-8000-000000000007',
+  sceneCode: 'tech_product',
+  displayName: '产品雷达',
+  category: 'tech',
+  status: 'AVAILABLE',
+  sortOrder: 1,
+  summary: '贴一个产品官网：分层拆解定位、卖点与公开套餐信号，字段可核对。',
 }
 
 const ECOMMERCE_SKILLS = {
@@ -62,9 +72,21 @@ const TECH_DIGEST_SKILLS = {
   skills: [
     {
       skillId: 'tech-digest',
-      label: '科技速读',
+      label: '链接速读',
       examplePrompt:
         '请速读这个链接，我关心它适不适合小团队用：https://example.com/product',
+      sortOrder: 1,
+    },
+  ],
+}
+
+const TECH_PRODUCT_SKILLS = {
+  sceneCode: 'tech_product',
+  skills: [
+    {
+      skillId: 'tech-competitor',
+      label: '竞品分析',
+      examplePrompt: '请拆解这个产品官网：https://www.notion.so',
       sortOrder: 1,
     },
   ],
@@ -125,11 +147,12 @@ function sseBody(chunks: string[]) {
 
 function sceneSkillsForUrl(url: string) {
   if (url.includes('xiaohongshu')) return XHS_SKILLS
+  if (url.includes('tech_product')) return TECH_PRODUCT_SKILLS
   if (url.includes('tech_digest')) return TECH_DIGEST_SKILLS
   return ECOMMERCE_SKILLS
 }
 
-function mockCatalog(scenes: unknown[] = [ECOMMERCE, XHS, TECH_DIGEST]) {
+function mockCatalog(scenes: unknown[] = [ECOMMERCE, XHS, TECH_DIGEST, TECH_PRODUCT]) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = String(input)
     if (url.includes('/api/v1/scenes/') && url.includes('/skills')) {
@@ -151,7 +174,9 @@ function mockCatalog(scenes: unknown[] = [ECOMMERCE, XHS, TECH_DIGEST]) {
   })
 }
 
-function mountWorkspace(sceneCode: 'ecommerce' | 'xiaohongshu' | 'tech_digest') {
+function mountWorkspace(
+  sceneCode: 'ecommerce' | 'xiaohongshu' | 'tech_digest' | 'tech_product',
+) {
   return mountSceneWorkspace(sceneCode)
 }
 
@@ -240,19 +265,32 @@ describe('Workspace skill send', () => {
     expect(bodies[0]?.text).toBe('帮我做桌搭选题')
   })
 
-  it('tech_digest shows 科技速读 capsule and posts tech-digest', async () => {
+  it('tech_digest shows 链接速读 capsule and posts tech-digest', async () => {
     const mounted = await mountWorkspace('tech_digest')
     unmount = mounted.unmount
     expect(mounted.root.querySelector('[data-demo]')).toBeNull()
     const pills = mounted.root.querySelectorAll('[data-testid="session-quick-row"] .pill')
     expect(pills.length).toBeGreaterThanOrEqual(1)
-    expect(pills[0]?.textContent?.trim()).toBe('科技速读')
+    expect(pills[0]?.textContent?.trim()).toBe('链接速读')
     await sendPrompt(mounted.root, '速读这个链接 https://example.com', 0)
     const bodies = billedRunBodies(fetchMock)
     expect(bodies.length).toBeGreaterThanOrEqual(1)
     expect(bodies[0]?.sceneCode).toBe('tech_digest')
     expect(bodies[0]?.skillId).toBe('tech-digest')
     expect(bodies[0]?.text).toBe('速读这个链接 https://example.com')
+  })
+
+  it('tech_product shows 竞品分析 capsule and posts tech-competitor', async () => {
+    const mounted = await mountWorkspace('tech_product')
+    unmount = mounted.unmount
+    const pills = mounted.root.querySelectorAll('[data-testid="session-quick-row"] .pill')
+    expect(pills.length).toBeGreaterThanOrEqual(1)
+    expect(pills[0]?.textContent?.trim()).toBe('竞品分析')
+    await sendPrompt(mounted.root, '拆解 https://www.notion.so', 0)
+    const bodies = billedRunBodies(fetchMock)
+    expect(bodies.length).toBeGreaterThanOrEqual(1)
+    expect(bodies[0]?.sceneCode).toBe('tech_product')
+    expect(bodies[0]?.skillId).toBe('tech-competitor')
   })
 
   it('tech_digest session replay STATUS can open Computer preview', async () => {

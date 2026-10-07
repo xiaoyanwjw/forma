@@ -281,7 +281,7 @@ Prefer repo scripts / Compose; do not invent ad-hoc commands. Coding style slice
 
 ## Status
 
-**In product use (local / near-term):** Auth, credits, scene gallery, e-commerce + Xiaohongshu + tech digest (科技速读) workspaces, billed agent runs, Computer DocPreview (Forma view protocol), history, account settings, Compose bootstrap.
+**In product use (local / near-term):** Auth, credits, scene gallery, e-commerce + Xiaohongshu + tech frontier (科技前沿) + product radar (产品雷达 / 竞品分析) workspaces, billed agent runs, Computer DocPreview (Forma view protocol), history, account settings, Compose bootstrap.
 
 **Deferred / grey cards:** Gear compare (sports), short-video commerce, weekend trip (life / outing) — `COMING_SOON` until packs + gates open. Scene roadmap: `sdd/planning-artifacts/scene-product-plan-2026-10-04.md`.
 
