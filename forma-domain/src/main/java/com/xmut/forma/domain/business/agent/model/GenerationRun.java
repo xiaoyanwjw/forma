@@ -69,6 +69,14 @@ public class GenerationRun {
         this.updatedAt = now;
     }
 
+    public void markNeedsReconcile(String artifactRef, Instant now) {
+        this.artifactRef = artifactRef;
+        this.status = GenerationRunStatus.NEEDS_RECONCILE;
+        this.holdId = null;
+        this.execHoldId = null;
+        this.updatedAt = now;
+    }
+
     /** 挂起路径 settle：落 artifactRef、清活跃 hold，status 仍 RUNNING。 */
     public void markSettledOnSuspended(String artifactRef, Instant now) {
         this.artifactRef = artifactRef;

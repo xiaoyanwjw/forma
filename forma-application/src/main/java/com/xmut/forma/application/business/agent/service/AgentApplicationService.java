@@ -83,7 +83,7 @@ public class AgentApplicationService {
     /** 计费管线通用：模型回合失败。 */
     static final String MODEL_FAILED = "生成失败，请稍后重试";
     /** 计费管线通用：成果已落库但 settle 失败。 */
-    static final String SETTLE_FAILED = "成果已生成但结算失败，请联系支持";
+    static final String SETTLE_FAILED = "结算异常，预占已释放，待对账";
 
     public static final String MSG_RESUME_NOT_AWAITING = "当前回合未在等待确认，无法续跑";
     public static final String MSG_RESUME_TOOL_CALL_REQUIRED = "请提供 toolCallId";
@@ -639,7 +639,20 @@ public class AgentApplicationService {
             creditHoldSupport.settle(context.getUserId(), settleHoldId);
         } catch (BusinessException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "settleBilledRun", ex.getMessage(), ex, NameValue.create("runId", context.getRunId()), NameValue.create("holdId", settleHoldId));
-            markRunFailed(context.getRunId());
+            try {
+                creditHoldSupport.release(context.getUserId(), settleHoldId, context.getRunId());
+            } catch (Exception releaseEx) {
+                LoggerUtils.error(log, AgentApplicationService.class, "settleBilledRun", releaseEx.getMessage(), releaseEx, NameValue.create("runId", context.getRunId()), NameValue.create("holdId", settleHoldId));
+            }
+            context.setHoldId(null);
+            markRunNeedsReconcile(context.getRunId(), persisted.getArtifactRef());
+            context.setArtifactRef(persisted.getArtifactRef());
+            try {
+                emit(sink, SseEvent.of(SseEventName.ARTIFACT_READY,
+                        toArtifactReady(persisted, projectedView)));
+            } catch (Exception ignore) {
+                // best effort
+            }
             emitRunFailed(sink, SETTLE_FAILED, false);
             return;
         }
@@ -755,6 +768,15 @@ public class AgentApplicationService {
             return;
         }
         run.markSettled(artifactRef, Instant.now(clock));
+        generationRunRepository.update(run);
+    }
+
+    private void markRunNeedsReconcile(String runId, String artifactRef) {
+        GenerationRun run = generationRunRepository.findById(runId).orElse(null);
+        if (run == null) {
+            return;
+        }
+        run.markNeedsReconcile(artifactRef, Instant.now(clock));
         generationRunRepository.update(run);
     }
 

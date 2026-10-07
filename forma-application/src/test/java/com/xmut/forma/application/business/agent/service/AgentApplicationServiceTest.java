@@ -712,7 +712,7 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void streamGenerationRunNoSkillSettleFailureDoesNotReleaseOrEmitReady() {
+    void streamGenerationRunNoSkillSettleFailureReleasesAndNeedsReconcile() {
         GenerationRunContext ctx = new GenerationRunContext(
                 "run-ns-settle", USER_ID, HOLD_ID, "session-ns-settle", ECOM_SCENE_CODE,
                 "你好", SkillRunProfile.noSkill());
@@ -731,13 +731,16 @@ class AgentApplicationServiceTest {
         List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamBilledRun(ctx, events::add);
 
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(AgentApplicationService.SETTLE_FAILED, failed.getData().get("reason"));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).release(anyString(), anyString());
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
+        verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
+        assertTrue(captor.getAllValues().stream()
+                .anyMatch(r -> r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE
+                        && "art-1".equals(r.getArtifactRef())));
     }
 
     @Test
@@ -1039,7 +1042,7 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void streamPicklistRunSettleFailureDoesNotReleaseOrEmitArtifact() {
+    void streamPicklistRunSettleFailureReleasesAndNeedsReconcile() {
         GenerationRunContext ctx = picklistCtx("run-pl-settle", "session-pl-settle");
         stubEcommercePack();
         stubSubscribeEmittingSearchSkuOk("run-pl-settle", "session-pl-settle", VALID_PICKLIST_JSON);
@@ -1052,16 +1055,16 @@ class AgentApplicationServiceTest {
         List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamBilledRun(ctx, events::add);
 
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(AgentApplicationService.SETTLE_FAILED, failed.getData().get("reason"));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).release(anyString(), anyString());
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
         ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
-        verify(generationRunRepository).update(captor.capture());
-        assertEquals(GenerationRunStatus.FAILED, captor.getValue().getStatus());
+        verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
+        assertTrue(captor.getAllValues().stream()
+                .anyMatch(r -> r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE
+                        && "art-1".equals(r.getArtifactRef())));
     }
 
     @Test
@@ -1212,7 +1215,7 @@ class AgentApplicationServiceTest {
     }
 
     @Test
-    void streamListingRunSettleFailureEmitsListingSettleFailed() {
+    void streamListingRunSettleFailureReleasesAndNeedsReconcile() {
         GenerationRunContext ctx = listingCtx("run-listing-settle", "session-listing-settle");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {
@@ -1229,13 +1232,16 @@ class AgentApplicationServiceTest {
         List<SseEvent> events = new ArrayList<SseEvent>();
         service.streamBilledRun(ctx, events::add);
 
-        SseEvent failed = events.get(events.size() - 1);
-        assertEquals(SseEventName.RUN_FAILED, failed.getName());
-        assertEquals(AgentApplicationService.SETTLE_FAILED, failed.getData().get("reason"));
-        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
         assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
         verify(creditApplicationService).settle(USER_ID, HOLD_ID);
-        verify(creditApplicationService, never()).release(anyString(), anyString());
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
+        verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
+        assertTrue(captor.getAllValues().stream()
+                .anyMatch(r -> r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE
+                        && "art-1".equals(r.getArtifactRef())));
     }
 
     @Test
