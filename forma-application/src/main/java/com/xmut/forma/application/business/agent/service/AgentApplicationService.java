@@ -80,8 +80,10 @@ public class AgentApplicationService {
     static final String SSE_SEND_FAILED_RELEASE_FAILED = "SSE 下发失败且预占释放失败";
     /** 计费管线通用：模型回合失败。 */
     static final String MODEL_FAILED = "生成失败，请稍后重试";
-    /** 计费管线：persist 成功但 settle 失败（NEEDS_RECONCILE，预占已释放）。 */
+    /** 计费管线：persist 成功、settle 失败、release 成功（NEEDS_RECONCILE，hold 已清）。 */
     static final String SETTLE_FAILED = "结算异常，预占已释放，待对账";
+    /** persist 成功、settle 失败、release 也失败（NEEDS_RECONCILE，holdId 仍挂在 run 上）。 */
+    static final String SETTLE_FAILED_RELEASE_FAILED = "结算异常且预占释放失败，请联系支持";
     /** stream 挂起收尾 settle 失败（非对账态）。 */
     static final String SETTLE_ON_SUSPEND_FAILED = "成果已生成但结算失败，请联系支持";
 
@@ -635,13 +637,11 @@ public class AgentApplicationService {
         } catch (BusinessException ex) {
             LoggerUtils.error(log, AgentApplicationService.class, "settleBilledRun", ex.getMessage(), ex, NameValue.create("runId", context.getRunId()), NameValue.create("holdId", settleHoldId));
             context.claimTerminal("RECONCILE");
-            try {
-                creditHoldSupport.release(context.getUserId(), settleHoldId, context.getRunId());
-            } catch (Exception releaseEx) {
-                LoggerUtils.error(log, AgentApplicationService.class, "settleBilledRun", releaseEx.getMessage(), releaseEx, NameValue.create("runId", context.getRunId()), NameValue.create("holdId", settleHoldId));
+            boolean released = creditHoldSupport.release(context.getUserId(), settleHoldId, context.getRunId());
+            if (released) {
+                context.setHoldId(null);
             }
-            context.setHoldId(null);
-            markRunNeedsReconcile(context.getRunId(), persisted.getArtifactRef());
+            markRunNeedsReconcile(context.getRunId(), persisted.getArtifactRef(), released);
             context.setArtifactRef(persisted.getArtifactRef());
             try {
                 emit(sink, SseEvent.of(SseEventName.ARTIFACT_READY,
@@ -649,7 +649,7 @@ public class AgentApplicationService {
             } catch (Exception ignore) {
                 // best effort
             }
-            emitRunFailed(sink, SETTLE_FAILED);
+            emitRunFailed(sink, released ? SETTLE_FAILED : SETTLE_FAILED_RELEASE_FAILED);
             return;
         }
 
@@ -810,12 +810,12 @@ public class AgentApplicationService {
         generationRunRepository.update(run);
     }
 
-    private void markRunNeedsReconcile(String runId, String artifactRef) {
+    private void markRunNeedsReconcile(String runId, String artifactRef, boolean clearHolds) {
         GenerationRun run = generationRunRepository.findById(runId).orElse(null);
         if (run == null) {
             return;
         }
-        run.markNeedsReconcile(artifactRef, Instant.now(clock));
+        run.markNeedsReconcile(artifactRef, Instant.now(clock), clearHolds);
         generationRunRepository.update(run);
     }
 

@@ -72,6 +72,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -534,7 +535,49 @@ class AgentApplicationServiceTest {
         verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
         assertTrue(captor.getAllValues().stream()
                 .anyMatch(r -> r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE
-                        && "art-1".equals(r.getArtifactRef())));
+                        && "art-1".equals(r.getArtifactRef())
+                        && r.getHoldId() == null));
+        assertNull(ctx.getHoldId());
+    }
+
+    @Test
+    void streamGenerationRunNoSkillSettleFailureKeepsHoldWhenReleaseFails() {
+        GenerationRunContext ctx = new GenerationRunContext(
+                "run-ns-settle-rel", USER_ID, HOLD_ID, "session-ns-settle-rel", ECOM_SCENE_CODE,
+                "你好", SkillRunProfile.noSkill());
+        when(sceneCapabilityPackLoader.load(ECOM_SCENE_CODE)).thenReturn(ecommercePack());
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-ns-settle-rel", "session-ns-settle-rel", "草稿",
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
+                .when(creditApplicationService).settle(USER_ID, HOLD_ID);
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "release boom"))
+                .when(creditApplicationService).release(USER_ID, HOLD_ID);
+        when(generationRunRepository.findById("run-ns-settle-rel")).thenReturn(Optional.of(
+                GenerationRun.start("run-ns-settle-rel", USER_ID, HOLD_ID, "session-ns-settle-rel",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<SseEvent> events = new ArrayList<SseEvent>();
+        service.streamBilledRun(ctx, events::add);
+
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.RUN_FAILED));
+        assertTrue(events.stream().noneMatch(e -> e.getName() == SseEventName.RUN_SETTLED));
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
+        assertEquals(AgentApplicationService.SETTLE_FAILED_RELEASE_FAILED, failed.getData().get("reason"));
+        assertFalse(String.valueOf(failed.getData().get("reason")).contains("已释放"));
+        verify(creditApplicationService).settle(USER_ID, HOLD_ID);
+        verify(creditApplicationService).release(USER_ID, HOLD_ID);
+        ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
+        verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
+        assertTrue(captor.getAllValues().stream()
+                .anyMatch(r -> r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE
+                        && "art-1".equals(r.getArtifactRef())
+                        && HOLD_ID.equals(r.getHoldId())));
+        assertEquals(HOLD_ID, ctx.getHoldId());
     }
 
     @Test
@@ -933,7 +976,38 @@ class AgentApplicationServiceTest {
         verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
         assertTrue(captor.getAllValues().stream()
                 .anyMatch(r -> r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE
-                        && "art-1".equals(r.getArtifactRef())));
+                        && "art-1".equals(r.getArtifactRef())
+                        && r.getHoldId() == null));
+        assertNull(ctx.getHoldId());
+    }
+
+    @Test
+    void streamPicklistRunSettleFailureKeepsHoldWhenReleaseFails() {
+        GenerationRunContext ctx = picklistCtx("run-pl-settle-rel", "session-pl-settle-rel");
+        stubEcommercePack();
+        stubSubscribeEmittingSearchSkuOk("run-pl-settle-rel", "session-pl-settle-rel", VALID_PICKLIST_JSON);
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
+                .when(creditApplicationService).settle(USER_ID, HOLD_ID);
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "release boom"))
+                .when(creditApplicationService).release(USER_ID, HOLD_ID);
+        when(generationRunRepository.findById("run-pl-settle-rel")).thenReturn(Optional.of(
+                GenerationRun.start("run-pl-settle-rel", USER_ID, HOLD_ID, "session-pl-settle-rel",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<SseEvent> events = new ArrayList<SseEvent>();
+        service.streamBilledRun(ctx, events::add);
+
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
+        assertEquals(AgentApplicationService.SETTLE_FAILED_RELEASE_FAILED, failed.getData().get("reason"));
+        assertFalse(String.valueOf(failed.getData().get("reason")).contains("已释放"));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
+        verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
+        assertTrue(captor.getAllValues().stream()
+                .anyMatch(r -> r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE
+                        && HOLD_ID.equals(r.getHoldId())));
+        assertEquals(HOLD_ID, ctx.getHoldId());
     }
 
     @Test
@@ -1088,7 +1162,42 @@ class AgentApplicationServiceTest {
         verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
         assertTrue(captor.getAllValues().stream()
                 .anyMatch(r -> r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE
-                        && "art-1".equals(r.getArtifactRef())));
+                        && "art-1".equals(r.getArtifactRef())
+                        && r.getHoldId() == null));
+        assertNull(ctx.getHoldId());
+    }
+
+    @Test
+    void streamListingRunSettleFailureKeepsHoldWhenReleaseFails() {
+        GenerationRunContext ctx = listingCtx("run-listing-settle-rel", "session-listing-settle-rel");
+        stubEcommercePack();
+        when(agentSession.subscribe(any())).thenReturn(() -> {
+        });
+        when(agentSession.prompt(any(PromptRequest.class))).thenReturn(
+                TurnResult.ok("run-listing-settle-rel", "session-listing-settle-rel", VALID_LISTING_JSON,
+                        Collections.<com.xmut.forma.pi.ai.message.Message>emptyList()));
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "settle boom"))
+                .when(creditApplicationService).settle(USER_ID, HOLD_ID);
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.CREDIT_HOLD_INVALID, "release boom"))
+                .when(creditApplicationService).release(USER_ID, HOLD_ID);
+        when(generationRunRepository.findById("run-listing-settle-rel")).thenReturn(Optional.of(
+                GenerationRun.start("run-listing-settle-rel", USER_ID, HOLD_ID, "session-listing-settle-rel",
+                        ECOM_SCENE_ID, ECOM_SCENE_CODE, NOW)));
+
+        List<SseEvent> events = new ArrayList<SseEvent>();
+        service.streamBilledRun(ctx, events::add);
+
+        SseEvent failed = events.get(events.size() - 1);
+        assertEquals(SseEventName.RUN_FAILED, failed.getName());
+        assertEquals(AgentApplicationService.SETTLE_FAILED_RELEASE_FAILED, failed.getData().get("reason"));
+        assertFalse(String.valueOf(failed.getData().get("reason")).contains("已释放"));
+        assertTrue(events.stream().anyMatch(e -> e.getName() == SseEventName.ARTIFACT_READY));
+        ArgumentCaptor<GenerationRun> captor = ArgumentCaptor.forClass(GenerationRun.class);
+        verify(generationRunRepository, org.mockito.Mockito.atLeastOnce()).update(captor.capture());
+        assertTrue(captor.getAllValues().stream()
+                .anyMatch(r -> r.getStatus() == GenerationRunStatus.NEEDS_RECONCILE
+                        && HOLD_ID.equals(r.getHoldId())));
+        assertEquals(HOLD_ID, ctx.getHoldId());
     }
 
     @Test

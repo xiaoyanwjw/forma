@@ -69,11 +69,22 @@ public class GenerationRun {
         this.updatedAt = now;
     }
 
+    /** persist 成功、settle 失败且预占已释放：对账态并清空活跃 hold。 */
     public void markNeedsReconcile(String artifactRef, Instant now) {
+        markNeedsReconcile(artifactRef, now, true);
+    }
+
+    /**
+     * persist 成功、settle 失败。
+     * {@code clearHolds=false}：release 也失败，保留 holdId 供运维按 ACTIVE 预占对账。
+     */
+    public void markNeedsReconcile(String artifactRef, Instant now, boolean clearHolds) {
         this.artifactRef = artifactRef;
         this.status = GenerationRunStatus.NEEDS_RECONCILE;
-        this.holdId = null;
-        this.execHoldId = null;
+        if (clearHolds) {
+            this.holdId = null;
+            this.execHoldId = null;
+        }
         this.updatedAt = now;
     }
 
