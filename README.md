@@ -2,7 +2,8 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-https://github.com/user-attachments/assets/cc93e364-aab7-44cf-a837-154b0f841f07
+https://github.com/user-attachments/assets/66cea829-724c-4350-99e8-311dd6fa02be
+
 
 **Forma** is a personal assistant: it turns skills from daily work into jobs an agent can finish. A kind of job is a **scene**; how that job is done is a **Skill**. Pick a scene, run the agent, review the shaped result in Computer.
 
@@ -27,6 +28,12 @@ The snag is usually one of three.
 **Handoff is still manual.** What they need is a shaped deliverable, not a conversation. After the chat they still tidy, reformat, and rewrite.
 
 ### What Forma does
+
+https://github.com/user-attachments/assets/ba8dece6-954e-42ea-a4d2-26ddfac5c89f
+
+
+
+
 
 Forma packs daily skills into scenes and Skills. Users pick a scene, run it, the agent completes the work with that skill, and the person reviews, edits, and takes the result in Computer.
 
