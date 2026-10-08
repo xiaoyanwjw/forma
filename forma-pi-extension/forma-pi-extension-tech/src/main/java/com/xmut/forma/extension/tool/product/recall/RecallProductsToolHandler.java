@@ -1,4 +1,4 @@
-package com.xmut.forma.extension.tool.ph;
+package com.xmut.forma.extension.tool.product.recall;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,33 +19,40 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 /**
- * Pi tool {@code search_product_launches}: Product Hunt list → normalized candidates.
+ * Pi business tool {@code recall_products}: paste parse or Product Hunt list → candidates.
  */
-public final class SearchProductLaunchesToolHandler implements ToolHandler {
+public final class RecallProductsToolHandler implements ToolHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(SearchProductLaunchesToolHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(RecallProductsToolHandler.class);
 
-    public static final String TOOL_NAME = "search_product_launches";
+    public static final String TOOL_NAME = "recall_products";
     public static final int DEFAULT_MAX_CANDIDATES = 12;
     public static final int MAX_MAX_CANDIDATES = 30;
+
+    private static final Pattern MD_LINK = Pattern.compile(
+            "\\[([^\\]]+)\\]\\((https?://[^)\\s]+)\\)");
+    private static final Pattern URL = Pattern.compile("(https?://\\S+)");
+    private static final Pattern BULLET = Pattern.compile("^[\\s]*[-*•]\\s+|^\\d+[.)]\\s+");
 
     private final ProductLaunchSearchPort searchPort;
     private final ProductLaunchSearchProperties properties;
     private final ObjectMapper objectMapper;
 
-    public SearchProductLaunchesToolHandler(ProductLaunchSearchPort searchPort,
-                                            ProductLaunchSearchProperties properties) {
+    public RecallProductsToolHandler(ProductLaunchSearchPort searchPort,
+                                     ProductLaunchSearchProperties properties) {
         this(searchPort, properties, new ObjectMapper());
     }
 
-    SearchProductLaunchesToolHandler(ProductLaunchSearchPort searchPort,
-                                     ProductLaunchSearchProperties properties,
-                                     ObjectMapper objectMapper) {
+    RecallProductsToolHandler(ProductLaunchSearchPort searchPort,
+                              ProductLaunchSearchProperties properties,
+                              ObjectMapper objectMapper) {
         this.searchPort = searchPort;
         this.properties = properties;
         this.objectMapper = objectMapper;
@@ -55,42 +62,127 @@ public final class SearchProductLaunchesToolHandler implements ToolHandler {
     public ToolResult handle(ToolCallEntry call, ToolContext ctx) {
         String callId = call != null ? call.getId() : null;
         try {
-            String topic = extractTopic(call);
-            if (!StringUtils.hasText(topic)) {
-                return ToolResult.failed(callId, TOOL_NAME, "topic required");
+            String topic = extractText(call, "topic");
+            String paste = extractText(call, "paste");
+            boolean hasTopic = StringUtils.hasText(topic);
+            boolean hasPaste = StringUtils.hasText(paste);
+            if (!hasTopic && !hasPaste) {
+                return ToolResult.failed(callId, TOOL_NAME, "topic or paste required");
             }
+
             int maxCandidates = resolveMaxCandidates(call);
-            int fetchLimit = Math.min(Math.max(maxCandidates * 3, 24), 100);
+            List<ProductLaunchCandidate> filtered;
             String actorId = properties.getApify().getActorId();
+            int rawCount;
 
-            List<ProductLaunchCandidate> raw = searchPort.search(topic.trim(), fetchLimit);
-            int rawCount = raw == null ? 0 : raw.size();
-            List<ProductLaunchCandidate> filtered = normalize(raw, topic.trim(), maxCandidates);
-
-            LoggerUtils.success(
-                    log,
-                    SearchProductLaunchesToolHandler.class,
-                    "handle",
-                    NameValue.create("actorId", actorId),
-                    NameValue.create("topicLen", topic.trim().length()),
-                    NameValue.create("rawCount", rawCount),
-                    NameValue.create("filteredCount", filtered.size()),
-                    NameValue.create("maxCandidates", maxCandidates));
+            if (hasPaste) {
+                List<ProductLaunchCandidate> parsed = parsePaste(paste);
+                rawCount = parsed.size();
+                filtered = normalize(parsed, hasTopic ? topic.trim() : "", maxCandidates);
+                LoggerUtils.success(
+                        log,
+                        RecallProductsToolHandler.class,
+                        "handle",
+                        NameValue.create("source", "paste"),
+                        NameValue.create("topicLen", hasTopic ? topic.trim().length() : 0),
+                        NameValue.create("rawCount", rawCount),
+                        NameValue.create("filteredCount", filtered.size()),
+                        NameValue.create("maxCandidates", maxCandidates));
+            } else {
+                int fetchLimit = Math.min(Math.max(maxCandidates * 3, 24), 100);
+                List<ProductLaunchCandidate> raw = searchPort.search(topic.trim(), fetchLimit);
+                rawCount = raw == null ? 0 : raw.size();
+                filtered = normalize(raw, topic.trim(), maxCandidates);
+                LoggerUtils.success(
+                        log,
+                        RecallProductsToolHandler.class,
+                        "handle",
+                        NameValue.create("source", "ph"),
+                        NameValue.create("actorId", actorId),
+                        NameValue.create("topicLen", topic.trim().length()),
+                        NameValue.create("rawCount", rawCount),
+                        NameValue.create("filteredCount", filtered.size()),
+                        NameValue.create("maxCandidates", maxCandidates));
+            }
 
             if (filtered.isEmpty()) {
-                return ToolResult.failed(callId, TOOL_NAME, "search_product_launches empty candidates");
+                return ToolResult.failed(callId, TOOL_NAME, "recall_products empty candidates");
             }
             return ToolResult.ok(callId, TOOL_NAME, writeCandidates(filtered));
         } catch (Exception ex) {
             String reason = errorReason(ex);
             LoggerUtils.warn(
                     log,
-                    SearchProductLaunchesToolHandler.class,
+                    RecallProductsToolHandler.class,
                     "handle",
                     reason,
                     NameValue.create("actorId", properties.getApify().getActorId()));
-            return ToolResult.failed(callId, TOOL_NAME, "search_product_launches failed: " + reason);
+            return ToolResult.failed(callId, TOOL_NAME, "recall_products failed: " + reason);
         }
+    }
+
+    /**
+     * Parse newsletter / list paste into candidates ({@code source=paste}).
+     * Supports markdown links, {@code Title — tagline}, bullets, and trailing URLs.
+     */
+    static List<ProductLaunchCandidate> parsePaste(String paste) {
+        if (!StringUtils.hasText(paste)) {
+            return new ArrayList<ProductLaunchCandidate>();
+        }
+        String[] lines = paste.split("\\r?\\n");
+        List<ProductLaunchCandidate> out = new ArrayList<ProductLaunchCandidate>();
+        for (int i = 0; i < lines.length; i++) {
+            String raw = lines[i];
+            if (!StringUtils.hasText(raw)) {
+                continue;
+            }
+            String line = BULLET.matcher(raw.trim()).replaceFirst("").trim();
+            if (!StringUtils.hasText(line)) {
+                continue;
+            }
+
+            Matcher md = MD_LINK.matcher(line);
+            if (md.find()) {
+                String title = md.group(1).trim();
+                String url = md.group(2).trim();
+                String rest = line.substring(md.end()).trim();
+                rest = stripLeadingSeparator(rest);
+                out.add(new ProductLaunchCandidate(title, rest, url, null, null, "paste"));
+                continue;
+            }
+
+            Matcher urlMatcher = URL.matcher(line);
+            String url = null;
+            String withoutUrl = line;
+            if (urlMatcher.find()) {
+                url = urlMatcher.group(1).replaceAll("[),.;]+$", "");
+                withoutUrl = (line.substring(0, urlMatcher.start()) + line.substring(urlMatcher.end())).trim();
+                withoutUrl = stripTrailingSeparator(withoutUrl);
+            }
+
+            String title;
+            String tagline = "";
+            int sep = indexOfSeparator(withoutUrl);
+            if (sep >= 0) {
+                title = withoutUrl.substring(0, sep).trim();
+                tagline = stripLeadingSeparator(withoutUrl.substring(sep).trim());
+            } else {
+                title = withoutUrl.trim();
+            }
+
+            if (!StringUtils.hasText(title) && url == null) {
+                continue;
+            }
+            if (!StringUtils.hasText(title)) {
+                continue;
+            }
+            // Skip bare URL-only lines that look like leftovers
+            if (title.startsWith("http://") || title.startsWith("https://")) {
+                continue;
+            }
+            out.add(new ProductLaunchCandidate(title, tagline, url == null ? "" : url, null, null, "paste"));
+        }
+        return out;
     }
 
     static List<ProductLaunchCandidate> normalize(List<ProductLaunchCandidate> raw,
@@ -218,13 +310,13 @@ public final class SearchProductLaunchesToolHandler implements ToolHandler {
         return objectMapper.writeValueAsString(root);
     }
 
-    static String extractTopic(ToolCallEntry call) {
+    static String extractText(ToolCallEntry call, String field) {
         JsonNode args = arguments(call);
         if (args == null) {
             return null;
         }
-        JsonNode topic = args.get("topic");
-        return topic == null || topic.isNull() ? null : topic.asText(null);
+        JsonNode node = args.get(field);
+        return node == null || node.isNull() ? null : node.asText(null);
     }
 
     static int resolveMaxCandidates(ToolCallEntry call) {
@@ -263,5 +355,48 @@ public final class SearchProductLaunchesToolHandler implements ToolHandler {
 
     private static String emptyIfNull(String value) {
         return value != null ? value : "";
+    }
+
+    private static int indexOfSeparator(String text) {
+        int em = text.indexOf('—');
+        int en = text.indexOf('–');
+        int colon = text.indexOf(':');
+        int dash = text.indexOf(" - ");
+        int best = -1;
+        if (em >= 0) {
+            best = em;
+        }
+        if (en >= 0 && (best < 0 || en < best)) {
+            best = en;
+        }
+        if (dash >= 0 && (best < 0 || dash < best)) {
+            best = dash;
+        }
+        if (colon >= 0 && (best < 0 || colon < best)) {
+            best = colon;
+        }
+        return best;
+    }
+
+    private static String stripLeadingSeparator(String text) {
+        if (!StringUtils.hasText(text)) {
+            return "";
+        }
+        String t = text.trim();
+        while (t.startsWith("—") || t.startsWith("–") || t.startsWith("-") || t.startsWith(":")) {
+            t = t.substring(1).trim();
+        }
+        return t;
+    }
+
+    private static String stripTrailingSeparator(String text) {
+        if (!StringUtils.hasText(text)) {
+            return "";
+        }
+        String t = text.trim();
+        while (t.endsWith("—") || t.endsWith("–") || t.endsWith("-") || t.endsWith(":")) {
+            t = t.substring(0, t.length() - 1).trim();
+        }
+        return t;
     }
 }

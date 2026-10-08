@@ -1,0 +1,31 @@
+{
+  "id": "recall_products",
+  "description": "按关注域召回产品候选，或从粘贴列表解析候选",
+  "text": "[recall_products] 用 topic 从 Product Hunt 召回，或用 paste 解析列表。返回 candidates（title/tagline/url/source）；禁止编造产品。",
+  "handlerClass": "com.xmut.forma.extension.tool.product.recall.RecallProductsToolHandler",
+  "schema": {
+    "name": "recall_products",
+    "description": "召回产品候选；PH 路径 source=ph，粘贴路径 source=paste",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "description": "关注域/主题；有 paste 时可省略"
+        },
+        "window": {
+          "type": "string",
+          "description": "可选时间窗（如今天/近1天）；近端透传，不强制过滤"
+        },
+        "paste": {
+          "type": "string",
+          "description": "粘贴 Newsletter/列表正文；有则跳过 Product Hunt 召回"
+        },
+        "maxCandidates": {
+          "type": "integer",
+          "description": "最多返回条数，默认 12，最大 30"
+        }
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 package com.xmut.forma.extension.tool.ph.port;
 
 /**
- * Normalized Product Hunt launch candidate for {@code search_product_launches}.
+ * Normalized product launch candidate for {@code recall_products}.
  */
 public final class ProductLaunchCandidate {
 

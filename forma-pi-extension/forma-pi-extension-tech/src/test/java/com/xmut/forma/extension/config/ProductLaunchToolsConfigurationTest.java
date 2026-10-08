@@ -1,9 +1,9 @@
 package com.xmut.forma.extension.config;
 
-import com.xmut.forma.extension.tool.ph.SearchProductLaunchesToolHandler;
 import com.xmut.forma.extension.tool.ph.client.ApifyProductHuntSearchClient;
 import com.xmut.forma.extension.tool.ph.port.ProductLaunchSearchPort;
 import com.xmut.forma.extension.tool.ph.port.ProductLaunchSearchProperties;
+import com.xmut.forma.extension.tool.product.recall.RecallProductsToolHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,7 +19,7 @@ class ProductLaunchToolsConfigurationTest {
                 .run(context -> {
                     assertTrue(context.getBean(ProductLaunchSearchPort.class)
                             instanceof ApifyProductHuntSearchClient);
-                    assertTrue(context.getBean(SearchProductLaunchesToolHandler.class) != null);
+                    assertTrue(context.getBean(RecallProductsToolHandler.class) != null);
                     ProductLaunchSearchProperties props = context.getBean(ProductLaunchSearchProperties.class);
                     assertEquals(ProductLaunchSearchProperties.DEFAULT_ACTOR_ID, props.getApify().getActorId());
                 });

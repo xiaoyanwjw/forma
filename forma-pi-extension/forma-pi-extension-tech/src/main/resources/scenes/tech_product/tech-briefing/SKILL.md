@@ -3,7 +3,7 @@ name: tech-briefing
 description: >-
   按关注域产出 3～7 条带回出处的产品向早报（JSON：view + artifact）。
   在用户提到产品早报、今日值得跟、Product Hunt 扫描时使用。
-allowed-tools: read_skill search_product_launches fetch_web_page write_file read_file render_view
+allowed-tools: read_skill recall_products fetch_web_page write_file read_file render_view
 metadata:
   billing: true
   persistAs: tech_briefing
@@ -29,9 +29,9 @@ metadata:
    - 可选时间窗（`window`）：默认今天 / 近 1 天；写入 `artifact.windowLabel`。
    - 可选 `deepFetch`：整数，**默认 1**，近端上限 **1**；`0` = 关深挖。
 
-2. **取候选（二选一，互斥）。**
-   - **有 paste：** 从粘贴正文解析为 `candidates[]`（title / tagline / url 等）。**跳过** `search_product_launches`。`artifact.source` = **`paste`**。
-   - **否则：** 调用 **`search_product_launches`**（关注域 + 时间窗）。`artifact.source` = **`ph`**。
+2. **取候选。** 调用 **`recall_products`**（传 `topic` 和/或 `paste`；有 paste 时工具内解析，跳过 PH）。
+   - paste 路径：`artifact.source` = **`paste`**。
+   - PH 路径：`artifact.source` = **`ph`**。
    - **0 候选 → Fail。** 禁止编造条目。
 
 3. **过滤 / 去重 / 截断。** 关键词粗过滤 + URL/标题去重；目标入选 **3～7**（工具侧可保留前 12 供再筛）。不足 3 且有候选 → 有几条出几条，并写入 `uncertainties`（如「候选偏少」）。
@@ -47,12 +47,13 @@ metadata:
 
 7. **成功标准。** 盘上已有 reminder 中的 **output**（通常 `view.json`）。不要在对话里输出 `{"output":...}` 或整包 JSON。过 Verification 再结束。
 
-## Tool: search_product_launches
+## Tool: recall_products
 
 | 参数 | 说明 |
 |------|------|
-| `topic` | 关注域/主题；paste 路径不调本工具 |
+| `topic` | 关注域/主题；有 paste 时可省略 |
 | `window` | 可选时间窗 |
+| `paste` | 粘贴列表正文；有则工具内解析为 candidates，跳过 PH |
 
 失败或 0 候选：禁止编造；走 Failures。
 
@@ -81,7 +82,7 @@ metadata:
 ## Verification
 
 - [ ] 有关注域或可用粘贴列表
-- [ ] paste 路径未调 `search_product_launches`；PH 路径调了且候选非空
+- [ ] 已调 `recall_products` 且候选非空（paste 或 PH）
 - [ ] `fetch_web_page` ≤1（`deepFetch=0` 时为 0）
 - [ ] `artifact.title` 非空，与 `view.title` 一致（域 + 时间窗）
 - [ ] `items` 非空（目标 3～7）；每条尽量有 `sourceUrl`；无候选编造

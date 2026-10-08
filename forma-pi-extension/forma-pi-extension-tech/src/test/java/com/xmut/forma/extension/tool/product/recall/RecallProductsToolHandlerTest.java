@@ -1,4 +1,4 @@
-package com.xmut.forma.extension.tool.ph;
+package com.xmut.forma.extension.tool.product.recall;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,34 +8,34 @@ import com.xmut.forma.extension.common.ApifyActorTransport;
 import com.xmut.forma.extension.tool.ph.client.ApifyProductHuntSearchClient;
 import com.xmut.forma.extension.tool.ph.port.ProductLaunchCandidate;
 import com.xmut.forma.extension.tool.ph.port.ProductLaunchSearchProperties;
-import java.util.Arrays;
-import java.util.List;
 import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 import com.xmut.forma.pi.ai.tool.ToolResult;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SearchProductLaunchesToolHandlerTest {
+class RecallProductsToolHandlerTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
     void topic_ai_coding_maps_mock_actor_items_to_ph_candidates() throws Exception {
         ApifyActorTransport transport = (actorId, token, timeoutMs, body) -> fixtureFivePlusAiCoding();
-        SearchProductLaunchesToolHandler handler = handlerWith(transport, "test-token");
+        RecallProductsToolHandler handler = handlerWith(transport, "test-token");
 
-        ToolResult result = handler.handle(call("AI coding", null), new ToolContext("r1", "t1"));
+        ToolResult result = handler.handle(call("AI coding", null, null), new ToolContext("r1", "t1"));
 
         assertTrue(result.isSuccess());
         JsonNode root = MAPPER.readTree(result.getOutput());
         JsonNode candidates = root.get("candidates");
         assertTrue(candidates.isArray());
         assertTrue(candidates.size() > 0);
-        assertTrue(candidates.size() <= SearchProductLaunchesToolHandler.DEFAULT_MAX_CANDIDATES);
+        assertTrue(candidates.size() <= RecallProductsToolHandler.DEFAULT_MAX_CANDIDATES);
         for (JsonNode row : candidates) {
             assertTrue(row.hasNonNull("title") && row.get("title").asText().trim().length() > 0);
             assertTrue(row.has("url"));
@@ -60,9 +60,9 @@ class SearchProductLaunchesToolHandlerTest {
                 + ","
                 + item("DevSpark", "AI coding sparks", "https://www.producthunt.com/posts/f", 4)
                 + "]";
-        SearchProductLaunchesToolHandler handler = handlerWith(transport, "test-token");
+        RecallProductsToolHandler handler = handlerWith(transport, "test-token");
 
-        ToolResult result = handler.handle(call("AI coding", 3), new ToolContext("r1", "t1"));
+        ToolResult result = handler.handle(call("AI coding", 3, null), new ToolContext("r1", "t1"));
 
         assertTrue(result.isSuccess());
         JsonNode candidates = MAPPER.readTree(result.getOutput()).get("candidates");
@@ -80,9 +80,9 @@ class SearchProductLaunchesToolHandlerTest {
             calls.incrementAndGet();
             return "[]";
         };
-        SearchProductLaunchesToolHandler handler = handlerWith(transport, "");
+        RecallProductsToolHandler handler = handlerWith(transport, "");
 
-        ToolResult result = handler.handle(call("AI coding", null), new ToolContext("r1", "t1"));
+        ToolResult result = handler.handle(call("AI coding", null, null), new ToolContext("r1", "t1"));
 
         assertFalse(result.isSuccess());
         assertTrue(result.getErrorMessage() != null && result.getErrorMessage().contains("missing_token"));
@@ -92,9 +92,9 @@ class SearchProductLaunchesToolHandlerTest {
     @Test
     void empty_actor_dataset_returns_structured_error_without_throw() {
         ApifyActorTransport transport = (a, t, ms, b) -> "[]";
-        SearchProductLaunchesToolHandler handler = handlerWith(transport, "test-token");
+        RecallProductsToolHandler handler = handlerWith(transport, "test-token");
 
-        ToolResult result = handler.handle(call("AI coding", null), new ToolContext("r1", "t1"));
+        ToolResult result = handler.handle(call("AI coding", null, null), new ToolContext("r1", "t1"));
 
         assertFalse(result.isSuccess());
         assertTrue(result.getErrorMessage() != null
@@ -106,12 +106,12 @@ class SearchProductLaunchesToolHandlerTest {
         ApifyActorTransport transport = (a, t, ms, b) -> {
             throw new IllegalStateException("apify_error: boom");
         };
-        SearchProductLaunchesToolHandler handler = handlerWith(transport, "test-token");
+        RecallProductsToolHandler handler = handlerWith(transport, "test-token");
 
-        ToolResult result = handler.handle(call("AI coding", null), new ToolContext("r1", "t1"));
+        ToolResult result = handler.handle(call("AI coding", null, null), new ToolContext("r1", "t1"));
 
         assertFalse(result.isSuccess());
-        assertTrue(result.getErrorMessage() != null && result.getErrorMessage().contains("search_product_launches"));
+        assertTrue(result.getErrorMessage() != null && result.getErrorMessage().contains("recall_products"));
     }
 
     @Test
@@ -120,7 +120,7 @@ class SearchProductLaunchesToolHandlerTest {
                 candidate("CodePilot", "Ship faster with AI coding", "https://www.producthunt.com/posts/codepilot"),
                 candidate("Plain CRM", "sales CRM only", "https://www.producthunt.com/posts/crm"));
 
-        List<ProductLaunchCandidate> filtered = SearchProductLaunchesToolHandler.normalize(
+        List<ProductLaunchCandidate> filtered = RecallProductsToolHandler.normalize(
                 raw, "AI coding agents", 12);
 
         assertEquals(1, filtered.size());
@@ -132,43 +132,97 @@ class SearchProductLaunchesToolHandlerTest {
         List<ProductLaunchCandidate> raw = Arrays.asList(
                 candidate("Plain CRM", "sales CRM only", "https://www.producthunt.com/posts/crm"));
 
-        List<ProductLaunchCandidate> filtered = SearchProductLaunchesToolHandler.normalize(
+        List<ProductLaunchCandidate> filtered = RecallProductsToolHandler.normalize(
                 raw, "AI coding agents", 12);
 
         assertTrue(filtered.isEmpty());
     }
 
     @Test
-    void missing_topic_fails() {
+    void missing_topic_and_paste_fails() {
         ApifyActorTransport transport = (a, t, ms, b) -> {
             throw new AssertionError("must not call transport");
         };
-        SearchProductLaunchesToolHandler handler = handlerWith(transport, "test-token");
+        RecallProductsToolHandler handler = handlerWith(transport, "test-token");
 
         ObjectNode args = JsonNodeFactory.instance.objectNode();
         ToolResult result = handler.handle(
-                new ToolCallEntry("c2", SearchProductLaunchesToolHandler.TOOL_NAME, args),
+                new ToolCallEntry("c2", RecallProductsToolHandler.TOOL_NAME, args),
                 new ToolContext("r1", "t1"));
 
         assertFalse(result.isSuccess());
-        assertTrue(result.getErrorMessage() != null && result.getErrorMessage().contains("topic"));
+        assertTrue(result.getErrorMessage() != null
+                && result.getErrorMessage().contains("topic or paste"));
     }
 
-    private static SearchProductLaunchesToolHandler handlerWith(ApifyActorTransport transport, String token) {
+    @Test
+    void paste_parses_candidates_and_skips_ph() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        ApifyActorTransport transport = (a, t, ms, b) -> {
+            calls.incrementAndGet();
+            return "[]";
+        };
+        RecallProductsToolHandler handler = handlerWith(transport, "test-token");
+
+        String paste = ""
+                + "Cursor — AI coding assistant https://www.producthunt.com/posts/cursor\n"
+                + "[CodePilot](https://www.producthunt.com/posts/codepilot) — Ship with AI\n"
+                + "- DevSpark: AI coding sparks https://www.producthunt.com/posts/devspark\n";
+        ToolResult result = handler.handle(call(null, null, paste), new ToolContext("r1", "t1"));
+
+        assertTrue(result.isSuccess());
+        assertEquals(0, calls.get());
+        JsonNode candidates = MAPPER.readTree(result.getOutput()).get("candidates");
+        assertEquals(3, candidates.size());
+        assertEquals("Cursor", candidates.get(0).get("title").asText());
+        assertEquals("paste", candidates.get(0).get("source").asText());
+        assertEquals("CodePilot", candidates.get(1).get("title").asText());
+        assertEquals("https://www.producthunt.com/posts/codepilot", candidates.get(1).get("url").asText());
+        assertEquals("DevSpark", candidates.get(2).get("title").asText());
+    }
+
+    @Test
+    void paste_with_topic_filters_and_skips_ph() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        ApifyActorTransport transport = (a, t, ms, b) -> {
+            calls.incrementAndGet();
+            return "[]";
+        };
+        RecallProductsToolHandler handler = handlerWith(transport, "test-token");
+
+        String paste = ""
+                + "Cursor — AI coding assistant https://www.producthunt.com/posts/cursor\n"
+                + "Plain CRM — sales CRM only https://www.producthunt.com/posts/crm\n";
+        ToolResult result = handler.handle(call("AI coding", null, paste), new ToolContext("r1", "t1"));
+
+        assertTrue(result.isSuccess());
+        assertEquals(0, calls.get());
+        JsonNode candidates = MAPPER.readTree(result.getOutput()).get("candidates");
+        assertEquals(1, candidates.size());
+        assertEquals("Cursor", candidates.get(0).get("title").asText());
+        assertEquals("paste", candidates.get(0).get("source").asText());
+    }
+
+    private static RecallProductsToolHandler handlerWith(ApifyActorTransport transport, String token) {
         ProductLaunchSearchProperties props = new ProductLaunchSearchProperties();
         props.getApify().setToken(token);
         props.getApify().setActorId(ProductLaunchSearchProperties.DEFAULT_ACTOR_ID);
         ApifyProductHuntSearchClient client = new ApifyProductHuntSearchClient(props, transport);
-        return new SearchProductLaunchesToolHandler(client, props);
+        return new RecallProductsToolHandler(client, props);
     }
 
-    private static ToolCallEntry call(String topic, Integer maxCandidates) {
+    private static ToolCallEntry call(String topic, Integer maxCandidates, String paste) {
         ObjectNode args = JsonNodeFactory.instance.objectNode();
-        args.put("topic", topic);
+        if (topic != null) {
+            args.put("topic", topic);
+        }
         if (maxCandidates != null) {
             args.put("maxCandidates", maxCandidates);
         }
-        return new ToolCallEntry("c1", SearchProductLaunchesToolHandler.TOOL_NAME, args);
+        if (paste != null) {
+            args.put("paste", paste);
+        }
+        return new ToolCallEntry("c1", RecallProductsToolHandler.TOOL_NAME, args);
     }
 
     private static String fixtureFivePlusAiCoding() {

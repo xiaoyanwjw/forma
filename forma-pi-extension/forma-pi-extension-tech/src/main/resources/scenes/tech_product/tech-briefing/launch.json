@@ -13,7 +13,7 @@
     },
     "paste": {
       "required": false,
-      "description": "粘贴 Newsletter/列表正文；有则跳过 search_product_launches"
+      "description": "粘贴 Newsletter/列表正文；有则 recall_products 内解析，跳过 PH"
     },
     "deepFetch": {
       "required": false,

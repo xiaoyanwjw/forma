@@ -1,6 +1,6 @@
 package com.xmut.forma.extension.config;
 
-import com.xmut.forma.extension.tool.ph.SearchProductLaunchesToolHandler;
+import com.xmut.forma.extension.tool.product.recall.RecallProductsToolHandler;
 import com.xmut.forma.extension.tool.sku.SearchSkuToolHandler;
 import com.xmut.forma.extension.tool.tech.ExcerptChunksToolHandler;
 import com.xmut.forma.extension.tool.view.RenderViewToolHandler;
@@ -34,6 +34,7 @@ class FormaPrimaryToolCatalogOverrideTest {
                     ViewToolsConfiguration.class,
                     WebFetchToolsConfiguration.class,
                     TechExcerptToolsConfiguration.class,
+                    PageIngestToolsConfiguration.class,
                     ProductLaunchToolsConfiguration.class)
             .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class));
 
@@ -75,7 +76,7 @@ class FormaPrimaryToolCatalogOverrideTest {
             assertThat(catalog.resolve("render_view")).isPresent();
             assertThat(catalog.resolve("fetch_web_page")).isPresent();
             assertThat(catalog.resolve("excerpt_chunks")).isPresent();
-            assertThat(catalog.resolve("search_product_launches")).isPresent();
+            assertThat(catalog.resolve("recall_products")).isPresent();
             assertThat(catalog.resolve("ask_human")).isPresent();
             assertThat(catalog.resolve("write_file")).isPresent();
             assertThat(catalog.resolve("read_file")).isPresent();
@@ -89,8 +90,8 @@ class FormaPrimaryToolCatalogOverrideTest {
             assertThat(catalog.handlerOf("render_view").get()).isInstanceOf(RenderViewToolHandler.class);
             assertThat(catalog.handlerOf("fetch_web_page").get()).isInstanceOf(FetchWebPageToolHandler.class);
             assertThat(catalog.handlerOf("excerpt_chunks").get()).isInstanceOf(ExcerptChunksToolHandler.class);
-            assertThat(catalog.handlerOf("search_product_launches").get())
-                    .isInstanceOf(SearchProductLaunchesToolHandler.class);
+            assertThat(catalog.handlerOf("recall_products").get())
+                    .isInstanceOf(RecallProductsToolHandler.class);
             assertThat(catalog.handlerOf("ask_human")).isPresent();
             assertThat(catalog.handlerOf("ask_human").get()).isInstanceOf(AskHumanToolHandler.class);
             assertThat(catalog.handlerOf("write_file").get()).isInstanceOf(WriteFileToolHandler.class);
