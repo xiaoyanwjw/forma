@@ -40,6 +40,8 @@ public class ArtifactPersistPlugin {
             "科技速读成果不合格：需含非空 view、非空 title、source 为 fetch 或 paste、以及非空 excerpts";
     public static final String MSG_TECH_COMPETITOR_UNUSABLE =
             "竞品分析成果不合格：需含非空 view、非空 title、source 为 fetch 或 paste、非空 excerpts，以及 snapshot.positioning";
+    public static final String MSG_TECH_BRIEFING_UNUSABLE =
+            "产品早报成果不合格：需含非空 view、非空 title，以及非空 items";
 
     private final ArtifactRepository artifactRepository;
     private final ObjectMapper objectMapper;
@@ -77,6 +79,8 @@ public class ArtifactPersistPlugin {
             requireUsableTechDigestPayload(projectedView, data);
         } else if ("tech_competitor".equals(code)) {
             requireUsableTechCompetitorPayload(projectedView, data);
+        } else if ("tech_briefing".equals(code)) {
+            requireUsableTechBriefingPayload(projectedView, data);
         }
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         Map<String, Object> view = projectedView != null ? projectedView : Collections.<String, Object>emptyMap();
@@ -171,6 +175,22 @@ public class ArtifactPersistPlugin {
         Object positioning = ((Map<?, ?>) snapshot).get("positioning");
         if (!(positioning instanceof Map) || ((Map<?, ?>) positioning).isEmpty()) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_COMPETITOR_UNUSABLE);
+        }
+    }
+
+    /**
+     * 可用产品早报：非空 view；title 非空；items 为非空 list。
+     */
+    static void requireUsableTechBriefingPayload(Map<String, Object> view, Map<String, Object> data) {
+        if (view == null || view.isEmpty() || data == null) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_BRIEFING_UNUSABLE);
+        }
+        if (!StringUtils.hasText(text(data.get("title")))) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_BRIEFING_UNUSABLE);
+        }
+        Object items = data.get("items");
+        if (!(items instanceof List) || ((List<?>) items).isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_TECH_BRIEFING_UNUSABLE);
         }
     }
 

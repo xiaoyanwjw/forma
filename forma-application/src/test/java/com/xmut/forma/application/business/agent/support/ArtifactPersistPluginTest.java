@@ -241,6 +241,48 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
+    void persist_techBriefing_mapsType() {
+        PersistedGenerationArtifact out = plugin.persist(
+                "u1", "r1", "tech_product", "tech_briefing",
+                listViewMap(), usableTechBriefingPayload());
+        assertNotNull(out.getArtifactRef());
+        ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
+        verify(artifactRepository).save(cap.capture());
+        assertEquals(ArtifactType.fromCode("tech_briefing"), cap.getValue().getType());
+    }
+
+    @Test
+    void persist_techBriefing_rejectsEmptyView() {
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "tech_product", "tech_briefing",
+                        Collections.<String, Object>emptyMap(), usableTechBriefingPayload()));
+        assertEquals(ArtifactPersistPlugin.MSG_TECH_BRIEFING_UNUSABLE, ex.getMessage());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_techBriefing_rejectsMissingTitle() {
+        Map<String, Object> artifact = usableTechBriefingPayload();
+        artifact.remove("title");
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "tech_product", "tech_briefing",
+                        listViewMap(), artifact));
+        assertEquals(ArtifactPersistPlugin.MSG_TECH_BRIEFING_UNUSABLE, ex.getMessage());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
+    void persist_techBriefing_rejectsEmptyItems() {
+        Map<String, Object> artifact = usableTechBriefingPayload();
+        artifact.put("items", Collections.emptyList());
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                plugin.persist("u1", "r1", "tech_product", "tech_briefing",
+                        listViewMap(), artifact));
+        assertEquals(ArtifactPersistPlugin.MSG_TECH_BRIEFING_UNUSABLE, ex.getMessage());
+        verify(artifactRepository, never()).save(any(Artifact.class));
+    }
+
+    @Test
     void persist_listingPlan_acceptsMinimalPlan() {
         PersistedGenerationArtifact out = plugin.persist(
                 "u1", "r1", "ecommerce", "listing_plan", planView(), usablePlanPayload());
@@ -294,6 +336,21 @@ class ArtifactPersistPluginTest {
         Map<String, Object> snapshot = new LinkedHashMap<String, Object>();
         snapshot.put("positioning", positioning);
         payload.put("snapshot", snapshot);
+        return payload;
+    }
+
+    private static Map<String, Object> usableTechBriefingPayload() {
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("title", "AI 办公早报");
+        payload.put("topic", "AI 办公");
+        payload.put("windowLabel", "今天");
+        payload.put("source", "ph");
+        Map<String, Object> item = new LinkedHashMap<String, Object>();
+        item.put("title", "Notion AI");
+        item.put("oneLiner", "协作空间里的助手");
+        item.put("whyNow", "今日 PH 热度高");
+        item.put("sourceUrl", "https://www.producthunt.com/posts/notion-ai");
+        payload.put("items", Collections.singletonList(item));
         return payload;
     }
 
