@@ -50,9 +50,11 @@ class ExtensionAutoConfigurationSmokeTest {
         String listed = merged.toString();
         assertTrue(listed.contains("com.xmut.forma.extension.config.SkuToolsConfiguration"));
         assertTrue(listed.contains("com.xmut.forma.extension.config.XhsToolsConfiguration"));
-        assertTrue(listed.contains("com.xmut.forma.extension.config.WebFetchToolsConfiguration"));
-        assertTrue(listed.contains("com.xmut.forma.extension.config.TechExcerptToolsConfiguration"));
-        assertTrue(listed.contains("com.xmut.forma.extension.config.ProductLaunchToolsConfiguration"));
+        assertTrue(listed.contains("com.xmut.forma.extension.config.common.WebFetchToolsConfiguration"));
+        assertTrue(listed.contains("com.xmut.forma.extension.config.common.ExcerptToolsConfiguration"));
+        assertTrue(listed.contains("com.xmut.forma.extension.config.common.PageIngestToolsConfiguration"));
+        assertTrue(listed.contains("com.xmut.forma.extension.config.product.ProductToolsConfiguration"));
+        assertTrue(listed.contains("com.xmut.forma.extension.config.digest.DigestToolsConfiguration"));
         assertTrue(listed.contains("com.xmut.forma.extension.config.ViewToolsConfiguration"));
         assertTrue(listed.contains("com.xmut.forma.extension.config.FormaModelCatalogAutoConfiguration"));
     }

@@ -1,8 +1,8 @@
 package com.xmut.forma.extension.tool.common.excerpt.port;
 
-import com.xmut.forma.extension.tool.tech.ChunkExcerpt;
-import com.xmut.forma.extension.tool.tech.ModelChunkExcerpter;
-import com.xmut.forma.extension.tool.tech.TechDigestChunk;
+import com.xmut.forma.extension.tool.common.excerpt.ChunkExcerpt;
+import com.xmut.forma.extension.tool.common.excerpt.ModelChunkExcerpter;
+import com.xmut.forma.extension.tool.common.excerpt.TechDigestChunk;
 import com.xmut.forma.pi.ai.model.ModelProvider;
 import com.xmut.forma.pi.ai.model.ModelRequest;
 import com.xmut.forma.pi.ai.model.ModelResponse;

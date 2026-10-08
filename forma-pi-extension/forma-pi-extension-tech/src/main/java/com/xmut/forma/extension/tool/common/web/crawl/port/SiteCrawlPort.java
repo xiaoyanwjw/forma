@@ -1,6 +1,6 @@
 package com.xmut.forma.extension.tool.common.web.crawl.port;
 
-import com.xmut.forma.extension.tool.web.port.WebFetchHit;
+import com.xmut.forma.extension.tool.common.web.fetch.port.WebFetchHit;
 import java.util.List;
 
 /**

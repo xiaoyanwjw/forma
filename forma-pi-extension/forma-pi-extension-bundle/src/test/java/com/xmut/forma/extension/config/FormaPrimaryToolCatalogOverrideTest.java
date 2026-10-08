@@ -1,5 +1,10 @@
 package com.xmut.forma.extension.config;
 
+import com.xmut.forma.extension.config.common.ExcerptToolsConfiguration;
+import com.xmut.forma.extension.config.common.PageIngestToolsConfiguration;
+import com.xmut.forma.extension.config.common.WebFetchToolsConfiguration;
+import com.xmut.forma.extension.config.digest.DigestToolsConfiguration;
+import com.xmut.forma.extension.config.product.ProductToolsConfiguration;
 import com.xmut.forma.extension.tool.digest.ingest.IngestDigestToolHandler;
 import com.xmut.forma.extension.tool.product.ingest.IngestCompetitorToolHandler;
 import com.xmut.forma.extension.tool.product.recall.RecallProductsToolHandler;
@@ -34,9 +39,10 @@ class FormaPrimaryToolCatalogOverrideTest {
                     XhsToolsConfiguration.class,
                     ViewToolsConfiguration.class,
                     WebFetchToolsConfiguration.class,
-                    TechExcerptToolsConfiguration.class,
+                    ExcerptToolsConfiguration.class,
                     PageIngestToolsConfiguration.class,
-                    ProductLaunchToolsConfiguration.class)
+                    ProductToolsConfiguration.class,
+                    DigestToolsConfiguration.class)
             .withConfiguration(AutoConfigurations.of(PiAutoConfiguration.class));
 
     @Test

@@ -1,5 +1,8 @@
 package com.xmut.forma.extension.tool.view;
 
+import com.xmut.forma.extension.tool.digest.view.TechDigestViewEnricher;
+import com.xmut.forma.extension.tool.product.view.TechBriefingViewEnricher;
+import com.xmut.forma.extension.tool.product.view.TechCompetitorViewEnricher;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;

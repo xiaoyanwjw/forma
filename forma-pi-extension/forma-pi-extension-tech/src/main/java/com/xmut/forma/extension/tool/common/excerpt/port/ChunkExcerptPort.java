@@ -1,7 +1,7 @@
 package com.xmut.forma.extension.tool.common.excerpt.port;
 
-import com.xmut.forma.extension.tool.tech.ChunkExcerpt;
-import com.xmut.forma.extension.tool.tech.TechDigestChunk;
+import com.xmut.forma.extension.tool.common.excerpt.ChunkExcerpt;
+import com.xmut.forma.extension.tool.common.excerpt.TechDigestChunk;
 import java.util.List;
 
 /**

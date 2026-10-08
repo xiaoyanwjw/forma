@@ -1,7 +1,7 @@
 package com.xmut.forma.extension.tool.common.web.fetch.port;
 
-import com.xmut.forma.extension.tool.web.client.MockWebFetchClient;
-import com.xmut.forma.extension.tool.web.port.WebFetchHit;
+import com.xmut.forma.extension.tool.common.web.fetch.client.MockWebFetchClient;
+import com.xmut.forma.extension.tool.common.web.fetch.port.WebFetchHit;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

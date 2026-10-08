@@ -14,29 +14,29 @@ import org.springframework.util.StringUtils;
  */
 public final class ViewRenderHelpers {
 
-    static final String PRIORITY_TOPIC = "【优先发】";
-    static final String PRIORITY_PICK = "【优先试】";
-    static final int BREAK_STRUCTURE_MAX = 240;
-    static final int BREAK_TEXT_MAX = 400;
+    public static final String PRIORITY_TOPIC = "【优先发】";
+    public static final String PRIORITY_PICK = "【优先试】";
+    public static final int BREAK_STRUCTURE_MAX = 240;
+    public static final int BREAK_TEXT_MAX = 400;
 
     private ViewRenderHelpers() {
     }
 
-    static void putDefaultEmptyList(Map<String, Object> artifact, String key) {
+    public static void putDefaultEmptyList(Map<String, Object> artifact, String key) {
         Object raw = artifact.get(key);
         if (!(raw instanceof List)) {
             artifact.put(key, new ArrayList<Object>());
         }
     }
 
-    static void putItemCount(Map<String, Object> artifact) {
+    public static void putItemCount(Map<String, Object> artifact) {
         Object rawItems = artifact.get("items");
         if (rawItems instanceof List) {
             artifact.put("itemCount", Integer.valueOf(((List<?>) rawItems).size()));
         }
     }
 
-    static void putNumberedLines(
+    public static void putNumberedLines(
             Map<String, Object> artifact,
             String sourceKey,
             String targetKey) {
@@ -60,7 +60,7 @@ public final class ViewRenderHelpers {
         }
     }
 
-    static void zipFramePrompts(Map<String, Object> artifact) {
+    public static void zipFramePrompts(Map<String, Object> artifact) {
         Object rawFrames = artifact.get("frames");
         if (!(rawFrames instanceof List)) {
             return;
@@ -101,7 +101,7 @@ public final class ViewRenderHelpers {
         }
     }
 
-    static List<String> splitParagraphs(String body) {
+    public static List<String> splitParagraphs(String body) {
         String normalized = body.replace("\r\n", "\n").trim();
         if (normalized.isEmpty()) {
             return new ArrayList<String>();
@@ -117,7 +117,7 @@ public final class ViewRenderHelpers {
         return paragraphs;
     }
 
-    static String joinWithMiddleDot(List<String> parts) {
+    public static String joinWithMiddleDot(List<String> parts) {
         StringBuilder sb = new StringBuilder();
         for (String part : parts) {
             if (sb.length() > 0) {
@@ -128,7 +128,7 @@ public final class ViewRenderHelpers {
         return sb.toString();
     }
 
-    static void enrichItems(Map<String, Object> artifact, ItemEnricher enricher) {
+    public static void enrichItems(Map<String, Object> artifact, ItemEnricher enricher) {
         Object rawItems = artifact.get("items");
         if (!(rawItems instanceof List)) {
             return;
@@ -152,7 +152,7 @@ public final class ViewRenderHelpers {
         artifact.put("items", enriched);
     }
 
-    static void topicItemHelpers(Map<String, Object> item) {
+    public static void topicItemHelpers(Map<String, Object> item) {
         String rawTitle = trimString(item.get("title"));
         boolean priority = StringUtils.hasText(rawTitle) && rawTitle.contains(PRIORITY_TOPIC);
         String title = stripPrefix(rawTitle, PRIORITY_TOPIC);
@@ -179,7 +179,7 @@ public final class ViewRenderHelpers {
         }
     }
 
-    static void pickItemHelpers(Map<String, Object> item) {
+    public static void pickItemHelpers(Map<String, Object> item) {
         String rawTitle = trimString(item.get("title"));
         boolean priority = StringUtils.hasText(rawTitle) && rawTitle.contains(PRIORITY_PICK);
         String title = stripAll(rawTitle, PRIORITY_PICK);
@@ -205,7 +205,7 @@ public final class ViewRenderHelpers {
         }
     }
 
-    static void putToneField(
+    public static void putToneField(
             Map<String, Object> item,
             String sourceKey,
             String labelKey,
@@ -220,7 +220,7 @@ public final class ViewRenderHelpers {
         item.put(classKey, scoreTone(toneKind, label));
     }
 
-    static String scoreLabel(String raw) {
+    public static String scoreLabel(String raw) {
         if (!StringUtils.hasText(raw)) {
             return raw;
         }
@@ -232,7 +232,7 @@ public final class ViewRenderHelpers {
         return trimmed.length() <= 4 ? trimmed : trimmed.substring(0, 4);
     }
 
-    static String scoreTone(String kind, String label) {
+    public static String scoreTone(String kind, String label) {
         String normalized = label == null ? "" : label.trim().toLowerCase(Locale.ROOT);
         if ("competition".equals(kind)) {
             if (containsAny(normalized, "高", "偏高")) {
@@ -262,7 +262,7 @@ public final class ViewRenderHelpers {
         return "mid";
     }
 
-    static boolean containsAny(String haystack, String... needles) {
+    public static boolean containsAny(String haystack, String... needles) {
         for (String needle : needles) {
             if (haystack.contains(needle)) {
                 return true;
@@ -271,7 +271,7 @@ public final class ViewRenderHelpers {
         return false;
     }
 
-    static int indexOfPipe(String value) {
+    public static int indexOfPipe(String value) {
         int full = value.indexOf('｜');
         int half = value.indexOf('|');
         if (full < 0) {
@@ -283,11 +283,11 @@ public final class ViewRenderHelpers {
         return Math.min(full, half);
     }
 
-    static String padIndex(int index) {
+    public static String padIndex(int index) {
         return index < 10 ? "0" + index : String.valueOf(index);
     }
 
-    static String buildXhsNoteHandoffText(
+    public static String buildXhsNoteHandoffText(
             String title,
             String id,
             String href,
@@ -313,7 +313,7 @@ public final class ViewRenderHelpers {
         return joinLines(lines);
     }
 
-    static String buildXhsBreakNoteHandoffText(
+    public static String buildXhsBreakNoteHandoffText(
             String targetProduct,
             String structure,
             String skeleton,
@@ -341,7 +341,7 @@ public final class ViewRenderHelpers {
         return joinLines(lines);
     }
 
-    static String buildListingHandoffText(
+    public static String buildListingHandoffText(
             String title,
             String id,
             String href,
@@ -370,7 +370,7 @@ public final class ViewRenderHelpers {
         return joinLines(lines);
     }
 
-    static String joinLines(List<String> lines) {
+    public static String joinLines(List<String> lines) {
         StringBuilder sb = new StringBuilder();
         for (String line : lines) {
             if (sb.length() > 0) {
@@ -381,7 +381,7 @@ public final class ViewRenderHelpers {
         return sb.toString();
     }
 
-    static String firstHttpsUrl(Object... candidates) {
+    public static String firstHttpsUrl(Object... candidates) {
         for (Object candidate : candidates) {
             String trimmed = trimString(candidate);
             if (StringUtils.hasText(trimmed) && trimmed.toLowerCase().startsWith("https://")) {
@@ -391,7 +391,7 @@ public final class ViewRenderHelpers {
         return null;
     }
 
-    static String stripPrefix(String value, String prefix) {
+    public static String stripPrefix(String value, String prefix) {
         if (!StringUtils.hasText(value)) {
             return value;
         }
@@ -402,14 +402,14 @@ public final class ViewRenderHelpers {
         return trimmed;
     }
 
-    static String stripAll(String value, String mark) {
+    public static String stripAll(String value, String mark) {
         if (!StringUtils.hasText(value)) {
             return value;
         }
         return value.replace(mark, "").trim();
     }
 
-    static String truncate(String value, int maxChars) {
+    public static String truncate(String value, int maxChars) {
         if (!StringUtils.hasText(value)) {
             return value;
         }
@@ -420,7 +420,7 @@ public final class ViewRenderHelpers {
         return trimmed.substring(0, maxChars) + "…";
     }
 
-    static String trimString(Object value) {
+    public static String trimString(Object value) {
         if (!(value instanceof String)) {
             return null;
         }

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.forma.extension.tool.common.web.fetch.port.PageFetchPort;
-import com.xmut.forma.extension.tool.web.port.WebFetchHit;
+import com.xmut.forma.extension.tool.common.web.fetch.port.WebFetchHit;
 import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 import com.xmut.forma.pi.ai.tool.ToolResult;

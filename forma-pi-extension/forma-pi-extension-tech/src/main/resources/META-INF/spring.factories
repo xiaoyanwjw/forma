@@ -1,5 +1,6 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.xmut.forma.extension.config.WebFetchToolsConfiguration,\
-com.xmut.forma.extension.config.TechExcerptToolsConfiguration,\
-com.xmut.forma.extension.config.PageIngestToolsConfiguration,\
-com.xmut.forma.extension.config.ProductLaunchToolsConfiguration
+com.xmut.forma.extension.config.common.WebFetchToolsConfiguration,\
+com.xmut.forma.extension.config.common.ExcerptToolsConfiguration,\
+com.xmut.forma.extension.config.common.PageIngestToolsConfiguration,\
+com.xmut.forma.extension.config.product.ProductToolsConfiguration,\
+com.xmut.forma.extension.config.digest.DigestToolsConfiguration
