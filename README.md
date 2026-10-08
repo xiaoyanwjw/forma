@@ -29,12 +29,6 @@ The snag is usually one of three.
 
 ### What Forma does
 
-https://github.com/user-attachments/assets/ba8dece6-954e-42ea-a4d2-26ddfac5c89f
-
-
-
-
-
 Forma packs daily skills into scenes and Skills. Users pick a scene, run it, the agent completes the work with that skill, and the person reviews, edits, and takes the result in Computer.
 
 The user still decides. The product’s job is to capture the skill, let the agent run it, and return the result the way that job should look. E-commerce listing and Xiaohongshu seeding are the first skills packed in; the same pattern can take more daily skills later.
