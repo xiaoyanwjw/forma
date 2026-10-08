@@ -25,7 +25,7 @@
 |----|------|
 | 主源 | Product Hunt（`source=ph`）；粘贴列表 → `source=paste` |
 | 条目数 | 成功路径目标 **3～7**；不足 3 且有候选 → 有几条出几条并可写入 `uncertainties`；**0 条 → Fail** |
-| `deepFetch` | **默认 1**：只深挖拟入选第 1 条；`0`=关；近端上限 **1** |
+| `deepFetch` | **默认 1**：经 `research_products` 只深挖拟入选第 1 条；`0`=关；近端上限 **1** |
 | 禁止 | 无候选编造条目；无 `items` 仍 settle；「今日必读 Top10」空壳 |
 
 ## artifact（领域实体）

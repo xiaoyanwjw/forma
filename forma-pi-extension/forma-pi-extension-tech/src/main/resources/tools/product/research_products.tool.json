@@ -1,0 +1,27 @@
+{
+  "id": "research_products",
+  "description": "对召回候选做有界深挖：抓取前 deepFetch 条有 URL 的页面取证据",
+  "text": "[research_products] 传入 candidates（或 candidatesPath）与 deepFetch（默认 1，上限 1）。对前 deepFetch 条有 url 的候选调用单页抓取写 evidence；失败不整轮 Fail。",
+  "handlerClass": "com.xmut.forma.extension.tool.product.research.ResearchProductsToolHandler",
+  "schema": {
+    "name": "research_products",
+    "description": "有界深挖候选；回显 deepFetch；可选每条 evidence",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "candidates": {
+          "type": "array",
+          "description": "recall_products 返回的候选列表（title/tagline/url/source）"
+        },
+        "candidatesPath": {
+          "type": "string",
+          "description": "工作区 JSON 路径（含 candidates 数组）；无 inline candidates 时使用"
+        },
+        "deepFetch": {
+          "type": "integer",
+          "description": "深挖条数；默认 1，近端上限 1；0=跳过抓取"
+        }
+      }
+    }
+  }
+}
