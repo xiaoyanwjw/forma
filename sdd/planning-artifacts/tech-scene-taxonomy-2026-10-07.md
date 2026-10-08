@@ -1,10 +1,11 @@
 # 科技分类规划：产品雷达 · 科技前沿
 
 **日期：** 2026-10-07  
-**状态：** 共识（场景命名 + 近端 Skill 已定；竞品分析对齐 Urlcomp；补充 Skill 为候选项）  
+**状态：** 共识（场景命名 + 近端 Skill 已定；竞品分析对齐 Urlcomp；产品早报对齐 ToolRadar/Launly 短条目；补充 Skill 为候选项）  
 **所属总路线：** `scene-product-plan-2026-10-04.md`  
 **速读实现细节：** `tech-scene-plan-2026-10-04.md`（展示名以本文为准）  
-**竞品实现取向：** 对齐 [Urlcomp](https://www.urlcomp.com/)（见 §7）；**不**以「用户交 2～N 个链接做对照表」为主路径。
+**竞品实现取向：** 对齐 [Urlcomp](https://www.urlcomp.com/)（见 §7）；**不**以「用户交 2～N 个链接做对照表」为主路径。  
+**早报实现取向：** 学 ToolRadar / Launly 短条目 + 出处（见 §8）；**不**做 Discera 日监控、**不**做多源合订门户。
 
 ---
 
@@ -205,3 +206,56 @@
 
 - **近端：** Urlcomp 单品拆解。  
 - **若用户要两家硬比：** 跑两次竞品分析，或后置「对照」Skill；不挡单 URL 主路径。
+
+---
+
+## 8. 产品早报 · 实现咬合（2026-10-08）
+
+参考心智：ToolRadar / Launly「今天几条值得跟」；**非** Urlcomp 单品拆解。
+
+**设计 / 计划：**  
+`docs/superpowers/specs/2026-10-08-tech-briefing-design.md`  
+`docs/superpowers/plans/2026-10-08-tech-briefing.md`
+
+### 8.1 用户怎么用
+
+| 项 | 近端约定 |
+|----|----------|
+| 场景 / 胶囊 | 仍在 **产品雷达**；第二颗胶囊 **产品早报**（默认胶囊保持竞品分析） |
+| 主输入 | **关注域 / 主题**（短句即可）；可选近 N 天 |
+| 兜底 | 粘贴 Newsletter / 列表正文 → 跳过列表 Actor |
+| 不做主路径 | 多源合订、定时推送、无出处热点榜、估值财务 |
+
+### 8.2 引擎逻辑（学什么 / 裁什么）
+
+**学：** 候选列表 → 过滤/去重/截断 → **默认深挖 1 条详情** → 短条目（是什么 / 为什么值得跟 / 出处）→ 一页 Computer。
+
+**近端裁掉：** 第二数据源（HN/RSS 等）、向量聚类、日监控订阅、列表**全员**逐个深挖。
+
+### 8.3 取数
+
+```text
+关注域（或 paste）
+  → search_product_launches（Apify · Product Hunt 单 Actor）→ candidates[]
+  → 关键词过滤 + URL/标题去重 + 截断（供模型再筛，上限约 12）
+  → （默认）拟入选第 1 条 fetch_web_page ×1；deepFetch=0 可关
+  → 主模型写 items[3..7]（有依据才写；禁止无候选编造）
+  → render_view → persistAs=tech_briefing → settle
+```
+
+| 钉死项 | 值 |
+|--------|-----|
+| Skill id | `tech-briefing` |
+| 主源 | **仅 Product Hunt**（actorId 可配置） |
+| 条数 | 目标 **3～7** |
+| 深挖 | **`deepFetch` 默认 1**；近端上限 1；0=关 |
+| persistAs | `tech_briefing` |
+| pack | `requiredSkills: [tech-competitor, tech-briefing]`；`defaultSkill: tech-competitor` |
+
+### 8.4 和竞品 / 链接速读的分工
+
+| | 产品早报 | 竞品分析 | 链接速读 |
+|--|----------|----------|----------|
+| 进 | 关注域 / 列表 | 1 产品 URL | 1 文章/文档 URL |
+| 出 | 多条扫描卡片 | 分层情报 + 三态 | 单篇摘要 |
+| 源 | PH 列表（或 paste） | WCC 抓页 | WCC 抓页 |
