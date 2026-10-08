@@ -41,7 +41,7 @@ metadata:
    - `deepFetch=0`：跳过 fetch，纯列表写条目。
    - 本轮 **至多 1 次** `fetch_web_page`；不并行、不二次拉页。失败则该条可无 evidence，勿编造；可记入 `uncertainties`。
 
-5. **写条目。** 按 [output.md](references/output.md) 拼完整 **artifact**：`topic`、`windowLabel`、`source`、`deepFetch`（本轮实际深挖条数）、`items`（**3～7**，有几条依据出几条）、`uncertainties`。每条含 `title` / `oneLiner` / `whyNow` / 尽量有 `sourceUrl`；`status` 以 **`found`** 为主。**禁止无候选编造。** `write_file` → `artifact.json`。
+5. **写条目。** 按 [output.md](references/output.md) 拼完整 **artifact**：`title`（中文，与后续 `view.title` 相同：域 + 时间窗）、`topic`、`windowLabel`、`source`、`deepFetch`（本轮实际深挖条数）、`items`（**3～7**，有几条依据出几条）、`uncertainties`。每条含 `title` / `oneLiner` / `whyNow` / 尽量有 `sourceUrl`；`status` 以 **`found`** 为主。**禁止无候选编造。** `write_file` → `artifact.json`。
 
 6. **渲染视图。** 调用 **`render_view`**（默认 `artifact.json` → `view.json`）。勿手写 HTML。近端**无**手递按钮。
 
@@ -83,6 +83,7 @@ metadata:
 - [ ] 有关注域或可用粘贴列表
 - [ ] paste 路径未调 `search_product_launches`；PH 路径调了且候选非空
 - [ ] `fetch_web_page` ≤1（`deepFetch=0` 时为 0）
+- [ ] `artifact.title` 非空，与 `view.title` 一致（域 + 时间窗）
 - [ ] `items` 非空（目标 3～7）；每条尽量有 `sourceUrl`；无候选编造
 - [ ] `source` 为 `ph` 或 `paste`；`metadata.persistAs` = `tech_briefing`
 - [ ] 已写 `artifact.json` 并成功 `render_view` → `view.json`

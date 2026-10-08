@@ -34,6 +34,7 @@
 
 | 字段 | 要求 |
 |------|------|
+| `title` | 中文标题；与 `view.title` 相同（域 + 时间窗语义） |
 | `topic` | 用户关注域/主题短句 |
 | `windowLabel` | 时间窗展示文案（如「今天」「近 1 天」） |
 | `source` | **`ph`** 或 **`paste`** |
@@ -68,6 +69,7 @@
 
 ```json
 {
+  "title": "AI coding agents · 今天产品早报",
   "topic": "AI coding agents",
   "windowLabel": "今天",
   "source": "ph",
