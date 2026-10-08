@@ -27,10 +27,10 @@
 
 | 规则 | 说明 |
 |------|------|
-| 原文 | 正文必须真实存在：`fetch` ← `fetch_web_page` / WCC 工具返回；`paste` ← 用户粘贴 |
+| 原文 | 正文必须真实存在：`fetch` ← `ingest_digest` 抓取；`paste` ← 用户粘贴 |
 | `source` | 仅 **`fetch`** 或 **`paste`**（落库枚举；SKILL 与 artifact 均不写 `apify`） |
 | `sourceUrl` | 可选；`fetch` 成功时有链接则写入，优先用工具 `finalUrl` |
-| `excerpts` | 由 `excerpt_chunks` 产出；`quotes[]` 必须是原文子串；主模型总结**只**看 `title` + `excerpts` + 可选 `concern` |
+| `excerpts` | 由 `ingest_digest` 产出；`quotes[]` 必须是原文子串；主模型总结**只**看 `title` + `excerpts` + 可选 `concern` |
 | 视图 | 标题、一句话、要点、原文摘录、适合谁、需核实、原文链接；含「AI 摘要，请对照原文」 |
 | 禁止 | 空摘录仍写要点、把块全文塞进 artifact、编造原文、二次拉页 |
 
@@ -135,7 +135,7 @@
 {"output":"view.json"}
 ```
 
-粘贴正文成功时，将 `"source": "paste"`，`sourceUrl` 可省略；`excerpts` 仍须来自 `excerpt_chunks`。
+粘贴正文成功时，将 `"source": "paste"`，`sourceUrl` 可省略；`excerpts` 仍须来自 `ingest_digest`。
 
 失败路径示例（仅人话，无 JSON）：
 

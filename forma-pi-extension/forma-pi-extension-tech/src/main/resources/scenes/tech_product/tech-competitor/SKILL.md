@@ -3,7 +3,7 @@ name: tech-competitor
 description: >-
   粘贴一个公网产品 URL（或正文），按 Urlcomp 风格产出分层竞品拆解（JSON：view + artifact）。
   在用户提到竞品分析、拆解官网、产品雷达时使用。
-allowed-tools: read_skill fetch_web_page excerpt_chunks write_file read_file render_view
+allowed-tools: read_skill ingest_competitor write_file read_file render_view
 metadata:
   billing: true
   persistAs: tech_competitor
@@ -13,7 +13,7 @@ metadata:
 
 # 竞品分析
 
-帮用户**拆解一个**公网产品：拉取或粘贴官网可见正文 → 切块摘句 → 按固定分层写可审计报告（Found / 推断 / 未公开）。没有可用正文就不要写盘、不要编造。
+帮用户**拆解一个**公网产品：一次 `ingest_competitor`（抓取或粘贴 → 摘句）→ 按固定分层写可审计报告（Found / 推断 / 未公开）。没有可用正文就不要写盘、不要编造。
 
 ## When to use
 
@@ -25,14 +25,14 @@ metadata:
 
 ## Workflow
 
-1. **判断原文从哪来。**
-   - **已有粘贴正文**（足够长的可见正文）：`artifact.source` = **`paste`**。若同时给了链接，可写入 `sourceUrl`，仍以粘贴为准。**不要**再调 `fetch_web_page`（**0 次**）。
-   - **只有 http(s) 链接、没有可用粘贴：** `fetch_web_page` **至多 1 次**。成功则 `source` = **`fetch`**，`sourceUrl` 优先工具 `finalUrl`；正文在工作区（默认 `source.md`）。失败或太短 → Failures，**禁止**编造。
+1. **判断原文从哪来，并调用一次 `ingest_competitor`。**
+   - **已有粘贴正文**（足够长的可见正文）：传 `paste`（可选再传 `url` 写入 `sourceUrl`）。`artifact.source` = 工具返回的 **`paste`**。**不要**再为抓取单独调工具。
+   - **只有 http(s) 链接、没有可用粘贴：** 传 `url`。成功则 `source` = **`fetch`**，`sourceUrl` 优先工具返回；正文在工作区（默认 `source.md`）。失败或太短 → Failures，**禁止**编造。
    - **既无链接也无粘贴：** Fail。
 
-2. **禁止二次拉页。** 同一轮 **至多 1 次** `fetch_web_page`；不并行、不自动跟 pricing 第二页。
+2. **禁止二次 ingest。** 同一轮 **`ingest_competitor` 恰好 1 次**；不并行、不自动跟 pricing 第二页。
 
-3. **切块摘句（恰好 1 次）。** fetch 用工具 `sourcePath`；paste 先 `write_file` 再 `excerpt_chunks`。本轮 **`excerpt_chunks` 恰好 1 次**。写各层时**只使用**返回的 `excerpts` 与可选 `concern`，**禁止**把 `source.md` 全文灌进总结。
+3. **只用返回的 `excerpts`。** 写各层时**只使用**工具返回的 `excerpts` 与可选 `concern`，**禁止**把 `source.md` 全文灌进总结。
 
 4. **构造领域实体。** 按 [output.md](references/output.md) 拼完整 **artifact**（分层 + 三态）。`rivals` **默认 `inferred`**（除非页上明文列举对手）。禁止估算 MRR/CAC；无公开价 → `pricingSignal` / `packaging` 用 `not_public`。`write_file` → `artifact.json`。
 
@@ -42,21 +42,17 @@ metadata:
 
 7. **过 Verification** 再结束。
 
-## Tool: fetch_web_page
+## Tool: ingest_competitor
+
+一次完成抓取|粘贴 → 切块摘句。成功 JSON 含 `source`（`fetch`|`paste`）、`sourceUrl?`、`sourcePath`、非空 `excerpts`。
 
 | 参数 | 说明 |
 |------|------|
-| `url` | 单个产品公网首页；已有粘贴可不调 |
-
-失败或太短：禁止编造；走 Failures。
-
-## Tool: excerpt_chunks
-
-| 参数 | 说明 |
-|------|------|
+| `url` | 单个产品公网首页；已有粘贴可不传 |
+| `paste` | 用户粘贴正文；提供则不抓取 |
 | `sourcePath` | 默认 `source.md` |
 
-本轮恰好 1 次。
+失败或太短：禁止编造；走 Failures。本轮恰好 1 次。
 
 ## Quality
 
@@ -70,8 +66,8 @@ metadata:
 
 ## Verification
 
-- [ ] 有可用原文（粘贴或一次成功 fetch），且 `excerpts` 非空
-- [ ] 本轮 `fetch_web_page` ≤1（粘贴路径 0 次）；`excerpt_chunks` 恰好 1 次
+- [ ] 有可用原文（粘贴或一次成功 ingest），且 `excerpts` 非空
+- [ ] 本轮 `ingest_competitor` **恰好 1 次**；`excerpts` 来自该次返回
 - [ ] 各层 `status` 仅为 found / inferred / not_public；found 可对照 quotes
 - [ ] rivals 默认 inferred（或页上列举才 found）；未写估算 MRR/CAC
 - [ ] 已写 `artifact.json` 并成功 `render_view` → `view.json`
@@ -90,5 +86,5 @@ metadata:
 ## Boundaries
 
 - 禁止无原文空写、禁止假 found
-- 不二次 / 并行 fetch；不代登、不收 Cookie、不解析 PDF
+- 不二次 / 并行 ingest；不代登、不收 Cookie、不解析 PDF
 - 不做日监控、不写销售 Battlecard

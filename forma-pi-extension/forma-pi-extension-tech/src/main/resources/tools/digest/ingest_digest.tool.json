@@ -1,0 +1,27 @@
+{
+  "id": "ingest_digest",
+  "description": "抓取或粘贴科技文章/文档正文并摘句，供一页速读",
+  "text": "[ingest_digest] 用 url 抓取或 paste 粘贴正文，写入 source.md 并返回 excerpts；禁止编造正文。",
+  "handlerClass": "com.xmut.forma.extension.tool.digest.ingest.IngestDigestToolHandler",
+  "schema": {
+    "name": "ingest_digest",
+    "description": "抓取|粘贴文章/文档 → excerpts；成功含 source/sourceUrl/sourcePath/excerpts",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "公开 http(s) 页面链接；已有 paste 可不传"
+        },
+        "paste": {
+          "type": "string",
+          "description": "用户粘贴的可见正文；提供则不抓取"
+        },
+        "sourcePath": {
+          "type": "string",
+          "description": "工作区正文路径，默认 source.md"
+        }
+      }
+    }
+  }
+}

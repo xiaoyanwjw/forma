@@ -30,7 +30,7 @@
 | `source` | **`fetch`** 或 **`paste`** |
 | `sourceUrl` | 有链接时填写；fetch 优先工具 `finalUrl` |
 | `concern` | 用户「我关心…」；没有则 `""` |
-| `excerpts` | 来自 `excerpt_chunks`；`quotes[]` 为原文子串 |
+| `excerpts` | 来自 `ingest_competitor`；`quotes[]` 为原文子串 |
 | `snapshot.positioning` | `{ status, value, quotes? }` |
 | `snapshot.audience` | 同上 |
 | `snapshot.pricingSignal` | 同上；无公开价 → `not_public` |

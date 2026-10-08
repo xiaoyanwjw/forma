@@ -1,0 +1,27 @@
+{
+  "id": "ingest_competitor",
+  "description": "抓取或粘贴产品页正文并摘句，供竞品分层分析",
+  "text": "[ingest_competitor] 用 url 抓取或 paste 粘贴正文，写入 source.md 并返回 excerpts；禁止编造正文。",
+  "handlerClass": "com.xmut.forma.extension.tool.product.ingest.IngestCompetitorToolHandler",
+  "schema": {
+    "name": "ingest_competitor",
+    "description": "抓取|粘贴产品页 → excerpts；成功含 source/sourceUrl/sourcePath/excerpts",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "公开 http(s) 产品页链接；已有 paste 可不传"
+        },
+        "paste": {
+          "type": "string",
+          "description": "用户粘贴的可见正文；提供则不抓取"
+        },
+        "sourcePath": {
+          "type": "string",
+          "description": "工作区正文路径，默认 source.md"
+        }
+      }
+    }
+  }
+}
