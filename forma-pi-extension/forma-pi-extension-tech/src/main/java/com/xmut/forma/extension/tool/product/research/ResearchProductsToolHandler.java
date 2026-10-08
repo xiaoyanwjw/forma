@@ -55,6 +55,7 @@ public final class ResearchProductsToolHandler implements ToolHandler {
             if (candidates.isEmpty()) {
                 return ToolResult.failed(callId, TOOL_NAME, "candidates required");
             }
+
             int deepFetch = resolveDeepFetch(args);
             ArrayNode outCandidates = objectMapper.createArrayNode();
             List<String> uncertainties = new ArrayList<String>();

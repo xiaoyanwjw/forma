@@ -74,7 +74,8 @@ public final class PageIngestService {
             throws Exception {
         String text = request.getPaste().trim();
         writeSource(workspace, sourcePath, text);
-        return excerptAndOk("paste", optionalUrl(request.getUrl()), sourcePath, "", text);
+        final String excerpt = excerpt("paste", optionalUrl(request.getUrl()), sourcePath, "", text);
+        return PageIngestOutcome.ok(excerpt);
     }
 
     private PageIngestOutcome ingestFetch(PageIngestRequest request, String workspace, String sourcePath)
@@ -84,27 +85,29 @@ public final class PageIngestService {
         if (fetchPort == null) {
             return PageIngestOutcome.fail("apify_error", messageFor("apify_error"));
         }
+
         WebFetchHit hit = fetchPort.fetch(url);
         if (hit == null || !StringUtils.hasText(hit.getText())) {
             return PageIngestOutcome.fail("empty_body", messageFor("empty_body"));
         }
+
         String text = hit.getText();
         writeSource(workspace, sourcePath, text);
         String sourceUrl = StringUtils.hasText(hit.getFinalUrl()) ? hit.getFinalUrl() : url;
         String title = hit.getTitle() == null ? "" : hit.getTitle();
-        return excerptAndOk("fetch", sourceUrl, sourcePath, title, text);
+        final String excerpt = excerpt("fetch", sourceUrl, sourcePath, title, text);
+
+        return PageIngestOutcome.ok(excerpt);
     }
 
-    private PageIngestOutcome excerptAndOk(
-            String source, String sourceUrl, String sourcePath, String title, String text) throws Exception {
+    private String excerpt(String source, String sourceUrl, String sourcePath, String title, String text) throws Exception {
         TechDigestPrepResult sliced = TechDigestSourcePrep.slice(text);
         List<TechDigestChunk> chunks = sliced.getChunks();
-        if (chunks == null || chunks.isEmpty()) {
-            return PageIngestOutcome.fail("empty_body", messageFor("empty_body"));
+        if (chunks.isEmpty()) {
+            throw new RuntimeException(messageFor("empty_body"));
         }
-        List<ChunkExcerpt> raw = excerptPort == null
-                ? Collections.<ChunkExcerpt>emptyList()
-                : excerptPort.excerpt(chunks);
+
+        List<ChunkExcerpt> raw =  excerptPort.excerpt(chunks);
         ObjectNode root = objectMapper.createObjectNode();
         root.put("ok", true);
         root.put("source", source);
@@ -119,16 +122,17 @@ public final class PageIngestService {
             String heading = chunk == null ? "" : chunk.getHeading();
             List<String> quotes = ExcerptQuoteHelper.sanitize(chunkText, rawQuotesAt(raw, i));
             ObjectNode node = excerpts.addObject();
-            node.put("heading", heading == null ? "" : heading);
+            node.put("heading", heading);
             ArrayNode quoteNodes = node.putArray("quotes");
             for (int q = 0; q < quotes.size(); q++) {
                 quoteNodes.add(quotes.get(q));
             }
         }
-        if (excerpts.size() == 0) {
-            return PageIngestOutcome.fail("empty_excerpts", "excerpts empty");
+        if (excerpts.isEmpty()) {
+            throw new RuntimeException(messageFor("empty_excerpts"));
         }
-        return PageIngestOutcome.ok(objectMapper.writeValueAsString(root));
+
+        return objectMapper.writeValueAsString(root);
     }
 
     private static void writeSource(String workspace, String sourcePath, String text) throws Exception {
