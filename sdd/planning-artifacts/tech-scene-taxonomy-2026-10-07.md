@@ -37,6 +37,8 @@
 
 **竞品 vs 链接速读：** 同是「一链进」，但竞品输出是 **产品情报骨架 + 可信度标签**；速读是 **文章/文档摘要**。入口可像，交付合同不同。
 
+**工具分层（2026-10-08）：** 业务工具对外名恰好两词（`recall_products` / `research_products` / `ingest_competitor` / `ingest_digest`）；抓取·爬取·摘句等原子 Port **不对 Agent 暴露**。细则见 `docs/superpowers/specs/2026-10-08-tech-tool-layers-design.md`。
+
 ---
 
 ## 3. 可补充 Skill（候选项，未立项）
@@ -194,13 +196,12 @@
 
 ```text
 1 URL
-  → fetch_web_page（Apify WCC）×1，可选 pricing 链再 ×1（有界）
-  → excerpt_chunks
+  → ingest_competitor（内部：PageFetchPort ×1 + ChunkExcerptPort；可选 pricing 再抓 1）
   → 主模型按 §7.3 骨架填字段 + 三态
   → render_view → 结算
 ```
 
-与 **链接速读** 共用抓页/摘句工具；Skill 正文与 output 合同不同（情报层 vs 文章摘要）。
+与 **链接速读** 共用抓取/摘句原子（`PageFetchPort` / `ChunkExcerptPort`），对外各走 `ingest_competitor` / `ingest_digest`；Skill 正文与 output 合同不同（情报层 vs 文章摘要）。
 
 ### 7.5 和「多链对照」的关系
 
@@ -236,9 +237,8 @@
 
 ```text
 关注域（或 paste）
-  → search_product_launches（Apify · Product Hunt 单 Actor）→ candidates[]
-  → 关键词过滤 + URL/标题去重 + 截断（供模型再筛，上限约 12）
-  → （默认）拟入选第 1 条 fetch_web_page ×1；deepFetch=0 可关
+  → recall_products（PH 列表或 paste）→ candidates[]
+  → research_products（默认 deepFetch=1 调 PageFetchPort；0=跳过深挖）
   → 主模型写 items[3..7]（有依据才写；禁止无候选编造）
   → render_view → persistAs=tech_briefing → settle
 ```
