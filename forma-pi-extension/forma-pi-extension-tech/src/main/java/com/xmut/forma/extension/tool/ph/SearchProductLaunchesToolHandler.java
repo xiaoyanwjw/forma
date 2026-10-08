@@ -14,6 +14,7 @@ import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 import com.xmut.forma.pi.ai.tool.ToolResult;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -98,13 +99,13 @@ public final class SearchProductLaunchesToolHandler implements ToolHandler {
         if (raw == null || raw.isEmpty() || maxCandidates < 1) {
             return new ArrayList<ProductLaunchCandidate>();
         }
-        String needle = topic.toLowerCase(Locale.ROOT);
+        List<String> topicTokens = significantTopicTokens(topic);
         List<ProductLaunchCandidate> matched = new ArrayList<ProductLaunchCandidate>();
         for (ProductLaunchCandidate c : raw) {
             if (c == null || !StringUtils.hasText(c.getTitle())) {
                 continue;
             }
-            if (!matchesTopic(c, needle)) {
+            if (!matchesTopic(c, topicTokens)) {
                 continue;
             }
             matched.add(c);
@@ -116,10 +117,53 @@ public final class SearchProductLaunchesToolHandler implements ToolHandler {
         return new ArrayList<ProductLaunchCandidate>(deduped.subList(0, maxCandidates));
     }
 
-    private static boolean matchesTopic(ProductLaunchCandidate c, String needle) {
+    static List<String> significantTopicTokens(String topic) {
+        if (!StringUtils.hasText(topic)) {
+            return Collections.emptyList();
+        }
+        String[] parts = topic.trim().split("\\s+");
+        List<String> tokens = new ArrayList<String>();
+        for (String part : parts) {
+            if (part.length() >= 2) {
+                tokens.add(part.toLowerCase(Locale.ROOT));
+            }
+        }
+        return tokens;
+    }
+
+    private static boolean matchesTopic(ProductLaunchCandidate c, List<String> topicTokens) {
+        if (topicTokens.isEmpty()) {
+            return true;
+        }
         String title = c.getTitle() == null ? "" : c.getTitle().toLowerCase(Locale.ROOT);
         String tagline = c.getTagline() == null ? "" : c.getTagline().toLowerCase(Locale.ROOT);
-        return title.contains(needle) || tagline.contains(needle);
+        for (String token : topicTokens) {
+            if (containsTokenWord(title, token) || containsTokenWord(tagline, token)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsTokenWord(String haystack, String token) {
+        if (!StringUtils.hasText(haystack) || !StringUtils.hasText(token)) {
+            return false;
+        }
+        int idx = 0;
+        while (idx <= haystack.length() - token.length()) {
+            int found = haystack.indexOf(token, idx);
+            if (found < 0) {
+                return false;
+            }
+            boolean startOk = found == 0 || !Character.isLetterOrDigit(haystack.charAt(found - 1));
+            int end = found + token.length();
+            boolean endOk = end >= haystack.length() || !Character.isLetterOrDigit(haystack.charAt(end));
+            if (startOk && endOk) {
+                return true;
+            }
+            idx = found + 1;
+        }
+        return false;
     }
 
     private static List<ProductLaunchCandidate> dedupe(List<ProductLaunchCandidate> items) {

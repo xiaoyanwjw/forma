@@ -6,7 +6,10 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.forma.extension.common.ApifyActorTransport;
 import com.xmut.forma.extension.tool.ph.client.ApifyProductHuntSearchClient;
+import com.xmut.forma.extension.tool.ph.port.ProductLaunchCandidate;
 import com.xmut.forma.extension.tool.ph.port.ProductLaunchSearchProperties;
+import java.util.Arrays;
+import java.util.List;
 import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 import com.xmut.forma.pi.ai.tool.ToolResult;
@@ -112,6 +115,30 @@ class SearchProductLaunchesToolHandlerTest {
     }
 
     @Test
+    void topic_ai_coding_agents_matches_title_or_tagline_with_any_significant_token() {
+        List<ProductLaunchCandidate> raw = Arrays.asList(
+                candidate("CodePilot", "Ship faster with AI coding", "https://www.producthunt.com/posts/codepilot"),
+                candidate("Plain CRM", "sales CRM only", "https://www.producthunt.com/posts/crm"));
+
+        List<ProductLaunchCandidate> filtered = SearchProductLaunchesToolHandler.normalize(
+                raw, "AI coding agents", 12);
+
+        assertEquals(1, filtered.size());
+        assertEquals("CodePilot", filtered.get(0).getTitle());
+    }
+
+    @Test
+    void topic_ai_coding_agents_filters_unrelated_products() {
+        List<ProductLaunchCandidate> raw = Arrays.asList(
+                candidate("Plain CRM", "sales CRM only", "https://www.producthunt.com/posts/crm"));
+
+        List<ProductLaunchCandidate> filtered = SearchProductLaunchesToolHandler.normalize(
+                raw, "AI coding agents", 12);
+
+        assertTrue(filtered.isEmpty());
+    }
+
+    @Test
     void missing_topic_fails() {
         ApifyActorTransport transport = (a, t, ms, b) -> {
             throw new AssertionError("must not call transport");
@@ -158,6 +185,10 @@ class SearchProductLaunchesToolHandlerTest {
                 + ","
                 + item("Unrelated CRM", "sales CRM only", "https://www.producthunt.com/posts/crm", 50)
                 + "]";
+    }
+
+    private static ProductLaunchCandidate candidate(String title, String tagline, String url) {
+        return new ProductLaunchCandidate(title, tagline, url, null, null, "ph");
     }
 
     private static String item(String name, String tagline, String url, int votes) {
