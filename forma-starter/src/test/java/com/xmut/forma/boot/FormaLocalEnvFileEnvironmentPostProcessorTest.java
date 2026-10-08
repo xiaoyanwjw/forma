@@ -80,6 +80,7 @@ class FormaLocalEnvFileEnvironmentPostProcessorTest {
                     .postProcessEnvironment(environment, new SpringApplication());
             assertEquals("from-file", environment.getProperty("APIFY_TOKEN"));
             assertEquals("from-file", environment.getProperty("forma.web-fetch.apify.token"));
+            assertEquals("from-file", environment.getProperty("forma.product-launch-search.apify.token"));
         } finally {
             System.setProperty("user.dir", previous);
         }

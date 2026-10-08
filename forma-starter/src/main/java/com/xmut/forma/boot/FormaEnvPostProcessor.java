@@ -64,7 +64,8 @@ public class FormaEnvPostProcessor implements EnvironmentPostProcessor {
                 "forma.web-fetch.apify.token",
                 "forma.sku-search.apify.token",
                 "forma.xhs-note-search.apify.token",
-                "forma.xhs-note-fetch.apify.token"
+                "forma.xhs-note-fetch.apify.token",
+                "forma.product-launch-search.apify.token"
         });
         alias(loaded, "DEEPSEEK_API_KEY", new String[] {"ai.providers.deepseek.api-key"});
         alias(loaded, "DASHSCOPE_API_KEY", new String[] {"ai.providers.dashscope.api-key"});
