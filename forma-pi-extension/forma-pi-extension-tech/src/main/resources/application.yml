@@ -6,7 +6,7 @@ forma:
       token: ${APIFY_TOKEN:}
   product-launch-search:
     apify:
-      # Default Actor: cloud9_ai/producthunt-scraper (curious_coder/producthunt-scraper 404 on Store).
-      actor-id: ${FORMA_TECH_PH_ACTOR_ID:cloud9_ai/producthunt-scraper}
+      # Default Actor: cazadores/product-hunt-scraper (daily leaderboard; no PH API token).
+      actor-id: ${FORMA_TECH_PH_ACTOR_ID:cazadores/product-hunt-scraper}
       token: ${APIFY_TOKEN:}
       product-hunt-token: ${PRODUCT_HUNT_TOKEN:}

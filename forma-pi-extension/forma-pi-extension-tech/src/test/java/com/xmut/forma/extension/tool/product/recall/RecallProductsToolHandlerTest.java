@@ -139,9 +139,14 @@ class RecallProductsToolHandlerTest {
     }
 
     @Test
-    void missing_topic_and_paste_fails() {
+    void blank_args_fetches_ph_list_without_topic_filter() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
         ApifyActorTransport transport = (a, t, ms, b) -> {
-            throw new AssertionError("must not call transport");
+            calls.incrementAndGet();
+            assertTrue(b.contains("\"mode\":\"leaderboard\""));
+            assertTrue(b.contains("\"leaderboard\":\"daily\""));
+            assertFalse(b.contains("\"topicFilter\""));
+            return fixtureFivePlusAiCoding();
         };
         RecallProductsToolHandler handler = handlerWith(transport, "test-token");
 
@@ -150,9 +155,12 @@ class RecallProductsToolHandlerTest {
                 new ToolCallEntry("c2", RecallProductsToolHandler.TOOL_NAME, args),
                 new ToolContext("r1", "t1"));
 
-        assertFalse(result.isSuccess());
-        assertTrue(result.getErrorMessage() != null
-                && result.getErrorMessage().contains("topic or paste"));
+        assertTrue(result.isSuccess());
+        assertEquals(1, calls.get());
+        JsonNode candidates = MAPPER.readTree(result.getOutput()).get("candidates");
+        // no topic → keep unrelated CRM too (only dedupe/truncate)
+        assertTrue(candidates.size() >= 5);
+        assertEquals("ph", candidates.get(0).get("source").asText());
     }
 
     @Test

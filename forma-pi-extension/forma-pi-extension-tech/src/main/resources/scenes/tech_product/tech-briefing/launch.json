@@ -1,12 +1,8 @@
 {
   "label": "产品早报",
-  "examplePrompt": "请按关注域「AI coding agents」出今天值得跟的产品早报",
-  "sortOrder": 2,
+  "examplePrompt": "请出今天 Product Hunt 值得跟的产品早报",
+  "sortOrder": 1,
   "inputs": {
-    "topic": {
-      "required": true,
-      "description": "关注域/主题短句（必填语义；有 paste 时可省略）"
-    },
     "window": {
       "required": false,
       "description": "时间窗；默认今天/近 1 天"

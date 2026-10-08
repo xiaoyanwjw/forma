@@ -7,7 +7,7 @@
    - 视图 → 调用 **`render_view`**（默认读 `artifact.json`，写 `view.json`，模板 `template/view.mustache`）。**勿**手写 HTML `content`。
 2. **对话终稿：** 成功时不要输出 `{"output":...}`；盘上已有 reminder 指定的 **output**（通常 `view.json`）即成功。
 
-无关注域且无粘贴、列表空且无粘贴、全部取数失败时**不要**写这些文件，只回人话，不 settle。
+列表空、全部取数失败且无粘贴时**不要**写这些文件，只回人话，不 settle。近端**不要求**关注域。
 
 ## Skill 元数据
 
@@ -34,8 +34,8 @@
 
 | 字段 | 要求 |
 |------|------|
-| `title` | 中文标题；与 `view.title` 相同（域 + 时间窗语义） |
-| `topic` | 用户关注域/主题短句 |
+| `title` | 中文标题；与 `view.title` 相同（如「今天产品早报」） |
+| `topic` | 可选；用户主动提关注域时才写 |
 | `windowLabel` | 时间窗展示文案（如「今天」「近 1 天」） |
 | `source` | **`ph`** 或 **`paste`** |
 | `deepFetch` | 本轮实际深挖条数；默认按 **1** 执行（`0`=关） |
@@ -59,7 +59,7 @@
 | 字段 | 要求 |
 |------|------|
 | `version` | **`2`** |
-| `title` | 中文标题（域 + 时间窗语义） |
+| `title` | 中文标题（时间窗语义，如「今天产品早报」） |
 | `format` | **`html`** |
 | `content` | Mustache 渲染；抬头（域 + 时间窗）+ 条目卡片（是什么 / 为什么值得跟 / 出处） |
 
@@ -69,8 +69,7 @@
 
 ```json
 {
-  "title": "AI coding agents · 今天产品早报",
-  "topic": "AI coding agents",
+  "title": "今天产品早报",
   "windowLabel": "今天",
   "source": "ph",
   "deepFetch": 1,

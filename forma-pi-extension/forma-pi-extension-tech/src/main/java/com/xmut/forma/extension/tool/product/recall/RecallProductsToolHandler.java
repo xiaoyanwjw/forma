@@ -13,6 +13,7 @@ import com.xmut.forma.pi.agent.graph.node.ToolHandler;
 import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 import com.xmut.forma.pi.ai.tool.ToolResult;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -21,6 +22,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -63,52 +65,29 @@ public final class RecallProductsToolHandler implements ToolHandler {
         String callId = call != null ? call.getId() : null;
         try {
             String topic = extractText(call, "topic");
-            String paste = extractText(call, "paste");
-            boolean hasTopic = StringUtils.hasText(topic);
-            boolean hasPaste = StringUtils.hasText(paste);
-            if (!hasTopic && !hasPaste) {
-                return ToolResult.failed(callId, TOOL_NAME, "topic or paste required");
-            }
 
             int maxCandidates = resolveMaxCandidates(call);
-            List<ProductLaunchCandidate> filtered;
             String actorId = properties.getApify().getActorId();
-            int rawCount;
 
-            if (hasPaste) {
-                List<ProductLaunchCandidate> parsed = parsePaste(paste);
-                rawCount = parsed.size();
-                filtered = normalize(parsed, hasTopic ? topic.trim() : "", maxCandidates);
-                LoggerUtils.success(
-                        log,
-                        RecallProductsToolHandler.class,
-                        "handle",
-                        NameValue.create("source", "paste"),
-                        NameValue.create("topicLen", hasTopic ? topic.trim().length() : 0),
-                        NameValue.create("rawCount", rawCount),
-                        NameValue.create("filteredCount", filtered.size()),
-                        NameValue.create("maxCandidates", maxCandidates));
-            } else {
-                int fetchLimit = Math.min(Math.max(maxCandidates * 3, 24), 100);
-                List<ProductLaunchCandidate> raw = searchPort.search(topic.trim(), fetchLimit);
-                rawCount = raw == null ? 0 : raw.size();
-                filtered = normalize(raw, topic.trim(), maxCandidates);
-                LoggerUtils.success(
-                        log,
-                        RecallProductsToolHandler.class,
-                        "handle",
-                        NameValue.create("source", "ph"),
-                        NameValue.create("actorId", actorId),
-                        NameValue.create("topicLen", topic.trim().length()),
-                        NameValue.create("rawCount", rawCount),
-                        NameValue.create("filteredCount", filtered.size()),
-                        NameValue.create("maxCandidates", maxCandidates));
-            }
+            // 无 paste：拉 PH 列表（topic 可空 = 当天热门全表，再只做去重截断）
+            int fetchLimit = Math.min(Math.max(maxCandidates * 3, 24), 100);
+            List<ProductLaunchCandidate> raw = searchPort.search(topic, fetchLimit);
+            List<ProductLaunchCandidate> groundings = normalize(raw, topic, maxCandidates);
+            LoggerUtils.success(
+                    log,
+                    RecallProductsToolHandler.class,
+                    "handle",
+                    NameValue.create("source", "ph"),
+                    NameValue.create("actorId", actorId),
+                    NameValue.create("rawCount", raw.size()),
+                    NameValue.create("filteredCount", groundings.size()),
+                    NameValue.create("maxCandidates", maxCandidates));
 
-            if (filtered.isEmpty()) {
+            if (groundings.isEmpty()) {
                 return ToolResult.failed(callId, TOOL_NAME, "recall_products empty candidates");
             }
-            return ToolResult.ok(callId, TOOL_NAME, writeCandidates(filtered));
+
+            return ToolResult.ok(callId, TOOL_NAME, writeCandidates(groundings));
         } catch (Exception ex) {
             String reason = errorReason(ex);
             LoggerUtils.warn(
@@ -119,70 +98,6 @@ public final class RecallProductsToolHandler implements ToolHandler {
                     NameValue.create("actorId", properties.getApify().getActorId()));
             return ToolResult.failed(callId, TOOL_NAME, "recall_products failed: " + reason);
         }
-    }
-
-    /**
-     * Parse newsletter / list paste into candidates ({@code source=paste}).
-     * Supports markdown links, {@code Title — tagline}, bullets, and trailing URLs.
-     */
-    static List<ProductLaunchCandidate> parsePaste(String paste) {
-        if (!StringUtils.hasText(paste)) {
-            return new ArrayList<ProductLaunchCandidate>();
-        }
-        String[] lines = paste.split("\\r?\\n");
-        List<ProductLaunchCandidate> out = new ArrayList<ProductLaunchCandidate>();
-        for (int i = 0; i < lines.length; i++) {
-            String raw = lines[i];
-            if (!StringUtils.hasText(raw)) {
-                continue;
-            }
-            String line = BULLET.matcher(raw.trim()).replaceFirst("").trim();
-            if (!StringUtils.hasText(line)) {
-                continue;
-            }
-
-            Matcher md = MD_LINK.matcher(line);
-            if (md.find()) {
-                String title = md.group(1).trim();
-                String url = md.group(2).trim();
-                String rest = line.substring(md.end()).trim();
-                rest = stripLeadingSeparator(rest);
-                out.add(new ProductLaunchCandidate(title, rest, url, null, null, "paste"));
-                continue;
-            }
-
-            Matcher urlMatcher = URL.matcher(line);
-            String url = null;
-            String withoutUrl = line;
-            if (urlMatcher.find()) {
-                url = urlMatcher.group(1).replaceAll("[),.;]+$", "");
-                withoutUrl = (line.substring(0, urlMatcher.start()) + line.substring(urlMatcher.end())).trim();
-                withoutUrl = stripTrailingSeparator(withoutUrl);
-            }
-
-            String title;
-            String tagline = "";
-            int sep = indexOfSeparator(withoutUrl);
-            if (sep >= 0) {
-                title = withoutUrl.substring(0, sep).trim();
-                tagline = stripLeadingSeparator(withoutUrl.substring(sep).trim());
-            } else {
-                title = withoutUrl.trim();
-            }
-
-            if (!StringUtils.hasText(title) && url == null) {
-                continue;
-            }
-            if (!StringUtils.hasText(title)) {
-                continue;
-            }
-            // Skip bare URL-only lines that look like leftovers
-            if (title.startsWith("http://") || title.startsWith("https://")) {
-                continue;
-            }
-            out.add(new ProductLaunchCandidate(title, tagline, url == null ? "" : url, null, null, "paste"));
-        }
-        return out;
     }
 
     static List<ProductLaunchCandidate> normalize(List<ProductLaunchCandidate> raw,

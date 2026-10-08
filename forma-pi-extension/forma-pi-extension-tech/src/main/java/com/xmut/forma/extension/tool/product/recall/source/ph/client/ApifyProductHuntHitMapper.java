@@ -11,7 +11,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * Maps Apify Product Hunt dataset rows to {@link ProductLaunchCandidate}.
- * Tolerates cloud9 / runtime / generic field names.
+ * Tolerates cazadores / cloud9 / runtime / generic field names.
  */
 public final class ApifyProductHuntHitMapper {
 
@@ -38,14 +38,18 @@ public final class ApifyProductHuntHitMapper {
         if (row == null || !row.isObject()) {
             return Optional.empty();
         }
+        // prefer launch name; fall back to productName (cazadores)
         String title = firstText(row, "name", "title", "productName");
         if (!StringUtils.hasText(title)) {
             return Optional.empty();
         }
         String tagline = emptyIfNull(firstText(row, "tagline", "description", "tagLine", "subtitle"));
-        String url = emptyIfNull(firstText(row, "productUrl", "url", "link", "productHuntUrl", "phUrl"));
+        // prefer launch page URL over product hub URL
+        String url = emptyIfNull(firstText(row,
+                "launchUrl", "productUrl", "url", "link", "productHuntUrl", "phUrl"));
         Integer votes = firstInteger(row, "votesCount", "votes", "upvotes", "upvoteCount");
-        String publishedAt = emptyIfNull(firstText(row, "launchDate", "publishedAt", "createdAt", "date"));
+        String publishedAt = emptyIfNull(firstText(row,
+                "launchedAt", "launchDate", "publishedAt", "createdAt", "period", "date"));
         return Optional.of(new ProductLaunchCandidate(
                 title.trim(),
                 tagline,

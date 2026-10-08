@@ -40,6 +40,8 @@ public class SkuHitlInterceptor
         implements BilledRunInterceptor, BilledRunListener, BilledSuspendedHandler {
 
     static final String MSG_LISTING_MODEL_FAILED = "上架素材生成失败，请稍后重试";
+    static final String MSG_LISTING_PLAN_UNUSABLE =
+            "策划分镜不合格：需含可投影 view 与策划正文";
 
     private final CreditHoldSupport creditHoldSupport;
     private final OutputParser outputParser;
@@ -143,9 +145,8 @@ public class SkuHitlInterceptor
         GenerationRunContext context = billedCtx.getRun();
         String toolCallId = billedCtx.getPendingToolCallId();
         ParsedGenerationOutput parsed = parsePlanOutput(billedCtx);
-        if (parsed.getRawView() == null
-                || !ArtifactPersistPlugin.isUsableSkuPlanPayload(parsed.getBusinessPayload())) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
+        if (parsed.getRawView() == null || parsed.getRawView().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
         }
         String planText = billedCtx.getAssistantTextCandidate();
         if (!StringUtils.hasText(planText)) {
@@ -205,9 +206,6 @@ public class SkuHitlInterceptor
         if (parsed.getRawView() == null || parsed.getRawView().isEmpty()) {
             return false;
         }
-        if (!ArtifactPersistPlugin.isUsableSkuPlanPayload(parsed.getBusinessPayload())) {
-            return false;
-        }
         ctx.setAssistantTextCandidate(text.trim());
         return true;
     }
@@ -230,7 +228,7 @@ public class SkuHitlInterceptor
                 .runWorkspace(runDir(ctx))
                 .build();
         if (!outputParser.supports(parseCtx)) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
+            throw new BusinessException(ErrorCode.PARAM_INVALID, MSG_LISTING_PLAN_UNUSABLE);
         }
         try {
             return outputParser.parse(parseCtx);
@@ -238,7 +236,7 @@ public class SkuHitlInterceptor
             throw new BusinessException(ErrorCode.PARAM_INVALID,
                     StringUtils.hasText(ex.getMessage())
                             ? ex.getMessage()
-                            : ArtifactPersistPlugin.MSG_LISTING_PLAN_UNUSABLE);
+                            : MSG_LISTING_PLAN_UNUSABLE);
         }
     }
 

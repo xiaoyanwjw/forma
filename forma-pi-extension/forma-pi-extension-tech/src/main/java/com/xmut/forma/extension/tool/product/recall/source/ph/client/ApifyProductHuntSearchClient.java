@@ -8,6 +8,8 @@ import com.xmut.forma.extension.common.ApifyActorTransport;
 import com.xmut.forma.extension.tool.product.recall.source.ph.port.ProductLaunchCandidate;
 import com.xmut.forma.extension.tool.product.recall.source.ph.port.ProductLaunchSearchPort;
 import com.xmut.forma.extension.tool.product.recall.source.ph.port.ProductLaunchSearchProperties;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import lombok.SneakyThrows;
@@ -15,9 +17,13 @@ import org.springframework.util.StringUtils;
 
 /**
  * Apify Product Hunt list Actor → {@link ProductLaunchCandidate}.
- * Default actor: {@link ProductLaunchSearchProperties#DEFAULT_ACTOR_ID}.
+ * Default actor: {@link ProductLaunchSearchProperties#DEFAULT_ACTOR_ID}
+ * ({@code cazadores/product-hunt-scraper} daily leaderboard).
  */
 public final class ApifyProductHuntSearchClient implements ProductLaunchSearchPort {
+
+    /** Product Hunt calendar days use US Pacific midnight. */
+    private static final ZoneId PH_ZONE = ZoneId.of("America/Los_Angeles");
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -32,16 +38,16 @@ public final class ApifyProductHuntSearchClient implements ProductLaunchSearchPo
     @SneakyThrows
     @Override
     public List<ProductLaunchCandidate> search(String topic, int fetchLimit) {
-        if (!StringUtils.hasText(topic)) {
-            return Collections.emptyList();
-        }
         ProductLaunchSearchProperties.Apify apify = properties.getApify();
         String token = apify.getToken();
         if (!StringUtils.hasText(token)) {
             throw new IllegalStateException("missing_token");
         }
-        int maxResults = fetchLimit < 1 ? 1 : Math.min(fetchLimit, 100);
-        String body = requestBody(topic.trim(), maxResults, apify.getProductHuntToken());
+
+        int maxResults = Math.min(Math.max(fetchLimit, 1), 100);
+
+        // 始终拉当日日榜；topic 粗筛只在 Handler.normalize（Actor topicFilter 要 PH 话题名，自由文本易空）
+        String body = requestBody(maxResults);
         String response = transport.post(
                 apify.getActorId(),
                 token.trim(),
@@ -50,21 +56,16 @@ public final class ApifyProductHuntSearchClient implements ProductLaunchSearchPo
         return resolve(response);
     }
 
-    private static String requestBody(String topic, int maxResults, String productHuntToken) throws Exception {
+    static String requestBody(int maxResults) throws Exception {
         ObjectNode root = MAPPER.createObjectNode();
-        // cloud9_ai/producthunt-scraper input
-        root.put("searchQuery", topic);
-        root.put("timeFrame", "today");
-        root.put("sortBy", "popular");
-        root.put("maxResults", maxResults);
-        // tolerant aliases for other PH actors
-        root.put("query", topic);
-        root.put("keyword", topic);
+        // cazadores/product-hunt-scraper — daily leaderboard (PH day = US Pacific)
+        String day = LocalDate.now(PH_ZONE).toString();
+        root.put("mode", "leaderboard");
+        root.put("leaderboard", "daily");
+        root.put("startDate", day);
+        root.put("endDate", day);
+        root.put("featuredOnly", true);
         root.put("maxItems", maxResults);
-        if (StringUtils.hasText(productHuntToken)) {
-            root.put("apiToken", productHuntToken.trim());
-            root.put("productHuntToken", productHuntToken.trim());
-        }
         return MAPPER.writeValueAsString(root);
     }
 

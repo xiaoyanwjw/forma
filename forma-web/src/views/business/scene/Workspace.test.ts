@@ -92,7 +92,7 @@ const TECH_PRODUCT_SKILLS = {
     {
       skillId: 'tech-briefing',
       label: '产品早报',
-      examplePrompt: '请按关注域「AI coding agents」出今天值得跟的产品早报',
+      examplePrompt: '请出今天 Product Hunt 值得跟的产品早报',
       sortOrder: 2,
     },
   ],

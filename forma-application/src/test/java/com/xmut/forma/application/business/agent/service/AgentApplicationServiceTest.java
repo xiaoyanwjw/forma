@@ -1112,7 +1112,7 @@ class AgentApplicationServiceTest {
     @Test
     void streamListingRunReleasesWhenSkuPayloadUnusable() {
         when(artifactPersistPlugin.persist(anyString(), anyString(), anyString(), anyString(), anyMap(), anyMap()))
-                .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID, ArtifactPersistPlugin.MSG_SKU_UNUSABLE));
+                .thenThrow(new BusinessException(ErrorCode.PARAM_INVALID, "成果载荷无法序列化"));
         GenerationRunContext ctx = listingCtx("run-listing-bad", "session-listing-bad");
         stubEcommercePack();
         when(agentSession.subscribe(any())).thenReturn(() -> {

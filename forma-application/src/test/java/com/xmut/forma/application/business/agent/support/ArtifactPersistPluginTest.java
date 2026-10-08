@@ -15,20 +15,15 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.xmut.forma.common.exception.BusinessException;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import java.util.Optional;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -78,7 +73,7 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
-    void persist_skuType_requiresUsablePayload() {
+    void persist_skuType_mapsWithoutPayloadGate() {
         plugin.persist("u1", "r1", "ecommerce", "sku",
                 listViewMap(), usableSkuPayload());
         ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
@@ -87,64 +82,15 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
-    void persist_skuType_acceptsEmptyMediaObjectIds() {
-        Map<String, Object> payload = usableSkuPayload();
-        payload.put("mediaObjectIds", Collections.emptyList());
-        plugin.persist("u1", "r1", "ecommerce", "sku", listViewMap(), payload);
+    void persist_skuType_acceptsSparsePayload() {
+        Map<String, Object> sparse = new LinkedHashMap<String, Object>();
+        sparse.put("title", "半成品");
+        plugin.persist("u1", "r1", "ecommerce", "sku", listViewMap(), sparse);
         verify(artifactRepository).save(any(Artifact.class));
     }
 
     @Test
-    void persist_skuType_rejectsBadTemplateId() {
-        Map<String, Object> bad = usableSkuPayload();
-        bad.put("templateId", "other-template");
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "ecommerce", "sku", listViewMap(), bad));
-        assertEquals(ArtifactPersistPlugin.MSG_SKU_UNUSABLE, ex.getMessage());
-        verify(artifactRepository, never()).save(any(Artifact.class));
-    }
-
-    @Test
-    void persist_skuType_rejectsMissingDetailBody() {
-        Map<String, Object> bad = usableSkuPayload();
-        bad.put("detailBody", "  ");
-        assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "ecommerce", "sku", listViewMap(), bad));
-        verify(artifactRepository, never()).save(any(Artifact.class));
-    }
-
-    @Test
-    void persist_skuType_rejectsMissingDisplayNotes() {
-        Map<String, Object> bad = usableSkuPayload();
-        bad.remove("displayNotes");
-        assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "ecommerce", "sku", listViewMap(), bad));
-        verify(artifactRepository, never()).save(any(Artifact.class));
-    }
-
-    @Test
-    void persist_skuType_acceptsAssumptionsWhenUserInfoSparse() {
-        Map<String, Object> payload = usableSkuPayload();
-        payload.put("assumptions", "用户提到优先淘宝；仍输出跨平台公共底稿");
-        plugin.persist("u1", "r1", "ecommerce", "sku", listViewMap(), payload);
-        verify(artifactRepository).save(any(Artifact.class));
-    }
-
-    @Test
-    void persist_listingPlan_rejectsFewerThanThreeFrames() {
-        Map<String, Object> p = new LinkedHashMap<String, Object>();
-        p.put("templateId", "domestic-generic-default");
-        p.put("driver", "痛点");
-        p.put("frames", Collections.singletonList("只有一张"));
-        p.put("modules", Arrays.asList("a", "b", "c"));
-        p.put("titleDraft", "标题");
-        assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "ecommerce", "listing_plan", planView(), p));
-        verify(artifactRepository, never()).save(any(Artifact.class));
-    }
-
-    @Test
-    void persist_xhsTopiclist_mapsType_andRequiresNonEmptyViewAndArtifact() {
+    void persist_xhsTopiclist_mapsType() {
         Map<String, Object> artifact = new LinkedHashMap<String, Object>();
         artifact.put("title", "选题清单");
         PersistedGenerationArtifact out = plugin.persist(
@@ -157,23 +103,10 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
-    void persist_xhsNote_rejectsEmptyArtifact() {
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "xiaohongshu", "xhs_note",
-                        listViewMap(), Collections.<String, Object>emptyMap()));
-        assertEquals(ArtifactPersistPlugin.MSG_XHS_UNUSABLE, ex.getMessage());
-        verify(artifactRepository, never()).save(any(Artifact.class));
-    }
-
-    @Test
-    void persist_xhsBreak_rejectsEmptyView() {
-        Map<String, Object> artifact = new LinkedHashMap<String, Object>();
-        artifact.put("title", "爆文拆解");
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "xiaohongshu", "xhs_break",
-                        Collections.<String, Object>emptyMap(), artifact));
-        assertEquals(ArtifactPersistPlugin.MSG_XHS_UNUSABLE, ex.getMessage());
-        verify(artifactRepository, never()).save(any(Artifact.class));
+    void persist_xhsNote_acceptsEmptyArtifact() {
+        plugin.persist("u1", "r1", "xiaohongshu", "xhs_note",
+                listViewMap(), Collections.<String, Object>emptyMap());
+        verify(artifactRepository).save(any(Artifact.class));
     }
 
     @Test
@@ -199,14 +132,11 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
-    void persist_techDigest_rejectsEmptyExcerpts() {
+    void persist_techDigest_acceptsEmptyExcerpts() {
         Map<String, Object> artifact = usableTechDigestPayload();
         artifact.put("excerpts", Collections.emptyList());
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "tech_digest", "tech_digest",
-                        listViewMap(), artifact));
-        assertEquals(ArtifactPersistPlugin.MSG_TECH_DIGEST_UNUSABLE, ex.getMessage());
-        verify(artifactRepository, never()).save(any(Artifact.class));
+        plugin.persist("u1", "r1", "tech_digest", "tech_digest", listViewMap(), artifact);
+        verify(artifactRepository).save(any(Artifact.class));
     }
 
     @Test
@@ -221,23 +151,11 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
-    void persist_techCompetitor_rejectsMissingSnapshot() {
+    void persist_techCompetitor_acceptsMissingSnapshot() {
         Map<String, Object> artifact = usableTechCompetitorPayload();
         artifact.remove("snapshot");
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "tech_product", "tech_competitor",
-                        listViewMap(), artifact));
-        assertEquals(ArtifactPersistPlugin.MSG_TECH_COMPETITOR_UNUSABLE, ex.getMessage());
-        verify(artifactRepository, never()).save(any(Artifact.class));
-    }
-
-    @Test
-    void persist_techCompetitor_rejectsEmptyView() {
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "tech_product", "tech_competitor",
-                        Collections.<String, Object>emptyMap(), usableTechCompetitorPayload()));
-        assertEquals(ArtifactPersistPlugin.MSG_TECH_COMPETITOR_UNUSABLE, ex.getMessage());
-        verify(artifactRepository, never()).save(any(Artifact.class));
+        plugin.persist("u1", "r1", "tech_product", "tech_competitor", listViewMap(), artifact);
+        verify(artifactRepository).save(any(Artifact.class));
     }
 
     @Test
@@ -252,40 +170,19 @@ class ArtifactPersistPluginTest {
     }
 
     @Test
-    void persist_techBriefing_rejectsEmptyView() {
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "tech_product", "tech_briefing",
-                        Collections.<String, Object>emptyMap(), usableTechBriefingPayload()));
-        assertEquals(ArtifactPersistPlugin.MSG_TECH_BRIEFING_UNUSABLE, ex.getMessage());
-        verify(artifactRepository, never()).save(any(Artifact.class));
-    }
-
-    @Test
-    void persist_techBriefing_rejectsMissingTitle() {
-        Map<String, Object> artifact = usableTechBriefingPayload();
-        artifact.remove("title");
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "tech_product", "tech_briefing",
-                        listViewMap(), artifact));
-        assertEquals(ArtifactPersistPlugin.MSG_TECH_BRIEFING_UNUSABLE, ex.getMessage());
-        verify(artifactRepository, never()).save(any(Artifact.class));
-    }
-
-    @Test
-    void persist_techBriefing_rejectsEmptyItems() {
+    void persist_techBriefing_acceptsEmptyItems() {
         Map<String, Object> artifact = usableTechBriefingPayload();
         artifact.put("items", Collections.emptyList());
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                plugin.persist("u1", "r1", "tech_product", "tech_briefing",
-                        listViewMap(), artifact));
-        assertEquals(ArtifactPersistPlugin.MSG_TECH_BRIEFING_UNUSABLE, ex.getMessage());
-        verify(artifactRepository, never()).save(any(Artifact.class));
+        plugin.persist("u1", "r1", "tech_product", "tech_briefing", listViewMap(), artifact);
+        verify(artifactRepository).save(any(Artifact.class));
     }
 
     @Test
-    void persist_listingPlan_acceptsMinimalPlan() {
+    void persist_listingPlan_mapsWithoutPayloadGate() {
+        Map<String, Object> sparse = new LinkedHashMap<String, Object>();
+        sparse.put("frames", Collections.singletonList("只有一张"));
         PersistedGenerationArtifact out = plugin.persist(
-                "u1", "r1", "ecommerce", "listing_plan", planView(), usablePlanPayload());
+                "u1", "r1", "ecommerce", "listing_plan", planView(), sparse);
         assertNotNull(out.getArtifactRef());
         ArgumentCaptor<Artifact> cap = ArgumentCaptor.forClass(Artifact.class);
         verify(artifactRepository).save(cap.capture());
@@ -351,16 +248,6 @@ class ArtifactPersistPluginTest {
         item.put("whyNow", "今日 PH 热度高");
         item.put("sourceUrl", "https://www.producthunt.com/posts/notion-ai");
         payload.put("items", Collections.singletonList(item));
-        return payload;
-    }
-
-    private static Map<String, Object> usablePlanPayload() {
-        Map<String, Object> payload = new LinkedHashMap<String, Object>();
-        payload.put("templateId", "domestic-generic-default");
-        payload.put("driver", "Mac Mini 扩展痛点");
-        payload.put("frames", Arrays.asList("主图：白底俯拍", "场景：水槽旁", "细节：导流槽"));
-        payload.put("modules", Arrays.asList("材质说明", "尺寸规格", "使用场景"));
-        payload.put("titleDraft", "Mac Mini 拓展坞 桌面不乱");
         return payload;
     }
 
