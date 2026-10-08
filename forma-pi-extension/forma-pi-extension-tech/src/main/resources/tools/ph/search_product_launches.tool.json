@@ -1,0 +1,24 @@
+{
+  "id": "search_product_launches",
+  "description": "按关注域拉取 Product Hunt 产品发布候选列表",
+  "text": "[search_product_launches] 按 topic 从 Product Hunt 拉候选。返回 candidates（title/tagline/url/source=ph）；禁止编造产品。",
+  "handlerClass": "com.xmut.forma.extension.tool.ph.SearchProductLaunchesToolHandler",
+  "schema": {
+    "name": "search_product_launches",
+    "description": "Product Hunt 列表候选；每条含 title 与可选 url，source 固定 ph",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "description": "关注域/主题，例如 AI coding"
+        },
+        "maxCandidates": {
+          "type": "integer",
+          "description": "最多返回条数，默认 12，最大 30"
+        }
+      },
+      "required": ["topic"]
+    }
+  }
+}
