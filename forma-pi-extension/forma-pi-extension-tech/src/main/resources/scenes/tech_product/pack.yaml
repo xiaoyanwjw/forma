@@ -1,3 +1,5 @@
+# Scene pack descriptor — required skills and recommended entry skill (no Java hardcode).
 requiredSkills:
   - tech-competitor
+  - tech-briefing
 defaultSkill: tech-competitor

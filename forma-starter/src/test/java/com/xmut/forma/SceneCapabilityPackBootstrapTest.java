@@ -44,12 +44,14 @@ class SceneCapabilityPackBootstrapTest {
     }
 
     @Test
-    void starterTechProductCompetitorRegistersAndPackLoads() {
+    void starterTechProductCompetitorAndBriefingRegisterAndPackLoads() {
         SkillCatalog skills = loadStarterSkills();
         assertTrue(skills.resolve("tech-competitor").isPresent());
+        assertTrue(skills.resolve("tech-briefing").isPresent());
 
         SceneCapabilityPackLoader loader = newLoader(skills);
         assertTrue(loader.load("tech_product").hasSkill("tech-competitor"));
+        assertTrue(loader.load("tech_product").hasSkill("tech-briefing"));
     }
 
     private static SceneCapabilityPackLoader newLoader(SkillCatalog skills) {
