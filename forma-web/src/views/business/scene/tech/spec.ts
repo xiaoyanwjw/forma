@@ -11,7 +11,15 @@ export const techDigestSpec: SceneWorkspaceSpec = {
 export const techProductSpec: SceneWorkspaceSpec = {
   sceneCode: 'tech_product',
   breadcrumb: '产品雷达',
-  artifactTypes: ['tech_competitor'],
-  paneBySkillId: { 'tech-competitor': 'competitor' },
-  paneByArtifactType: { tech_competitor: 'competitor', competitor: 'competitor' },
+  artifactTypes: ['tech_competitor', 'tech_briefing'],
+  paneBySkillId: {
+    'tech-competitor': 'competitor',
+    'tech-briefing': 'briefing',
+  },
+  paneByArtifactType: {
+    tech_competitor: 'competitor',
+    competitor: 'competitor',
+    tech_briefing: 'briefing',
+    briefing: 'briefing',
+  },
 }

@@ -48,12 +48,15 @@ describe('getSceneWorkspaceSpec', () => {
     expect(t?.paneByArtifactType.digest).toBe('digest')
   })
 
-  it('maps tech_product competitor pane', () => {
+  it('maps tech_product competitor and briefing panes', () => {
     const t = getSceneWorkspaceSpec('tech_product')
     expect(t).toBe(techProductSpec)
     expect(t?.breadcrumb).toBe('产品雷达')
-    expect(t?.artifactTypes).toEqual(['tech_competitor'])
+    expect(t?.artifactTypes).toEqual(['tech_competitor', 'tech_briefing'])
     expect(t?.paneBySkillId['tech-competitor']).toBe('competitor')
+    expect(t?.paneBySkillId['tech-briefing']).toBe('briefing')
     expect(t?.paneByArtifactType.tech_competitor).toBe('competitor')
+    expect(t?.paneByArtifactType.tech_briefing).toBe('briefing')
+    expect(t?.paneByArtifactType.briefing).toBe('briefing')
   })
 })

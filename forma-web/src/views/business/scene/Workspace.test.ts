@@ -89,6 +89,12 @@ const TECH_PRODUCT_SKILLS = {
       examplePrompt: '请拆解这个产品官网：https://www.notion.so',
       sortOrder: 1,
     },
+    {
+      skillId: 'tech-briefing',
+      label: '产品早报',
+      examplePrompt: '请按关注域「AI coding agents」出今天值得跟的产品早报',
+      sortOrder: 2,
+    },
   ],
 }
 
@@ -184,7 +190,7 @@ type FetchSpy = { mock: { calls: ReadonlyArray<unknown[]> } }
 
 function billedRunBodies(fetchMock: FetchSpy) {
   return fetchMock.mock.calls
-    .filter(([input, init]) => {
+    .filter(([input]) => {
       const url = String(input)
       if (!url.includes('/api/v1/agent/runs')) return false
       return true
@@ -280,12 +286,13 @@ describe('Workspace skill send', () => {
     expect(bodies[0]?.text).toBe('速读这个链接 https://example.com')
   })
 
-  it('tech_product shows 竞品分析 capsule and posts tech-competitor', async () => {
+  it('tech_product shows 竞品分析 + 产品早报 capsules; default posts tech-competitor', async () => {
     const mounted = await mountWorkspace('tech_product')
     unmount = mounted.unmount
     const pills = mounted.root.querySelectorAll('[data-testid="session-quick-row"] .pill')
-    expect(pills.length).toBeGreaterThanOrEqual(1)
+    expect(pills.length).toBeGreaterThanOrEqual(2)
     expect(pills[0]?.textContent?.trim()).toBe('竞品分析')
+    expect(pills[1]?.textContent?.trim()).toBe('产品早报')
     await sendPrompt(mounted.root, '拆解 https://www.notion.so', 0)
     const bodies = billedRunBodies(fetchMock)
     expect(bodies.length).toBeGreaterThanOrEqual(1)

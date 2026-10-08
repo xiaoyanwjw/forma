@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/multi-word-component-names -- route shell name is Workspace -->
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
@@ -73,6 +74,11 @@ const PANE_COPY: Record<string, { thinking: string; success: string; empty: stri
     success: '已生成竞品分析，右侧 Computer 可查看。',
     empty: '拆解已结束，但未收到可用报告，请重试。',
   },
+  briefing: {
+    thinking: '正在整理产品早报…',
+    success: '已生成产品早报，右侧 Computer 可查看。',
+    empty: '早报已结束，但未收到可用条目，请重试。',
+  },
 }
 
 const FILE_BY_PANE: Record<string, string> = {
@@ -83,10 +89,12 @@ const FILE_BY_PANE: Record<string, string> = {
   break: 'break.md',
   digest: 'digest.md',
   competitor: 'competitor.md',
+  briefing: 'briefing.md',
 }
 
 const REPLAY_PANE_PREFERENCE = [
   'competitor',
+  'briefing',
   'digest',
   'listing',
   'note',
