@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文**
 
-https://github.com/user-attachments/assets/cc93e364-aab7-44cf-a837-154b0f841f07
+https://github.com/user-attachments/assets/66cea829-724c-4350-99e8-311dd6fa02be
 
 **Forma** 是个人助理：把日常工作里的技能，落到 Agent 能做完的活上。一类活是**场景**，怎么干是 **Skill**；选场景、跑 Agent，在 Computer 里审成形成果。
 
