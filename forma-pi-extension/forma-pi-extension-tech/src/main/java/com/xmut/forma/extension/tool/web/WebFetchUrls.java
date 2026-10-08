@@ -4,7 +4,7 @@ import java.net.URI;
 import java.util.Locale;
 
 /**
- * SSRF guard for {@code fetch_web_page}. Literal private IPv4 only; no DNS lookup.
+ * SSRF guard for page fetch. Literal private IPv4 only; no DNS lookup.
  */
 public final class WebFetchUrls {
 

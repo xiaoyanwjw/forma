@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.forma.extension.config.TechExcerptToolsConfiguration;
+import com.xmut.forma.extension.tool.common.excerpt.port.ChunkExcerptPort;
 import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.ai.model.ModelProvider;
 import com.xmut.forma.pi.ai.model.ModelRequest;
@@ -169,7 +170,8 @@ class ExcerptChunksToolHandlerTest {
         new ApplicationContextRunner()
                 .withUserConfiguration(TechExcerptToolsConfiguration.class)
                 .run(context -> {
-                    ExcerptChunksToolHandler handler = context.getBean(ExcerptChunksToolHandler.class);
+                    ChunkExcerptPort port = context.getBean(ChunkExcerptPort.class);
+                    ExcerptChunksToolHandler handler = new ExcerptChunksToolHandler(port);
                     ToolResult result = handler.handle(chunksCall("你好世界。后面不要。", CHUNK_B), ctx());
                     JsonNode quotes = MAPPER.readTree(result.getOutput()).get("excerpts").get(0).get("quotes");
                     assertEquals("你好世界。", quotes.get(0).asText());
@@ -181,7 +183,8 @@ class ExcerptChunksToolHandlerTest {
         new ApplicationContextRunner()
                 .withUserConfiguration(TechExcerptToolsConfiguration.class, StubModelConfig.class)
                 .run(context -> {
-                    ExcerptChunksToolHandler handler = context.getBean(ExcerptChunksToolHandler.class);
+                    ChunkExcerptPort port = context.getBean(ChunkExcerptPort.class);
+                    ExcerptChunksToolHandler handler = new ExcerptChunksToolHandler(port);
                     ToolResult result = handler.handle(chunksCall(
                             "第一句保底。第二句才是摘录。",
                             CHUNK_B), ctx());

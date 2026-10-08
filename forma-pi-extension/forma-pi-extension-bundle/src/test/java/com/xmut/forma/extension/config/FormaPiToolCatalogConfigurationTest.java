@@ -17,6 +17,7 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FormaPiToolCatalogConfigurationTest {
@@ -51,10 +52,16 @@ class FormaPiToolCatalogConfigurationTest {
                 handlerClassOf(defs, "search_xhs_note"));
         assertEquals("com.xmut.forma.extension.tool.xhs.FetchXhsNoteToolHandler",
                 handlerClassOf(defs, "fetch_xhs_note"));
-        assertEquals("com.xmut.forma.extension.tool.web.FetchWebPageToolHandler",
-                handlerClassOf(defs, "fetch_web_page"));
-        assertEquals("com.xmut.forma.extension.tool.tech.ExcerptChunksToolHandler",
-                handlerClassOf(defs, "excerpt_chunks"));
+        assertNull(handlerClassOf(defs, "fetch_web_page"));
+        assertNull(handlerClassOf(defs, "excerpt_chunks"));
+        assertEquals("com.xmut.forma.extension.tool.product.recall.RecallProductsToolHandler",
+                handlerClassOf(defs, "recall_products"));
+        assertEquals("com.xmut.forma.extension.tool.product.research.ResearchProductsToolHandler",
+                handlerClassOf(defs, "research_products"));
+        assertEquals("com.xmut.forma.extension.tool.product.ingest.IngestCompetitorToolHandler",
+                handlerClassOf(defs, "ingest_competitor"));
+        assertEquals("com.xmut.forma.extension.tool.digest.ingest.IngestDigestToolHandler",
+                handlerClassOf(defs, "ingest_digest"));
         assertEquals(RenderViewToolHandler.class.getName(), handlerClassOf(defs, "render_view"));
         assertTrue(defs.stream().anyMatch(d -> "render_view".equals(d.getId())
                 && d.getSchema() != null

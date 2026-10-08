@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * 摘句 atom: source chunks → heading + quotes (raw until quote guard).
- * Agent still sees {@code excerpt_chunks} until later tasks.
+ * Not Agent-visible; consumed by business ingest tools.
  */
 public interface ChunkExcerptPort {
 

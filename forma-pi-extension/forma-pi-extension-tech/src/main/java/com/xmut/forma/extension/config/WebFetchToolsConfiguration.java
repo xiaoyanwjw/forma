@@ -2,7 +2,6 @@ package com.xmut.forma.extension.config;
 
 import com.xmut.forma.extension.common.ApifyOkHttpTransport;
 import com.xmut.forma.extension.tool.common.web.fetch.port.PageFetchPort;
-import com.xmut.forma.extension.tool.web.FetchWebPageToolHandler;
 import com.xmut.forma.extension.tool.web.client.ApifyWebsiteContentCrawlerClient;
 import com.xmut.forma.extension.tool.web.client.MockWebFetchClient;
 import com.xmut.forma.extension.tool.web.port.WebFetchProperties;
@@ -11,8 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registers {@code fetch_web_page} and 抓取 {@link PageFetchPort}.
- * Schema comes from {@code tools/web/fetch_web_page.tool.json}.
+ * Exposes 抓取 {@link PageFetchPort} for business tools only (not Agent-visible).
  */
 @Configuration
 @EnableConfigurationProperties(WebFetchProperties.class)
@@ -28,10 +26,5 @@ public class WebFetchToolsConfiguration {
             return new MockWebFetchClient();
         }
         return new ApifyWebsiteContentCrawlerClient(props, new ApifyOkHttpTransport());
-    }
-
-    @Bean
-    public FetchWebPageToolHandler fetchWebPageToolHandler(PageFetchPort pageFetchPort) {
-        return new FetchWebPageToolHandler(pageFetchPort);
     }
 }

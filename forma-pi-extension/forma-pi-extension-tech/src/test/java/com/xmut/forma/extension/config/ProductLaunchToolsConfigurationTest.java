@@ -14,7 +14,9 @@ class ProductLaunchToolsConfigurationTest {
     @Test
     void registers_handler_and_apify_port_even_without_token() {
         new ApplicationContextRunner()
-                .withUserConfiguration(ProductLaunchToolsConfiguration.class)
+                .withUserConfiguration(
+                        WebFetchToolsConfiguration.class,
+                        ProductLaunchToolsConfiguration.class)
                 .withPropertyValues("forma.product-launch-search.apify.token=")
                 .run(context -> {
                     assertTrue(context.getBean(ProductLaunchSearchPort.class)

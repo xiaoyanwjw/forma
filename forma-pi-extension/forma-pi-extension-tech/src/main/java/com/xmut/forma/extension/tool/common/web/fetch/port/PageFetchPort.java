@@ -4,7 +4,7 @@ import com.xmut.forma.extension.tool.web.port.WebFetchHit;
 
 /**
  * 抓取 atom: one public URL → one page of visible text.
- * Evolved from {@code WebFetchPort}; Agent still sees {@code fetch_web_page} until later tasks.
+ * Evolved from {@code WebFetchPort}; not Agent-visible — consumed by business tools.
  */
 public interface PageFetchPort {
 

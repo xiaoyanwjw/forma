@@ -22,8 +22,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 /**
- * Pi tool {@code excerpt_chunks}: slice or accept chunks, excerpt in one batch, return quotes only.
- * The tool JSON never includes chunk bodies.
+ * Legacy thin wrapper around {@link ChunkExcerptPort} (unit tests / helpers).
+ * Not registered in the Agent tool catalog.
  */
 public final class ExcerptChunksToolHandler implements ToolHandler {
 

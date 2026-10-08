@@ -2,7 +2,6 @@ package com.xmut.forma.extension.config;
 
 import com.xmut.forma.extension.tool.common.excerpt.port.ChunkExcerptPort;
 import com.xmut.forma.extension.tool.tech.ChunkExcerpt;
-import com.xmut.forma.extension.tool.tech.ExcerptChunksToolHandler;
 import com.xmut.forma.extension.tool.tech.ModelChunkExcerpter;
 import com.xmut.forma.extension.tool.tech.TechDigestChunk;
 import com.xmut.forma.extension.tool.view.TechBriefingViewEnricher;
@@ -17,9 +16,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registers {@code excerpt_chunks} and 摘句 {@link ChunkExcerptPort}.
- * Schema comes from {@code tools/tech/excerpt_chunks.tool.json}.
- * Without a {@link ModelProvider}, quotes fall back to the first sentence of each chunk.
+ * Exposes 摘句 {@link ChunkExcerptPort} for business tools only (not Agent-visible),
+ * plus tech ViewEnrichers.
+ * Without a {@link ModelProvider}, the Port returns empty excerpts (callers apply quote guards).
  */
 @Configuration
 public class TechExcerptToolsConfiguration {
@@ -36,11 +35,6 @@ public class TechExcerptToolsConfiguration {
             };
         }
         return new ModelChunkExcerpter(modelProvider);
-    }
-
-    @Bean
-    public ExcerptChunksToolHandler excerptChunksToolHandler(ChunkExcerptPort chunkExcerptPort) {
-        return new ExcerptChunksToolHandler(chunkExcerptPort);
     }
 
     @Bean

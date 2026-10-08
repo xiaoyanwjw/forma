@@ -19,8 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Pi tool {@code fetch_web_page}: guard the URL, fetch one page, write {@code source.md}.
- * The tool JSON never includes the page text.
+ * Legacy thin wrapper around {@link PageFetchPort} (unit tests / helpers).
+ * Not registered in the Agent tool catalog.
  */
 public final class FetchWebPageToolHandler implements ToolHandler {
 
