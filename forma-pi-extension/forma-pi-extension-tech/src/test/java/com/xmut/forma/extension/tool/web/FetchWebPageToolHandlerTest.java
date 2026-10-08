@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.xmut.forma.extension.tool.common.web.fetch.port.PageFetchPort;
 import com.xmut.forma.extension.tool.web.client.MockWebFetchClient;
 import com.xmut.forma.extension.tool.web.port.WebFetchHit;
-import com.xmut.forma.extension.tool.web.port.WebFetchPort;
 import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.ai.tool.ToolCallEntry;
 import com.xmut.forma.pi.ai.tool.ToolResult;
@@ -62,7 +62,7 @@ class FetchWebPageToolHandlerTest {
     @Test
     void bad_url_does_not_fetch_or_write() throws Exception {
         AtomicInteger calls = new AtomicInteger();
-        WebFetchPort port = new WebFetchPort() {
+        PageFetchPort port = new PageFetchPort() {
             @Override
             public WebFetchHit fetch(String url) {
                 calls.incrementAndGet();
@@ -92,7 +92,7 @@ class FetchWebPageToolHandlerTest {
     }
 
     private void assertErrorCode(RuntimeException failure, String errorCode) throws Exception {
-        WebFetchPort port = new WebFetchPort() {
+        PageFetchPort port = new PageFetchPort() {
             @Override
             public WebFetchHit fetch(String url) {
                 throw failure;

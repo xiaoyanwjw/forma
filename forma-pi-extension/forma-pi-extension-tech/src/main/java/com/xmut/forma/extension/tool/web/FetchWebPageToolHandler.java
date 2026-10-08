@@ -3,8 +3,8 @@ package com.xmut.forma.extension.tool.web;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.xmut.forma.extension.tool.common.web.fetch.port.PageFetchPort;
 import com.xmut.forma.extension.tool.web.port.WebFetchHit;
-import com.xmut.forma.extension.tool.web.port.WebFetchPort;
 import com.xmut.forma.pi.agent.graph.node.ToolHandler;
 import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.agent.tool.base.LocalFileSupport;
@@ -29,14 +29,14 @@ public final class FetchWebPageToolHandler implements ToolHandler {
     public static final String TOOL_NAME = "fetch_web_page";
     static final String SOURCE_PATH = "source.md";
 
-    private final WebFetchPort fetchPort;
+    private final PageFetchPort fetchPort;
     private final ObjectMapper objectMapper;
 
-    public FetchWebPageToolHandler(WebFetchPort fetchPort) {
+    public FetchWebPageToolHandler(PageFetchPort fetchPort) {
         this(fetchPort, new ObjectMapper());
     }
 
-    FetchWebPageToolHandler(WebFetchPort fetchPort, ObjectMapper objectMapper) {
+    FetchWebPageToolHandler(PageFetchPort fetchPort, ObjectMapper objectMapper) {
         this.fetchPort = fetchPort;
         this.objectMapper = objectMapper;
     }

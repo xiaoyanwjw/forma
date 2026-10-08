@@ -1,13 +1,13 @@
 package com.xmut.forma.extension.tool.web.client;
 
+import com.xmut.forma.extension.tool.common.web.fetch.port.PageFetchPort;
 import com.xmut.forma.extension.tool.web.WebFetchUrls;
 import com.xmut.forma.extension.tool.web.port.WebFetchHit;
-import com.xmut.forma.extension.tool.web.port.WebFetchPort;
 
 /**
  * Fixed public-page fixture used when the client is not apify, or apify has a blank token.
  */
-public final class MockWebFetchClient implements WebFetchPort {
+public final class MockWebFetchClient implements PageFetchPort {
 
     static final String MOCK_TITLE = "Mock 科技页";
     /** Appears once so callers can prove tool JSON does not echo the body. */

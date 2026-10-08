@@ -5,16 +5,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xmut.forma.extension.common.ApifyActorTransport;
+import com.xmut.forma.extension.tool.common.web.fetch.port.PageFetchPort;
 import com.xmut.forma.extension.tool.web.WebFetchUrls;
 import com.xmut.forma.extension.tool.web.port.WebFetchHit;
-import com.xmut.forma.extension.tool.web.port.WebFetchPort;
 import com.xmut.forma.extension.tool.web.port.WebFetchProperties;
 import org.springframework.util.StringUtils;
 
 /**
  * Apify {@code apify/website-content-crawler} locked to a single page ({@code maxCrawlDepth}=0).
+ * Implements 抓取 {@link PageFetchPort} ({@code maxCrawlPages}=1).
  */
-public final class ApifyWebsiteContentCrawlerClient implements WebFetchPort {
+public final class ApifyWebsiteContentCrawlerClient implements PageFetchPort {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

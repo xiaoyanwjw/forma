@@ -2,6 +2,7 @@ package com.xmut.forma.extension.tool.tech;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xmut.forma.extension.tool.common.excerpt.port.ChunkExcerptPort;
 import com.xmut.forma.pi.ai.message.Message;
 import com.xmut.forma.pi.ai.model.ModelProvider;
 import com.xmut.forma.pi.ai.model.ModelRequest;
@@ -17,8 +18,9 @@ import org.springframework.util.StringUtils;
 /**
  * Asks the side model once, via {@link ModelProvider#completeBatch}, for quotes from each chunk.
  * Each request window contains only that chunk. Parse failures become empty quotes.
+ * Implements 摘句 {@link ChunkExcerptPort}.
  */
-public final class ModelChunkExcerpter {
+public final class ModelChunkExcerpter implements ChunkExcerptPort {
 
     private static final Logger log = LoggerFactory.getLogger(ModelChunkExcerpter.class);
 
@@ -39,6 +41,7 @@ public final class ModelChunkExcerpter {
         this.objectMapper = objectMapper;
     }
 
+    @Override
     public List<ChunkExcerpt> excerpt(List<TechDigestChunk> chunks) {
         if (chunks == null || chunks.isEmpty()) {
             return Collections.emptyList();

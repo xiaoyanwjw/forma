@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.xmut.forma.extension.tool.common.excerpt.port.ChunkExcerptPort;
 import com.xmut.forma.pi.agent.graph.node.ToolHandler;
 import com.xmut.forma.pi.agent.tool.ToolContext;
 import com.xmut.forma.pi.agent.tool.base.LocalFileSupport;
@@ -32,15 +33,15 @@ public final class ExcerptChunksToolHandler implements ToolHandler {
     static final String DEFAULT_SOURCE_PATH = "source.md";
     private static final int MAX_CALLER_CHUNKS = 12;
 
-    private final ModelChunkExcerpter excerpter;
+    private final ChunkExcerptPort excerptPort;
     private final ObjectMapper objectMapper;
 
-    public ExcerptChunksToolHandler(ModelChunkExcerpter excerpter) {
-        this(excerpter, new ObjectMapper());
+    public ExcerptChunksToolHandler(ChunkExcerptPort excerptPort) {
+        this(excerptPort, new ObjectMapper());
     }
 
-    ExcerptChunksToolHandler(ModelChunkExcerpter excerpter, ObjectMapper objectMapper) {
-        this.excerpter = excerpter;
+    ExcerptChunksToolHandler(ChunkExcerptPort excerptPort, ObjectMapper objectMapper) {
+        this.excerptPort = excerptPort;
         this.objectMapper = objectMapper;
     }
 
@@ -49,9 +50,9 @@ public final class ExcerptChunksToolHandler implements ToolHandler {
         String callId = call != null ? call.getId() : null;
         try {
             Prepared prepared = prepare(call, ctx);
-            List<ChunkExcerpt> raw = excerpter == null
+            List<ChunkExcerpt> raw = excerptPort == null
                     ? Collections.<ChunkExcerpt>emptyList()
-                    : excerpter.excerpt(prepared.chunks);
+                    : excerptPort.excerpt(prepared.chunks);
             ObjectNode root = objectMapper.createObjectNode();
             root.put("ok", true);
             root.put("partialCoverage", prepared.partialCoverage);

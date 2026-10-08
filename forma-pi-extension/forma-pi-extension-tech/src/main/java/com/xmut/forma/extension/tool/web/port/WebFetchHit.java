@@ -1,7 +1,8 @@
 package com.xmut.forma.extension.tool.web.port;
 
 /**
- * One public page extracted by {@link WebFetchPort}. {@code text} stays out of tool JSON.
+ * One public page extracted by {@link com.xmut.forma.extension.tool.common.web.fetch.port.PageFetchPort}.
+ * {@code text} stays out of tool JSON.
  */
 public final class WebFetchHit {
 

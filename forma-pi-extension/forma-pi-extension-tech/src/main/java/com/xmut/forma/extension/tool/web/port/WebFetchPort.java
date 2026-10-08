@@ -1,9 +1,10 @@
 package com.xmut.forma.extension.tool.web.port;
 
-/**
- * Read-only public page fetch (Mock / Apify website-content-crawler).
- */
-public interface WebFetchPort {
+import com.xmut.forma.extension.tool.common.web.fetch.port.PageFetchPort;
 
-    WebFetchHit fetch(String url);
+/**
+ * @deprecated Use {@link PageFetchPort}. Kept as a type alias for one transition release.
+ */
+@Deprecated
+public interface WebFetchPort extends PageFetchPort {
 }
