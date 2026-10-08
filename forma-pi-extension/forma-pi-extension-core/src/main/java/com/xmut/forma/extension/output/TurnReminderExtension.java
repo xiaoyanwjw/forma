@@ -24,13 +24,14 @@ public final class TurnReminderExtension implements PiExtension {
     }
 
     public void onBeforeAgentStart(ContextModifier modifier, PiEvent piEvent) {
-        if (modifier == null) {
+        if (modifier == null || piEvent == null) {
             return;
         }
-        BeforeAgentStartEvent event = (BeforeAgentStartEvent) piEvent.getPayload();
-        if (event == null) {
+        Object payload = piEvent.getPayload();
+        if (!(payload instanceof BeforeAgentStartEvent)) {
             return;
         }
+        BeforeAgentStartEvent event = (BeforeAgentStartEvent) payload;
         String output = TurnDeliverableKeys.output(event.getAttachment());
         if (output == null) {
             return;

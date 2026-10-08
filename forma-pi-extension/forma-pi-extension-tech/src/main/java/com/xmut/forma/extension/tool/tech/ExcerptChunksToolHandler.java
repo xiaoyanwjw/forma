@@ -49,7 +49,9 @@ public final class ExcerptChunksToolHandler implements ToolHandler {
         String callId = call != null ? call.getId() : null;
         try {
             Prepared prepared = prepare(call, ctx);
-            List<ChunkExcerpt> raw = excerpter.excerpt(prepared.chunks);
+            List<ChunkExcerpt> raw = excerpter == null
+                    ? Collections.<ChunkExcerpt>emptyList()
+                    : excerpter.excerpt(prepared.chunks);
             ObjectNode root = objectMapper.createObjectNode();
             root.put("ok", true);
             root.put("partialCoverage", prepared.partialCoverage);
