@@ -1,0 +1,26 @@
+{
+  "label": "产品早报",
+  "examplePrompt": "请按关注域「AI coding agents」出今天值得跟的产品早报",
+  "sortOrder": 2,
+  "inputs": {
+    "topic": {
+      "required": true,
+      "description": "关注域/主题短句（必填语义；有 paste 时可省略）"
+    },
+    "window": {
+      "required": false,
+      "description": "时间窗；默认今天/近 1 天"
+    },
+    "paste": {
+      "required": false,
+      "description": "粘贴 Newsletter/列表正文；有则跳过 search_product_launches"
+    },
+    "deepFetch": {
+      "required": false,
+      "type": "int",
+      "default": 1,
+      "max": 1,
+      "description": "深挖条数；默认 1；0=关（纯列表写条目）"
+    }
+  }
+}

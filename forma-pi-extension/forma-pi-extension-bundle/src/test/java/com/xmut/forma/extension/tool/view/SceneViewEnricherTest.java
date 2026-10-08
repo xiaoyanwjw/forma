@@ -29,7 +29,8 @@ class SceneViewEnricherTest {
                 new XhsNoteViewEnricher(),
                 new EcommerceSkulistViewEnricher(),
                 new TechDigestViewEnricher(),
-                new TechCompetitorViewEnricher());
+                new TechCompetitorViewEnricher(),
+                new TechBriefingViewEnricher());
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.xmut.forma.extension.config;
 
 import com.xmut.forma.extension.tool.tech.ExcerptChunksToolHandler;
 import com.xmut.forma.extension.tool.tech.ModelChunkExcerpter;
+import com.xmut.forma.extension.tool.view.TechBriefingViewEnricher;
 import com.xmut.forma.extension.tool.view.TechCompetitorViewEnricher;
 import com.xmut.forma.extension.tool.view.TechDigestViewEnricher;
 import com.xmut.forma.extension.tool.view.ViewEnricher;
@@ -32,5 +33,10 @@ public class TechExcerptToolsConfiguration {
     @Bean
     public ViewEnricher techCompetitorViewEnricher() {
         return new TechCompetitorViewEnricher();
+    }
+
+    @Bean
+    public ViewEnricher techBriefingViewEnricher() {
+        return new TechBriefingViewEnricher();
     }
 }

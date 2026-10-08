@@ -1,0 +1,65 @@
+<article class="markdown-body">
+<h1>{{title}}</h1>
+<div class="forma-deck">
+<span class="forma-sh"><span class="k">类型</span><span class="v info">产品早报</span></span>
+{{#hasTopic}}<span class="forma-sh"><span class="k">关注域</span><span class="v gray">{{topic}}</span></span>{{/hasTopic}}
+{{#hasWindowLabel}}<span class="forma-sh"><span class="k">时间窗</span><span class="v gray">{{windowLabel}}</span></span>{{/hasWindowLabel}}
+<span class="forma-sh"><span class="k">来源</span><span class="v {{sourceClass}}">{{sourceLabel}}</span></span>
+<span class="forma-sh"><span class="k">条数</span><span class="v gray">{{itemCount}}</span></span>
+{{#hasUncertainties}}<span class="forma-sh"><span class="k">核实</span><span class="v warn">{{uncertaintyCount}}</span></span>{{/hasUncertainties}}
+</div>
+<p class="forma-lede">AI 早报，请对照出处核实。条目以候选列表为依据，禁止无出处编造。</p>
+
+{{#hasItems}}
+<h2>值得跟</h2>
+{{#items}}
+<details class="forma-blk"{{#detailsOpen}} open{{/detailsOpen}}>
+<summary>
+<span class="n">{{indexLabel}}</span>
+{{title}}
+</summary>
+<div class="body">
+{{#hasOneLiner}}
+<div class="forma-callout">
+<div class="t">是什么</div>
+{{oneLiner}}
+</div>
+{{/hasOneLiner}}
+{{#hasWhyNow}}
+<table class="forma-kv">
+<tbody>
+<tr><th>为什么值得跟</th><td>{{whyNow}}</td></tr>
+{{#hasForWhom}}<tr><th>适合谁</th><td>{{forWhom}}</td></tr>{{/hasForWhom}}
+{{#hasEvidence}}<tr><th>证据句</th><td>{{evidence}}</td></tr>{{/hasEvidence}}
+</tbody>
+</table>
+{{/hasWhyNow}}
+{{^hasWhyNow}}
+{{#hasForWhom}}
+<table class="forma-kv">
+<tbody>
+<tr><th>适合谁</th><td>{{forWhom}}</td></tr>
+{{#hasEvidence}}<tr><th>证据句</th><td>{{evidence}}</td></tr>{{/hasEvidence}}
+</tbody>
+</table>
+{{/hasForWhom}}
+{{/hasWhyNow}}
+{{#hasSourceUrl}}<p>出处：<a href="{{sourceUrl}}">{{sourceUrl}}</a></p>{{/hasSourceUrl}}
+</div>
+</details>
+{{/items}}
+{{/hasItems}}
+{{^hasItems}}
+<p>本轮没有可展示的条目。</p>
+{{/hasItems}}
+
+{{#hasUncertainties}}
+<h2>需核实</h2>
+<div class="forma-callout hot">
+<div class="t">材料没说清</div>
+<ul>
+{{#uncertainties}}<li>{{.}}</li>{{/uncertainties}}
+</ul>
+</div>
+{{/hasUncertainties}}
+</article>
